@@ -2,10 +2,10 @@
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { ProjectCard } from '@/components/projects/ProjectCard';
-import { Button } from '@/components/ui/button';
+import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Project } from '@/types';
@@ -112,10 +112,7 @@ export default function Projects() {
               </SelectContent>
             </Select>
           </div>
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            New Project
-          </Button>
+          <NewProjectDialog onProjectCreated={fetchProjects} />
         </div>
 
         {/* Projects Grid */}
@@ -128,10 +125,9 @@ export default function Projects() {
         {filteredProjects.length === 0 && (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No projects found matching your criteria.</p>
-            <Button className="mt-4">
-              <Plus className="w-4 h-4 mr-2" />
-              Create Your First Project
-            </Button>
+            <div className="mt-4">
+              <NewProjectDialog onProjectCreated={fetchProjects} />
+            </div>
           </div>
         )}
       </div>

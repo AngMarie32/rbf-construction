@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { ProjectCard } from '@/components/projects/ProjectCard';
-import { Building, DollarSign, Calendar, TrendingUp, Plus, FileText, Calculator } from 'lucide-react';
+import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
+import { Building, DollarSign, Calendar, TrendingUp, FileText, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -120,10 +121,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Recent Projects</CardTitle>
-            <Button size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              New Project
-            </Button>
+            <NewProjectDialog onProjectCreated={fetchProjects} />
           </CardHeader>
           <CardContent>
             {recentProjects.length > 0 ? (
@@ -135,10 +133,9 @@ export default function Dashboard() {
             ) : (
               <div className="text-center py-8">
                 <p className="text-gray-500 text-lg">No projects found. Create your first project to get started!</p>
-                <Button className="mt-4">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Your First Project
-                </Button>
+                <div className="mt-4">
+                  <NewProjectDialog onProjectCreated={fetchProjects} />
+                </div>
               </div>
             )}
           </CardContent>

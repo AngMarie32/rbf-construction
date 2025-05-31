@@ -1,12 +1,13 @@
 
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { Button } from '@/components/ui/button';
+import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Filter, DollarSign, Calendar, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Search, Filter, DollarSign, Calendar, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -126,10 +127,7 @@ export default function Proposals() {
               </SelectContent>
             </Select>
           </div>
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            New Proposal
-          </Button>
+          <NewProposalDialog onProposalCreated={fetchProposals} />
         </div>
 
         {/* Proposals Grid */}
@@ -173,10 +171,9 @@ export default function Proposals() {
         {filteredProposals.length === 0 && (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No proposals found matching your criteria.</p>
-            <Button className="mt-4">
-              <Plus className="w-4 h-4 mr-2" />
-              Create Your First Proposal
-            </Button>
+            <div className="mt-4">
+              <NewProposalDialog onProposalCreated={fetchProposals} />
+            </div>
           </div>
         )}
       </div>

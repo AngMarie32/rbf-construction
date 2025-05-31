@@ -13,6 +13,7 @@ import Proposals from "./pages/Proposals";
 import BidPlanner from "./pages/BidPlanner";
 import ScheduleOfValues from "./pages/ScheduleOfValues";
 import PaymentApplications from "./pages/PaymentApplications";
+import Analytics from "./pages/Analytics";
 import Equipment from "./pages/Equipment";
 import NotFound from "./pages/NotFound";
 
@@ -80,7 +81,7 @@ const App = () => (
               path="/analytics"
               element={
                 <ProtectedRoute>
-                  <div>Analytics Coming Soon</div>
+                  <Analytics />
                 </ProtectedRoute>
               }
             />
