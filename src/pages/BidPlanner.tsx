@@ -18,7 +18,7 @@ export default function BidPlanner() {
   const projectBidItems = bidItems.filter(item => item.projectId === selectedProject);
   const totalBidValue = projectBidItems.reduce((sum, item) => sum + item.total, 0);
 
-  const updateBidItem = (id: string, field: string, value: number) => {
+  const updateBidItem = (id: string, field: string, value: number | string) => {
     setBidItems(items => 
       items.map(item => {
         if (item.id === id) {
@@ -153,7 +153,7 @@ export default function BidPlanner() {
                   <TableHead>Unit Cost</TableHead>
                   <TableHead>Quantity</TableHead>
                   <TableHead>Total</TableHead>
-                  <TableHead width={100}>Actions</TableHead>
+                  <TableHead className="w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

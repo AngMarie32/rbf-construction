@@ -3,7 +3,7 @@ import { Layout } from '@/components/layout/Layout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { mockProjects } from '@/data/mockData';
-import { Building, DollarSign, Calendar, TrendingUp, Plus } from 'lucide-react';
+import { Building, DollarSign, Calendar, TrendingUp, Plus, FileText, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
