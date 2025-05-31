@@ -24,7 +24,7 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
     name: '',
     type: '',
     contractValue: '',
-    status: 'Planning' as const,
+    status: 'Planning' as 'Planning' | 'Open' | 'Closed',
     dueDate: undefined as Date | undefined,
   });
 

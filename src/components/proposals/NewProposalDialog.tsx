@@ -22,7 +22,7 @@ export function NewProposalDialog({ onProposalCreated }: NewProposalDialogProps)
     client: '',
     scope: '',
     amount: '',
-    status: 'Draft' as const,
+    status: 'Draft' as 'Draft' | 'Sent' | 'Approved' | 'Rejected',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
