@@ -1,0 +1,121 @@
+
+export interface User {
+  id: string;
+  email: string;
+  role: 'Admin' | 'PM' | 'Field';
+  name: string;
+  createdAt: Date;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  type: string;
+  contractValue: number;
+  status: 'Planning' | 'Open' | 'Closed';
+  dueDate: Date;
+  completionPercentage: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BidItem {
+  id: string;
+  projectId: string;
+  category: string;
+  description: string;
+  unitCost: number;
+  quantity: number;
+  total: number;
+}
+
+export interface SOVItem {
+  id: string;
+  projectId: string;
+  itemNumber: string;
+  category: string;
+  description: string;
+  scheduledValue: number;
+  previousApplications: number;
+  thisPeriod: number;
+  materialsStored: number;
+  totalCompletedAndStored: number;
+  percentComplete: number;
+}
+
+export interface PaymentApplication {
+  id: string;
+  projectId: string;
+  applicationNumber: number;
+  periodEndDate: Date;
+  originalContractSum: number;
+  netChanges: number;
+  contractSumToDate: number;
+  totalCompletedAndStored: number;
+  retainage: number;
+  totalEarnedLessRetainage: number;
+  lessPreviousPayments: number;
+  currentPaymentDue: number;
+  balanceToFinish: number;
+  createdAt: Date;
+}
+
+export interface Task {
+  id: string;
+  projectId: string;
+  title: string;
+  startDate: Date;
+  endDate: Date;
+  progress: number;
+  status: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold';
+  dependencies: string[];
+}
+
+export interface ChangeOrder {
+  id: string;
+  projectId: string;
+  number: string;
+  date: Date;
+  description: string;
+  amount: number;
+  status: 'Draft' | 'Pending' | 'Approved' | 'Rejected';
+}
+
+export interface Proposal {
+  id: string;
+  projectName: string;
+  client: string;
+  scope: string;
+  amount: number;
+  status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
+  createdAt: Date;
+}
+
+export interface Equipment {
+  id: string;
+  name: string;
+  category: 'Heavy Machinery' | 'Vehicles' | 'Trailers' | 'Other';
+  hourlyRate: number;
+  year: number;
+  value: number;
+  status: 'Available' | 'In Use' | 'Maintenance';
+  image?: string;
+  description: string;
+}
+
+export interface MaintenanceLog {
+  id: string;
+  equipmentId: string;
+  date: Date;
+  description: string;
+  cost: number;
+  nextDue: Date;
+}
+
+export interface BurnRecord {
+  id: string;
+  projectId: string;
+  date: Date;
+  plannedCost: number;
+  actualCost: number;
+}
