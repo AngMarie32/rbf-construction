@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   Home, 
   Calendar, 
@@ -16,7 +17,8 @@ import {
   FileCheck,
   Settings,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 
 const navigation = [
@@ -39,6 +41,7 @@ interface SidebarProps {
 export function Sidebar({ className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { user, signOut } = useAuth();
 
   return (
     <div className={cn(
@@ -103,17 +106,30 @@ export function Sidebar({ className }: SidebarProps) {
           collapsed ? "justify-center" : "space-x-3"
         )}>
           <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium text-gray-700">JS</span>
+            <span className="text-sm font-medium text-gray-700">
+              {user?.email?.charAt(0).toUpperCase() || 'U'}
+            </span>
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
-                John Smith
+                {user?.email || 'User'}
               </p>
-              <p className="text-xs text-gray-500 truncate">Administrator</p>
+              <p className="text-xs text-gray-500 truncate">Field Worker</p>
             </div>
           )}
         </div>
+        {!collapsed && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={signOut}
+            className="w-full mt-2 justify-start text-gray-600 hover:text-gray-900"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
+        )}
       </div>
     </div>
   );

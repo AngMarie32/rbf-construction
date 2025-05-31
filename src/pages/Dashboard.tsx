@@ -1,19 +1,67 @@
 
+import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { ProjectCard } from '@/components/projects/ProjectCard';
-import { mockProjects } from '@/data/mockData';
 import { Building, DollarSign, Calendar, TrendingUp, Plus, FileText, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+interface Project {
+  id: string;
+  name: string;
+  type: string;
+  contract_value: number;
+  status: 'Planning' | 'Open' | 'Closed';
+  due_date: string | null;
+  completion_percentage: number | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function Dashboard() {
-  const totalProjects = mockProjects.length;
-  const activeProjects = mockProjects.filter(p => p.status === 'Open').length;
-  const planningProjects = mockProjects.filter(p => p.status === 'Planning').length;
-  const totalContractValue = mockProjects.reduce((sum, p) => sum + p.contractValue, 0);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const recentProjects = mockProjects.slice(0, 3);
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast.error('Failed to load projects');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalProjects = projects.length;
+  const activeProjects = projects.filter(p => p.status === 'Open').length;
+  const planningProjects = projects.filter(p => p.status === 'Planning').length;
+  const totalContractValue = projects.reduce((sum, p) => sum + p.contract_value, 0);
+
+  const recentProjects = projects.slice(0, 3);
+
+  if (loading) {
+    return (
+      <Layout title="Dashboard" subtitle="Welcome back! Here's an overview of your construction projects.">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout 
@@ -26,29 +74,29 @@ export default function Dashboard() {
           <StatCard
             title="Total Projects"
             value={totalProjects}
-            change="+2 this month"
-            changeType="positive"
+            change={totalProjects > 0 ? "+2 this month" : "No projects yet"}
+            changeType={totalProjects > 0 ? "positive" : "neutral"}
             icon={<Building className="w-6 h-6" />}
           />
           <StatCard
             title="Active Projects"
             value={activeProjects}
-            change="2 on schedule"
-            changeType="positive"
+            change={activeProjects > 0 ? `${activeProjects} on schedule` : "No active projects"}
+            changeType={activeProjects > 0 ? "positive" : "neutral"}
             icon={<Calendar className="w-6 h-6" />}
           />
           <StatCard
             title="Planning Phase"
             value={planningProjects}
-            change="1 starting soon"
+            change={planningProjects > 0 ? "1 starting soon" : "No projects in planning"}
             changeType="neutral"
             icon={<TrendingUp className="w-6 h-6" />}
           />
           <StatCard
             title="Total Contract Value"
-            value={`$${(totalContractValue / 1000000).toFixed(1)}M`}
-            change="+15% from last quarter"
-            changeType="positive"
+            value={totalContractValue > 0 ? `$${(totalContractValue / 1000000).toFixed(1)}M` : "$0"}
+            change={totalContractValue > 0 ? "+15% from last quarter" : "No contracts yet"}
+            changeType={totalContractValue > 0 ? "positive" : "neutral"}
             icon={<DollarSign className="w-6 h-6" />}
           />
         </div>
@@ -63,11 +111,30 @@ export default function Dashboard() {
             </Button>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {recentProjects.map((project) => (
-                <ProjectCard key={project.id} project={project} />
-              ))}
-            </div>
+            {recentProjects.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {recentProjects.map((project) => (
+                  <ProjectCard 
+                    key={project.id} 
+                    project={{
+                      ...project,
+                      dueDate: project.due_date ? new Date(project.due_date) : new Date(),
+                      completionPercentage: project.completion_percentage || 0,
+                      createdAt: new Date(project.created_at),
+                      updatedAt: new Date(project.updated_at)
+                    }} 
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500 text-lg">No projects found. Create your first project to get started!</p>
+                <Button className="mt-4">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Your First Project
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
