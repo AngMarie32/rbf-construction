@@ -8,13 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Search, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Project } from '@/types';
 
-interface Project {
+interface DatabaseProject {
   id: string;
   name: string;
   type: string;
   contract_value: number;
-  status: 'Planning' | 'Open' | 'Closed';
+  status: string;
   due_date: string | null;
   completion_percentage: number | null;
   created_at: string;
@@ -39,7 +40,21 @@ export default function Projects() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProjects(data || []);
+      
+      // Map database response to our Project interface
+      const mappedProjects: Project[] = (data || []).map((dbProject: DatabaseProject) => ({
+        id: dbProject.id,
+        name: dbProject.name,
+        type: dbProject.type,
+        contractValue: dbProject.contract_value,
+        status: dbProject.status as Project['status'],
+        dueDate: dbProject.due_date ? new Date(dbProject.due_date) : new Date(),
+        completionPercentage: dbProject.completion_percentage || 0,
+        createdAt: new Date(dbProject.created_at),
+        updatedAt: new Date(dbProject.updated_at)
+      }));
+      
+      setProjects(mappedProjects);
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');
@@ -106,16 +121,7 @@ export default function Projects() {
         {/* Projects Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProjects.map((project) => (
-            <ProjectCard 
-              key={project.id} 
-              project={{
-                ...project,
-                dueDate: project.due_date ? new Date(project.due_date) : new Date(),
-                completionPercentage: project.completion_percentage || 0,
-                createdAt: new Date(project.created_at),
-                updatedAt: new Date(project.updated_at)
-              }} 
-            />
+            <ProjectCard key={project.id} project={project} />
           ))}
         </div>
 

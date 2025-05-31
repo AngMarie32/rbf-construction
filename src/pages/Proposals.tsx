@@ -10,14 +10,15 @@ import { Plus, Search, Filter, DollarSign, Calendar, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { Proposal } from '@/types';
 
-interface Proposal {
+interface DatabaseProposal {
   id: string;
   project_name: string;
   client: string;
   scope: string | null;
   amount: number;
-  status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
+  status: string;
   created_at: string;
 }
 
@@ -39,7 +40,19 @@ export default function Proposals() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProposals(data || []);
+      
+      // Map database response to our Proposal interface
+      const mappedProposals: Proposal[] = (data || []).map((dbProposal: DatabaseProposal) => ({
+        id: dbProposal.id,
+        projectName: dbProposal.project_name,
+        client: dbProposal.client,
+        scope: dbProposal.scope || '',
+        amount: dbProposal.amount,
+        status: dbProposal.status as Proposal['status'],
+        createdAt: new Date(dbProposal.created_at)
+      }));
+      
+      setProposals(mappedProposals);
     } catch (error) {
       console.error('Error fetching proposals:', error);
       toast.error('Failed to load proposals');
@@ -49,7 +62,7 @@ export default function Proposals() {
   };
 
   const filteredProposals = proposals.filter(proposal => {
-    const matchesSearch = proposal.project_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = proposal.projectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          proposal.client.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'All' || proposal.status === statusFilter;
     
@@ -125,7 +138,7 @@ export default function Proposals() {
             <Card key={proposal.id} className="hover:shadow-lg transition-shadow duration-200">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg">{proposal.project_name}</CardTitle>
+                  <CardTitle className="text-lg">{proposal.projectName}</CardTitle>
                   <Badge className={getStatusColor(proposal.status)}>
                     {proposal.status}
                   </Badge>
@@ -142,7 +155,7 @@ export default function Proposals() {
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <Calendar className="w-4 h-4 mr-2" />
-                  <span>Created: {format(new Date(proposal.created_at), 'MMM dd, yyyy')}</span>
+                  <span>Created: {format(proposal.createdAt, 'MMM dd, yyyy')}</span>
                 </div>
                 {proposal.scope && (
                   <p className="text-sm text-gray-600 line-clamp-2">
