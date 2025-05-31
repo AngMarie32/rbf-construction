@@ -4,12 +4,14 @@ import { Layout } from '@/components/layout/Layout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
+import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
 import { Building, DollarSign, Calendar, TrendingUp, FileText, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Project } from '@/types';
+import { useNavigate } from 'react-router-dom';
 
 interface DatabaseProject {
   id: string;
@@ -26,6 +28,7 @@ interface DatabaseProject {
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchProjects();
@@ -148,19 +151,35 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Button variant="outline" className="h-20 flex flex-col space-y-2">
-                <FileText className="w-6 h-6" />
-                <span className="text-sm">New Proposal</span>
-              </Button>
-              <Button variant="outline" className="h-20 flex flex-col space-y-2">
+              <NewProposalDialog onProposalCreated={() => {}} 
+                trigger={
+                  <Button variant="outline" className="h-20 flex flex-col space-y-2">
+                    <FileText className="w-6 h-6" />
+                    <span className="text-sm">New Proposal</span>
+                  </Button>
+                }
+              />
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col space-y-2"
+                onClick={() => navigate('/bid-planner')}
+              >
                 <Calculator className="w-6 h-6" />
                 <span className="text-sm">Bid Planner</span>
               </Button>
-              <Button variant="outline" className="h-20 flex flex-col space-y-2">
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col space-y-2"
+                onClick={() => navigate('/payment-apps')}
+              >
                 <DollarSign className="w-6 h-6" />
                 <span className="text-sm">Payment App</span>
               </Button>
-              <Button variant="outline" className="h-20 flex flex-col space-y-2">
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col space-y-2"
+                onClick={() => navigate('/sov')}
+              >
                 <Calendar className="w-6 h-6" />
                 <span className="text-sm">Schedule</span>
               </Button>

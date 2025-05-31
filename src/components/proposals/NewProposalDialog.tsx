@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, ReactNode } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,9 +12,10 @@ import { toast } from 'sonner';
 
 interface NewProposalDialogProps {
   onProposalCreated: () => void;
+  trigger?: ReactNode;
 }
 
-export function NewProposalDialog({ onProposalCreated }: NewProposalDialogProps) {
+export function NewProposalDialog({ onProposalCreated, trigger }: NewProposalDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -64,13 +65,17 @@ export function NewProposalDialog({ onProposalCreated }: NewProposalDialogProps)
     }
   };
 
+  const defaultTrigger = (
+    <Button>
+      <Plus className="w-4 h-4 mr-2" />
+      New Proposal
+    </Button>
+  );
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          New Proposal
-        </Button>
+        {trigger || defaultTrigger}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

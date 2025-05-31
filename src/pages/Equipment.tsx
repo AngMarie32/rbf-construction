@@ -1,58 +1,291 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { mockEquipment } from '@/data/mockData';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Filter, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Filter, Wrench, DollarSign, Calendar } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
+
+interface Equipment {
+  id: string;
+  name: string;
+  category: 'Heavy Machinery' | 'Vehicles' | 'Trailers' | 'Other';
+  hourlyRate: number;
+  year: number;
+  value: number;
+  status: 'Available' | 'In Use' | 'Maintenance';
+  image?: string;
+  description: string;
+  createdAt: Date;
+}
+
+interface MaintenanceLog {
+  id: string;
+  equipmentId: string;
+  date: Date;
+  description: string;
+  cost: number;
+  nextDue: Date | null;
+}
 
 export default function Equipment() {
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
-  const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [showMaintenanceForm, setShowMaintenanceForm] = useState(false);
+  const [selectedEquipment, setSelectedEquipment] = useState<string>('');
+  
+  const [newEquipment, setNewEquipment] = useState({
+    name: '',
+    category: 'Other' as Equipment['category'],
+    hourlyRate: '',
+    year: '',
+    value: '',
+    status: 'Available' as Equipment['status'],
+    description: ''
+  });
 
-  const filteredEquipment = mockEquipment.filter(equipment => {
-    const matchesSearch = equipment.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = categoryFilter === 'All' || equipment.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+  const [newMaintenance, setNewMaintenance] = useState({
+    date: '',
+    description: '',
+    cost: '',
+    nextDue: ''
+  });
+
+  useEffect(() => {
+    fetchEquipment();
+    fetchMaintenanceLogs();
+  }, []);
+
+  const fetchEquipment = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('equipment')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+
+      const mappedEquipment = (data || []).map(item => ({
+        id: item.id,
+        name: item.name,
+        category: item.category as Equipment['category'],
+        hourlyRate: item.hourly_rate,
+        year: item.year || 0,
+        value: item.value || 0,
+        status: item.status as Equipment['status'],
+        image: item.image,
+        description: item.description || '',
+        createdAt: new Date(item.created_at)
+      }));
+
+      setEquipment(mappedEquipment);
+    } catch (error) {
+      console.error('Error fetching equipment:', error);
+      toast.error('Failed to load equipment');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMaintenanceLogs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('maintenance_logs')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+
+      const mappedLogs = (data || []).map(log => ({
+        id: log.id,
+        equipmentId: log.equipment_id,
+        date: new Date(log.date),
+        description: log.description,
+        cost: log.cost || 0,
+        nextDue: log.next_due ? new Date(log.next_due) : null
+      }));
+
+      setMaintenanceLogs(mappedLogs);
+    } catch (error) {
+      console.error('Error fetching maintenance logs:', error);
+      toast.error('Failed to load maintenance logs');
+    }
+  };
+
+  const addEquipment = async () => {
+    if (!newEquipment.name || !newEquipment.hourlyRate) {
+      toast.error('Please fill in required fields');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('equipment')
+        .insert({
+          name: newEquipment.name,
+          category: newEquipment.category,
+          hourly_rate: parseFloat(newEquipment.hourlyRate),
+          year: newEquipment.year ? parseInt(newEquipment.year) : null,
+          value: newEquipment.value ? parseFloat(newEquipment.value) : 0,
+          status: newEquipment.status,
+          description: newEquipment.description
+        });
+
+      if (error) throw error;
+
+      toast.success('Equipment added successfully');
+      setShowNewForm(false);
+      setNewEquipment({
+        name: '', category: 'Other', hourlyRate: '', year: '', 
+        value: '', status: 'Available', description: ''
+      });
+      fetchEquipment();
+    } catch (error) {
+      console.error('Error adding equipment:', error);
+      toast.error('Failed to add equipment');
+    }
+  };
+
+  const addMaintenanceLog = async () => {
+    if (!selectedEquipment || !newMaintenance.date || !newMaintenance.description) {
+      toast.error('Please fill in required fields');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('maintenance_logs')
+        .insert({
+          equipment_id: selectedEquipment,
+          date: newMaintenance.date,
+          description: newMaintenance.description,
+          cost: newMaintenance.cost ? parseFloat(newMaintenance.cost) : 0,
+          next_due: newMaintenance.nextDue || null
+        });
+
+      if (error) throw error;
+
+      toast.success('Maintenance log added successfully');
+      setShowMaintenanceForm(false);
+      setNewMaintenance({ date: '', description: '', cost: '', nextDue: '' });
+      fetchMaintenanceLogs();
+    } catch (error) {
+      console.error('Error adding maintenance log:', error);
+      toast.error('Failed to add maintenance log');
+    }
+  };
+
+  const updateEquipmentStatus = async (id: string, status: Equipment['status']) => {
+    try {
+      const { error } = await supabase
+        .from('equipment')
+        .update({ status })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Equipment status updated');
+      fetchEquipment();
+    } catch (error) {
+      console.error('Error updating equipment status:', error);
+      toast.error('Failed to update equipment status');
+    }
+  };
+
+  const filteredEquipment = equipment.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         item.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
+    const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
+    
+    return matchesSearch && matchesStatus && matchesCategory;
   });
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Available':
-        return 'bg-green-100 text-green-800';
-      case 'In Use':
-        return 'bg-blue-100 text-blue-800';
-      case 'Maintenance':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      case 'Available': return 'bg-green-100 text-green-800';
+      case 'In Use': return 'bg-blue-100 text-blue-800';
+      case 'Maintenance': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const toggleEquipmentSelection = (id: string) => {
-    setSelectedEquipment(prev =>
-      prev.includes(id)
-        ? prev.filter(equipId => equipId !== id)
-        : [...prev, id]
-    );
-  };
+  const totalValue = equipment.reduce((sum, item) => sum + item.value, 0);
+  const availableCount = equipment.filter(item => item.status === 'Available').length;
+  const inUseCount = equipment.filter(item => item.status === 'In Use').length;
 
-  const selectedEquipmentData = mockEquipment.filter(eq => selectedEquipment.includes(eq.id));
-  const totalSelectedCost = selectedEquipmentData.reduce((sum, eq) => sum + eq.hourlyRate, 0);
+  if (loading) {
+    return (
+      <Layout title="Equipment" subtitle="Manage your construction equipment and maintenance">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
-    <Layout 
-      title="Equipment Tracker & Cost Estimator" 
-      subtitle="Manage your equipment fleet and calculate project costs"
-    >
+    <Layout title="Equipment" subtitle="Manage your construction equipment and maintenance">
       <div className="space-y-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <DollarSign className="w-5 h-5 mr-2" />
+                Total Value
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">
+                ${totalValue.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Total Equipment</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{equipment.length}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Available</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{availableCount}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>In Use</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">{inUseCount}</div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Filters and Actions */}
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="flex-1 space-y-4 lg:space-y-0 lg:flex lg:gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div className="flex flex-col sm:flex-row gap-4 flex-1">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -62,9 +295,20 @@ export default function Equipment() {
                 className="pl-10"
               />
             </div>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-48">
                 <Filter className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Status</SelectItem>
+                <SelectItem value="Available">Available</SelectItem>
+                <SelectItem value="In Use">In Use</SelectItem>
+                <SelectItem value="Maintenance">Maintenance</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-48">
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent>
@@ -76,135 +320,279 @@ export default function Equipment() {
               </SelectContent>
             </Select>
           </div>
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Equipment
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setShowMaintenanceForm(true)}>
+              <Wrench className="w-4 h-4 mr-2" />
+              Add Maintenance
+            </Button>
+            <Button onClick={() => setShowNewForm(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Equipment
+            </Button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Equipment Grid */}
-          <div className="lg:col-span-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredEquipment.map((equipment) => (
-                <Card 
-                  key={equipment.id} 
-                  className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                    selectedEquipment.includes(equipment.id) 
-                      ? 'ring-2 ring-primary bg-primary-50' 
-                      : ''
-                  }`}
-                  onClick={() => toggleEquipmentSelection(equipment.id)}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                          {equipment.name}
-                        </h3>
-                        <Badge variant="secondary" className="mb-2">
-                          {equipment.category}
-                        </Badge>
-                        <Badge className={getStatusColor(equipment.status)}>
-                          {equipment.status}
-                        </Badge>
-                      </div>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="sm">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-red-600">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
+        {/* New Equipment Form */}
+        {showNewForm && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Add New Equipment</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    value={newEquipment.name}
+                    onChange={(e) => setNewEquipment({ ...newEquipment, name: e.target.value })}
+                    placeholder="Equipment name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="category">Category</Label>
+                  <Select value={newEquipment.category} onValueChange={(value: Equipment['category']) => setNewEquipment({ ...newEquipment, category: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Heavy Machinery">Heavy Machinery</SelectItem>
+                      <SelectItem value="Vehicles">Vehicles</SelectItem>
+                      <SelectItem value="Trailers">Trailers</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="hourlyRate">Hourly Rate ($) *</Label>
+                  <Input
+                    id="hourlyRate"
+                    type="number"
+                    step="0.01"
+                    value={newEquipment.hourlyRate}
+                    onChange={(e) => setNewEquipment({ ...newEquipment, hourlyRate: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="year">Year</Label>
+                  <Input
+                    id="year"
+                    type="number"
+                    value={newEquipment.year}
+                    onChange={(e) => setNewEquipment({ ...newEquipment, year: e.target.value })}
+                    placeholder="2024"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="value">Value ($)</Label>
+                  <Input
+                    id="value"
+                    type="number"
+                    step="0.01"
+                    value={newEquipment.value}
+                    onChange={(e) => setNewEquipment({ ...newEquipment, value: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={newEquipment.status} onValueChange={(value: Equipment['status']) => setNewEquipment({ ...newEquipment, status: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Available">Available</SelectItem>
+                      <SelectItem value="In Use">In Use</SelectItem>
+                      <SelectItem value="Maintenance">Maintenance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="mt-4">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={newEquipment.description}
+                  onChange={(e) => setNewEquipment({ ...newEquipment, description: e.target.value })}
+                  placeholder="Equipment description..."
+                  rows={3}
+                />
+              </div>
+              <div className="flex justify-end space-x-2 mt-6">
+                <Button variant="outline" onClick={() => setShowNewForm(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={addEquipment}>Add Equipment</Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-                    <div className="space-y-2 text-sm text-gray-600">
-                      <div className="flex justify-between">
-                        <span>Hourly Rate:</span>
-                        <span className="font-medium">${equipment.hourlyRate}/hr</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Year:</span>
-                        <span>{equipment.year}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Value:</span>
-                        <span>${equipment.value.toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    <p className="text-sm text-gray-600 mt-3">
-                      {equipment.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-
-          {/* Selected Equipment Panel */}
-          <div className="lg:col-span-1">
-            <Card className="sticky top-6">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Selected Equipment
-                </h3>
-
-                {selectedEquipmentData.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">
-                    Select equipment to calculate costs
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="space-y-3">
-                      {selectedEquipmentData.map((equipment) => (
-                        <div key={equipment.id} className="flex items-center justify-between text-sm">
-                          <div className="flex-1">
-                            <p className="font-medium">{equipment.name}</p>
-                            <div className="flex items-center gap-4 mt-1">
-                              <span className="text-gray-600">${equipment.hourlyRate}/hr</span>
-                              <Input 
-                                placeholder="Hours"
-                                className="w-20 h-8 text-xs"
-                                type="number"
-                              />
-                            </div>
-                          </div>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => toggleEquipmentSelection(equipment.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+        {/* New Maintenance Form */}
+        {showMaintenanceForm && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Add Maintenance Log</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div>
+                  <Label htmlFor="equipment">Equipment *</Label>
+                  <Select value={selectedEquipment} onValueChange={setSelectedEquipment}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select equipment" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {equipment.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
+                        </SelectItem>
                       ))}
-                    </div>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="maintenanceDate">Date *</Label>
+                  <Input
+                    id="maintenanceDate"
+                    type="date"
+                    value={newMaintenance.date}
+                    onChange={(e) => setNewMaintenance({ ...newMaintenance, date: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="maintenanceDescription">Description *</Label>
+                  <Input
+                    id="maintenanceDescription"
+                    value={newMaintenance.description}
+                    onChange={(e) => setNewMaintenance({ ...newMaintenance, description: e.target.value })}
+                    placeholder="Maintenance performed"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="maintenanceCost">Cost ($)</Label>
+                  <Input
+                    id="maintenanceCost"
+                    type="number"
+                    step="0.01"
+                    value={newMaintenance.cost}
+                    onChange={(e) => setNewMaintenance({ ...newMaintenance, cost: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="nextDue">Next Due Date</Label>
+                  <Input
+                    id="nextDue"
+                    type="date"
+                    value={newMaintenance.nextDue}
+                    onChange={(e) => setNewMaintenance({ ...newMaintenance, nextDue: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-2 mt-6">
+                <Button variant="outline" onClick={() => setShowMaintenanceForm(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={addMaintenanceLog}>Add Log</Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-                    <div className="border-t pt-4">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">Total Rate:</span>
-                        <span className="text-lg font-bold text-primary">
-                          ${totalSelectedCost}/hr
-                        </span>
-                      </div>
-                    </div>
+        {/* Equipment Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredEquipment.map((item) => {
+            const itemMaintenanceLogs = maintenanceLogs.filter(log => log.equipmentId === item.id);
+            const lastMaintenance = itemMaintenanceLogs[0];
+            const upcomingMaintenance = itemMaintenanceLogs.find(log => 
+              log.nextDue && log.nextDue > new Date()
+            );
 
-                    <div className="space-y-2">
-                      <Button className="w-full" size="sm">
-                        Save Selection
-                      </Button>
-                      <Button variant="outline" className="w-full" size="sm">
-                        Export CSV
-                      </Button>
+            return (
+              <Card key={item.id} className="hover:shadow-lg transition-shadow duration-200">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <CardTitle className="text-lg">{item.name}</CardTitle>
+                    <Badge className={getStatusColor(item.status)}>
+                      {item.status}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-600">{item.category}</p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">Hourly Rate:</span>
+                      <div className="font-medium">${item.hourlyRate}/hr</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Year:</span>
+                      <div className="font-medium">{item.year || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Value:</span>
+                      <div className="font-medium">${item.value.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Maintenance:</span>
+                      <div className="font-medium">{itemMaintenanceLogs.length} logs</div>
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                  
+                  {item.description && (
+                    <p className="text-sm text-gray-600 line-clamp-2">
+                      {item.description}
+                    </p>
+                  )}
+
+                  {lastMaintenance && (
+                    <div className="text-xs text-gray-500 flex items-center">
+                      <Calendar className="w-3 h-3 mr-1" />
+                      Last maintenance: {format(lastMaintenance.date, 'MMM dd, yyyy')}
+                    </div>
+                  )}
+
+                  {upcomingMaintenance && (
+                    <div className="text-xs text-orange-600 flex items-center">
+                      <Calendar className="w-3 h-3 mr-1" />
+                      Next due: {format(upcomingMaintenance.nextDue!, 'MMM dd, yyyy')}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-2">
+                    <Select
+                      value={item.status}
+                      onValueChange={(value: Equipment['status']) => updateEquipmentStatus(item.id, value)}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Available">Available</SelectItem>
+                        <SelectItem value="In Use">In Use</SelectItem>
+                        <SelectItem value="Maintenance">Maintenance</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
+
+        {filteredEquipment.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No equipment found matching your criteria.</p>
+            <div className="mt-4">
+              <Button onClick={() => setShowNewForm(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Your First Equipment
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
