@@ -3,13 +3,13 @@ import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Search, Filter, DollarSign, Calendar, User } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Search, Filter, FileText, Edit, Trash2, Eye, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Proposal } from '@/types';
 
@@ -21,17 +21,23 @@ interface DatabaseProposal {
   amount: number;
   status: string;
   created_at: string;
+  updated_at: string;
 }
 
 export default function Proposals() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [filteredProposals, setFilteredProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchProposals();
   }, []);
+
+  useEffect(() => {
+    filterProposals();
+  }, [proposals, searchTerm, statusFilter]);
 
   const fetchProposals = async () => {
     try {
@@ -42,7 +48,6 @@ export default function Proposals() {
 
       if (error) throw error;
       
-      // Map database response to our Proposal interface
       const mappedProposals: Proposal[] = (data || []).map((dbProposal: DatabaseProposal) => ({
         id: dbProposal.id,
         projectName: dbProposal.project_name,
@@ -62,28 +67,56 @@ export default function Proposals() {
     }
   };
 
-  const filteredProposals = proposals.filter(proposal => {
-    const matchesSearch = proposal.projectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         proposal.client.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'All' || proposal.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  const filterProposals = () => {
+    let filtered = proposals;
+
+    if (searchTerm) {
+      filtered = filtered.filter(proposal =>
+        proposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        proposal.client.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(proposal => proposal.status === statusFilter);
+    }
+
+    setFilteredProposals(filtered);
+  };
+
+  const deleteProposal = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this proposal?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('proposals')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Proposal deleted successfully');
+      fetchProposals();
+    } catch (error) {
+      console.error('Error deleting proposal:', error);
+      toast.error('Failed to delete proposal');
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Draft':
-        return 'bg-gray-100 text-gray-800';
-      case 'Sent':
-        return 'bg-blue-100 text-blue-800';
-      case 'Approved':
-        return 'bg-green-100 text-green-800';
-      case 'Rejected':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      case 'Draft': return 'bg-gray-100 text-gray-800';
+      case 'Sent': return 'bg-blue-100 text-blue-800';
+      case 'Approved': return 'bg-green-100 text-green-800';
+      case 'Rejected': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  const totalValue = proposals.reduce((sum, proposal) => sum + proposal.amount, 0);
+  const approvedValue = proposals
+    .filter(p => p.status === 'Approved')
+    .reduce((sum, proposal) => sum + proposal.amount, 0);
 
   if (loading) {
     return (
@@ -96,30 +129,27 @@ export default function Proposals() {
   }
 
   return (
-    <Layout 
-      title="Proposals" 
-      subtitle="Create and manage project proposals for potential clients"
-    >
+    <Layout title="Proposals" subtitle="Manage your project proposals">
       <div className="space-y-6">
-        {/* Filters and Actions */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        {/* Header Actions */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 placeholder="Search proposals..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-[140px]">
                 <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Filter by status" />
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="All">All Proposals</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Draft">Draft</SelectItem>
                 <SelectItem value="Sent">Sent</SelectItem>
                 <SelectItem value="Approved">Approved</SelectItem>
@@ -130,52 +160,119 @@ export default function Proposals() {
           <NewProposalDialog onProposalCreated={fetchProposals} />
         </div>
 
-        {/* Proposals Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProposals.map((proposal) => (
-            <Card key={proposal.id} className="hover:shadow-lg transition-shadow duration-200">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg">{proposal.projectName}</CardTitle>
-                  <Badge className={getStatusColor(proposal.status)}>
-                    {proposal.status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center text-sm text-gray-600">
-                  <User className="w-4 h-4 mr-2" />
-                  <span>{proposal.client}</span>
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <DollarSign className="w-4 h-4 mr-2" />
-                  <span>${proposal.amount.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  <span>Created: {format(proposal.createdAt, 'MMM dd, yyyy')}</span>
-                </div>
-                {proposal.scope && (
-                  <p className="text-sm text-gray-600 line-clamp-2">
-                    {proposal.scope}
-                  </p>
-                )}
-                <Button className="w-full mt-4">
-                  View Details
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold">{proposals.length}</div>
+              <p className="text-sm text-gray-600">Total Proposals</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-green-600">
+                {proposals.filter(p => p.status === 'Approved').length}
+              </div>
+              <p className="text-sm text-gray-600">Approved</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-blue-600">
+                {proposals.filter(p => p.status === 'Sent').length}
+              </div>
+              <p className="text-sm text-gray-600">Pending</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold">
+                ${totalValue.toLocaleString()}
+              </div>
+              <p className="text-sm text-gray-600">Total Value</p>
+            </CardContent>
+          </Card>
         </div>
 
-        {filteredProposals.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No proposals found matching your criteria.</p>
-            <div className="mt-4">
-              <NewProposalDialog onProposalCreated={fetchProposals} />
-            </div>
-          </div>
-        )}
+        {/* Proposals Table */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Proposals ({filteredProposals.length})</CardTitle>
+            <Button variant="outline">
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {filteredProposals.length === 0 ? (
+              <div className="text-center py-8">
+                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg mb-4">
+                  {searchTerm || statusFilter !== 'all' 
+                    ? 'No proposals match your filters' 
+                    : 'No proposals found. Create your first proposal to get started!'}
+                </p>
+                {!searchTerm && statusFilter === 'all' && (
+                  <NewProposalDialog onProposalCreated={fetchProposals} />
+                )}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Project Name</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="w-[120px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProposals.map((proposal) => (
+                      <TableRow key={proposal.id}>
+                        <TableCell className="font-medium">
+                          {proposal.projectName}
+                        </TableCell>
+                        <TableCell>{proposal.client}</TableCell>
+                        <TableCell className="font-medium">
+                          ${proposal.amount.toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(proposal.status)}>
+                            {proposal.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {proposal.createdAt.toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm">
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm">
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => deleteProposal(proposal.id)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );
