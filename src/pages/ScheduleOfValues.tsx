@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Calculator, FileText } from 'lucide-react';
+import { Plus, Calculator, FileText, Upload, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -29,10 +29,19 @@ interface Project {
   name: string;
 }
 
+interface BidItem {
+  id: string;
+  category: string;
+  subcategory: string;
+  description: string;
+  total: number;
+}
+
 export default function ScheduleOfValues() {
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [sovItems, setSovItems] = useState<SOVItem[]>([]);
+  const [bidItems, setBidItems] = useState<BidItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [newItem, setNewItem] = useState({
     itemNumber: '',
@@ -48,6 +57,7 @@ export default function ScheduleOfValues() {
   useEffect(() => {
     if (selectedProject) {
       fetchSOVItems();
+      fetchBidItems();
     }
   }, [selectedProject]);
 
@@ -63,6 +73,30 @@ export default function ScheduleOfValues() {
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');
+    }
+  };
+
+  const fetchBidItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('bid_items')
+        .select('id, category, subcategory, description, total')
+        .eq('project_id', selectedProject)
+        .order('category');
+
+      if (error) throw error;
+
+      const mappedItems = (data || []).map(item => ({
+        id: item.id,
+        category: item.category,
+        subcategory: item.subcategory || '',
+        description: item.description,
+        total: item.total || 0
+      }));
+
+      setBidItems(mappedItems);
+    } catch (error) {
+      console.error('Error fetching bid items:', error);
     }
   };
 
@@ -99,6 +133,54 @@ export default function ScheduleOfValues() {
     }
   };
 
+  const importFromBid = async () => {
+    if (bidItems.length === 0) {
+      toast.error('No bid items found to import');
+      return;
+    }
+
+    try {
+      // Check if SOV items already exist
+      if (sovItems.length > 0) {
+        const confirmed = confirm('This will replace existing SOV items. Continue?');
+        if (!confirmed) return;
+
+        // Delete existing SOV items
+        const { error: deleteError } = await supabase
+          .from('sov_items')
+          .delete()
+          .eq('project_id', selectedProject);
+
+        if (deleteError) throw deleteError;
+      }
+
+      const sovItemsToInsert = bidItems.map((item, index) => ({
+        project_id: selectedProject,
+        item_number: String(index + 1).padStart(3, '0'),
+        category: item.category,
+        description: `${item.subcategory ? item.subcategory + ' - ' : ''}${item.description}`,
+        scheduled_value: item.total,
+        previous_applications: 0,
+        this_period: 0,
+        materials_stored: 0,
+        total_completed_and_stored: 0,
+        percent_complete: 0
+      }));
+
+      const { error } = await supabase
+        .from('sov_items')
+        .insert(sovItemsToInsert);
+
+      if (error) throw error;
+
+      toast.success('Bid items imported successfully');
+      fetchSOVItems();
+    } catch (error) {
+      console.error('Error importing bid items:', error);
+      toast.error('Failed to import bid items');
+    }
+  };
+
   const addSOVItem = async () => {
     if (!selectedProject || !newItem.itemNumber || !newItem.description || !newItem.scheduledValue) {
       toast.error('Please fill in all required fields');
@@ -129,6 +211,23 @@ export default function ScheduleOfValues() {
     } catch (error) {
       console.error('Error adding SOV item:', error);
       toast.error('Failed to add SOV item');
+    }
+  };
+
+  const deleteSOVItem = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('sov_items')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('SOV item deleted');
+      fetchSOVItems();
+    } catch (error) {
+      console.error('Error deleting SOV item:', error);
+      toast.error('Failed to delete SOV item');
     }
   };
 
@@ -164,6 +263,16 @@ export default function ScheduleOfValues() {
     }
   };
 
+  const generateG702 = () => {
+    if (sovItems.length === 0) {
+      toast.error('No SOV items to generate G702 application');
+      return;
+    }
+    
+    // Navigate to Payment Applications page with project context
+    window.location.href = `/payment-apps?project=${selectedProject}&action=generate`;
+  };
+
   const totalScheduledValue = sovItems.reduce((sum, item) => sum + item.scheduledValue, 0);
   const totalCompletedValue = sovItems.reduce((sum, item) => sum + item.totalCompletedAndStored, 0);
   const overallPercentComplete = totalScheduledValue > 0 ? (totalCompletedValue / totalScheduledValue) * 100 : 0;
@@ -194,6 +303,25 @@ export default function ScheduleOfValues() {
 
         {selectedProject && (
           <>
+            {/* Import Options */}
+            <Card>
+              <CardHeader>
+                <CardTitle>SOV Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-4 flex-wrap">
+                  <Button onClick={importFromBid} disabled={bidItems.length === 0}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Import from Bid ({bidItems.length} items)
+                  </Button>
+                  <Button onClick={generateG702} disabled={sovItems.length === 0}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Generate G702/G703
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Add New SOV Item */}
             <Card>
               <CardHeader>
@@ -292,7 +420,7 @@ export default function ScheduleOfValues() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Schedule of Values</CardTitle>
-                <Button variant="outline">
+                <Button variant="outline" onClick={generateG702}>
                   <FileText className="w-4 h-4 mr-2" />
                   Generate Application
                 </Button>
@@ -302,7 +430,7 @@ export default function ScheduleOfValues() {
                   <div className="text-center py-8">Loading SOV items...</div>
                 ) : sovItems.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
-                    No SOV items found. Add your first item above.
+                    No SOV items found. Import from bid planner or add items manually.
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -317,6 +445,7 @@ export default function ScheduleOfValues() {
                           <TableHead>Materials Stored</TableHead>
                           <TableHead>Total Complete</TableHead>
                           <TableHead>% Complete</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -364,6 +493,16 @@ export default function ScheduleOfValues() {
                                   {item.percentComplete.toFixed(1)}%
                                 </span>
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteSOVItem(item.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}

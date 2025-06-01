@@ -17,7 +17,10 @@ export type Database = {
           id: string
           project_id: string
           quantity: number
+          subcategory: string | null
+          template_id: string | null
           total: number | null
+          unit: string | null
           unit_cost: number
           updated_at: string | null
         }
@@ -28,7 +31,10 @@ export type Database = {
           id?: string
           project_id: string
           quantity?: number
+          subcategory?: string | null
+          template_id?: string | null
           total?: number | null
+          unit?: string | null
           unit_cost?: number
           updated_at?: string | null
         }
@@ -39,7 +45,10 @@ export type Database = {
           id?: string
           project_id?: string
           quantity?: number
+          subcategory?: string | null
+          template_id?: string | null
           total?: number | null
+          unit?: string | null
           unit_cost?: number
           updated_at?: string | null
         }
@@ -51,7 +60,82 @@ export type Database = {
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "bid_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "bid_templates"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      bid_template_items: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          id: string
+          subcategory: string | null
+          template_id: string | null
+          unit: string | null
+          unit_cost: number | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          id?: string
+          subcategory?: string | null
+          template_id?: string | null
+          unit?: string | null
+          unit_cost?: number | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          subcategory?: string | null
+          template_id?: string | null
+          unit?: string | null
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bid_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "bid_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bid_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       burn_records: {
         Row: {
@@ -271,6 +355,98 @@ export type Database = {
           },
         ]
       }
+      payment_applications_g702: {
+        Row: {
+          application_number: number
+          architect_date: string | null
+          architect_signature: string | null
+          balance_to_finish: number | null
+          contract_sum_to_date: number | null
+          contractor_address: string | null
+          contractor_date: string | null
+          contractor_name: string
+          contractor_signature: string | null
+          created_at: string
+          current_payment_due: number | null
+          id: string
+          less_previous_certificates: number | null
+          net_change_by_change_orders: number | null
+          original_contract_sum: number
+          period_to: string
+          project_id: string | null
+          project_name: string
+          project_number: string | null
+          retainage_completed_work: number | null
+          retainage_stored_materials: number | null
+          total_completed_and_stored: number | null
+          total_earned_less_retainage: number | null
+          total_retainage: number | null
+          updated_at: string
+        }
+        Insert: {
+          application_number: number
+          architect_date?: string | null
+          architect_signature?: string | null
+          balance_to_finish?: number | null
+          contract_sum_to_date?: number | null
+          contractor_address?: string | null
+          contractor_date?: string | null
+          contractor_name: string
+          contractor_signature?: string | null
+          created_at?: string
+          current_payment_due?: number | null
+          id?: string
+          less_previous_certificates?: number | null
+          net_change_by_change_orders?: number | null
+          original_contract_sum?: number
+          period_to: string
+          project_id?: string | null
+          project_name: string
+          project_number?: string | null
+          retainage_completed_work?: number | null
+          retainage_stored_materials?: number | null
+          total_completed_and_stored?: number | null
+          total_earned_less_retainage?: number | null
+          total_retainage?: number | null
+          updated_at?: string
+        }
+        Update: {
+          application_number?: number
+          architect_date?: string | null
+          architect_signature?: string | null
+          balance_to_finish?: number | null
+          contract_sum_to_date?: number | null
+          contractor_address?: string | null
+          contractor_date?: string | null
+          contractor_name?: string
+          contractor_signature?: string | null
+          created_at?: string
+          current_payment_due?: number | null
+          id?: string
+          less_previous_certificates?: number | null
+          net_change_by_change_orders?: number | null
+          original_contract_sum?: number
+          period_to?: string
+          project_id?: string | null
+          project_name?: string
+          project_number?: string | null
+          retainage_completed_work?: number | null
+          retainage_stored_materials?: number | null
+          total_completed_and_stored?: number | null
+          total_earned_less_retainage?: number | null
+          total_retainage?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_applications_g702_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -306,6 +482,8 @@ export type Database = {
           due_date: string | null
           id: string
           name: string
+          net_change_orders: number | null
+          original_contract_sum: number | null
           status: string | null
           type: string
           updated_at: string | null
@@ -317,6 +495,8 @@ export type Database = {
           due_date?: string | null
           id?: string
           name: string
+          net_change_orders?: number | null
+          original_contract_sum?: number | null
           status?: string | null
           type: string
           updated_at?: string | null
@@ -328,6 +508,8 @@ export type Database = {
           due_date?: string | null
           id?: string
           name?: string
+          net_change_orders?: number | null
+          original_contract_sum?: number | null
           status?: string | null
           type?: string
           updated_at?: string | null
@@ -374,14 +556,17 @@ export type Database = {
           description: string
           id: string
           item_number: string
+          materials_presently_stored: number | null
           materials_stored: number | null
           percent_complete: number | null
           previous_applications: number | null
           project_id: string
+          retainage_percentage: number | null
           scheduled_value: number
           this_period: number | null
           total_completed_and_stored: number | null
           updated_at: string | null
+          work_completed_from_previous: number | null
         }
         Insert: {
           category: string
@@ -389,14 +574,17 @@ export type Database = {
           description: string
           id?: string
           item_number: string
+          materials_presently_stored?: number | null
           materials_stored?: number | null
           percent_complete?: number | null
           previous_applications?: number | null
           project_id: string
+          retainage_percentage?: number | null
           scheduled_value?: number
           this_period?: number | null
           total_completed_and_stored?: number | null
           updated_at?: string | null
+          work_completed_from_previous?: number | null
         }
         Update: {
           category?: string
@@ -404,14 +592,17 @@ export type Database = {
           description?: string
           id?: string
           item_number?: string
+          materials_presently_stored?: number | null
           materials_stored?: number | null
           percent_complete?: number | null
           previous_applications?: number | null
           project_id?: string
+          retainage_percentage?: number | null
           scheduled_value?: number
           this_period?: number | null
           total_completed_and_stored?: number | null
           updated_at?: string | null
+          work_completed_from_previous?: number | null
         }
         Relationships: [
           {

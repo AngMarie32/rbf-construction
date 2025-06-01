@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -19,11 +18,34 @@ export interface Project {
   updatedAt: Date;
 }
 
+export interface BidTemplate {
+  id: string;
+  name: string;
+  description: string;
+  isDefault: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BidTemplateItem {
+  id: string;
+  templateId: string;
+  category: string;
+  subcategory: string;
+  description: string;
+  unit: string;
+  unitCost: number;
+  createdAt: Date;
+}
+
 export interface BidItem {
   id: string;
   projectId: string;
+  templateId?: string;
   category: string;
+  subcategory?: string;
   description: string;
+  unit: string;
   unitCost: number;
   quantity: number;
   total: number;
@@ -39,25 +61,39 @@ export interface SOVItem {
   previousApplications: number;
   thisPeriod: number;
   materialsStored: number;
+  workCompletedFromPrevious: number;
+  materialsPresently_stored: number;
   totalCompletedAndStored: number;
   percentComplete: number;
+  retainagePercentage: number;
 }
 
-export interface PaymentApplication {
+export interface PaymentApplicationG702 {
   id: string;
   projectId: string;
   applicationNumber: number;
-  periodEndDate: Date;
+  periodTo: Date;
+  contractorName: string;
+  contractorAddress: string;
+  projectName: string;
+  projectNumber: string;
   originalContractSum: number;
-  netChanges: number;
+  netChangeByChangeOrders: number;
   contractSumToDate: number;
   totalCompletedAndStored: number;
-  retainage: number;
+  retainageCompletedWork: number;
+  retainageStoredMaterials: number;
+  totalRetainage: number;
   totalEarnedLessRetainage: number;
-  lessPreviousPayments: number;
+  lessPreviousCertificates: number;
   currentPaymentDue: number;
   balanceToFinish: number;
+  architectSignature?: string;
+  architectDate?: Date;
+  contractorSignature?: string;
+  contractorDate?: Date;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Task {

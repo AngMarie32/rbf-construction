@@ -3,36 +3,30 @@ import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, FileText, Calendar, DollarSign } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Plus, FileText, Download, Eye } from 'lucide-react';
+import { G702Form } from '@/components/forms/G702Form';
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 interface PaymentApplication {
   id: string;
   applicationNumber: number;
-  periodEndDate: Date;
+  periodTo: string;
+  contractorName: string;
+  projectName: string;
   originalContractSum: number;
-  netChanges: number;
-  contractSumToDate: number;
   totalCompletedAndStored: number;
-  retainage: number;
-  totalEarnedLessRetainage: number;
-  lessPreviousPayments: number;
   currentPaymentDue: number;
-  balanceToFinish: number;
-  createdAt: Date;
+  createdAt: string;
 }
 
 interface Project {
   id: string;
   name: string;
-  contractValue: number;
 }
 
 export default function PaymentApplications() {
@@ -40,15 +34,20 @@ export default function PaymentApplications() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [applications, setApplications] = useState<PaymentApplication[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showNewForm, setShowNewForm] = useState(false);
-  const [newApplication, setNewApplication] = useState({
-    periodEndDate: '',
-    totalCompletedAndStored: '',
-    retainagePercent: '10'
-  });
+  const [newApplicationOpen, setNewApplicationOpen] = useState(false);
 
   useEffect(() => {
     fetchProjects();
+    
+    // Check URL parameters for auto-generation
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectParam = urlParams.get('project');
+    const actionParam = urlParams.get('action');
+    
+    if (projectParam && actionParam === 'generate') {
+      setSelectedProject(projectParam);
+      setNewApplicationOpen(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -61,15 +60,11 @@ export default function PaymentApplications() {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, contract_value')
+        .select('id, name')
         .order('name');
 
       if (error) throw error;
-      setProjects((data || []).map(p => ({
-        id: p.id,
-        name: p.name,
-        contractValue: p.contract_value
-      })));
+      setProjects(data || []);
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');
@@ -80,7 +75,7 @@ export default function PaymentApplications() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('payment_applications')
+        .from('payment_applications_g702')
         .select('*')
         .eq('project_id', selectedProject)
         .order('application_number', { ascending: false });
@@ -90,17 +85,13 @@ export default function PaymentApplications() {
       const mappedApplications = (data || []).map(app => ({
         id: app.id,
         applicationNumber: app.application_number,
-        periodEndDate: new Date(app.period_end_date),
+        periodTo: app.period_to,
+        contractorName: app.contractor_name,
+        projectName: app.project_name,
         originalContractSum: app.original_contract_sum,
-        netChanges: app.net_changes || 0,
-        contractSumToDate: app.contract_sum_to_date || 0,
         totalCompletedAndStored: app.total_completed_and_stored || 0,
-        retainage: app.retainage || 0,
-        totalEarnedLessRetainage: app.total_earned_less_retainage || 0,
-        lessPreviousPayments: app.less_previous_payments || 0,
         currentPaymentDue: app.current_payment_due || 0,
-        balanceToFinish: app.balance_to_finish || 0,
-        createdAt: new Date(app.created_at)
+        createdAt: app.created_at
       }));
 
       setApplications(mappedApplications);
@@ -112,62 +103,26 @@ export default function PaymentApplications() {
     }
   };
 
-  const createApplication = async () => {
-    if (!selectedProject || !newApplication.periodEndDate || !newApplication.totalCompletedAndStored) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    try {
-      const project = projects.find(p => p.id === selectedProject);
-      if (!project) return;
-
-      const totalCompletedAndStored = parseFloat(newApplication.totalCompletedAndStored);
-      const retainagePercent = parseFloat(newApplication.retainagePercent) / 100;
-      const retainage = totalCompletedAndStored * retainagePercent;
-      const totalEarnedLessRetainage = totalCompletedAndStored - retainage;
-      
-      // Calculate previous payments (sum of all previous applications)
-      const lessPreviousPayments = applications.reduce((sum, app) => sum + app.currentPaymentDue, 0);
-      const currentPaymentDue = Math.max(0, totalEarnedLessRetainage - lessPreviousPayments);
-      const balanceToFinish = project.contractValue - totalCompletedAndStored;
-      
-      const nextAppNumber = Math.max(0, ...applications.map(a => a.applicationNumber)) + 1;
-
-      const { error } = await supabase
-        .from('payment_applications')
-        .insert({
-          project_id: selectedProject,
-          application_number: nextAppNumber,
-          period_end_date: newApplication.periodEndDate,
-          original_contract_sum: project.contractValue,
-          net_changes: 0,
-          contract_sum_to_date: project.contractValue,
-          total_completed_and_stored: totalCompletedAndStored,
-          retainage: retainage,
-          total_earned_less_retainage: totalEarnedLessRetainage,
-          less_previous_payments: lessPreviousPayments,
-          current_payment_due: currentPaymentDue,
-          balance_to_finish: balanceToFinish
-        });
-
-      if (error) throw error;
-
-      toast.success('Payment application created successfully');
-      setShowNewForm(false);
-      setNewApplication({ periodEndDate: '', totalCompletedAndStored: '', retainagePercent: '10' });
-      fetchApplications();
-    } catch (error) {
-      console.error('Error creating application:', error);
-      toast.error('Failed to create payment application');
-    }
+  const handleApplicationSaved = () => {
+    setNewApplicationOpen(false);
+    fetchApplications();
+    
+    // Clear URL parameters
+    window.history.replaceState({}, '', '/payment-apps');
   };
 
-  const selectedProjectData = projects.find(p => p.id === selectedProject);
+  const getStatusBadge = (amount: number) => {
+    if (amount > 0) {
+      return <Badge className="bg-green-100 text-green-800">Pending Payment</Badge>;
+    }
+    return <Badge variant="secondary">Paid</Badge>;
+  };
+
   const totalApplicationsValue = applications.reduce((sum, app) => sum + app.currentPaymentDue, 0);
+  const pendingPayments = applications.filter(app => app.currentPaymentDue > 0).length;
 
   return (
-    <Layout title="Payment Applications" subtitle="Manage project payment applications and billing">
+    <Layout title="Payment Applications" subtitle="Generate and manage G702/G703 payment applications">
       <div className="space-y-6">
         {/* Project Selection */}
         <Card>
@@ -182,7 +137,7 @@ export default function PaymentApplications() {
               <SelectContent>
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
-                    {project.name} - ${project.contractValue.toLocaleString()}
+                    {project.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -192,122 +147,63 @@ export default function PaymentApplications() {
 
         {selectedProject && (
           <>
-            {/* Project Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <DollarSign className="w-5 h-5 mr-2" />
-                    Contract Value
-                  </CardTitle>
+                  <CardTitle>Total Applications</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">
-                    ${selectedProjectData?.contractValue.toLocaleString()}
-                  </div>
+                  <div className="text-3xl font-bold">{applications.length}</div>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Total Billed</CardTitle>
+                  <CardTitle>Pending Payments</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
+                  <div className="text-3xl font-bold text-orange-600">{pendingPayments}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Total Applied Value</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-green-600">
                     ${totalApplicationsValue.toLocaleString()}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Applications</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{applications.length}</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Remaining</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">
-                    ${((selectedProjectData?.contractValue || 0) - totalApplicationsValue).toLocaleString()}
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* New Application Form */}
-            {showNewForm && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Create New Payment Application</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <Label htmlFor="periodEndDate">Period End Date</Label>
-                      <Input
-                        id="periodEndDate"
-                        type="date"
-                        value={newApplication.periodEndDate}
-                        onChange={(e) => setNewApplication({ ...newApplication, periodEndDate: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="totalCompleted">Total Work Completed ($)</Label>
-                      <Input
-                        id="totalCompleted"
-                        type="number"
-                        step="0.01"
-                        value={newApplication.totalCompletedAndStored}
-                        onChange={(e) => setNewApplication({ ...newApplication, totalCompletedAndStored: e.target.value })}
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="retainage">Retainage (%)</Label>
-                      <Input
-                        id="retainage"
-                        type="number"
-                        step="0.1"
-                        value={newApplication.retainagePercent}
-                        onChange={(e) => setNewApplication({ ...newApplication, retainagePercent: e.target.value })}
-                        placeholder="10"
-                      />
-                    </div>
-                    <div className="flex items-end space-x-2">
-                      <Button onClick={createApplication} className="flex-1">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create
-                      </Button>
-                      <Button variant="outline" onClick={() => setShowNewForm(false)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Applications Table */}
+            {/* Payment Applications Table */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Payment Applications</CardTitle>
-                <Button onClick={() => setShowNewForm(true)} disabled={showNewForm}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Application
-                </Button>
+                <CardTitle>Payment Applications (G702/G703)</CardTitle>
+                <Dialog open={newApplicationOpen} onOpenChange={setNewApplicationOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      New Application
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Generate G702/G703 Payment Application</DialogTitle>
+                    </DialogHeader>
+                    <G702Form projectId={selectedProject} onSave={handleApplicationSaved} />
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent>
                 {loading ? (
-                  <div className="text-center py-8">Loading applications...</div>
+                  <div className="text-center py-8">Loading payment applications...</div>
                 ) : applications.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
-                    No payment applications found. Create your first application above.
+                    No payment applications found. Create your first G702/G703 application.
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -315,11 +211,12 @@ export default function PaymentApplications() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>App #</TableHead>
-                          <TableHead>Period End</TableHead>
+                          <TableHead>Period To</TableHead>
+                          <TableHead>Contractor</TableHead>
+                          <TableHead>Contract Sum</TableHead>
                           <TableHead>Work Completed</TableHead>
-                          <TableHead>Retainage</TableHead>
-                          <TableHead>Less Previous</TableHead>
-                          <TableHead>Current Due</TableHead>
+                          <TableHead>Payment Due</TableHead>
+                          <TableHead>Status</TableHead>
                           <TableHead>Created</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
@@ -327,26 +224,25 @@ export default function PaymentApplications() {
                       <TableBody>
                         {applications.map((app) => (
                           <TableRow key={app.id}>
-                            <TableCell className="font-medium">
-                              <Badge variant="outline">#{app.applicationNumber}</Badge>
-                            </TableCell>
-                            <TableCell>{format(app.periodEndDate, 'MMM dd, yyyy')}</TableCell>
+                            <TableCell className="font-medium">#{app.applicationNumber}</TableCell>
+                            <TableCell>{new Date(app.periodTo).toLocaleDateString()}</TableCell>
+                            <TableCell>{app.contractorName}</TableCell>
+                            <TableCell>${app.originalContractSum.toLocaleString()}</TableCell>
                             <TableCell>${app.totalCompletedAndStored.toLocaleString()}</TableCell>
-                            <TableCell className="text-red-600">
-                              -${app.retainage.toLocaleString()}
-                            </TableCell>
-                            <TableCell className="text-red-600">
-                              -${app.lessPreviousPayments.toLocaleString()}
-                            </TableCell>
-                            <TableCell className="font-bold text-green-600">
+                            <TableCell className="font-medium">
                               ${app.currentPaymentDue.toLocaleString()}
                             </TableCell>
-                            <TableCell>{format(app.createdAt, 'MMM dd, yyyy')}</TableCell>
+                            <TableCell>{getStatusBadge(app.currentPaymentDue)}</TableCell>
+                            <TableCell>{new Date(app.createdAt).toLocaleDateString()}</TableCell>
                             <TableCell>
-                              <Button variant="ghost" size="sm">
-                                <FileText className="w-4 h-4 mr-2" />
-                                View
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button variant="ghost" size="sm">
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm">
+                                  <Download className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
