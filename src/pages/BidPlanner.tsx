@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Calculator, Download, FileTemplate, Save } from 'lucide-react';
+import { Plus, Trash2, Calculator, Download, FileText, Save } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -323,8 +322,11 @@ export default function BidPlanner() {
         previous_applications: 0,
         this_period: 0,
         materials_stored: 0,
+        work_completed_from_previous: 0,
+        materials_presently_stored: 0,
         total_completed_and_stored: 0,
-        percent_complete: 0
+        percent_complete: 0,
+        retainage_percentage: 10
       }));
 
       const { error } = await supabase
@@ -383,7 +385,7 @@ export default function BidPlanner() {
                   <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
                     <DialogTrigger asChild>
                       <Button variant="outline">
-                        <FileTemplate className="w-4 h-4 mr-2" />
+                        <FileText className="w-4 h-4 mr-2" />
                         Load Template
                       </Button>
                     </DialogTrigger>

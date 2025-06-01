@@ -1,4 +1,3 @@
-
 import { Project, User, BidItem, SOVItem, Task, Equipment, Proposal, ChangeOrder } from '@/types';
 
 export const mockUser: User = {
@@ -61,7 +60,9 @@ export const mockBidItems: BidItem[] = [
     id: '1',
     projectId: '1',
     category: 'Site Work',
+    subcategory: 'Excavation',
     description: 'Excavation and Grading',
+    unit: 'cy',
     unitCost: 25,
     quantity: 1200,
     total: 30000
@@ -70,7 +71,9 @@ export const mockBidItems: BidItem[] = [
     id: '2',
     projectId: '1',
     category: 'Concrete',
+    subcategory: 'Foundation',
     description: 'Foundation Concrete',
+    unit: 'cy',
     unitCost: 150,
     quantity: 800,
     total: 120000
@@ -79,7 +82,9 @@ export const mockBidItems: BidItem[] = [
     id: '3',
     projectId: '1',
     category: 'Steel',
+    subcategory: 'Structural',
     description: 'Structural Steel Frame',
+    unit: 'ton',
     unitCost: 2800,
     quantity: 45,
     total: 126000
@@ -97,8 +102,11 @@ export const mockSOVItems: SOVItem[] = [
     previousApplications: 25000,
     thisPeriod: 5000,
     materialsStored: 0,
+    workCompletedFromPrevious: 25000,
+    materialsPresently_stored: 0,
     totalCompletedAndStored: 30000,
-    percentComplete: 100
+    percentComplete: 100,
+    retainagePercentage: 10
   },
   {
     id: '2',
@@ -110,8 +118,11 @@ export const mockSOVItems: SOVItem[] = [
     previousApplications: 80000,
     thisPeriod: 20000,
     materialsStored: 5000,
+    workCompletedFromPrevious: 80000,
+    materialsPresently_stored: 5000,
     totalCompletedAndStored: 105000,
-    percentComplete: 83
+    percentComplete: 83,
+    retainagePercentage: 10
   }
 ];
 
