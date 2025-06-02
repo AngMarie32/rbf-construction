@@ -248,30 +248,49 @@ export default function BidPlanner() {
   };
 
   const addBidItem = async () => {
-    if (!selectedProject || !newItem.category || !newItem.description || !newItem.unitCost) {
-      toast.error('Please fill in all required fields');
+    if (!selectedProject) {
+      toast.error('Please select a project first');
+      return;
+    }
+    
+    if (!newItem.category || !newItem.description || !newItem.unitCost) {
+      toast.error('Please fill in all required fields (Category, Description, Unit Cost)');
       return;
     }
 
     try {
       const unitCost = parseFloat(newItem.unitCost);
-      const quantity = parseInt(newItem.quantity);
+      const quantity = parseInt(newItem.quantity) || 1;
+      
+      if (isNaN(unitCost) || unitCost < 0) {
+        toast.error('Please enter a valid unit cost');
+        return;
+      }
+      
+      if (isNaN(quantity) || quantity < 1) {
+        toast.error('Please enter a valid quantity (minimum 1)');
+        return;
+      }
+      
       const total = unitCost * quantity;
 
       const { error } = await supabase
         .from('bid_items')
         .insert({
           project_id: selectedProject,
-          category: newItem.category,
-          subcategory: newItem.subcategory,
-          description: newItem.description,
+          category: newItem.category.trim(),
+          subcategory: newItem.subcategory.trim() || null,
+          description: newItem.description.trim(),
           unit: newItem.unit,
           unit_cost: unitCost,
           quantity: quantity,
           total: total
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       toast.success('Bid item added successfully');
       setNewItem({ 
@@ -285,7 +304,7 @@ export default function BidPlanner() {
       fetchBidItems();
     } catch (error) {
       console.error('Error adding bid item:', error);
-      toast.error('Failed to add bid item');
+      toast.error(`Failed to add bid item: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -476,7 +495,7 @@ export default function BidPlanner() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
                   <div>
-                    <Label htmlFor="category">Category</Label>
+                    <Label htmlFor="category">Category *</Label>
                     <Input
                       id="category"
                       value={newItem.category}
@@ -494,7 +513,7 @@ export default function BidPlanner() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="description">Description</Label>
+                    <Label htmlFor="description">Description *</Label>
                     <Input
                       id="description"
                       value={newItem.description}
@@ -518,11 +537,12 @@ export default function BidPlanner() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="unitCost">Unit Cost ($)</Label>
+                    <Label htmlFor="unitCost">Unit Cost ($) *</Label>
                     <Input
                       id="unitCost"
                       type="number"
                       step="0.01"
+                      min="0"
                       value={newItem.unitCost}
                       onChange={(e) => setNewItem({ ...newItem, unitCost: e.target.value })}
                       placeholder="0.00"
@@ -533,6 +553,7 @@ export default function BidPlanner() {
                     <Input
                       id="quantity"
                       type="number"
+                      min="1"
                       value={newItem.quantity}
                       onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
                       placeholder="1"
