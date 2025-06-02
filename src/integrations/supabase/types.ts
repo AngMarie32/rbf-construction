@@ -807,6 +807,8 @@ export type Database = {
       }
       projects: {
         Row: {
+          address: string | null
+          client: string | null
           completion_percentage: number | null
           contract_value: number
           created_at: string | null
@@ -815,11 +817,15 @@ export type Database = {
           name: string
           net_change_orders: number | null
           original_contract_sum: number | null
+          project_code: string | null
+          start_date: string | null
           status: string | null
           type: string
           updated_at: string | null
         }
         Insert: {
+          address?: string | null
+          client?: string | null
           completion_percentage?: number | null
           contract_value?: number
           created_at?: string | null
@@ -828,11 +834,15 @@ export type Database = {
           name: string
           net_change_orders?: number | null
           original_contract_sum?: number | null
+          project_code?: string | null
+          start_date?: string | null
           status?: string | null
           type: string
           updated_at?: string | null
         }
         Update: {
+          address?: string | null
+          client?: string | null
           completion_percentage?: number | null
           contract_value?: number
           created_at?: string | null
@@ -841,6 +851,8 @@ export type Database = {
           name?: string
           net_change_orders?: number | null
           original_contract_sum?: number | null
+          project_code?: string | null
+          start_date?: string | null
           status?: string | null
           type?: string
           updated_at?: string | null
