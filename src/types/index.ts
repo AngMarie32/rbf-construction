@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   email: string;
@@ -154,4 +155,109 @@ export interface BurnRecord {
   date: Date;
   plannedCost: number;
   actualCost: number;
+}
+
+// New types for additional functionality
+export interface Invoice {
+  id: string;
+  projectId?: string;
+  invoiceNumber: string;
+  clientName: string;
+  clientAddress?: string;
+  invoiceDate: Date;
+  dueDate?: Date;
+  subtotal: number;
+  taxAmount?: number;
+  totalAmount: number;
+  status: 'Draft' | 'Sent' | 'Paid' | 'Overdue' | 'Cancelled';
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface InvoiceItem {
+  id: string;
+  invoiceId: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface BidPackage {
+  id: string;
+  projectId?: string;
+  name: string;
+  description?: string;
+  dueDate?: Date;
+  status: 'Draft' | 'Sent' | 'Received' | 'Awarded' | 'Cancelled';
+  estimatedValue?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BidPackageItem {
+  id: string;
+  bidPackageId: string;
+  category: string;
+  description: string;
+  quantity: number;
+  unit?: string;
+  estimatedCost?: number;
+}
+
+export interface Subcontractor {
+  id: string;
+  name: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  specialties?: string[];
+  rating?: number;
+  status: 'Active' | 'Inactive' | 'Blacklisted';
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ProjectSubcontractor {
+  id: string;
+  projectId: string;
+  subcontractorId: string;
+  role?: string;
+  contractAmount?: number;
+  startDate?: Date;
+  endDate?: Date;
+  status: 'Pending' | 'Active' | 'Completed' | 'Terminated';
+}
+
+export interface Document {
+  id: string;
+  projectId?: string;
+  name: string;
+  category: 'General' | 'Contracts' | 'Plans' | 'Photos' | 'Reports' | 'Permits' | 'Invoices' | 'Change Orders';
+  filePath?: string;
+  fileSize?: number;
+  mimeType?: string;
+  uploadedBy?: string;
+  version?: number;
+  isCurrentVersion?: boolean;
+  description?: string;
+  tags?: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CompanySettings {
+  id: string;
+  companyName: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  logoUrl?: string;
+  defaultTaxRate?: number;
+  defaultRetainageRate?: number;
+  createdAt: Date;
+  updatedAt: Date;
 }

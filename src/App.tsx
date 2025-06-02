@@ -15,6 +15,8 @@ import ScheduleOfValues from "./pages/ScheduleOfValues";
 import PaymentApplications from "./pages/PaymentApplications";
 import Analytics from "./pages/Analytics";
 import Equipment from "./pages/Equipment";
+import ProjectSchedule from "./pages/ProjectSchedule";
+import ChangeOrders from "./pages/ChangeOrders";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -90,6 +92,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Equipment />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/schedule"
+              element={
+                <ProtectedRoute>
+                  <ProjectSchedule />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/change-orders"
+              element={
+                <ProtectedRoute>
+                  <ChangeOrders />
                 </ProtectedRoute>
               }
             />
