@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Calendar, DollarSign, MapPin, MoreHorizontal, Edit, Trash2, Eye } from 'lucide-react';
+import { Calendar, DollarSign, MapPin, MoreHorizontal, Edit, Trash2, Eye, TrendingUp, Receipt } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Project } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface ProjectCardProps {
   project: Project;
@@ -15,6 +16,8 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project, onUpdate }: ProjectCardProps) {
+  const navigate = useNavigate();
+  
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Planning': return 'bg-blue-100 text-blue-800';
@@ -43,9 +46,18 @@ export function ProjectCard({ project, onUpdate }: ProjectCardProps) {
     }
   };
 
+  const handleViewDetails = () => {
+    navigate(`/projects/${project.id}`);
+  };
+
   const daysUntilDue = Math.ceil((project.dueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
   const isOverdue = daysUntilDue < 0;
   const isDueSoon = daysUntilDue <= 7 && daysUntilDue >= 0;
+
+  // Mock financial data - in real app this would come from database
+  const expensesOccurred = project.contractValue * 0.3; // 30% of contract value
+  const projectBilled = project.contractValue * 0.4; // 40% of contract value
+  const amountReceived = project.contractValue * 0.35; // 35% of contract value
 
   return (
     <Card className="hover:shadow-lg transition-shadow animate-fade-in">
@@ -67,7 +79,7 @@ export function ProjectCard({ project, onUpdate }: ProjectCardProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleViewDetails}>
                 <Eye className="w-4 h-4 mr-2" />
                 View Details
               </DropdownMenuItem>
@@ -96,10 +108,43 @@ export function ProjectCard({ project, onUpdate }: ProjectCardProps) {
           <Progress value={project.completionPercentage} className="h-2" />
         </div>
 
-        {/* Contract Value */}
-        <div className="flex items-center gap-2 text-sm">
-          <DollarSign className="w-4 h-4 text-green-600" />
-          <span className="font-medium">${project.contractValue.toLocaleString()}</span>
+        {/* Financial Information */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Contract Value */}
+          <div className="flex items-center gap-2 text-sm">
+            <DollarSign className="w-4 h-4 text-green-600" />
+            <div>
+              <div className="font-medium">${project.contractValue.toLocaleString()}</div>
+              <div className="text-xs text-gray-500">Contract Value</div>
+            </div>
+          </div>
+
+          {/* Expenses */}
+          <div className="flex items-center gap-2 text-sm">
+            <Receipt className="w-4 h-4 text-red-600" />
+            <div>
+              <div className="font-medium">${expensesOccurred.toLocaleString()}</div>
+              <div className="text-xs text-gray-500">Expenses</div>
+            </div>
+          </div>
+
+          {/* Billed */}
+          <div className="flex items-center gap-2 text-sm">
+            <TrendingUp className="w-4 h-4 text-blue-600" />
+            <div>
+              <div className="font-medium">${projectBilled.toLocaleString()}</div>
+              <div className="text-xs text-gray-500">Billed</div>
+            </div>
+          </div>
+
+          {/* Received */}
+          <div className="flex items-center gap-2 text-sm">
+            <DollarSign className="w-4 h-4 text-green-600" />
+            <div>
+              <div className="font-medium">${amountReceived.toLocaleString()}</div>
+              <div className="text-xs text-gray-500">Received</div>
+            </div>
+          </div>
         </div>
 
         {/* Due Date */}
@@ -117,9 +162,9 @@ export function ProjectCard({ project, onUpdate }: ProjectCardProps) {
 
         {/* Action Buttons */}
         <div className="flex gap-2 pt-2">
-          <Button variant="outline" size="sm" className="flex-1">
+          <Button variant="outline" size="sm" className="flex-1" onClick={handleViewDetails}>
             <Eye className="w-4 h-4 mr-2" />
-            View
+            View Details
           </Button>
           <Button variant="outline" size="sm" className="flex-1">
             <Edit className="w-4 h-4 mr-2" />
