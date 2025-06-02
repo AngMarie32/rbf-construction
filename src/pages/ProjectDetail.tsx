@@ -1,52 +1,33 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
-import { EditProjectDialog } from '@/components/projects/EditProjectDialog';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
+import { EditProjectDialog } from '@/components/projects/EditProjectDialog';
 import { 
-  ArrowLeft, 
   Calendar, 
   MapPin, 
-  FileText,
-  DollarSign,
-  TrendingUp,
-  Receipt,
-  BarChart3,
-  Truck,
-  Users,
-  Building,
-  ClipboardList,
-  User
+  User, 
+  DollarSign, 
+  TrendingUp, 
+  ArrowLeft,
+  Clock,
+  CheckCircle,
+  Edit
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Project } from '@/types';
-
-interface DatabaseProject {
-  id: string;
-  name: string;
-  type: string;
-  contract_value: number;
-  status: string;
-  due_date: string | null;
-  start_date: string | null;
-  completion_percentage: number | null;
-  address: string | null;
-  project_code: string | null;
-  client: string | null;
-  created_at: string;
-  updated_at: string;
-}
+import { format } from 'date-fns';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [project, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     if (id) {
@@ -64,39 +45,26 @@ export default function ProjectDetail() {
 
       if (error) throw error;
 
-      if (data) {
-        const mappedProject: Project = {
-          id: data.id,
-          name: data.name,
-          type: data.type,
-          contractValue: data.contract_value,
-          status: data.status as Project['status'],
-          startDate: data.start_date ? new Date(data.start_date) : new Date(),
-          dueDate: data.due_date ? new Date(data.due_date) : new Date(),
-          completionPercentage: data.completion_percentage || 0,
-          address: data.address || '',
-          projectCode: data.project_code || '',
-          client: data.client || '',
-          createdAt: new Date(data.created_at),
-          updatedAt: new Date(data.updated_at)
-        };
-        setProject(mappedProject);
-      }
+      setProject({
+        id: data.id,
+        name: data.name,
+        type: data.type,
+        contractValue: data.contract_value,
+        status: data.status,
+        startDate: data.start_date ? new Date(data.start_date) : new Date(),
+        dueDate: data.due_date ? new Date(data.due_date) : new Date(),
+        completionPercentage: data.completion_percentage || 0,
+        address: data.address || '',
+        projectCode: data.project_code || '',
+        client: data.client || '',
+        createdAt: new Date(data.created_at),
+        updatedAt: new Date(data.updated_at)
+      });
     } catch (error) {
       console.error('Error fetching project:', error);
-      toast.error('Failed to load project');
-      navigate('/projects');
+      toast.error('Failed to load project details');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Planning': return 'bg-blue-100 text-blue-800';
-      case 'Open': return 'bg-green-100 text-green-800';
-      case 'Closed': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -114,7 +82,7 @@ export default function ProjectDetail() {
     return (
       <Layout title="Project Not Found" subtitle="">
         <div className="text-center py-8">
-          <p className="text-gray-500">Project not found</p>
+          <p className="text-gray-500">Project not found.</p>
           <Button onClick={() => navigate('/projects')} className="mt-4">
             Back to Projects
           </Button>
@@ -123,232 +91,221 @@ export default function ProjectDetail() {
     );
   }
 
-  // Mock financial data
-  const expensesOccurred = project.contractValue * 0.3;
-  const projectBilled = project.contractValue * 0.4;
-  const amountReceived = project.contractValue * 0.35;
-  const changeOrders = project.contractValue * 0.05;
-  const currentContract = project.contractValue + changeOrders;
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Planning': return 'bg-yellow-500';
+      case 'Open': return 'bg-green-500';
+      case 'Closed': return 'bg-gray-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const mockFinancials = {
+    totalExpenses: 1250000,
+    totalBilled: 1400000,
+    totalReceived: 1200000
+  };
 
   return (
-    <Layout title="" subtitle="">
+    <Layout 
+      title={project.name}
+      subtitle={`${project.type} • ${project.projectCode || 'No Code'}`}
+    >
       <div className="space-y-6">
-        {/* Header */}
+        {/* Header with Back Button */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => navigate('/projects')}
-              className="p-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold">{project.name}</h1>
-                <Badge className={getStatusColor(project.status)}>
-                  {project.status}
-                </Badge>
-                {project.projectCode && (
-                  <span className="text-sm text-gray-500">#{project.projectCode}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-                {project.client && (
-                  <span className="flex items-center gap-1">
-                    <User className="w-4 h-4" />
-                    {project.client}
-                  </span>
-                )}
-                {project.address && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    {project.address}
-                  </span>
-                )}
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-4 h-4" />
-                  {project.startDate.toLocaleDateString()} - {project.dueDate.toLocaleDateString()}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Building className="w-4 h-4" />
-                  {project.type}
-                </span>
-              </div>
-            </div>
-          </div>
-          <EditProjectDialog 
-            project={project} 
-            onProjectUpdated={fetchProject}
-          />
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/projects')}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Projects
+          </Button>
+          <EditProjectDialog project={project} onProjectUpdated={fetchProject} />
         </div>
 
-        {/* Financial Summary Cards */}
+        {/* Project Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>
-            <CardContent className="p-6">
-              <div className="space-y-2">
-                <div className="text-2xl font-bold">${project.contractValue.toLocaleString()}</div>
-                <div className="text-sm text-gray-600">Contract Value</div>
-                <div className="text-xs text-gray-500">Original contract amount</div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Status</CardTitle>
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <Badge className={`${getStatusColor(project.status)} text-white`}>
+                {project.status}
+              </Badge>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Contract Value</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                ${project.contractValue.toLocaleString()}
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
-            <CardContent className="p-6">
-              <div className="space-y-2">
-                <div className="text-2xl font-bold">${changeOrders.toLocaleString()}</div>
-                <div className="text-sm text-gray-600">Change Orders</div>
-                <div className="text-xs text-gray-500">0 total change orders</div>
-              </div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Progress</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{project.completionPercentage}%</div>
+              <Progress value={project.completionPercentage} className="mt-2" />
             </CardContent>
           </Card>
-          
+
           <Card>
-            <CardContent className="p-6">
-              <div className="space-y-2">
-                <div className="text-2xl font-bold">${currentContract.toLocaleString()}</div>
-                <div className="text-sm text-gray-600">Current Contract</div>
-                <div className="text-xs text-gray-500">Including all change orders</div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="space-y-2">
-                <div className="text-2xl font-bold">{project.completionPercentage}%</div>
-                <div className="text-sm text-gray-600">Completion</div>
-                <div className="text-xs text-gray-500">Current project progress</div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Due Date</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-lg font-semibold">
+                {format(project.dueDate, 'MMM dd, yyyy')}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Content with Tabs */}
-        <Tabs defaultValue="overview" className="space-y-4">
+        {/* Project Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Project Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="flex items-center space-x-3">
+                <User className="w-5 h-5 text-gray-400" />
+                <div>
+                  <p className="text-sm text-gray-500">Client</p>
+                  <p className="font-medium">{project.client || 'Not specified'}</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <MapPin className="w-5 h-5 text-gray-400" />
+                <div>
+                  <p className="text-sm text-gray-500">Address</p>
+                  <p className="font-medium">{project.address || 'Not specified'}</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <Calendar className="w-5 h-5 text-gray-400" />
+                <div>
+                  <p className="text-sm text-gray-500">Start Date</p>
+                  <p className="font-medium">{format(project.startDate, 'MMM dd, yyyy')}</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <Clock className="w-5 h-5 text-gray-400" />
+                <div>
+                  <p className="text-sm text-gray-500">Project Code</p>
+                  <p className="font-medium">{project.projectCode || 'Not assigned'}</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tabs Section */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <ClipboardList className="w-4 h-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="schedule" className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Schedule
-            </TabsTrigger>
-            <TabsTrigger value="invoices" className="flex items-center gap-2">
-              <Receipt className="w-4 h-4" />
-              Invoices
-            </TabsTrigger>
-            <TabsTrigger value="change-orders" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Change Orders
-            </TabsTrigger>
-            <TabsTrigger value="documents" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Documents
-            </TabsTrigger>
-            <TabsTrigger value="burn-analysis" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Burn Analysis
-            </TabsTrigger>
-            <TabsTrigger value="equipment" className="flex items-center gap-2">
-              <Truck className="w-4 h-4" />
-              Equipment
-            </TabsTrigger>
-            <TabsTrigger value="subcontractors" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Subcontractors
-            </TabsTrigger>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="change-orders">Change Orders</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="burn-analysis">Burn Analysis</TabsTrigger>
+            <TabsTrigger value="equipment">Equipment</TabsTrigger>
+            <TabsTrigger value="subcontractors">Subcontractors</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Project Details */}
+            {/* Financial Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>Project Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <div className="text-sm font-medium text-gray-700">Description</div>
-                    <div className="text-sm text-gray-600">No description provided</div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-700">Project Type</div>
-                    <div className="text-sm text-gray-600">{project.type}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-700">Location</div>
-                    <div className="text-sm text-gray-600">{project.address || 'Not specified'}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-700">Project Code</div>
-                    <div className="text-sm text-gray-600">{project.projectCode || 'Not specified'}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-700">Client</div>
-                    <div className="text-sm text-gray-600">{project.client || 'Not specified'}</div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Timeline */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Timeline</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <div className="text-sm font-medium text-gray-700">Start Date</div>
-                    <div className="text-sm text-gray-600">{project.startDate.toLocaleDateString()}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-700">End Date</div>
-                    <div className="text-sm text-gray-600">{project.dueDate.toLocaleDateString()}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-700">Duration</div>
-                    <div className="text-sm text-gray-600">
-                      {Math.ceil((project.dueDate.getTime() - project.startDate.getTime()) / (1000 * 60 * 60 * 24))} days
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-700">Progress</div>
-                    <div className="text-sm text-gray-600">{project.completionPercentage}%</div>
-                    <Progress value={project.completionPercentage} className="mt-2" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Financial Summary */}
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle>Financial Summary</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+                  <DollarSign className="h-4 w-4 text-red-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-3 gap-6">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-red-600">${expensesOccurred.toLocaleString()}</div>
-                      <div className="text-sm text-gray-600">Expenses Occurred</div>
-                      <div className="text-xs text-gray-500">30% of contract value</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">${projectBilled.toLocaleString()}</div>
-                      <div className="text-sm text-gray-600">Project Billed</div>
-                      <div className="text-xs text-gray-500">40% of contract value</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">${amountReceived.toLocaleString()}</div>
-                      <div className="text-sm text-gray-600">Amount Received</div>
-                      <div className="text-xs text-gray-500">35% of contract value</div>
-                    </div>
+                  <div className="text-2xl font-bold text-red-600">
+                    ${mockFinancials.totalExpenses.toLocaleString()}
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Cost to date
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Billed</CardTitle>
+                  <DollarSign className="h-4 w-4 text-blue-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">
+                    ${mockFinancials.totalBilled.toLocaleString()}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Invoiced amount
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Received</CardTitle>
+                  <DollarSign className="h-4 w-4 text-green-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">
+                    ${mockFinancials.totalReceived.toLocaleString()}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Payments received
+                  </p>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Project Progress */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Project Progress</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Overall Completion</span>
+                    <span className="text-sm text-muted-foreground">{project.completionPercentage}%</span>
+                  </div>
+                  <Progress value={project.completionPercentage} />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                    <div>
+                      <p className="text-sm text-gray-500">Phase</p>
+                      <p className="font-medium">Construction</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Days Remaining</p>
+                      <p className="font-medium">45 days</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Budget Utilization</p>
+                      <p className="font-medium">78%</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="schedule">
@@ -356,103 +313,74 @@ export default function ProjectDetail() {
               <CardHeader>
                 <CardTitle>Project Schedule</CardTitle>
               </CardHeader>
-              <CardContent className="p-6">
-                <div className="text-center py-8">
-                  <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-4">Project schedule management</p>
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-600">Start Date: {project.startDate.toLocaleDateString()}</p>
-                    <p className="text-sm text-gray-600">Due Date: {project.dueDate.toLocaleDateString()}</p>
-                    <p className="text-sm text-gray-600">Progress: {project.completionPercentage}%</p>
-                  </div>
-                  <Button className="mt-4" onClick={() => navigate('/schedule')}>
-                    Open Schedule Manager
-                  </Button>
-                </div>
+              <CardContent>
+                <p className="text-muted-foreground">Schedule management and timeline view will be displayed here.</p>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="invoices">
+          <TabsContent value="expenses">
             <Card>
-              <CardContent className="p-6">
-                <div className="text-center py-8">
-                  <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-4">Project invoices will be displayed here</p>
-                  <Button onClick={() => navigate('/invoices')}>
-                    Go to Invoices
-                  </Button>
-                </div>
+              <CardHeader>
+                <CardTitle>Project Expenses</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Expense tracking and approval workflow will be displayed here.</p>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="change-orders">
             <Card>
-              <CardContent className="p-6">
-                <div className="text-center py-8">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-4">Change orders will be displayed here</p>
-                  <Button onClick={() => navigate('/change-orders')}>
-                    Go to Change Orders
-                  </Button>
-                </div>
+              <CardHeader>
+                <CardTitle>Change Orders</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Change order management will be displayed here.</p>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="documents">
             <Card>
-              <CardContent className="p-6">
-                <div className="text-center py-8">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-4">Project documents will be displayed here</p>
-                  <Button onClick={() => navigate('/documents')}>
-                    Go to Documents
-                  </Button>
-                </div>
+              <CardHeader>
+                <CardTitle>Project Documents</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Document management system will be displayed here.</p>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="burn-analysis">
             <Card>
-              <CardContent className="p-6">
-                <div className="text-center py-8">
-                  <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-4">Burn rate analysis will be displayed here</p>
-                  <Button onClick={() => navigate('/analytics')}>
-                    Go to Analytics
-                  </Button>
-                </div>
+              <CardHeader>
+                <CardTitle>Burn Analysis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Budget burn rate and cost analysis will be displayed here.</p>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="equipment">
             <Card>
-              <CardContent className="p-6">
-                <div className="text-center py-8">
-                  <Truck className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-4">Project equipment will be displayed here</p>
-                  <Button onClick={() => navigate('/equipment')}>
-                    Go to Equipment
-                  </Button>
-                </div>
+              <CardHeader>
+                <CardTitle>Project Equipment</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Equipment allocation and tracking will be displayed here.</p>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="subcontractors">
             <Card>
-              <CardContent className="p-6">
-                <div className="text-center py-8">
-                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-4">Project subcontractors will be displayed here</p>
-                  <Button onClick={() => navigate('/subcontractors')}>
-                    Go to Subcontractors
-                  </Button>
-                </div>
+              <CardHeader>
+                <CardTitle>Subcontractors</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Subcontractor management will be displayed here.</p>
               </CardContent>
             </Card>
           </TabsContent>

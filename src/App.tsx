@@ -18,7 +18,7 @@ import Analytics from "./pages/Analytics";
 import Equipment from "./pages/Equipment";
 import ProjectSchedule from "./pages/ProjectSchedule";
 import ChangeOrders from "./pages/ChangeOrders";
-import Invoices from "./pages/Invoices";
+import Expenses from "./pages/Expenses";
 import BidPackages from "./pages/BidPackages";
 import Subcontractors from "./pages/Subcontractors";
 import Documents from "./pages/Documents";
@@ -125,10 +125,10 @@ const App = () => (
               }
             />
             <Route
-              path="/invoices"
+              path="/expenses"
               element={
                 <ProtectedRoute>
-                  <Invoices />
+                  <Expenses />
                 </ProtectedRoute>
               }
             />
