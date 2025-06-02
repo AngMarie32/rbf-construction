@@ -20,7 +20,11 @@ interface DatabaseProject {
   contract_value: number;
   status: string;
   due_date: string | null;
+  start_date: string | null;
   completion_percentage: number | null;
+  address: string | null;
+  project_code: string | null;
+  client: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -50,8 +54,12 @@ export default function Dashboard() {
         type: dbProject.type,
         contractValue: dbProject.contract_value,
         status: dbProject.status as Project['status'],
+        startDate: dbProject.start_date ? new Date(dbProject.start_date) : new Date(),
         dueDate: dbProject.due_date ? new Date(dbProject.due_date) : new Date(),
         completionPercentage: dbProject.completion_percentage || 0,
+        address: dbProject.address || '',
+        projectCode: dbProject.project_code || '',
+        client: dbProject.client || '',
         createdAt: new Date(dbProject.created_at),
         updatedAt: new Date(dbProject.updated_at)
       }));

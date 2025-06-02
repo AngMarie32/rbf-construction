@@ -1,15 +1,14 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
-import { Button } from '@/components/ui/button';
+import { EditProjectDialog } from '@/components/projects/EditProjectDialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import { 
   ArrowLeft, 
-  Edit, 
   Calendar, 
   MapPin, 
   FileText,
@@ -21,7 +20,7 @@ import {
   Users,
   Building,
   ClipboardList,
-  Settings
+  User
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -34,7 +33,11 @@ interface DatabaseProject {
   contract_value: number;
   status: string;
   due_date: string | null;
+  start_date: string | null;
   completion_percentage: number | null;
+  address: string | null;
+  project_code: string | null;
+  client: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -68,8 +71,12 @@ export default function ProjectDetail() {
           type: data.type,
           contractValue: data.contract_value,
           status: data.status as Project['status'],
+          startDate: data.start_date ? new Date(data.start_date) : new Date(),
           dueDate: data.due_date ? new Date(data.due_date) : new Date(),
           completionPercentage: data.completion_percentage || 0,
+          address: data.address || '',
+          projectCode: data.project_code || '',
+          client: data.client || '',
           createdAt: new Date(data.created_at),
           updatedAt: new Date(data.updated_at)
         };
@@ -143,31 +150,38 @@ export default function ProjectDetail() {
                 <Badge className={getStatusColor(project.status)}>
                   {project.status}
                 </Badge>
+                {project.projectCode && (
+                  <span className="text-sm text-gray-500">#{project.projectCode}</span>
+                )}
               </div>
               <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-                <span className="flex items-center gap-1">
-                  <Building className="w-4 h-4" />
-                  Not specified
-                </span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-4 h-4" />
-                  Not specified
-                </span>
+                {project.client && (
+                  <span className="flex items-center gap-1">
+                    <User className="w-4 h-4" />
+                    {project.client}
+                  </span>
+                )}
+                {project.address && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />
+                    {project.address}
+                  </span>
+                )}
                 <span className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
-                  {project.dueDate.toLocaleDateString()} - {project.dueDate.toLocaleDateString()}
+                  {project.startDate.toLocaleDateString()} - {project.dueDate.toLocaleDateString()}
                 </span>
                 <span className="flex items-center gap-1">
-                  <FileText className="w-4 h-4" />
-                  Project #
+                  <Building className="w-4 h-4" />
+                  {project.type}
                 </span>
               </div>
             </div>
           </div>
-          <Button>
-            <Edit className="w-4 h-4 mr-2" />
-            Edit Project
-          </Button>
+          <EditProjectDialog 
+            project={project} 
+            onProjectUpdated={fetchProject}
+          />
         </div>
 
         {/* Financial Summary Cards */}
@@ -268,11 +282,15 @@ export default function ProjectDetail() {
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-700">Location</div>
-                    <div className="text-sm text-gray-600">Not specified</div>
+                    <div className="text-sm text-gray-600">{project.address || 'Not specified'}</div>
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-700">Project Code</div>
-                    <div className="text-sm text-gray-600">Not specified</div>
+                    <div className="text-sm text-gray-600">{project.projectCode || 'Not specified'}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-700">Client</div>
+                    <div className="text-sm text-gray-600">{project.client || 'Not specified'}</div>
                   </div>
                 </CardContent>
               </Card>
@@ -285,7 +303,7 @@ export default function ProjectDetail() {
                 <CardContent className="space-y-4">
                   <div>
                     <div className="text-sm font-medium text-gray-700">Start Date</div>
-                    <div className="text-sm text-gray-600">{project.createdAt.toLocaleDateString()}</div>
+                    <div className="text-sm text-gray-600">{project.startDate.toLocaleDateString()}</div>
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-700">End Date</div>
@@ -294,7 +312,7 @@ export default function ProjectDetail() {
                   <div>
                     <div className="text-sm font-medium text-gray-700">Duration</div>
                     <div className="text-sm text-gray-600">
-                      {Math.ceil((project.dueDate.getTime() - project.createdAt.getTime()) / (1000 * 60 * 60 * 24))} days
+                      {Math.ceil((project.dueDate.getTime() - project.startDate.getTime()) / (1000 * 60 * 60 * 24))} days
                     </div>
                   </div>
                   <div>
@@ -304,17 +322,51 @@ export default function ProjectDetail() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Financial Summary */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Financial Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-red-600">${expensesOccurred.toLocaleString()}</div>
+                      <div className="text-sm text-gray-600">Expenses Occurred</div>
+                      <div className="text-xs text-gray-500">30% of contract value</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">${projectBilled.toLocaleString()}</div>
+                      <div className="text-sm text-gray-600">Project Billed</div>
+                      <div className="text-xs text-gray-500">40% of contract value</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">${amountReceived.toLocaleString()}</div>
+                      <div className="text-sm text-gray-600">Amount Received</div>
+                      <div className="text-xs text-gray-500">35% of contract value</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
           <TabsContent value="schedule">
             <Card>
+              <CardHeader>
+                <CardTitle>Project Schedule</CardTitle>
+              </CardHeader>
               <CardContent className="p-6">
                 <div className="text-center py-8">
                   <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-4">Project schedule will be displayed here</p>
-                  <Button onClick={() => navigate('/schedule')}>
-                    Go to Project Schedule
+                  <p className="text-gray-500 mb-4">Project schedule management</p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-600">Start Date: {project.startDate.toLocaleDateString()}</p>
+                    <p className="text-sm text-gray-600">Due Date: {project.dueDate.toLocaleDateString()}</p>
+                    <p className="text-sm text-gray-600">Progress: {project.completionPercentage}%</p>
+                  </div>
+                  <Button className="mt-4" onClick={() => navigate('/schedule')}>
+                    Open Schedule Manager
                   </Button>
                 </div>
               </CardContent>

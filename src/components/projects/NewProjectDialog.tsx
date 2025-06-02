@@ -25,13 +25,17 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
     type: '',
     contractValue: '',
     status: 'Planning' as 'Planning' | 'Open' | 'Closed',
+    startDate: undefined as Date | undefined,
     dueDate: undefined as Date | undefined,
+    address: '',
+    projectCode: '',
+    client: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.type || !formData.contractValue) {
-      toast.error('Please fill in all required fields');
+    if (!formData.name) {
+      toast.error('Please enter a project name');
       return;
     }
 
@@ -41,10 +45,14 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
         .from('projects')
         .insert({
           name: formData.name,
-          type: formData.type,
-          contract_value: parseFloat(formData.contractValue),
+          type: formData.type || 'General',
+          contract_value: formData.contractValue ? parseFloat(formData.contractValue) : 0,
           status: formData.status,
+          start_date: formData.startDate ? format(formData.startDate, 'yyyy-MM-dd') : null,
           due_date: formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : null,
+          address: formData.address || null,
+          project_code: formData.projectCode || null,
+          client: formData.client || null,
         });
 
       if (error) throw error;
@@ -56,7 +64,11 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
         type: '',
         contractValue: '',
         status: 'Planning',
+        startDate: undefined,
         dueDate: undefined,
+        address: '',
+        projectCode: '',
+        client: '',
       });
       onProjectCreated();
     } catch (error) {
@@ -70,95 +82,153 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button className="rounded-full">
           <Plus className="w-4 h-4 mr-2" />
-          New Project
+          Add Project
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Project</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Project Name *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Enter project name"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="client">Client</Label>
+              <Input
+                id="client"
+                value={formData.client}
+                onChange={(e) => setFormData({ ...formData, client: e.target.value })}
+                placeholder="Client name"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="type">Project Type</Label>
+              <Input
+                id="type"
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                placeholder="e.g. Commercial, Residential"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="projectCode">Project Code</Label>
+              <Input
+                id="projectCode"
+                value={formData.projectCode}
+                onChange={(e) => setFormData({ ...formData, projectCode: e.target.value })}
+                placeholder="Project code"
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="name">Project Name *</Label>
+            <Label htmlFor="address">Address</Label>
             <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Enter project name"
-              required
+              id="address"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              placeholder="Project address"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="type">Project Type *</Label>
-            <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select project type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Commercial">Commercial</SelectItem>
-                <SelectItem value="Residential">Residential</SelectItem>
-                <SelectItem value="Infrastructure">Infrastructure</SelectItem>
-                <SelectItem value="Industrial">Industrial</SelectItem>
-                <SelectItem value="Renovation">Renovation</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="contractValue">Contract Value ($)</Label>
+              <Input
+                id="contractValue"
+                type="number"
+                value={formData.contractValue}
+                onChange={(e) => setFormData({ ...formData, contractValue: e.target.value })}
+                placeholder="0.00"
+                step="0.01"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select value={formData.status} onValueChange={(value: 'Planning' | 'Open' | 'Closed') => setFormData({ ...formData, status: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Planning">Planning</SelectItem>
+                  <SelectItem value="Open">Open</SelectItem>
+                  <SelectItem value="Closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="contractValue">Contract Value ($) *</Label>
-            <Input
-              id="contractValue"
-              type="number"
-              value={formData.contractValue}
-              onChange={(e) => setFormData({ ...formData, contractValue: e.target.value })}
-              placeholder="0.00"
-              step="0.01"
-              required
-            />
-          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Start Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !formData.startDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.startDate ? format(formData.startDate, "PPP") : "Pick start date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={formData.startDate}
+                    onSelect={(date) => setFormData({ ...formData, startDate: date })}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select value={formData.status} onValueChange={(value: 'Planning' | 'Open' | 'Closed') => setFormData({ ...formData, status: value })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Planning">Planning</SelectItem>
-                <SelectItem value="Open">Open</SelectItem>
-                <SelectItem value="Closed">Closed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Due Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.dueDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.dueDate ? format(formData.dueDate, "PPP") : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.dueDate}
-                  onSelect={(date) => setFormData({ ...formData, dueDate: date })}
-                  initialFocus
-                  className="p-3 pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
+            <div className="space-y-2">
+              <Label>Due Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !formData.dueDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.dueDate ? format(formData.dueDate, "PPP") : "Pick due date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={formData.dueDate}
+                    onSelect={(date) => setFormData({ ...formData, dueDate: date })}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -13,8 +12,12 @@ export interface Project {
   type: string;
   contractValue: number;
   status: 'Planning' | 'Open' | 'Closed';
+  startDate: Date;
   dueDate: Date;
   completionPercentage: number;
+  address: string;
+  projectCode: string;
+  client: string;
   createdAt: Date;
   updatedAt: Date;
 }

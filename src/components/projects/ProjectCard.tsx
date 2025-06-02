@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Calendar, DollarSign, MapPin, MoreHorizontal, Edit, Trash2, Eye, TrendingUp, Receipt } from 'lucide-react';
+import { Calendar, DollarSign, MapPin, MoreHorizontal, Edit, Trash2, Eye, TrendingUp, Receipt, User, FileText } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Project } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -64,13 +64,27 @@ export function ProjectCard({ project, onUpdate }: ProjectCardProps) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="text-lg mb-2">{project.name}</CardTitle>
             <div className="flex items-center gap-2 mb-2">
-              <Badge variant="secondary">{project.type}</Badge>
-              <Badge className={getStatusColor(project.status)}>
+              <Badge className={`${getStatusColor(project.status)} text-xs`}>
                 {project.status}
               </Badge>
+              {project.projectCode && (
+                <span className="text-xs text-gray-500">#{project.projectCode}</span>
+              )}
             </div>
+            <CardTitle className="text-lg mb-2">{project.name}</CardTitle>
+            {project.client && (
+              <div className="flex items-center gap-1 text-sm text-gray-600 mb-1">
+                <User className="w-3 h-3" />
+                <span>{project.client}</span>
+              </div>
+            )}
+            {project.address && (
+              <div className="flex items-center gap-1 text-sm text-gray-600 mb-2">
+                <MapPin className="w-3 h-3" />
+                <span className="truncate">{project.address}</span>
+              </div>
+            )}
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -99,78 +113,67 @@ export function ProjectCard({ project, onUpdate }: ProjectCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Contract Value */}
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-gray-600">Contract Value</span>
+          <span className="font-semibold">${project.contractValue.toLocaleString()}</span>
+        </div>
+
         {/* Progress */}
         <div>
           <div className="flex justify-between text-sm mb-2">
-            <span>Progress</span>
+            <span>Completion</span>
             <span className="font-medium">{project.completionPercentage}%</span>
           </div>
           <Progress value={project.completionPercentage} className="h-2" />
         </div>
 
         {/* Financial Information */}
-        <div className="grid grid-cols-2 gap-3">
-          {/* Contract Value */}
-          <div className="flex items-center gap-2 text-sm">
-            <DollarSign className="w-4 h-4 text-green-600" />
-            <div>
-              <div className="font-medium">${project.contractValue.toLocaleString()}</div>
-              <div className="text-xs text-gray-500">Contract Value</div>
-            </div>
+        <div className="grid grid-cols-3 gap-2 text-xs">
+          <div className="text-center">
+            <div className="font-medium text-red-600">${expensesOccurred.toLocaleString()}</div>
+            <div className="text-gray-500">Expenses</div>
           </div>
-
-          {/* Expenses */}
-          <div className="flex items-center gap-2 text-sm">
-            <Receipt className="w-4 h-4 text-red-600" />
-            <div>
-              <div className="font-medium">${expensesOccurred.toLocaleString()}</div>
-              <div className="text-xs text-gray-500">Expenses</div>
-            </div>
+          <div className="text-center">
+            <div className="font-medium text-blue-600">${projectBilled.toLocaleString()}</div>
+            <div className="text-gray-500">Billed</div>
           </div>
-
-          {/* Billed */}
-          <div className="flex items-center gap-2 text-sm">
-            <TrendingUp className="w-4 h-4 text-blue-600" />
-            <div>
-              <div className="font-medium">${projectBilled.toLocaleString()}</div>
-              <div className="text-xs text-gray-500">Billed</div>
-            </div>
-          </div>
-
-          {/* Received */}
-          <div className="flex items-center gap-2 text-sm">
-            <DollarSign className="w-4 h-4 text-green-600" />
-            <div>
-              <div className="font-medium">${amountReceived.toLocaleString()}</div>
-              <div className="text-xs text-gray-500">Received</div>
-            </div>
+          <div className="text-center">
+            <div className="font-medium text-green-600">${amountReceived.toLocaleString()}</div>
+            <div className="text-gray-500">Received</div>
           </div>
         </div>
 
-        {/* Due Date */}
-        <div className="flex items-center gap-2 text-sm">
-          <Calendar className="w-4 h-4 text-blue-600" />
-          <span className={`${isOverdue ? 'text-red-600' : isDueSoon ? 'text-orange-600' : 'text-gray-600'}`}>
-            {isOverdue 
-              ? `Overdue by ${Math.abs(daysUntilDue)} days`
-              : isDueSoon 
-              ? `Due in ${daysUntilDue} days`
-              : `Due ${project.dueDate.toLocaleDateString()}`
-            }
-          </span>
+        {/* Dates */}
+        <div className="space-y-1 text-xs text-gray-600">
+          {project.startDate && (
+            <div className="flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              <span>Started: {project.startDate.toLocaleDateString()}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-1">
+            <Calendar className="w-3 h-3" />
+            <span className={`${isOverdue ? 'text-red-600' : isDueSoon ? 'text-orange-600' : ''}`}>
+              {isOverdue 
+                ? `Overdue by ${Math.abs(daysUntilDue)} days`
+                : isDueSoon 
+                ? `Due in ${daysUntilDue} days`
+                : `Due: ${project.dueDate.toLocaleDateString()}`
+              }
+            </span>
+          </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-2 pt-2">
-          <Button variant="outline" size="sm" className="flex-1" onClick={handleViewDetails}>
-            <Eye className="w-4 h-4 mr-2" />
-            View Details
-          </Button>
-          <Button variant="outline" size="sm" className="flex-1">
-            <Edit className="w-4 h-4 mr-2" />
-            Edit
-          </Button>
-        </div>
+        {/* Action Button */}
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="w-full text-blue-600 border-blue-600 hover:bg-blue-50" 
+          onClick={handleViewDetails}
+        >
+          View Project
+        </Button>
       </CardContent>
     </Card>
   );

@@ -6,9 +6,7 @@ import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Search, Filter, Plus } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Project } from '@/types';
@@ -20,7 +18,11 @@ interface DatabaseProject {
   contract_value: number;
   status: string;
   due_date: string | null;
+  start_date: string | null;
   completion_percentage: number | null;
+  address: string | null;
+  project_code: string | null;
+  client: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -31,7 +33,6 @@ export default function Projects() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchProjects();
@@ -39,7 +40,7 @@ export default function Projects() {
 
   useEffect(() => {
     filterProjects();
-  }, [projects, searchTerm, statusFilter, typeFilter]);
+  }, [projects, searchTerm, statusFilter]);
 
   const fetchProjects = async () => {
     try {
@@ -57,7 +58,11 @@ export default function Projects() {
         contractValue: dbProject.contract_value,
         status: dbProject.status as Project['status'],
         dueDate: dbProject.due_date ? new Date(dbProject.due_date) : new Date(),
+        startDate: dbProject.start_date ? new Date(dbProject.start_date) : new Date(),
         completionPercentage: dbProject.completion_percentage || 0,
+        address: dbProject.address || '',
+        projectCode: dbProject.project_code || '',
+        client: dbProject.client || '',
         createdAt: new Date(dbProject.created_at),
         updatedAt: new Date(dbProject.updated_at)
       }));
@@ -77,7 +82,9 @@ export default function Projects() {
     if (searchTerm) {
       filtered = filtered.filter(project =>
         project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.type.toLowerCase().includes(searchTerm.toLowerCase())
+        project.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.projectCode.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -85,23 +92,13 @@ export default function Projects() {
       filtered = filtered.filter(project => project.status === statusFilter);
     }
 
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(project => project.type === typeFilter);
-    }
-
     setFilteredProjects(filtered);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Planning': return 'bg-blue-100 text-blue-800';
-      case 'Open': return 'bg-green-100 text-green-800';
-      case 'Closed': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const getStatusCount = (status: string) => {
+    if (status === 'all') return projects.length;
+    return projects.filter(p => p.status === status).length;
   };
-
-  const projectTypes = [...new Set(projects.map(p => p.type))];
 
   if (loading) {
     return (
@@ -114,47 +111,60 @@ export default function Projects() {
   }
 
   return (
-    <Layout title="Projects" subtitle="Manage your construction projects">
+    <Layout title="Projects Dashboard" subtitle="">
       <div className="space-y-6">
+        {/* Status Filter Buttons */}
+        <div className="flex gap-2">
+          <Button
+            variant={statusFilter === 'all' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('all')}
+            className="rounded-full"
+          >
+            All Projects ({getStatusCount('all')})
+          </Button>
+          <Button
+            variant={statusFilter === 'Planning' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('Planning')}
+            className="rounded-full"
+          >
+            Planning ({getStatusCount('Planning')})
+          </Button>
+          <Button
+            variant={statusFilter === 'Open' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('Open')}
+            className="rounded-full"
+          >
+            Open ({getStatusCount('Open')})
+          </Button>
+          <Button
+            variant={statusFilter === 'Closed' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('Closed')}
+            className="rounded-full"
+          >
+            Closed ({getStatusCount('Closed')})
+          </Button>
+        </div>
+
         {/* Header Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
-          <div className="flex flex-col sm:flex-row gap-4 flex-1">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search projects..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <Filter className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="Planning">Planning</SelectItem>
-                  <SelectItem value="Open">Open</SelectItem>
-                  <SelectItem value="Closed">Closed</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  {projectTypes.map(type => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Search projects..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
-          <NewProjectDialog onProjectCreated={fetchProjects} />
+          <div className="flex gap-2">
+            <Button className="rounded-full">
+              Sort by: Recent
+            </Button>
+            <NewProjectDialog onProjectCreated={fetchProjects} />
+            <Button variant="outline" className="rounded-full">
+              Export
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -192,31 +202,26 @@ export default function Projects() {
         </div>
 
         {/* Projects Grid */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Projects ({filteredProjects.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {filteredProjects.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500 text-lg mb-4">
-                  {searchTerm || statusFilter !== 'all' || typeFilter !== 'all' 
-                    ? 'No projects match your filters' 
-                    : 'No projects found. Create your first project to get started!'}
-                </p>
-                {!searchTerm && statusFilter === 'all' && typeFilter === 'all' && (
-                  <NewProjectDialog onProjectCreated={fetchProjects} />
-                )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProjects.map((project) => (
-                  <ProjectCard key={project.id} project={project} />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          {filteredProjects.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 text-lg mb-4">
+                {searchTerm || statusFilter !== 'all' 
+                  ? 'No projects match your filters' 
+                  : 'No projects found. Create your first project to get started!'}
+              </p>
+              {!searchTerm && statusFilter === 'all' && (
+                <NewProjectDialog onProjectCreated={fetchProjects} />
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProjects.map((project) => (
+                <ProjectCard key={project.id} project={project} onUpdate={fetchProjects} />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </Layout>
   );
