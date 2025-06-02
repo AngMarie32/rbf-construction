@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,7 +52,7 @@ export default function ChangeOrders() {
     date: new Date(),
     description: '',
     amount: '',
-    status: 'Draft' as const
+    status: 'Draft' as 'Draft' | 'Pending' | 'Approved' | 'Rejected'
   });
 
   useEffect(() => {
@@ -378,7 +377,7 @@ export default function ChangeOrders() {
 
                         <div>
                           <Label htmlFor="status">Status</Label>
-                          <Select value={newChangeOrder.status} onValueChange={(value: any) => setNewChangeOrder({ ...newChangeOrder, status: value })}>
+                          <Select value={newChangeOrder.status} onValueChange={(value: 'Draft' | 'Pending' | 'Approved' | 'Rejected') => setNewChangeOrder({ ...newChangeOrder, status: value })}>
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>

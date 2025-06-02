@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,7 +51,7 @@ export default function ProjectSchedule() {
     title: '',
     startDate: new Date(),
     endDate: new Date(),
-    status: 'Not Started' as const,
+    status: 'Not Started' as 'Not Started' | 'In Progress' | 'Completed' | 'On Hold',
     progress: 0,
     dependencies: [] as string[]
   });
@@ -368,7 +367,7 @@ export default function ProjectSchedule() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="status">Status</Label>
-                          <Select value={newTask.status} onValueChange={(value: any) => setNewTask({ ...newTask, status: value })}>
+                          <Select value={newTask.status} onValueChange={(value: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold') => setNewTask({ ...newTask, status: value })}>
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
