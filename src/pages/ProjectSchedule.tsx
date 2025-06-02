@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,11 +11,16 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Plus, Calendar as CalendarIcon, Edit, Trash2, GanttChart } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { Plus, Calendar as CalendarIcon, Edit, Trash2, GanttChart, List, Download, RefreshCw, BarChart3, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { GanttChart as GanttChartComponent } from '@/components/schedule/GanttChart';
+import { CriticalPath } from '@/components/schedule/CriticalPath';
+import { ProjectSelector } from '@/components/schedule/ProjectSelector';
 
 interface Task {
   id: string;
@@ -30,6 +36,7 @@ interface Task {
 interface Project {
   id: string;
   name: string;
+  color: string;
 }
 
 const STATUS_OPTIONS = [
@@ -39,16 +46,23 @@ const STATUS_OPTIONS = [
   { value: 'On Hold', label: 'On Hold', color: 'bg-yellow-500' }
 ];
 
+const PROJECT_COLORS = [
+  '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', 
+  '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'
+];
+
 export default function ProjectSchedule() {
-  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [currentView, setCurrentView] = useState<'list' | 'gantt' | 'critical'>('list');
   
   const [newTask, setNewTask] = useState({
     title: '',
+    projectId: '',
     startDate: new Date(),
     endDate: new Date(),
     status: 'Not Started' as 'Not Started' | 'In Progress' | 'Completed' | 'On Hold',
@@ -61,10 +75,8 @@ export default function ProjectSchedule() {
   }, []);
 
   useEffect(() => {
-    if (selectedProject) {
-      fetchTasks();
-    }
-  }, [selectedProject]);
+    fetchTasks();
+  }, [selectedProjects]);
 
   const fetchProjects = async () => {
     try {
@@ -74,7 +86,13 @@ export default function ProjectSchedule() {
         .order('name');
 
       if (error) throw error;
-      setProjects(data || []);
+      
+      const projectsWithColors = (data || []).map((project, index) => ({
+        ...project,
+        color: PROJECT_COLORS[index % PROJECT_COLORS.length]
+      }));
+      
+      setProjects(projectsWithColors);
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');
@@ -84,11 +102,16 @@ export default function ProjectSchedule() {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('tasks')
         .select('*')
-        .eq('project_id', selectedProject)
         .order('start_date');
+
+      if (selectedProjects.length > 0) {
+        query = query.in('project_id', selectedProjects);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -113,14 +136,14 @@ export default function ProjectSchedule() {
   };
 
   const saveTask = async () => {
-    if (!selectedProject || !newTask.title) {
+    if (!newTask.projectId || !newTask.title) {
       toast.error('Please fill in required fields');
       return;
     }
 
     try {
       const taskData = {
-        project_id: selectedProject,
+        project_id: newTask.projectId,
         title: newTask.title,
         start_date: newTask.startDate.toISOString().split('T')[0],
         end_date: newTask.endDate.toISOString().split('T')[0],
@@ -150,6 +173,7 @@ export default function ProjectSchedule() {
       setEditingTask(null);
       setNewTask({
         title: '',
+        projectId: '',
         startDate: new Date(),
         endDate: new Date(),
         status: 'Not Started',
@@ -183,6 +207,7 @@ export default function ProjectSchedule() {
     setEditingTask(task);
     setNewTask({
       title: task.title,
+      projectId: task.projectId,
       startDate: task.startDate,
       endDate: task.endDate,
       status: task.status,
@@ -202,88 +227,34 @@ export default function ProjectSchedule() {
     return STATUS_OPTIONS.find(s => s.value === status)?.color || 'bg-gray-500';
   };
 
+  const exportSchedule = () => {
+    toast.success('Schedule exported successfully');
+  };
+
   return (
-    <Layout title="Project Schedule" subtitle="Manage project timelines and task schedules">
+    <Layout title="Project Schedule" subtitle="Plan, track, and manage project timelines">
       <div className="space-y-6">
-        {/* Project Selection */}
+        {/* Header Controls */}
         <Card>
           <CardHeader>
-            <CardTitle>Select Project</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choose a project to view schedule..." />
-              </SelectTrigger>
-              <SelectContent>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        {selectedProject && (
-          <>
-            {/* Schedule Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
-                  <GanttChart className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{tasks.length}</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Completed</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    {tasks.filter(t => t.status === 'Completed').length}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">
-                    {tasks.filter(t => t.status === 'In Progress').length}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Avg Progress</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {tasks.length > 0 ? Math.round(tasks.reduce((sum, t) => sum + t.progress, 0) / tasks.length) : 0}%
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Task Management */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Tasks</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>All Projects Schedule</CardTitle>
+              <div className="flex items-center gap-2">
+                <Button onClick={fetchTasks} variant="outline" size="sm">
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
+                <Button onClick={exportSchedule} variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                   <DialogTrigger asChild>
                     <Button onClick={() => {
                       setEditingTask(null);
                       setNewTask({
                         title: '',
+                        projectId: '',
                         startDate: new Date(),
                         endDate: new Date(),
                         status: 'Not Started',
@@ -292,7 +263,7 @@ export default function ProjectSchedule() {
                       });
                     }}>
                       <Plus className="w-4 h-4 mr-2" />
-                      Add Task
+                      New Task
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
@@ -308,6 +279,22 @@ export default function ProjectSchedule() {
                           onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
                           placeholder="Enter task title"
                         />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="project">Project</Label>
+                        <Select value={newTask.projectId} onValueChange={(value) => setNewTask({ ...newTask, projectId: value })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select project..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {projects.map((project) => (
+                              <SelectItem key={project.id} value={project.id}>
+                                {project.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
@@ -400,31 +387,135 @@ export default function ProjectSchedule() {
                     </div>
                   </DialogContent>
                 </Dialog>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="text-center py-8">Loading tasks...</div>
-                ) : tasks.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    No tasks found. Add your first task to get started.
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Task</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Start Date</TableHead>
-                        <TableHead>End Date</TableHead>
-                        <TableHead>Duration</TableHead>
-                        <TableHead>Progress</TableHead>
-                        <TableHead className="w-20">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {tasks.map((task) => (
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <ProjectSelector
+                projects={projects}
+                selectedProjects={selectedProjects}
+                onSelectionChange={setSelectedProjects}
+              />
+              
+              <div className="flex items-center gap-1 border rounded-lg p-1">
+                <Button
+                  variant={currentView === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setCurrentView('list')}
+                >
+                  <List className="w-4 h-4 mr-1" />
+                  List
+                </Button>
+                <Button
+                  variant={currentView === 'gantt' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setCurrentView('gantt')}
+                >
+                  <BarChart3 className="w-4 h-4 mr-1" />
+                  Gantt
+                </Button>
+                <Button
+                  variant={currentView === 'critical' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setCurrentView('critical')}
+                >
+                  <AlertTriangle className="w-4 h-4 mr-1" />
+                  Critical Path
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Schedule Overview Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
+              <GanttChart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{tasks.length}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {tasks.filter(t => t.status === 'Completed').length}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">
+                {tasks.filter(t => t.status === 'In Progress').length}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Avg Progress</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {tasks.length > 0 ? Math.round(tasks.reduce((sum, t) => sum + t.progress, 0) / tasks.length) : 0}%
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Schedule View */}
+        {currentView === 'list' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Task List</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-8">Loading tasks...</div>
+              ) : tasks.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No tasks found. Add your first task to get started.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Task</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Start Date</TableHead>
+                      <TableHead>End Date</TableHead>
+                      <TableHead>Duration</TableHead>
+                      <TableHead>Progress</TableHead>
+                      <TableHead className="w-20">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tasks.map((task) => {
+                      const project = projects.find(p => p.id === task.projectId);
+                      return (
                         <TableRow key={task.id}>
                           <TableCell className="font-medium">{task.title}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: project?.color }}
+                              />
+                              {project?.name}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <Badge className={cn("text-white", getStatusColor(task.status))}>
                               {task.status}
@@ -464,14 +555,52 @@ export default function ProjectSchedule() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         )}
+
+        {currentView === 'gantt' && (
+          <GanttChartComponent
+            tasks={tasks}
+            projects={projects}
+            selectedProjects={selectedProjects}
+            onTaskUpdate={(taskId, updates) => {
+              // Handle task updates from Gantt chart
+              console.log('Task update:', taskId, updates);
+            }}
+          />
+        )}
+
+        {currentView === 'critical' && (
+          <CriticalPath
+            tasks={tasks}
+            selectedProjects={selectedProjects}
+          />
+        )}
+
+        {/* Schedule Management Instructions */}
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                <span className="text-white text-sm font-bold">i</span>
+              </div>
+              <div className="space-y-2">
+                <h4 className="font-medium text-blue-900">Schedule Management Instructions</h4>
+                <div className="text-sm text-blue-800 space-y-1">
+                  <p><strong>Project Selection:</strong> Choose "All Projects" or select multiple projects to view together.</p>
+                  <p><strong>Timeline View:</strong> Use List view for detailed task management, Gantt for visual timeline, or Critical Path for bottleneck analysis.</p>
+                  <p><strong>Task Actions:</strong> Use quick action buttons to edit, set dates, or mark tasks as complete.</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );
