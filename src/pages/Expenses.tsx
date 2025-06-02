@@ -12,17 +12,35 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Plus, Calendar as CalendarIcon, Edit, FileText, DollarSign, Download, Upload, Clock, CheckCircle, AlertTriangle, MoreHorizontal } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { 
+  Plus, 
+  Calendar as CalendarIcon, 
+  Edit, 
+  FileText, 
+  DollarSign, 
+  Download, 
+  Upload, 
+  Clock, 
+  CheckCircle, 
+  AlertTriangle, 
+  MoreHorizontal,
+  Eye,
+  Trash2,
+  Paperclip
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { DateRange } from 'react-day-picker';
 
 interface Expense {
   id: string;
   invoiceNumber: string;
   vendor: string;
   project: string;
+  projectId?: string;
   category: string;
   amount: number;
   invoiceDate: Date;
@@ -38,10 +56,10 @@ interface Project {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'Pending', label: 'Pending', color: 'bg-gray-500' },
-  { value: 'Field Approved', label: 'Field Approved', color: 'bg-yellow-500' },
-  { value: 'Office Approved', label: 'Office Approved', color: 'bg-blue-500' },
-  { value: 'Paid', label: 'Paid', color: 'bg-green-500' }
+  { value: 'Pending', label: 'Pending', color: 'bg-gray-500', icon: Clock },
+  { value: 'Field Approved', label: 'Field Approved', color: 'bg-yellow-500', icon: CheckCircle },
+  { value: 'Office Approved', label: 'Office Approved', color: 'bg-blue-500', icon: CheckCircle },
+  { value: 'Paid', label: 'Paid', color: 'bg-green-500', icon: CheckCircle }
 ];
 
 const CATEGORY_OPTIONS = [
@@ -54,6 +72,14 @@ const CATEGORY_OPTIONS = [
   'Other'
 ];
 
+const DATE_FILTER_OPTIONS = [
+  { value: 'all', label: 'All Time' },
+  { value: 'thisMonth', label: 'This Month' },
+  { value: 'lastMonth', label: 'Last Month' },
+  { value: 'thisYear', label: 'This Year' },
+  { value: 'custom', label: 'Custom Range' }
+];
+
 export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -63,6 +89,10 @@ export default function Expenses() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [projectFilter, setProjectFilter] = useState('All Projects');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   
   const [newExpense, setNewExpense] = useState({
     invoiceNumber: '',
@@ -101,7 +131,10 @@ export default function Expenses() {
       setLoading(true);
       const { data, error } = await supabase
         .from('invoices')
-        .select('*')
+        .select(`
+          *,
+          projects (name)
+        `)
         .order('invoice_date', { ascending: false });
 
       if (error) throw error;
@@ -110,7 +143,8 @@ export default function Expenses() {
         id: invoice.id,
         invoiceNumber: invoice.invoice_number,
         vendor: invoice.client_name,
-        project: projects.find(p => p.id === invoice.project_id)?.name || 'Unknown',
+        project: invoice.projects?.name || 'No Project',
+        projectId: invoice.project_id,
         category: 'Materials', // Default for now
         amount: invoice.total_amount,
         invoiceDate: new Date(invoice.invoice_date),
@@ -125,6 +159,35 @@ export default function Expenses() {
       toast.error('Failed to load expenses');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateExpenseStatus = async (expenseId: string, newStatus: Expense['status']) => {
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .update({ status: newStatus })
+        .eq('id', expenseId);
+
+      if (error) throw error;
+
+      // Update local state
+      setExpenses(prev => prev.map(exp => 
+        exp.id === expenseId ? { ...exp, status: newStatus } : exp
+      ));
+
+      toast.success(`Expense ${newStatus.toLowerCase()}`);
+    } catch (error) {
+      console.error('Error updating expense status:', error);
+      toast.error('Failed to update expense status');
+    }
+  };
+
+  const handleStatusIconClick = (expense: Expense) => {
+    const currentIndex = STATUS_OPTIONS.findIndex(s => s.value === expense.status);
+    if (currentIndex < STATUS_OPTIONS.length - 1) {
+      const nextStatus = STATUS_OPTIONS[currentIndex + 1].value as Expense['status'];
+      updateExpenseStatus(expense.id, nextStatus);
     }
   };
 
@@ -174,12 +237,29 @@ export default function Expenses() {
     }
   };
 
+  const deleteExpense = async (expenseId: string) => {
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', expenseId);
+
+      if (error) throw error;
+
+      toast.success('Expense deleted successfully');
+      fetchExpenses();
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      toast.error('Failed to delete expense');
+    }
+  };
+
   const editExpense = (expense: Expense) => {
     setEditingExpense(expense);
     setNewExpense({
       invoiceNumber: expense.invoiceNumber,
       vendor: expense.vendor,
-      project: projects.find(p => p.name === expense.project)?.id || '',
+      project: expense.projectId || '',
       category: expense.category,
       amount: expense.amount.toString(),
       invoiceDate: expense.invoiceDate,
@@ -202,24 +282,67 @@ export default function Expenses() {
       status: 'Pending',
       notes: ''
     });
+    setUploadedFile(null);
   };
 
-  const getStatusColor = (status: string) => {
-    return STATUS_OPTIONS.find(s => s.value === status)?.color || 'bg-gray-500';
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setUploadedFile(file);
+      toast.success('File uploaded successfully');
+    }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Pending':
-        return <Clock className="w-4 h-4" />;
-      case 'Field Approved':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'Office Approved':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'Paid':
-        return <CheckCircle className="w-4 h-4" />;
+  const handleFileDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
+    if (file) {
+      setUploadedFile(file);
+      toast.success('File uploaded successfully');
+    }
+  };
+
+  const exportExpenses = () => {
+    const csvContent = [
+      ['Invoice #', 'Date', 'Vendor', 'Project', 'Category', 'Amount', 'Status', 'Due Date'].join(','),
+      ...filteredExpenses.map(expense => [
+        expense.invoiceNumber,
+        format(expense.invoiceDate, 'M/d/yyyy'),
+        expense.vendor,
+        expense.project,
+        expense.category,
+        expense.amount,
+        expense.status,
+        expense.dueDate ? format(expense.dueDate, 'M/d/yyyy') : 'N/A'
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `expenses-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success('Expenses exported successfully');
+  };
+
+  const getDateRange = () => {
+    const now = new Date();
+    switch (dateFilter) {
+      case 'thisMonth':
+        return { start: startOfMonth(now), end: endOfMonth(now) };
+      case 'lastMonth':
+        const lastMonth = subMonths(now, 1);
+        return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
+      case 'thisYear':
+        return { start: startOfYear(now), end: endOfYear(now) };
+      case 'custom':
+        return customDateRange?.from && customDateRange?.to 
+          ? { start: customDateRange.from, end: customDateRange.to }
+          : null;
       default:
-        return <AlertTriangle className="w-4 h-4" />;
+        return null;
     }
   };
 
@@ -230,13 +353,27 @@ export default function Expenses() {
     const matchesStatus = statusFilter === 'All Statuses' || expense.status === statusFilter;
     const matchesProject = projectFilter === 'All Projects' || expense.project === projectFilter;
     
-    return matchesSearch && matchesStatus && matchesProject;
+    const dateRange = getDateRange();
+    const matchesDate = !dateRange || 
+      (expense.invoiceDate >= dateRange.start && expense.invoiceDate <= dateRange.end);
+    
+    return matchesSearch && matchesStatus && matchesProject && matchesDate;
   });
 
-  const totalExpenses = expenses.length;
-  const paidExpenses = expenses.filter(exp => exp.status === 'Paid').reduce((sum, exp) => sum + exp.amount, 0);
-  const pendingExpenses = expenses.filter(exp => exp.status === 'Pending').reduce((sum, exp) => sum + exp.amount, 0);
-  const overdueExpenses = expenses.filter(exp => 
+  const getStatusColor = (status: string) => {
+    return STATUS_OPTIONS.find(s => s.value === status)?.color || 'bg-gray-500';
+  };
+
+  const getStatusIcon = (status: string) => {
+    const StatusIcon = STATUS_OPTIONS.find(s => s.value === status)?.icon || AlertTriangle;
+    return <StatusIcon className="w-4 h-4" />;
+  };
+
+  // Calculate summary statistics based on filtered data
+  const totalInvoices = filteredExpenses.length;
+  const paidExpenses = filteredExpenses.filter(exp => exp.status === 'Paid').reduce((sum, exp) => sum + exp.amount, 0);
+  const pendingExpenses = filteredExpenses.filter(exp => exp.status === 'Pending').reduce((sum, exp) => sum + exp.amount, 0);
+  const overdueExpenses = filteredExpenses.filter(exp => 
     exp.dueDate && exp.dueDate < new Date() && exp.status !== 'Paid'
   ).reduce((sum, exp) => sum + exp.amount, 0);
 
@@ -247,17 +384,17 @@ export default function Expenses() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalExpenses}</div>
+              <div className="text-2xl font-bold">{totalInvoices}</div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Paid Expenses</CardTitle>
+              <CardTitle className="text-sm font-medium">Paid Invoices</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
@@ -269,7 +406,7 @@ export default function Expenses() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Expenses</CardTitle>
+              <CardTitle className="text-sm font-medium">Pending Invoices</CardTitle>
               <Clock className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
@@ -281,7 +418,7 @@ export default function Expenses() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Overdue Expenses</CardTitle>
+              <CardTitle className="text-sm font-medium">Overdue Invoices</CardTitle>
               <AlertTriangle className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
@@ -297,7 +434,7 @@ export default function Expenses() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Expenses</CardTitle>
             <div className="flex space-x-2">
-              <Button variant="outline">
+              <Button variant="outline" onClick={exportExpenses}>
                 <Download className="w-4 h-4 mr-2" />
                 Export
               </Button>
@@ -458,9 +595,23 @@ export default function Expenses() {
 
                     <div>
                       <Label htmlFor="document">Expense Document</Label>
-                      <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                      <div 
+                        className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                        onDrop={handleFileDrop}
+                        onDragOver={(e) => e.preventDefault()}
+                        onClick={() => document.getElementById('fileInput')?.click()}
+                      >
+                        <input
+                          id="fileInput"
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={handleFileUpload}
+                        />
                         <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                        <p className="mt-2 text-sm text-gray-600">Click or drag file to upload</p>
+                        <p className="mt-2 text-sm text-gray-600">
+                          {uploadedFile ? uploadedFile.name : 'Click or drag file to upload'}
+                        </p>
                         <p className="text-xs text-gray-500">Supports PDF, JPG, JPEG, PNG</p>
                       </div>
                     </div>
@@ -491,15 +642,15 @@ export default function Expenses() {
           </CardHeader>
           <CardContent>
             {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="flex flex-col lg:flex-row gap-4 mb-6">
               <Input
                 placeholder="Search expenses..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="sm:w-80"
+                className="lg:w-80"
               />
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="sm:w-40">
+                <SelectTrigger className="lg:w-40">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -512,7 +663,7 @@ export default function Expenses() {
                 </SelectContent>
               </Select>
               <Select value={projectFilter} onValueChange={setProjectFilter}>
-                <SelectTrigger className="sm:w-40">
+                <SelectTrigger className="lg:w-40">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -524,17 +675,63 @@ export default function Expenses() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select defaultValue="Date (Newest first)">
-                <SelectTrigger className="sm:w-48">
+              <Select value={dateFilter} onValueChange={(value) => {
+                setDateFilter(value);
+                if (value === 'custom') {
+                  setShowCustomDatePicker(true);
+                } else {
+                  setShowCustomDatePicker(false);
+                  setCustomDateRange(undefined);
+                }
+              }}>
+                <SelectTrigger className="lg:w-48">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Date (Newest first)">Date (Newest first)</SelectItem>
-                  <SelectItem value="Date (Oldest first)">Date (Oldest first)</SelectItem>
-                  <SelectItem value="Amount (High to Low)">Amount (High to Low)</SelectItem>
-                  <SelectItem value="Amount (Low to High)">Amount (Low to High)</SelectItem>
+                  {DATE_FILTER_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {showCustomDatePicker && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "lg:w-60 justify-start text-left font-normal",
+                        !customDateRange && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customDateRange?.from ? (
+                        customDateRange.to ? (
+                          <>
+                            {format(customDateRange.from, "LLL dd, y")} -{" "}
+                            {format(customDateRange.to, "LLL dd, y")}
+                          </>
+                        ) : (
+                          format(customDateRange.from, "LLL dd, y")
+                        )
+                      ) : (
+                        "Pick a date range"
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={customDateRange?.from}
+                      selected={customDateRange}
+                      onSelect={setCustomDateRange}
+                      numberOfMonths={2}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
 
             {loading ? (
@@ -572,32 +769,54 @@ export default function Expenses() {
                         ${expense.amount.toLocaleString()}
                       </TableCell>
                       <TableCell>
-                        <Badge className={cn("text-white flex items-center gap-1", getStatusColor(expense.status))}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn("flex items-center gap-1 text-white", getStatusColor(expense.status))}
+                          onClick={() => handleStatusIconClick(expense)}
+                          disabled={expense.status === 'Paid'}
+                        >
                           {getStatusIcon(expense.status)}
                           {expense.status}
-                        </Badge>
+                        </Button>
                       </TableCell>
                       <TableCell>
                         {expense.dueDate ? format(expense.dueDate, "M/d/yyyy") : 'N/A'}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-1">
-                          <Button variant="ghost" size="sm">
-                            <FileText className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
+                          <Button 
+                            variant="ghost" 
                             size="sm"
-                            onClick={() => editExpense(expense)}
+                            onClick={() => handleStatusIconClick(expense)}
+                            disabled={expense.status === 'Paid'}
                           >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
                             <DollarSign className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <DropdownMenuItem onClick={() => editExpense(expense)}>
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => toast.info('View attachment feature coming soon')}>
+                                <Eye className="w-4 h-4 mr-2" />
+                                View Attachment
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => deleteExpense(expense.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </TableCell>
                     </TableRow>
