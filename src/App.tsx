@@ -17,6 +17,10 @@ import Analytics from "./pages/Analytics";
 import Equipment from "./pages/Equipment";
 import ProjectSchedule from "./pages/ProjectSchedule";
 import ChangeOrders from "./pages/ChangeOrders";
+import Invoices from "./pages/Invoices";
+import BidPackages from "./pages/BidPackages";
+import Subcontractors from "./pages/Subcontractors";
+import Documents from "./pages/Documents";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -112,10 +116,26 @@ const App = () => (
               }
             />
             <Route
+              path="/invoices"
+              element={
+                <ProtectedRoute>
+                  <Invoices />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/bid-packages"
+              element={
+                <ProtectedRoute>
+                  <BidPackages />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/subcontractors"
               element={
                 <ProtectedRoute>
-                  <div>Subcontractors Coming Soon</div>
+                  <Subcontractors />
                 </ProtectedRoute>
               }
             />
@@ -123,7 +143,7 @@ const App = () => (
               path="/documents"
               element={
                 <ProtectedRoute>
-                  <div>Documents Coming Soon</div>
+                  <Documents />
                 </ProtectedRoute>
               }
             />

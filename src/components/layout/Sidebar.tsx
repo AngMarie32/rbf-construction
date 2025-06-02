@@ -18,7 +18,11 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  Clock,
+  Edit,
+  Receipt,
+  Package
 } from 'lucide-react';
 
 const navigation = [
@@ -30,6 +34,10 @@ const navigation = [
   { name: 'Payment Apps', href: '/payment-apps', icon: DollarSign },
   { name: 'Analytics', href: '/analytics', icon: TrendingUp },
   { name: 'Equipment', href: '/equipment', icon: Wrench },
+  { name: 'Project Schedule', href: '/schedule', icon: Clock },
+  { name: 'Change Orders', href: '/change-orders', icon: Edit },
+  { name: 'Invoices', href: '/invoices', icon: Receipt },
+  { name: 'Bid Packages', href: '/bid-packages', icon: Package },
   { name: 'Subcontractors', href: '/subcontractors', icon: Users },
   { name: 'Documents', href: '/documents', icon: FileCheck },
 ];
@@ -74,7 +82,7 @@ export function Sidebar({ className }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-2 space-y-1">
+      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
         {navigation.map((item) => {
           const isActive = location.pathname === item.href;
           return (
