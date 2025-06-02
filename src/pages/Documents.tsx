@@ -319,7 +319,7 @@ export default function Documents() {
                     <SelectValue placeholder="All categories" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Categories</SelectItem>
+                    <SelectItem value="all">All Categories</SelectItem>
                     {CATEGORY_OPTIONS.map((category) => (
                       <SelectItem key={category.value} value={category.value}>
                         {category.label}
@@ -336,7 +336,7 @@ export default function Documents() {
                     <SelectValue placeholder="All projects" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Projects</SelectItem>
+                    <SelectItem value="all">All Projects</SelectItem>
                     {projects.map((project) => (
                       <SelectItem key={project.id} value={project.id}>
                         {project.name}
@@ -417,7 +417,7 @@ export default function Documents() {
                         <SelectValue placeholder="Select project..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">No Project</SelectItem>
+                        <SelectItem value="none">No Project</SelectItem>
                         {projects.map((project) => (
                           <SelectItem key={project.id} value={project.id}>
                             {project.name}

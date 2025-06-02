@@ -34,8 +34,8 @@ interface BidPackageItem {
   category: string;
   description: string;
   quantity: number;
-  unit?: string;
-  estimatedCost?: number;
+  unit: string; // Made required instead of optional
+  estimatedCost: number; // Made required instead of optional
 }
 
 interface Project {
@@ -120,8 +120,8 @@ export default function BidPackages() {
               category: item.category,
               description: item.description,
               quantity: item.quantity,
-              unit: item.unit,
-              estimatedCost: item.estimated_cost
+              unit: item.unit || 'each',
+              estimatedCost: item.estimated_cost || 0
             }))
           };
         })
@@ -380,7 +380,7 @@ export default function BidPackages() {
                           <SelectValue placeholder="Select project..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No Project</SelectItem>
+                          <SelectItem value="none">No Project</SelectItem>
                           {projects.map((project) => (
                             <SelectItem key={project.id} value={project.id}>
                               {project.name}
