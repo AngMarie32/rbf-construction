@@ -1,6 +1,7 @@
 
 import { useMemo } from 'react';
 import { format, differenceInDays, eachMonthOfInterval } from 'date-fns';
+import { AlertTriangle } from 'lucide-react';
 
 interface Task {
   id: string;
@@ -12,6 +13,7 @@ interface Task {
   projectId: string;
   dependencies: string[];
   duration: number;
+  isCritical?: boolean;
 }
 
 interface Project {
@@ -27,6 +29,8 @@ interface GanttChartProps {
   onTaskUpdate: (taskId: string, updates: Partial<Task>) => void;
   dateRange: { from: Date; to: Date };
   showDependencies?: boolean;
+  showCriticalPath?: boolean;
+  showMilestones?: boolean;
 }
 
 export function GanttChart({ 
@@ -35,7 +39,9 @@ export function GanttChart({
   selectedProjects, 
   onTaskUpdate, 
   dateRange,
-  showDependencies = false 
+  showDependencies = false,
+  showCriticalPath = false,
+  showMilestones = false
 }: GanttChartProps) {
   const months = useMemo(() => {
     return eachMonthOfInterval({
@@ -64,10 +70,22 @@ export function GanttChart({
     return { left: `${leftPercent}%`, width: `${widthPercent}%` };
   };
 
+  const getTaskColor = (task: Task, projectColor: string) => {
+    if (showCriticalPath && task.isCritical) {
+      return '#dc2626'; // Red for critical tasks
+    }
+    return projectColor;
+  };
+
   return (
     <div className="bg-white rounded-lg border">
       <div className="p-4 border-b">
         <h3 className="text-lg font-semibold">Project Timeline</h3>
+        {showCriticalPath && (
+          <p className="text-sm text-gray-600 mt-1">
+            Critical path tasks are highlighted in red
+          </p>
+        )}
       </div>
       
       {/* Timeline Header */}
@@ -133,15 +151,28 @@ export function GanttChart({
                 {/* Project Tasks */}
                 {projectTasks.map((task) => {
                   const position = getTaskPosition(task);
+                  const taskColor = getTaskColor(task, project.color);
+                  
                   return (
-                    <div key={task.id} className="flex border-b hover:bg-gray-50">
+                    <div key={task.id} className={`flex border-b hover:bg-gray-50 ${task.isCritical && showCriticalPath ? 'bg-red-50' : ''}`}>
                       <div className="w-80 p-3 border-r">
                         <div className="flex items-center gap-2">
                           <div className="w-4 h-4 flex items-center justify-center">
-                            <div className="w-2 h-2 bg-gray-400 rounded-sm"></div>
+                            {task.isCritical && showCriticalPath ? (
+                              <AlertTriangle className="w-3 h-3 text-red-500" />
+                            ) : (
+                              <div className="w-2 h-2 bg-gray-400 rounded-sm"></div>
+                            )}
                           </div>
                           <span className="font-medium text-sm">{task.title}</span>
                         </div>
+                        {showDependencies && task.dependencies.length > 0 && (
+                          <div className="ml-6 mt-1">
+                            <span className="text-xs text-gray-500">
+                              Dependencies: {task.dependencies.length}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1 relative h-12">
                         <div className="flex h-full">
@@ -153,11 +184,11 @@ export function GanttChart({
                           className="absolute top-2 h-8 rounded flex items-center justify-between px-2 text-white text-xs font-medium cursor-pointer hover:opacity-80"
                           style={{ 
                             ...position,
-                            backgroundColor: project.color,
+                            backgroundColor: taskColor,
                             minWidth: '60px'
                           }}
                           onClick={() => {
-                            onTaskUpdate(task.id, { progress: task.progress + 10 });
+                            onTaskUpdate(task.id, { progress: Math.min(100, task.progress + 10) });
                           }}
                         >
                           <span className="truncate">{task.title.split(' ')[0]}</span>
@@ -165,10 +196,28 @@ export function GanttChart({
                             <span className="text-xs">({task.progress}%)</span>
                           )}
                         </div>
-                        {showDependencies && task.dependencies.length > 0 && (
-                          <div className="absolute top-10 left-2 text-xs text-gray-500">
-                            ↳ Dependencies: {task.dependencies.length}
-                          </div>
+                        
+                        {/* Progress bar overlay */}
+                        {task.progress > 0 && (
+                          <div 
+                            className="absolute top-2 h-8 rounded-l"
+                            style={{ 
+                              left: position.left,
+                              width: `${(parseFloat(position.width.replace('%', '')) * task.progress) / 100}%`,
+                              backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                              pointerEvents: 'none'
+                            }}
+                          />
+                        )}
+                        
+                        {/* Milestone indicator */}
+                        {showMilestones && task.progress === 100 && (
+                          <div 
+                            className="absolute top-1 w-2 h-2 bg-yellow-500 rotate-45"
+                            style={{ 
+                              left: `calc(${position.left} + ${position.width} - 4px)`
+                            }}
+                          />
                         )}
                       </div>
                     </div>
