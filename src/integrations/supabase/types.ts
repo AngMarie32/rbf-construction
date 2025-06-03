@@ -960,45 +960,60 @@ export type Database = {
       subcontractors: {
         Row: {
           address: string | null
+          city: string | null
           company: string | null
           created_at: string | null
           email: string | null
           id: string
+          insurance_expiry: string | null
           name: string
           notes: string | null
           phone: string | null
           rating: number | null
           specialties: string[] | null
+          state: string | null
           status: string | null
+          travel_radius: number | null
           updated_at: string | null
+          zip_code: string | null
         }
         Insert: {
           address?: string | null
+          city?: string | null
           company?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
+          insurance_expiry?: string | null
           name: string
           notes?: string | null
           phone?: string | null
           rating?: number | null
           specialties?: string[] | null
+          state?: string | null
           status?: string | null
+          travel_radius?: number | null
           updated_at?: string | null
+          zip_code?: string | null
         }
         Update: {
           address?: string | null
+          city?: string | null
           company?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
+          insurance_expiry?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
           rating?: number | null
           specialties?: string[] | null
+          state?: string | null
           status?: string | null
+          travel_radius?: number | null
           updated_at?: string | null
+          zip_code?: string | null
         }
         Relationships: []
       }
