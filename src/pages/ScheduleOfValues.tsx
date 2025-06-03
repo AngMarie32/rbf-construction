@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -80,7 +79,17 @@ export default function ScheduleOfValues() {
         .order('name');
 
       if (error) throw error;
-      setProjects(data || []);
+      
+      // Map the snake_case data to camelCase to match the Project interface
+      const mappedProjects = (data || []).map(project => ({
+        id: project.id,
+        name: project.name,
+        projectCode: project.project_code || '',
+        client: project.client || '',
+        address: project.address || ''
+      }));
+      
+      setProjects(mappedProjects);
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');
