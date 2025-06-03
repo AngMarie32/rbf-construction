@@ -264,3 +264,32 @@ export interface CompanySettings {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface ProjectBilling {
+  id: string;
+  projectId: string;
+  billingPeriodStart: Date;
+  billingPeriodEnd: Date;
+  invoiceNumber?: string;
+  billedAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  status: 'Draft' | 'Sent' | 'Paid' | 'Overdue' | 'Cancelled';
+  invoiceDate?: Date;
+  dueDate?: Date;
+  paymentDate?: Date;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BillingLineItem {
+  id: string;
+  billingId: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  sovItemId?: string;
+  createdAt: Date;
+}

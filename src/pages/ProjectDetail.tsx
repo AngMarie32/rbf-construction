@@ -28,10 +28,12 @@ export default function ProjectDetail() {
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [billingData, setBillingData] = useState<any[]>([]);
 
   useEffect(() => {
     if (id) {
       fetchProject();
+      fetchBillingData();
     }
   }, [id]);
 
@@ -65,6 +67,22 @@ export default function ProjectDetail() {
       toast.error('Failed to load project details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBillingData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('project_billing')
+        .select('*')
+        .eq('project_id', id)
+        .order('billing_period_end', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setBillingData(data || []);
+    } catch (error) {
+      console.error('Error fetching billing data:', error);
     }
   };
 
@@ -252,29 +270,61 @@ export default function ProjectDetail() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-blue-600">
-                    ${mockFinancials.totalBilled.toLocaleString()}
+                    ${billingData.reduce((sum, billing) => sum + billing.billed_amount, 0).toLocaleString()}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Invoiced amount
+                    Total invoiced
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Received</CardTitle>
-                  <DollarSign className="h-4 w-4 text-green-600" />
+                  <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
+                  <DollarSign className="h-4 w-4 text-orange-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    ${mockFinancials.totalReceived.toLocaleString()}
+                  <div className="text-2xl font-bold text-orange-600">
+                    ${billingData.reduce((sum, billing) => sum + billing.remaining_amount, 0).toLocaleString()}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Payments received
+                    Unpaid invoices
                   </p>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Recent Billing */}
+            {billingData.length > 0 && (
+              <Card>
+                <CardHeader className="flex justify-between items-center">
+                  <CardTitle>Recent Billing</CardTitle>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/project-billing')}>
+                    View All Billing
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {billingData.slice(0, 3).map((billing) => (
+                      <div key={billing.id} className="flex justify-between items-center p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">{billing.invoice_number || 'Draft Invoice'}</p>
+                          <p className="text-sm text-gray-500">
+                            {format(new Date(billing.billing_period_start), 'MMM dd')} - {format(new Date(billing.billing_period_end), 'MMM dd, yyyy')}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">${billing.billed_amount.toLocaleString()}</p>
+                          <Badge className={`${getStatusColor(billing.status)} text-white text-xs`}>
+                            {billing.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Project Progress */}
             <Card>

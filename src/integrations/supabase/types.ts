@@ -222,6 +222,54 @@ export type Database = {
         }
         Relationships: []
       }
+      billing_line_items: {
+        Row: {
+          billing_id: string
+          created_at: string
+          description: string
+          id: string
+          quantity: number
+          sov_item_id: string | null
+          total_amount: number | null
+          unit_price: number
+        }
+        Insert: {
+          billing_id: string
+          created_at?: string
+          description: string
+          id?: string
+          quantity?: number
+          sov_item_id?: string | null
+          total_amount?: number | null
+          unit_price?: number
+        }
+        Update: {
+          billing_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          quantity?: number
+          sov_item_id?: string | null
+          total_amount?: number | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_line_items_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "project_billing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_line_items_sov_item_id_fkey"
+            columns: ["sov_item_id"]
+            isOneToOne: false
+            referencedRelation: "sov_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       burn_records: {
         Row: {
           actual_cost: number
@@ -753,6 +801,68 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      project_billing: {
+        Row: {
+          billed_amount: number
+          billing_period_end: string
+          billing_period_start: string
+          created_at: string
+          due_date: string | null
+          id: string
+          invoice_date: string | null
+          invoice_number: string | null
+          notes: string | null
+          paid_amount: number
+          payment_date: string | null
+          project_id: string
+          remaining_amount: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          billed_amount?: number
+          billing_period_end: string
+          billing_period_start: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          notes?: string | null
+          paid_amount?: number
+          payment_date?: string | null
+          project_id: string
+          remaining_amount?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          billed_amount?: number
+          billing_period_end?: string
+          billing_period_start?: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          notes?: string | null
+          paid_amount?: number
+          payment_date?: string | null
+          project_id?: string
+          remaining_amount?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_billing_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_subcontractors: {
         Row: {

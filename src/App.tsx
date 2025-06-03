@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,6 +22,7 @@ import BidPackages from "./pages/BidPackages";
 import Subcontractors from "./pages/Subcontractors";
 import Documents from "./pages/Documents";
 import NotFound from "./pages/NotFound";
+import ProjectBilling from "./pages/ProjectBilling";
 
 const queryClient = new QueryClient();
 
@@ -89,6 +89,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <PaymentApplications />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/project-billing"
+              element={
+                <ProtectedRoute>
+                  <ProjectBilling />
                 </ProtectedRoute>
               }
             />
