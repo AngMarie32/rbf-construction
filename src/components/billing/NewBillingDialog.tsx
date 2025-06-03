@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar"
@@ -379,8 +380,7 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
             <Label htmlFor="notes" className="text-right mt-2">
               Notes
             </Label>
-            <Input
-              as="textarea"
+            <Textarea
               name="notes"
               id="notes"
               value={formData.notes}
