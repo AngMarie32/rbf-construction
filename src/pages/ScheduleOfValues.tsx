@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Calculator, FileText, Upload, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Calculator, FileText, Upload, Trash2, Filter, Download, Settings, Calendar, TrendingUp, Eye, Edit3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -16,39 +17,49 @@ interface SOVItem {
   itemNumber: string;
   category: string;
   description: string;
-  scheduledValue: number;
-  previousApplications: number;
-  thisPeriod: number;
-  materialsStored: number;
-  totalCompletedAndStored: number;
+  originalContractSum: number;
+  approvedChanges: number;
+  revisedContractSum: number;
+  workCompleted: number;
   percentComplete: number;
+  balanceToFinish: number;
+  retainage: number;
 }
 
 interface Project {
   id: string;
   name: string;
+  projectCode: string;
+  client: string;
+  address: string;
 }
 
-interface BidItem {
+interface ChangeOrder {
   id: string;
-  category: string;
-  subcategory: string;
+  number: string;
   description: string;
-  total: number;
+  amount: number;
+  date: string;
+  status: string;
+  user: string;
+  revision: string;
 }
 
 export default function ScheduleOfValues() {
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [sovItems, setSovItems] = useState<SOVItem[]>([]);
-  const [bidItems, setBidItems] = useState<BidItem[]>([]);
+  const [changeOrders, setChangeOrders] = useState<ChangeOrder[]>([]);
   const [loading, setLoading] = useState(false);
-  const [newItem, setNewItem] = useState({
-    itemNumber: '',
-    category: '',
-    description: '',
-    scheduledValue: ''
-  });
+  const [viewMode, setViewMode] = useState<'divisions' | 'summary'>('divisions');
+  const [timeFilter, setTimeFilter] = useState('All Time');
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Summary calculations
+  const totalContractSum = sovItems.reduce((sum, item) => sum + item.revisedContractSum, 0);
+  const completedToDate = sovItems.reduce((sum, item) => sum + item.workCompleted, 0);
+  const remainingBalance = totalContractSum - completedToDate;
+  const overallProgress = totalContractSum > 0 ? (completedToDate / totalContractSum) * 100 : 0;
 
   useEffect(() => {
     fetchProjects();
@@ -57,7 +68,7 @@ export default function ScheduleOfValues() {
   useEffect(() => {
     if (selectedProject) {
       fetchSOVItems();
-      fetchBidItems();
+      fetchChangeOrders();
     }
   }, [selectedProject]);
 
@@ -65,7 +76,7 @@ export default function ScheduleOfValues() {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name')
+        .select('id, name, project_code, client, address')
         .order('name');
 
       if (error) throw error;
@@ -76,27 +87,30 @@ export default function ScheduleOfValues() {
     }
   };
 
-  const fetchBidItems = async () => {
+  const fetchChangeOrders = async () => {
     try {
       const { data, error } = await supabase
-        .from('bid_items')
-        .select('id, category, subcategory, description, total')
+        .from('change_orders')
+        .select('*')
         .eq('project_id', selectedProject)
-        .order('category');
+        .order('date', { ascending: false });
 
       if (error) throw error;
 
-      const mappedItems = (data || []).map(item => ({
-        id: item.id,
-        category: item.category,
-        subcategory: item.subcategory || '',
-        description: item.description,
-        total: item.total || 0
+      const mappedOrders = (data || []).map((order, index) => ({
+        id: order.id,
+        number: order.number,
+        description: order.description,
+        amount: order.amount,
+        date: new Date(order.date).toLocaleDateString(),
+        status: order.status,
+        user: 'System User',
+        revision: `#${index + 1}`
       }));
 
-      setBidItems(mappedItems);
+      setChangeOrders(mappedOrders);
     } catch (error) {
-      console.error('Error fetching bid items:', error);
+      console.error('Error fetching change orders:', error);
     }
   };
 
@@ -111,18 +125,25 @@ export default function ScheduleOfValues() {
 
       if (error) throw error;
 
-      const mappedItems = (data || []).map(item => ({
-        id: item.id,
-        itemNumber: item.item_number,
-        category: item.category,
-        description: item.description,
-        scheduledValue: item.scheduled_value,
-        previousApplications: item.previous_applications || 0,
-        thisPeriod: item.this_period || 0,
-        materialsStored: item.materials_stored || 0,
-        totalCompletedAndStored: item.total_completed_and_stored || 0,
-        percentComplete: item.percent_complete || 0
-      }));
+      const mappedItems = (data || []).map(item => {
+        const approvedChanges = changeOrders
+          .filter(co => co.status === 'Approved')
+          .reduce((sum, co) => sum + co.amount, 0);
+        
+        return {
+          id: item.id,
+          itemNumber: item.item_number,
+          category: item.category,
+          description: item.description,
+          originalContractSum: item.scheduled_value,
+          approvedChanges: approvedChanges * 0.1, // Distribute changes proportionally
+          revisedContractSum: item.scheduled_value + (approvedChanges * 0.1),
+          workCompleted: item.total_completed_and_stored || 0,
+          percentComplete: item.percent_complete || 0,
+          balanceToFinish: (item.scheduled_value + (approvedChanges * 0.1)) - (item.total_completed_and_stored || 0),
+          retainage: (item.total_completed_and_stored || 0) * 0.1
+        };
+      });
 
       setSovItems(mappedItems);
     } catch (error) {
@@ -133,119 +154,16 @@ export default function ScheduleOfValues() {
     }
   };
 
-  const importFromBid = async () => {
-    if (bidItems.length === 0) {
-      toast.error('No bid items found to import');
-      return;
-    }
-
-    try {
-      // Check if SOV items already exist
-      if (sovItems.length > 0) {
-        const confirmed = confirm('This will replace existing SOV items. Continue?');
-        if (!confirmed) return;
-
-        // Delete existing SOV items
-        const { error: deleteError } = await supabase
-          .from('sov_items')
-          .delete()
-          .eq('project_id', selectedProject);
-
-        if (deleteError) throw deleteError;
-      }
-
-      const sovItemsToInsert = bidItems.map((item, index) => ({
-        project_id: selectedProject,
-        item_number: String(index + 1).padStart(3, '0'),
-        category: item.category,
-        description: `${item.subcategory ? item.subcategory + ' - ' : ''}${item.description}`,
-        scheduled_value: item.total,
-        previous_applications: 0,
-        this_period: 0,
-        materials_stored: 0,
-        total_completed_and_stored: 0,
-        percent_complete: 0
-      }));
-
-      const { error } = await supabase
-        .from('sov_items')
-        .insert(sovItemsToInsert);
-
-      if (error) throw error;
-
-      toast.success('Bid items imported successfully');
-      fetchSOVItems();
-    } catch (error) {
-      console.error('Error importing bid items:', error);
-      toast.error('Failed to import bid items');
-    }
-  };
-
-  const addSOVItem = async () => {
-    if (!selectedProject || !newItem.itemNumber || !newItem.description || !newItem.scheduledValue) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('sov_items')
-        .insert({
-          project_id: selectedProject,
-          item_number: newItem.itemNumber,
-          category: newItem.category,
-          description: newItem.description,
-          scheduled_value: parseFloat(newItem.scheduledValue),
-          previous_applications: 0,
-          this_period: 0,
-          materials_stored: 0,
-          total_completed_and_stored: 0,
-          percent_complete: 0
-        });
-
-      if (error) throw error;
-
-      toast.success('SOV item added successfully');
-      setNewItem({ itemNumber: '', category: '', description: '', scheduledValue: '' });
-      fetchSOVItems();
-    } catch (error) {
-      console.error('Error adding SOV item:', error);
-      toast.error('Failed to add SOV item');
-    }
-  };
-
-  const deleteSOVItem = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('sov_items')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast.success('SOV item deleted');
-      fetchSOVItems();
-    } catch (error) {
-      console.error('Error deleting SOV item:', error);
-      toast.error('Failed to delete SOV item');
-    }
-  };
-
   const updateSOVItem = async (id: string, field: string, value: number) => {
     try {
       const updateData: any = { [field]: value };
       
-      // Recalculate totals when updating this period or materials stored
-      if (field === 'this_period' || field === 'materials_stored') {
+      if (field === 'workCompleted') {
         const item = sovItems.find(i => i.id === id);
         if (item) {
-          const thisPeriod = field === 'this_period' ? value : item.thisPeriod;
-          const materialsStored = field === 'materials_stored' ? value : item.materialsStored;
-          const totalCompletedAndStored = item.previousApplications + thisPeriod + materialsStored;
-          const percentComplete = item.scheduledValue > 0 ? (totalCompletedAndStored / item.scheduledValue) * 100 : 0;
-          
-          updateData.total_completed_and_stored = totalCompletedAndStored;
+          const percentComplete = item.revisedContractSum > 0 ? (value / item.revisedContractSum) * 100 : 0;
           updateData.percent_complete = Math.min(percentComplete, 100);
+          updateData.total_completed_and_stored = value;
         }
       }
 
@@ -257,6 +175,7 @@ export default function ScheduleOfValues() {
       if (error) throw error;
 
       fetchSOVItems();
+      toast.success('SOV item updated successfully');
     } catch (error) {
       console.error('Error updating SOV item:', error);
       toast.error('Failed to update SOV item');
@@ -269,31 +188,75 @@ export default function ScheduleOfValues() {
       return;
     }
     
-    // Navigate to Payment Applications page with project context
     window.location.href = `/payment-apps?project=${selectedProject}&action=generate`;
   };
 
-  const totalScheduledValue = sovItems.reduce((sum, item) => sum + item.scheduledValue, 0);
-  const totalCompletedValue = sovItems.reduce((sum, item) => sum + item.totalCompletedAndStored, 0);
-  const overallPercentComplete = totalScheduledValue > 0 ? (totalCompletedValue / totalScheduledValue) * 100 : 0;
+  const exportToPDF = () => {
+    toast.success('PDF export functionality will be implemented');
+  };
+
+  const editValues = () => {
+    toast.success('Edit values mode activated');
+  };
+
+  const selectedProjectData = projects.find(p => p.id === selectedProject);
+
+  const getCompletionColor = (percentage: number) => {
+    if (percentage === 100) return 'bg-green-500';
+    if (percentage >= 80) return 'bg-blue-500';
+    if (percentage >= 60) return 'bg-yellow-500';
+    return 'bg-gray-300';
+  };
 
   return (
     <Layout title="Schedule of Values" subtitle="Track project progress and payment applications">
       <div className="space-y-6">
+        {/* Header Section */}
+        <div className="flex justify-between items-start">
+          <div>
+            <div className="flex items-center text-sm text-gray-600 mb-2">
+              <span>Project Management</span>
+              <span className="mx-2">›</span>
+              <span className="text-blue-600">Schedule of Values</span>
+            </div>
+            <h1 className="text-3xl font-bold">Schedule of Values</h1>
+            {selectedProjectData && (
+              <p className="text-gray-600 mt-1">
+                {selectedProjectData.name} | Project #{selectedProjectData.projectCode}
+              </p>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => window.open('/payment-apps', '_blank')}>
+              <FileText className="w-4 h-4 mr-2" />
+              G703 & G702
+            </Button>
+            <Button variant="outline" onClick={exportToPDF}>
+              <Download className="w-4 h-4 mr-2" />
+              Print
+            </Button>
+            <Button variant="outline" onClick={exportToPDF}>
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+            <Button onClick={editValues}>
+              <Edit3 className="w-4 h-4 mr-2" />
+              Edit Values
+            </Button>
+          </div>
+        </div>
+
         {/* Project Selection */}
         <Card>
-          <CardHeader>
-            <CardTitle>Select Project</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <Select value={selectedProject} onValueChange={setSelectedProject}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choose a project..." />
+                <SelectValue placeholder="Select a project..." />
               </SelectTrigger>
               <SelectContent>
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
-                    {project.name}
+                    {project.name} - {project.client}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -303,129 +266,113 @@ export default function ScheduleOfValues() {
 
         {selectedProject && (
           <>
-            {/* Import Options */}
-            <Card>
-              <CardHeader>
-                <CardTitle>SOV Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-4 flex-wrap">
-                  <Button onClick={importFromBid} disabled={bidItems.length === 0}>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Import from Bid ({bidItems.length} items)
-                  </Button>
-                  <Button onClick={generateG702} disabled={sovItems.length === 0}>
-                    <FileText className="w-4 h-4 mr-2" />
-                    Generate G702/G703
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Add New SOV Item */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Add SOV Item</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                  <div>
-                    <Label htmlFor="itemNumber">Item #</Label>
-                    <Input
-                      id="itemNumber"
-                      value={newItem.itemNumber}
-                      onChange={(e) => setNewItem({ ...newItem, itemNumber: e.target.value })}
-                      placeholder="001"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="category">Category</Label>
-                    <Input
-                      id="category"
-                      value={newItem.category}
-                      onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-                      placeholder="General Conditions"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="description">Description</Label>
-                    <Input
-                      id="description"
-                      value={newItem.description}
-                      onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                      placeholder="Item description"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="scheduledValue">Scheduled Value ($)</Label>
-                    <Input
-                      id="scheduledValue"
-                      type="number"
-                      step="0.01"
-                      value={newItem.scheduledValue}
-                      onChange={(e) => setNewItem({ ...newItem, scheduledValue: e.target.value })}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <Button onClick={addSOVItem} className="w-full">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Item
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Calculator className="w-5 h-5 mr-2" />
-                    Total Contract Value
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-blue-600">
-                    ${totalScheduledValue.toLocaleString()}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <Card className="border-blue-200">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Total Contract Sum</p>
+                      <p className="text-sm text-gray-500">Including approved change orders</p>
+                    </div>
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Calculator className="w-5 h-5 text-blue-600" />
+                    </div>
                   </div>
+                  <p className="text-2xl font-bold mt-2">${totalContractSum.toLocaleString()}</p>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Work Completed</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-green-600">
-                    ${totalCompletedValue.toLocaleString()}
+              <Card className="border-green-200">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Completed to Date</p>
+                      <p className="text-sm text-gray-500">{overallProgress.toFixed(0)}% of total contract value</p>
+                    </div>
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                      <TrendingUp className="w-5 h-5 text-green-600" />
+                    </div>
                   </div>
+                  <p className="text-2xl font-bold mt-2 text-green-600">${completedToDate.toLocaleString()}</p>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Overall Progress</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-orange-600">
-                    {overallPercentComplete.toFixed(1)}%
+              <Card className="border-purple-200">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Remaining Balance</p>
+                      <p className="text-sm text-gray-500">{(100 - overallProgress).toFixed(0)}% of total contract value</p>
+                    </div>
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Calculator className="w-5 h-5 text-purple-600" />
+                    </div>
                   </div>
+                  <p className="text-2xl font-bold mt-2">${remainingBalance.toLocaleString()}</p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-orange-200">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Last Updated</p>
+                      <p className="text-sm text-gray-500">3 days ago by John Doe</p>
+                    </div>
+                    <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Calendar className="w-5 h-5 text-orange-600" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold mt-2">May 5, 2025</p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* SOV Table */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Schedule of Values</CardTitle>
-                <Button variant="outline" onClick={generateG702}>
-                  <FileText className="w-4 h-4 mr-2" />
-                  Generate Application
+            {/* Controls */}
+            <div className="flex justify-between items-center">
+              <div className="flex gap-4">
+                <Button variant="outline" size="sm">
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filter
                 </Button>
+                <Select value={timeFilter} onValueChange={setTimeFilter}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All Time">All Time</SelectItem>
+                    <SelectItem value="This Month">This Month</SelectItem>
+                    <SelectItem value="Last Month">Last Month</SelectItem>
+                    <SelectItem value="This Quarter">This Quarter</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" size="sm">
+                  <Settings className="w-4 h-4 mr-2" />
+                  View Options
+                </Button>
+              </div>
+              <Button variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Export Options
+              </Button>
+            </div>
+
+            {/* Progress Chart Placeholder */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Project Completion Progress</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+                  <p className="text-gray-500">Progress chart visualization will be implemented</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* SOV Table */}
+            <Card>
+              <CardContent className="p-0">
                 {loading ? (
                   <div className="text-center py-8">Loading SOV items...</div>
                 ) : sovItems.length === 0 ? (
@@ -436,21 +383,21 @@ export default function ScheduleOfValues() {
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead>Item #</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Scheduled Value</TableHead>
-                          <TableHead>Previous Apps</TableHead>
-                          <TableHead>This Period</TableHead>
-                          <TableHead>Materials Stored</TableHead>
-                          <TableHead>Total Complete</TableHead>
-                          <TableHead>% Complete</TableHead>
-                          <TableHead>Actions</TableHead>
+                        <TableRow className="bg-gray-50">
+                          <TableHead className="font-semibold">ITEM/DIVISION</TableHead>
+                          <TableHead className="font-semibold">DESCRIPTION OF WORK</TableHead>
+                          <TableHead className="font-semibold">ORIGINAL CONTRACT SUM</TableHead>
+                          <TableHead className="font-semibold">APPROVED CHANGES</TableHead>
+                          <TableHead className="font-semibold">REVISED CONTRACT SUM</TableHead>
+                          <TableHead className="font-semibold">WORK COMPLETED</TableHead>
+                          <TableHead className="font-semibold">% COMPLETE</TableHead>
+                          <TableHead className="font-semibold">BALANCE TO FINISH</TableHead>
+                          <TableHead className="font-semibold">ACTIONS</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {sovItems.map((item) => (
-                          <TableRow key={item.id}>
+                          <TableRow key={item.id} className="hover:bg-gray-50">
                             <TableCell className="font-medium">{item.itemNumber}</TableCell>
                             <TableCell>
                               <div>
@@ -458,59 +405,98 @@ export default function ScheduleOfValues() {
                                 <div className="text-sm text-gray-500">{item.category}</div>
                               </div>
                             </TableCell>
-                            <TableCell>${item.scheduledValue.toLocaleString()}</TableCell>
-                            <TableCell>${item.previousApplications.toLocaleString()}</TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={item.thisPeriod}
-                                onChange={(e) => updateSOVItem(item.id, 'this_period', parseFloat(e.target.value) || 0)}
-                                className="w-24"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={item.materialsStored}
-                                onChange={(e) => updateSOVItem(item.id, 'materials_stored', parseFloat(e.target.value) || 0)}
-                                className="w-24"
-                              />
+                            <TableCell>${item.originalContractSum.toLocaleString()}</TableCell>
+                            <TableCell className="text-blue-600">
+                              ${item.approvedChanges.toLocaleString()}
                             </TableCell>
                             <TableCell className="font-medium">
-                              ${item.totalCompletedAndStored.toLocaleString()}
+                              ${item.revisedContractSum.toLocaleString()}
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={item.workCompleted}
+                                onChange={(e) => updateSOVItem(item.id, 'workCompleted', parseFloat(e.target.value) || 0)}
+                                className="w-32"
+                              />
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center space-x-2">
                                 <div className="w-16 bg-gray-200 rounded-full h-2">
                                   <div
-                                    className="bg-green-600 h-2 rounded-full"
+                                    className={`h-2 rounded-full ${getCompletionColor(item.percentComplete)}`}
                                     style={{ width: `${Math.min(item.percentComplete, 100)}%` }}
                                   ></div>
                                 </div>
                                 <span className="text-sm font-medium">
-                                  {item.percentComplete.toFixed(1)}%
+                                  {item.percentComplete.toFixed(0)}%
                                 </span>
                               </div>
                             </TableCell>
+                            <TableCell>${item.balanceToFinish.toLocaleString()}</TableCell>
                             <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteSOVItem(item.id)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button variant="ghost" size="sm">
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm">
+                                  <Edit3 className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
+                        <TableRow className="bg-gray-100 font-semibold">
+                          <TableCell colSpan={2}>TOTAL CONTRACT</TableCell>
+                          <TableCell>${sovItems.reduce((sum, item) => sum + item.originalContractSum, 0).toLocaleString()}</TableCell>
+                          <TableCell className="text-blue-600">
+                            ${sovItems.reduce((sum, item) => sum + item.approvedChanges, 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell>${totalContractSum.toLocaleString()}</TableCell>
+                          <TableCell>${completedToDate.toLocaleString()}</TableCell>
+                          <TableCell>{overallProgress.toFixed(0)}%</TableCell>
+                          <TableCell>${remainingBalance.toLocaleString()}</TableCell>
+                          <TableCell></TableCell>
+                        </TableRow>
                       </TableBody>
                     </Table>
                   </div>
                 )}
               </CardContent>
+            </Card>
+
+            {/* Historical Changes */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Historical Changes</CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setShowHistory(!showHistory)}>
+                  {showHistory ? 'Hide History' : 'Show History'}
+                </Button>
+              </CardHeader>
+              {showHistory && (
+                <CardContent>
+                  <div className="space-y-4">
+                    {changeOrders.map((order) => (
+                      <div key={order.id} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-semibold">Change Order {order.number} Approved</span>
+                            <Badge variant="secondary">{order.revision}</Badge>
+                          </div>
+                          <p className="text-sm text-gray-600">{order.date} by {order.user}</p>
+                          <p className="text-sm">{order.description}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-green-600">+${order.amount.toLocaleString()}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              )}
             </Card>
           </>
         )}

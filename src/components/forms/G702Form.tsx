@@ -23,6 +23,7 @@ interface SOVItem {
   materialsStored: number;
   totalCompletedAndStored: number;
   percentComplete: number;
+  category: string;
 }
 
 interface Project {
@@ -31,6 +32,9 @@ interface Project {
   contractValue: number;
   originalContractSum: number;
   netChangeOrders: number;
+  client: string;
+  address: string;
+  projectCode: string;
 }
 
 export function G702Form({ projectId, onSave }: G702FormProps) {
@@ -41,8 +45,8 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
   const [formData, setFormData] = useState({
     applicationNumber: 1,
     periodTo: new Date().toISOString().split('T')[0],
-    contractorName: 'ABC Construction Company',
-    contractorAddress: '123 Main St, City, State 12345',
+    contractorName: '',
+    contractorAddress: '',
     projectNumber: '',
     retainagePercentage: 10
   });
@@ -51,8 +55,27 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
     if (projectId) {
       fetchProjectData();
       fetchSOVItems();
+      fetchLastApplicationNumber();
     }
   }, [projectId]);
+
+  const fetchLastApplicationNumber = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('payment_applications_g702')
+        .select('application_number')
+        .eq('project_id', projectId)
+        .order('application_number', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+
+      const nextNumber = data.length > 0 ? data[0].application_number + 1 : 1;
+      setFormData(prev => ({ ...prev, applicationNumber: nextNumber }));
+    } catch (error) {
+      console.error('Error fetching last application number:', error);
+    }
+  };
 
   const fetchProjectData = async () => {
     try {
@@ -69,7 +92,10 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
         name: data.name,
         contractValue: data.contract_value,
         originalContractSum: data.original_contract_sum || data.contract_value,
-        netChangeOrders: data.net_change_orders || 0
+        netChangeOrders: data.net_change_orders || 0,
+        client: data.client || '',
+        address: data.address || '',
+        projectCode: data.project_code || ''
       });
     } catch (error) {
       console.error('Error fetching project:', error);
@@ -96,7 +122,8 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
         thisPeriod: item.this_period || 0,
         materialsStored: item.materials_stored || 0,
         totalCompletedAndStored: item.total_completed_and_stored || 0,
-        percentComplete: item.percent_complete || 0
+        percentComplete: item.percent_complete || 0,
+        category: item.category
       }));
 
       setSovItems(mappedItems);
@@ -127,7 +154,7 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
       totalRetainage,
       totalEarnedLessRetainage,
       lessPreviousPayments,
-      currentPaymentDue,
+      currentPaymentDue: Math.max(currentPaymentDue, 0),
       balanceToFinish
     };
   };
@@ -139,6 +166,19 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
       setLoading(true);
       const totals = calculateTotals();
 
+      // Update previous applications for SOV items
+      for (const item of sovItems) {
+        if (item.thisPeriod > 0) {
+          await supabase
+            .from('sov_items')
+            .update({
+              previous_applications: item.previousApplications + item.thisPeriod,
+              this_period: 0
+            })
+            .eq('id', item.id);
+        }
+      }
+
       const { error } = await supabase
         .from('payment_applications_g702')
         .insert({
@@ -148,13 +188,13 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
           contractor_name: formData.contractorName,
           contractor_address: formData.contractorAddress,
           project_name: project.name,
-          project_number: formData.projectNumber,
+          project_number: formData.projectNumber || project.projectCode,
           original_contract_sum: totals.originalContractSum,
           net_change_by_change_orders: totals.netChangeOrders,
           contract_sum_to_date: totals.contractSumToDate,
           total_completed_and_stored: totals.totalCompletedAndStored,
-          retainage_completed_work: totals.totalRetainage * 0.9, // Assuming 90% for completed work
-          retainage_stored_materials: totals.totalRetainage * 0.1, // Assuming 10% for stored materials
+          retainage_completed_work: totals.totalRetainage * 0.9,
+          retainage_stored_materials: totals.totalRetainage * 0.1,
           total_retainage: totals.totalRetainage,
           total_earned_less_retainage: totals.totalEarnedLessRetainage,
           less_previous_certificates: totals.lessPreviousPayments,
@@ -174,8 +214,39 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
     }
   };
 
+  const updateSOVItem = async (id: string, field: string, value: number) => {
+    try {
+      const updateData: any = { [field]: value };
+      
+      if (field === 'this_period' || field === 'materials_stored') {
+        const item = sovItems.find(i => i.id === id);
+        if (item) {
+          const thisPeriod = field === 'this_period' ? value : item.thisPeriod;
+          const materialsStored = field === 'materials_stored' ? value : item.materialsStored;
+          const totalCompletedAndStored = item.previousApplications + thisPeriod + materialsStored;
+          const percentComplete = item.scheduledValue > 0 ? (totalCompletedAndStored / item.scheduledValue) * 100 : 0;
+          
+          updateData.total_completed_and_stored = totalCompletedAndStored;
+          updateData.percent_complete = Math.min(percentComplete, 100);
+        }
+      }
+
+      const { error } = await supabase
+        .from('sov_items')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      fetchSOVItems();
+    } catch (error) {
+      console.error('Error updating SOV item:', error);
+      toast.error('Failed to update SOV item');
+    }
+  };
+
   if (!project) {
-    return <div>Loading project data...</div>;
+    return <div className="text-center py-8">Loading project data...</div>;
   }
 
   const totals = calculateTotals();
@@ -213,6 +284,7 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
                 id="contractorName"
                 value={formData.contractorName}
                 onChange={(e) => setFormData({ ...formData, contractorName: e.target.value })}
+                placeholder="Enter contractor name"
               />
             </div>
             <div>
@@ -221,13 +293,14 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
                 id="contractorAddress"
                 value={formData.contractorAddress}
                 onChange={(e) => setFormData({ ...formData, contractorAddress: e.target.value })}
+                placeholder="Enter contractor address"
               />
             </div>
             <div>
               <Label htmlFor="projectName">Project</Label>
               <Input
                 id="projectName"
-                value={project.name}
+                value={`${project.name} - ${project.client}`}
                 readOnly
                 className="bg-gray-100"
               />
@@ -238,7 +311,7 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
                 id="projectNumber"
                 value={formData.projectNumber}
                 onChange={(e) => setFormData({ ...formData, projectNumber: e.target.value })}
-                placeholder="Optional"
+                placeholder={project.projectCode || "Enter project number"}
               />
             </div>
           </div>
@@ -326,11 +399,32 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
                   return (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.itemNumber}</TableCell>
-                      <TableCell>{item.description}</TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{item.description}</div>
+                          <div className="text-sm text-gray-500">{item.category}</div>
+                        </div>
+                      </TableCell>
                       <TableCell>${item.scheduledValue.toLocaleString()}</TableCell>
                       <TableCell>${item.previousApplications.toLocaleString()}</TableCell>
-                      <TableCell>${item.thisPeriod.toLocaleString()}</TableCell>
-                      <TableCell>${item.materialsStored.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={item.thisPeriod}
+                          onChange={(e) => updateSOVItem(item.id, 'this_period', parseFloat(e.target.value) || 0)}
+                          className="w-24"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={item.materialsStored}
+                          onChange={(e) => updateSOVItem(item.id, 'materials_stored', parseFloat(e.target.value) || 0)}
+                          className="w-24"
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">${item.totalCompletedAndStored.toLocaleString()}</TableCell>
                       <TableCell>{item.percentComplete.toFixed(1)}%</TableCell>
                       <TableCell>${balanceToFinish.toLocaleString()}</TableCell>
