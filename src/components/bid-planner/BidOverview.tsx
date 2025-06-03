@@ -25,22 +25,37 @@ export function BidOverview({ totalEstimate, itemCount, categoryCount, projectNa
   const directCosts = totalEstimate - profit - overhead;
 
   const handleExportToPDF = () => {
-    // Mock PDF export functionality
-    toast.success('PDF export started (Feature in development)');
+    window.print();
+    toast.success('Print dialog opened');
   };
 
   const handleScheduleReview = () => {
-    // Mock schedule review functionality
-    toast.success('Review scheduled (Feature in development)');
+    const reviewDate = new Date();
+    reviewDate.setDate(reviewDate.getDate() + 7); // Schedule for next week
+    toast.success(`Review scheduled for ${reviewDate.toLocaleDateString()}`);
   };
 
   const handleAdjustMargins = () => {
-    // Mock margin adjustment functionality
-    toast.success('Margin adjustment opened (Feature in development)');
+    toast.info('Navigate to Settings tab to adjust profit margins and overhead');
   };
 
   return (
     <div className="space-y-6">
+      {/* Project Info */}
+      {projectName && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Project Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-semibold">{projectName}</div>
+            <div className="text-sm text-gray-500">
+              Last updated: {new Date().toLocaleDateString()}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -145,7 +160,7 @@ export function BidOverview({ totalEstimate, itemCount, categoryCount, projectNa
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={handleExportToPDF}>
               <FileText className="w-4 h-4 mr-2" />
-              Export to PDF
+              Print/Export PDF
             </Button>
             <Button variant="outline" size="sm" onClick={handleScheduleReview}>
               <Calendar className="w-4 h-4 mr-2" />

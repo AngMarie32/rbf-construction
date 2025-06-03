@@ -15,9 +15,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 // Import new components
-import { CreateBidDialog } from '@/components/bid-planner/CreateBidDialog';
-import { TemplateLibrary } from '@/components/bid-planner/TemplateLibrary';
+import { BidCreationView } from '@/components/bid-planner/BidCreationView';
+import { TemplateUsageView } from '@/components/bid-planner/TemplateUsageView';
 import { BidOverview } from '@/components/bid-planner/BidOverview';
+import { generateBidExportPDF, generateProposalPDF } from '@/utils/pdfExport';
 
 interface BidItem {
   id: string;
@@ -34,13 +35,6 @@ interface Project {
   id: string;
   name: string;
   client?: string;
-}
-
-interface BidTemplate {
-  id: string;
-  name: string;
-  description: string;
-  isDefault: boolean;
 }
 
 const UNIT_OPTIONS = [
@@ -61,10 +55,8 @@ export default function BidPlanner() {
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [bidItems, setBidItems] = useState<BidItem[]>([]);
-  const [templates, setTemplates] = useState<BidTemplate[]>([]);
   const [loading, setLoading] = useState(false);
-  const [createBidOpen, setCreateBidOpen] = useState(false);
-  const [templateLibraryOpen, setTemplateLibraryOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<'main' | 'create-bid' | 'use-template'>('main');
   const [newTemplateDialogOpen, setNewTemplateDialogOpen] = useState(false);
   const [createProposalDialogOpen, setCreateProposalDialogOpen] = useState(false);
   
@@ -84,7 +76,6 @@ export default function BidPlanner() {
 
   useEffect(() => {
     fetchProjects();
-    fetchTemplates();
   }, []);
 
   useEffect(() => {
@@ -108,27 +99,6 @@ export default function BidPlanner() {
     }
   };
 
-  const fetchTemplates = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('bid_templates')
-        .select('id, name, description, is_default')
-        .order('name');
-
-      if (error) throw error;
-      const mappedTemplates = (data || []).map(template => ({
-        id: template.id,
-        name: template.name,
-        description: template.description || '',
-        isDefault: template.is_default || false
-      }));
-      setTemplates(mappedTemplates);
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-      toast.error('Failed to load templates');
-    }
-  };
-
   const fetchBidItems = async () => {
     try {
       setLoading(true);
@@ -148,7 +118,7 @@ export default function BidPlanner() {
         unit: item.unit || 'each',
         unitCost: item.unit_cost,
         quantity: item.quantity,
-        total: item.total || (item.unit_cost * item.quantity)
+        total: item.unit_cost * item.quantity
       }));
 
       setBidItems(mappedItems);
@@ -157,46 +127,6 @@ export default function BidPlanner() {
       toast.error('Failed to load bid items');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadTemplate = async (templateId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('bid_template_items')
-        .select('*')
-        .eq('template_id', templateId)
-        .order('category');
-
-      if (error) throw error;
-
-      const templateItems = data || [];
-      
-      for (const item of templateItems) {
-        const total = item.unit_cost * 1;
-        
-        const { error: insertError } = await supabase
-          .from('bid_items')
-          .insert({
-            project_id: selectedProject,
-            category: item.category,
-            subcategory: item.subcategory,
-            description: item.description,
-            unit: item.unit || 'each',
-            unit_cost: item.unit_cost || 0,
-            quantity: 1,
-            total: total,
-            template_id: templateId
-          });
-
-        if (insertError) throw insertError;
-      }
-
-      toast.success(`Template loaded successfully`);
-      fetchBidItems();
-    } catch (error) {
-      console.error('Error loading template:', error);
-      toast.error('Failed to load template');
     }
   };
 
@@ -238,7 +168,6 @@ export default function BidPlanner() {
       toast.success('Template created successfully');
       setNewTemplate({ name: '', description: '' });
       setNewTemplateDialogOpen(false);
-      fetchTemplates();
     } catch (error) {
       console.error('Error creating template:', error);
       toast.error('Failed to create template');
@@ -252,7 +181,7 @@ export default function BidPlanner() {
     }
     
     if (!newItem.category || !newItem.description || !newItem.unitCost) {
-      toast.error('Please fill in all required fields (Category, Description, Unit Cost)');
+      toast.error('Please fill in all required fields');
       return;
     }
 
@@ -266,11 +195,9 @@ export default function BidPlanner() {
       }
       
       if (isNaN(quantity) || quantity < 1) {
-        toast.error('Please enter a valid quantity (minimum 1)');
+        toast.error('Please enter a valid quantity');
         return;
       }
-      
-      const total = unitCost * quantity;
 
       const { error } = await supabase
         .from('bid_items')
@@ -281,8 +208,7 @@ export default function BidPlanner() {
           description: newItem.description.trim(),
           unit: newItem.unit,
           unit_cost: unitCost,
-          quantity: quantity,
-          total: total
+          quantity: quantity
         });
 
       if (error) {
@@ -302,7 +228,7 @@ export default function BidPlanner() {
       fetchBidItems();
     } catch (error) {
       console.error('Error adding bid item:', error);
-      toast.error(`Failed to add bid item: ${error.message || 'Unknown error'}`);
+      toast.error('Failed to add bid item');
     }
   };
 
@@ -359,6 +285,17 @@ export default function BidPlanner() {
     }
   };
 
+  const exportToPDF = () => {
+    if (!selectedProject || bidItems.length === 0) {
+      toast.error('No bid items to export');
+      return;
+    }
+
+    const selectedProjectData = projects.find(p => p.id === selectedProject);
+    generateBidExportPDF(bidItems, selectedProjectData?.name || 'Project');
+    toast.success('PDF export generated');
+  };
+
   const createProposalFromBid = async (useCategories: boolean = true) => {
     if (!selectedProject || bidItems.length === 0) {
       toast.error('No bid items to create proposal from');
@@ -372,7 +309,6 @@ export default function BidPlanner() {
       let proposalData;
       
       if (useCategories) {
-        // Group by categories and create summary
         const categorySummary = bidItems.reduce((acc, item) => {
           if (!acc[item.category]) {
             acc[item.category] = 0;
@@ -386,21 +322,20 @@ export default function BidPlanner() {
           .join('\n');
           
         proposalData = {
-          project_name: selectedProjectData?.name || 'Unnamed Project',
-          client: selectedProjectData?.client || 'Client Name',
+          project_name: selectedProjectData?.name || '',
+          client: selectedProjectData?.client || '',
           scope: scopeText,
           amount: totalAmount,
           status: 'Draft'
         };
       } else {
-        // Use all line items
         const scopeText = bidItems
           .map(item => `${item.category} - ${item.description}: $${item.total.toLocaleString()}`)
           .join('\n');
           
         proposalData = {
-          project_name: selectedProjectData?.name || 'Unnamed Project',
-          client: selectedProjectData?.client || 'Client Name',
+          project_name: selectedProjectData?.name || '',
+          client: selectedProjectData?.client || '',
           scope: scopeText,
           amount: totalAmount,
           status: 'Draft'
@@ -420,6 +355,81 @@ export default function BidPlanner() {
       toast.error('Failed to create proposal');
     }
   };
+
+  const generateProposalPDFFromBid = (useCategories: boolean) => {
+    if (!selectedProject || bidItems.length === 0) {
+      toast.error('No bid items to create proposal from');
+      return;
+    }
+
+    const selectedProjectData = projects.find(p => p.id === selectedProject);
+    const totalAmount = bidItems.reduce((sum, item) => sum + item.total, 0);
+    
+    let proposalData;
+    
+    if (useCategories) {
+      const categorySummary = bidItems.reduce((acc, item) => {
+        if (!acc[item.category]) {
+          acc[item.category] = 0;
+        }
+        acc[item.category] += item.total;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      const categories = Object.entries(categorySummary).map(([category, total]) => ({ category, total }));
+      const scopeText = categories.map(cat => `${cat.category}: $${cat.total.toLocaleString()}`).join('\n');
+      
+      proposalData = {
+        projectName: selectedProjectData?.name || '',
+        client: selectedProjectData?.client || '',
+        scope: scopeText,
+        amount: totalAmount,
+        date: new Date().toLocaleDateString(),
+        categories
+      };
+    } else {
+      const scopeText = bidItems
+        .map(item => `${item.category} - ${item.description}`)
+        .join('\n');
+        
+      proposalData = {
+        projectName: selectedProjectData?.name || '',
+        client: selectedProjectData?.client || '',
+        scope: scopeText,
+        amount: totalAmount,
+        date: new Date().toLocaleDateString(),
+        items: bidItems
+      };
+    }
+
+    generateProposalPDF(proposalData);
+    toast.success('Proposal PDF generated');
+    setCreateProposalDialogOpen(false);
+  };
+
+  if (currentView === 'create-bid') {
+    return (
+      <Layout title="Create New Bid" subtitle="Set up a new bid for your project">
+        <BidCreationView
+          projectId={selectedProject}
+          onBack={() => setCurrentView('main')}
+          onBidCreated={fetchBidItems}
+        />
+      </Layout>
+    );
+  }
+
+  if (currentView === 'use-template') {
+    return (
+      <Layout title="Use Template" subtitle="Select a template to start your bid">
+        <TemplateUsageView
+          projectId={selectedProject}
+          onBack={() => setCurrentView('main')}
+          onTemplateLoaded={fetchBidItems}
+        />
+      </Layout>
+    );
+  }
 
   const totalEstimate = bidItems.reduce((sum, item) => sum + item.total, 0);
   const categorizedItems = bidItems.reduce((acc, item) => {
@@ -469,14 +479,14 @@ export default function BidPlanner() {
               </CardHeader>
               <CardContent>
                 <div className="flex gap-4 flex-wrap">
-                  <Button onClick={() => setCreateBidOpen(true)}>
+                  <Button onClick={() => setCurrentView('create-bid')}>
                     <Plus className="w-4 h-4 mr-2" />
                     Create New Bid
                   </Button>
                   
-                  <Button variant="outline" onClick={() => setTemplateLibraryOpen(true)}>
+                  <Button variant="outline" onClick={() => setCurrentView('use-template')}>
                     <FileText className="w-4 h-4 mr-2" />
-                    Template Library
+                    Use Template
                   </Button>
 
                   <Dialog open={newTemplateDialogOpen} onOpenChange={setNewTemplateDialogOpen}>
@@ -497,7 +507,6 @@ export default function BidPlanner() {
                             id="templateName"
                             value={newTemplate.name}
                             onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
-                            placeholder="e.g. Commercial Building Template"
                           />
                         </div>
                         <div>
@@ -506,7 +515,6 @@ export default function BidPlanner() {
                             id="templateDesc"
                             value={newTemplate.description}
                             onChange={(e) => setNewTemplate({ ...newTemplate, description: e.target.value })}
-                            placeholder="Template description..."
                           />
                         </div>
                         <Button onClick={createTemplate} className="w-full">
@@ -518,6 +526,11 @@ export default function BidPlanner() {
 
                   <Button onClick={exportToSOV} disabled={bidItems.length === 0}>
                     Export to SOV
+                  </Button>
+
+                  <Button onClick={exportToPDF} disabled={bidItems.length === 0}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export PDF
                   </Button>
 
                   <Dialog open={createProposalDialogOpen} onOpenChange={setCreateProposalDialogOpen}>
@@ -539,7 +552,7 @@ export default function BidPlanner() {
                           <Card className="p-4">
                             <h4 className="font-medium mb-2">Category Summary</h4>
                             <p className="text-sm text-gray-600 mb-3">
-                              Group items by category with totals (recommended for client presentation)
+                              Group items by category with totals
                             </p>
                             <div className="space-y-2">
                               {categoryTotals.map(({ category, total, itemCount }) => (
@@ -549,26 +562,44 @@ export default function BidPlanner() {
                                 </div>
                               ))}
                             </div>
-                            <Button 
-                              onClick={() => createProposalFromBid(true)} 
-                              className="w-full mt-3"
-                            >
-                              Use Category Summary
-                            </Button>
+                            <div className="grid grid-cols-2 gap-2 mt-3">
+                              <Button 
+                                onClick={() => createProposalFromBid(true)} 
+                                className="w-full"
+                              >
+                                Save to Database
+                              </Button>
+                              <Button 
+                                onClick={() => generateProposalPDFFromBid(true)} 
+                                variant="outline"
+                                className="w-full"
+                              >
+                                Generate PDF
+                              </Button>
+                            </div>
                           </Card>
                           
                           <Card className="p-4">
                             <h4 className="font-medium mb-2">Detailed Line Items</h4>
                             <p className="text-sm text-gray-600 mb-3">
-                              Include all individual line items (detailed breakdown)
+                              Include all individual line items
                             </p>
-                            <Button 
-                              onClick={() => createProposalFromBid(false)} 
-                              variant="outline" 
-                              className="w-full"
-                            >
-                              Use All Line Items
-                            </Button>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button 
+                                onClick={() => createProposalFromBid(false)} 
+                                variant="outline" 
+                                className="w-full"
+                              >
+                                Save to Database
+                              </Button>
+                              <Button 
+                                onClick={() => generateProposalPDFFromBid(false)} 
+                                variant="outline"
+                                className="w-full"
+                              >
+                                Generate PDF
+                              </Button>
+                            </div>
                           </Card>
                         </div>
                       </div>
@@ -609,7 +640,6 @@ export default function BidPlanner() {
                           id="category"
                           value={newItem.category}
                           onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-                          placeholder="General Conditions"
                         />
                       </div>
                       <div>
@@ -618,7 +648,6 @@ export default function BidPlanner() {
                           id="subcategory"
                           value={newItem.subcategory}
                           onChange={(e) => setNewItem({ ...newItem, subcategory: e.target.value })}
-                          placeholder="Permits"
                         />
                       </div>
                       <div>
@@ -627,7 +656,6 @@ export default function BidPlanner() {
                           id="description"
                           value={newItem.description}
                           onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                          placeholder="Building permits"
                         />
                       </div>
                       <div>
@@ -654,7 +682,6 @@ export default function BidPlanner() {
                           min="0"
                           value={newItem.unitCost}
                           onChange={(e) => setNewItem({ ...newItem, unitCost: e.target.value })}
-                          placeholder="0.00"
                         />
                       </div>
                       <div>
@@ -665,7 +692,6 @@ export default function BidPlanner() {
                           min="1"
                           value={newItem.quantity}
                           onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
-                          placeholder="1"
                         />
                       </div>
                       <div className="flex items-end">
@@ -682,7 +708,7 @@ export default function BidPlanner() {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Bid Items</CardTitle>
-                    <Button variant="outline">
+                    <Button variant="outline" onClick={exportToPDF} disabled={bidItems.length === 0}>
                       <Download className="w-4 h-4 mr-2" />
                       Export
                     </Button>
@@ -692,7 +718,7 @@ export default function BidPlanner() {
                       <div className="text-center py-8">Loading bid items...</div>
                     ) : bidItems.length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
-                        No bid items found. Add your first item above or load a template.
+                        No bid items found. Add your first item above or use a template.
                       </div>
                     ) : (
                       <div className="space-y-6">
@@ -766,7 +792,6 @@ export default function BidPlanner() {
                           min="0"
                           max="100"
                           defaultValue="15"
-                          placeholder="15"
                         />
                       </div>
                       <div>
@@ -777,7 +802,6 @@ export default function BidPlanner() {
                           min="0"
                           max="100"
                           defaultValue="10"
-                          placeholder="10"
                         />
                       </div>
                       <div>
@@ -788,7 +812,6 @@ export default function BidPlanner() {
                           min="0"
                           max="100"
                           defaultValue="5"
-                          placeholder="5"
                         />
                       </div>
                       <div>
@@ -799,7 +822,6 @@ export default function BidPlanner() {
                           min="0"
                           max="100"
                           defaultValue="1"
-                          placeholder="1"
                         />
                       </div>
                     </div>
@@ -807,20 +829,6 @@ export default function BidPlanner() {
                 </Card>
               </TabsContent>
             </Tabs>
-
-            {/* Dialogs */}
-            <CreateBidDialog
-              open={createBidOpen}
-              onOpenChange={setCreateBidOpen}
-              onBidCreated={fetchBidItems}
-              projectId={selectedProject}
-            />
-
-            <TemplateLibrary
-              open={templateLibraryOpen}
-              onOpenChange={setTemplateLibraryOpen}
-              onTemplateSelected={loadTemplate}
-            />
           </>
         )}
       </div>
