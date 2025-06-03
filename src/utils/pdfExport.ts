@@ -107,18 +107,20 @@ export const generateBidExportPDF = (bidItems: any[], projectName: string) => {
     pdf.text(category, 20, yPosition);
     yPosition += 10;
     
-    // Items
+    // Items - add type checking to ensure items is an array
     pdf.setFontSize(10);
-    items.forEach((item) => {
-      const line = `${item.description} - ${item.quantity} ${item.unit} x $${item.unitCost} = $${item.total}`;
-      pdf.text(line, 25, yPosition);
-      yPosition += 6;
-      
-      if (yPosition > 270) {
-        pdf.addPage();
-        yPosition = 20;
-      }
-    });
+    if (Array.isArray(items)) {
+      items.forEach((item) => {
+        const line = `${item.description} - ${item.quantity} ${item.unit} x $${item.unitCost} = $${item.total}`;
+        pdf.text(line, 25, yPosition);
+        yPosition += 6;
+        
+        if (yPosition > 270) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+      });
+    }
     
     yPosition += 5;
   });
