@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Users, Star, Phone, Mail } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Plus, Edit, Trash2, Phone, Mail, MoreHorizontal, Grid3X3, List, Search, Filter, Eye, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -22,9 +23,13 @@ interface Subcontractor {
   email?: string;
   phone?: string;
   address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
   specialties?: string[];
-  rating?: number;
   status: 'Active' | 'Inactive' | 'Blacklisted';
+  travelRadius?: number;
+  insuranceExpiry?: Date;
   notes?: string;
 }
 
@@ -57,16 +62,23 @@ export default function Subcontractors() {
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSubcontractor, setEditingSubcontractor] = useState<Subcontractor | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All Statuses');
   
   const [newSubcontractor, setNewSubcontractor] = useState({
-    name: '',
     company: '',
+    name: '',
     email: '',
     phone: '',
-    address: '',
-    specialties: [] as string[],
-    rating: '',
+    specialty: '',
     status: 'Active' as 'Active' | 'Inactive' | 'Blacklisted',
+    travelRadius: '',
+    insuranceExpiry: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
     notes: ''
   });
 
@@ -91,9 +103,13 @@ export default function Subcontractors() {
         email: sub.email,
         phone: sub.phone,
         address: sub.address,
+        city: sub.city,
+        state: sub.state,
+        zipCode: sub.zip_code,
         specialties: sub.specialties || [],
-        rating: sub.rating,
         status: sub.status as Subcontractor['status'],
+        travelRadius: sub.travel_radius,
+        insuranceExpiry: sub.insurance_expiry ? new Date(sub.insurance_expiry) : undefined,
         notes: sub.notes
       }));
 
@@ -107,21 +123,25 @@ export default function Subcontractors() {
   };
 
   const saveSubcontractor = async () => {
-    if (!newSubcontractor.name) {
-      toast.error('Please enter a name');
+    if (!newSubcontractor.company || !newSubcontractor.name) {
+      toast.error('Please enter company name and contact person');
       return;
     }
 
     try {
       const subcontractorData = {
+        company: newSubcontractor.company,
         name: newSubcontractor.name,
-        company: newSubcontractor.company || null,
         email: newSubcontractor.email || null,
         phone: newSubcontractor.phone || null,
         address: newSubcontractor.address || null,
-        specialties: newSubcontractor.specialties.length > 0 ? newSubcontractor.specialties : null,
-        rating: newSubcontractor.rating ? parseFloat(newSubcontractor.rating) : null,
+        city: newSubcontractor.city || null,
+        state: newSubcontractor.state || null,
+        zip_code: newSubcontractor.zipCode || null,
+        specialties: newSubcontractor.specialty ? [newSubcontractor.specialty] : null,
         status: newSubcontractor.status,
+        travel_radius: newSubcontractor.travelRadius ? parseInt(newSubcontractor.travelRadius) : null,
+        insurance_expiry: newSubcontractor.insuranceExpiry || null,
         notes: newSubcontractor.notes || null
       };
 
@@ -153,6 +173,8 @@ export default function Subcontractors() {
   };
 
   const deleteSubcontractor = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this subcontractor?')) return;
+
     try {
       const { error } = await supabase
         .from('subcontractors')
@@ -171,14 +193,18 @@ export default function Subcontractors() {
   const editSubcontractor = (subcontractor: Subcontractor) => {
     setEditingSubcontractor(subcontractor);
     setNewSubcontractor({
-      name: subcontractor.name,
       company: subcontractor.company || '',
+      name: subcontractor.name,
       email: subcontractor.email || '',
       phone: subcontractor.phone || '',
-      address: subcontractor.address || '',
-      specialties: subcontractor.specialties || [],
-      rating: subcontractor.rating?.toString() || '',
+      specialty: (subcontractor.specialties && subcontractor.specialties[0]) || '',
       status: subcontractor.status,
+      travelRadius: subcontractor.travelRadius?.toString() || '',
+      insuranceExpiry: subcontractor.insuranceExpiry?.toISOString().split('T')[0] || '',
+      address: subcontractor.address || '',
+      city: subcontractor.city || '',
+      state: subcontractor.state || '',
+      zipCode: subcontractor.zipCode || '',
       notes: subcontractor.notes || ''
     });
     setDialogOpen(true);
@@ -186,275 +212,303 @@ export default function Subcontractors() {
 
   const resetForm = () => {
     setNewSubcontractor({
-      name: '',
       company: '',
+      name: '',
       email: '',
       phone: '',
-      address: '',
-      specialties: [],
-      rating: '',
+      specialty: '',
       status: 'Active',
+      travelRadius: '',
+      insuranceExpiry: '',
+      address: '',
+      city: '',
+      state: '',
+      zipCode: '',
       notes: ''
     });
-  };
-
-  const toggleSpecialty = (specialty: string) => {
-    const updatedSpecialties = newSubcontractor.specialties.includes(specialty)
-      ? newSubcontractor.specialties.filter(s => s !== specialty)
-      : [...newSubcontractor.specialties, specialty];
-    
-    setNewSubcontractor({ ...newSubcontractor, specialties: updatedSpecialties });
   };
 
   const getStatusColor = (status: string) => {
     return STATUS_OPTIONS.find(s => s.value === status)?.color || 'bg-gray-500';
   };
 
-  const renderStars = (rating?: number) => {
-    if (!rating) return 'No rating';
-    
-    return (
-      <div className="flex items-center">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            className={cn(
-              "w-4 h-4",
-              star <= rating ? "text-yellow-400 fill-current" : "text-gray-300"
-            )}
-          />
-        ))}
-        <span className="ml-2 text-sm text-gray-600">({rating})</span>
-      </div>
-    );
-  };
-
-  const activeSubcontractors = subcontractors.filter(sub => sub.status === 'Active').length;
-  const averageRating = subcontractors.filter(sub => sub.rating).length > 0
-    ? subcontractors.filter(sub => sub.rating).reduce((sum, sub) => sum + (sub.rating || 0), 0) / subcontractors.filter(sub => sub.rating).length
-    : 0;
+  const filteredSubcontractors = subcontractors.filter(sub => {
+    const matchesSearch = sub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         sub.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         sub.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'All Statuses' || sub.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
-    <Layout title="Subcontractors" subtitle="Manage subcontractor database and relationships">
+    <Layout title="Subcontractors" subtitle="Manage and track subcontractor information">
       <div className="space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Subcontractors</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{subcontractors.length}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active</CardTitle>
-              <Users className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {activeSubcontractors}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Rating</CardTitle>
-              <Star className="h-4 w-4 text-yellow-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">
-                {averageRating.toFixed(1)}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Specialties Covered</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {new Set(subcontractors.flatMap(sub => sub.specialties || [])).size}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Subcontractors Management */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Subcontractors</CardTitle>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={() => {
-                  setEditingSubcontractor(null);
-                  resetForm();
-                }}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Subcontractor
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{editingSubcontractor ? 'Edit Subcontractor' : 'Add New Subcontractor'}</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="name">Name *</Label>
-                      <Input
-                        id="name"
-                        value={newSubcontractor.name}
-                        onChange={(e) => setNewSubcontractor({ ...newSubcontractor, name: e.target.value })}
-                        placeholder="John Smith"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="company">Company</Label>
-                      <Input
-                        id="company"
-                        value={newSubcontractor.company}
-                        onChange={(e) => setNewSubcontractor({ ...newSubcontractor, company: e.target.value })}
-                        placeholder="ABC Construction"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={newSubcontractor.email}
-                        onChange={(e) => setNewSubcontractor({ ...newSubcontractor, email: e.target.value })}
-                        placeholder="john@abcconstruction.com"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input
-                        id="phone"
-                        value={newSubcontractor.phone}
-                        onChange={(e) => setNewSubcontractor({ ...newSubcontractor, phone: e.target.value })}
-                        placeholder="(555) 123-4567"
-                      />
-                    </div>
+        {/* Header with Add Button */}
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">Subcontractor Directory</h2>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => {
+                setEditingSubcontractor(null);
+                resetForm();
+              }}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Subcontractor
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingSubcontractor ? 'Edit Subcontractor' : 'Add New Subcontractor'}</DialogTitle>
+                <p className="text-sm text-gray-600">Enter the subcontractor details. Required fields are marked with an asterisk.</p>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="company">Company Name *</Label>
+                    <Input
+                      id="company"
+                      value={newSubcontractor.company}
+                      onChange={(e) => setNewSubcontractor({ ...newSubcontractor, company: e.target.value })}
+                    />
                   </div>
 
                   <div>
+                    <Label htmlFor="name">Contact Person *</Label>
+                    <Input
+                      id="name"
+                      value={newSubcontractor.name}
+                      onChange={(e) => setNewSubcontractor({ ...newSubcontractor, name: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="email">Email Address *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={newSubcontractor.email}
+                      onChange={(e) => setNewSubcontractor({ ...newSubcontractor, email: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Input
+                      id="phone"
+                      value={newSubcontractor.phone}
+                      onChange={(e) => setNewSubcontractor({ ...newSubcontractor, phone: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="specialty">Specialty *</Label>
+                    <Select value={newSubcontractor.specialty} onValueChange={(value) => setNewSubcontractor({ ...newSubcontractor, specialty: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a specialty" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SPECIALTY_OPTIONS.map((specialty) => (
+                          <SelectItem key={specialty} value={specialty}>
+                            {specialty}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="status">Status</Label>
+                    <Select value={newSubcontractor.status} onValueChange={(value: 'Active' | 'Inactive' | 'Blacklisted') => setNewSubcontractor({ ...newSubcontractor, status: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUS_OPTIONS.map((status) => (
+                          <SelectItem key={status.value} value={status.value}>
+                            {status.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="travelRadius">Travel Radius (miles)</Label>
+                    <Input
+                      id="travelRadius"
+                      type="number"
+                      value={newSubcontractor.travelRadius}
+                      onChange={(e) => setNewSubcontractor({ ...newSubcontractor, travelRadius: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Maximum travel distance from base location</p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="insuranceExpiry">Insurance Expiry Date</Label>
+                    <Input
+                      id="insuranceExpiry"
+                      type="date"
+                      value={newSubcontractor.insuranceExpiry}
+                      onChange={(e) => setNewSubcontractor({ ...newSubcontractor, insuranceExpiry: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
                     <Label htmlFor="address">Address</Label>
-                    <Textarea
+                    <Input
                       id="address"
                       value={newSubcontractor.address}
                       onChange={(e) => setNewSubcontractor({ ...newSubcontractor, address: e.target.value })}
-                      placeholder="123 Main St, City, State 12345"
-                      rows={2}
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="rating">Rating (1-5)</Label>
-                      <Input
-                        id="rating"
-                        type="number"
-                        min="1"
-                        max="5"
-                        step="0.1"
-                        value={newSubcontractor.rating}
-                        onChange={(e) => setNewSubcontractor({ ...newSubcontractor, rating: e.target.value })}
-                        placeholder="4.5"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="status">Status</Label>
-                      <Select value={newSubcontractor.status} onValueChange={(value: 'Active' | 'Inactive' | 'Blacklisted') => setNewSubcontractor({ ...newSubcontractor, status: value })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STATUS_OPTIONS.map((status) => (
-                            <SelectItem key={status.value} value={status.value}>
-                              {status.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
                   <div>
-                    <Label>Specialties</Label>
-                    <div className="grid grid-cols-3 gap-2 mt-2">
-                      {SPECIALTY_OPTIONS.map((specialty) => (
-                        <div key={specialty} className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id={specialty}
-                            checked={newSubcontractor.specialties.includes(specialty)}
-                            onChange={() => toggleSpecialty(specialty)}
-                            className="rounded"
-                          />
-                          <Label htmlFor={specialty} className="text-sm">
-                            {specialty}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
-                      value={newSubcontractor.notes}
-                      onChange={(e) => setNewSubcontractor({ ...newSubcontractor, notes: e.target.value })}
-                      placeholder="Additional notes about this subcontractor..."
-                      rows={3}
+                    <Label htmlFor="city">City</Label>
+                    <Input
+                      id="city"
+                      value={newSubcontractor.city}
+                      onChange={(e) => setNewSubcontractor({ ...newSubcontractor, city: e.target.value })}
                     />
                   </div>
 
-                  <Button onClick={saveSubcontractor} className="w-full">
+                  <div>
+                    <Label htmlFor="state">State</Label>
+                    <Input
+                      id="state"
+                      value={newSubcontractor.state}
+                      onChange={(e) => setNewSubcontractor({ ...newSubcontractor, state: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="zipCode">Zip Code</Label>
+                  <Input
+                    id="zipCode"
+                    value={newSubcontractor.zipCode}
+                    onChange={(e) => setNewSubcontractor({ ...newSubcontractor, zipCode: e.target.value })}
+                    className="w-32"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={newSubcontractor.notes}
+                    onChange={(e) => setNewSubcontractor({ ...newSubcontractor, notes: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={saveSubcontractor}>
                     {editingSubcontractor ? 'Update Subcontractor' : 'Add Subcontractor'}
                   </Button>
                 </div>
-              </DialogContent>
-            </Dialog>
-          </CardHeader>
-          <CardContent>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Controls */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex border rounded-lg">
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className="rounded-r-none"
+              >
+                <List className="w-4 h-4 mr-1" />
+                Table View
+              </Button>
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className="rounded-l-none"
+              >
+                <Grid3X3 className="w-4 h-4 mr-1" />
+                Grid View
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Search subcontractors..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-64"
+              />
+            </div>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-40">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All Statuses">All Statuses</SelectItem>
+                {STATUS_OPTIONS.map((status) => (
+                  <SelectItem key={status.value} value={status.value}>
+                    {status.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Content */}
+        <Card>
+          <CardContent className="p-0">
             {loading ? (
               <div className="text-center py-8">Loading subcontractors...</div>
-            ) : subcontractors.length === 0 ? (
+            ) : filteredSubcontractors.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 No subcontractors found. Add your first subcontractor to get started.
               </div>
-            ) : (
+            ) : viewMode === 'table' ? (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
                     <TableHead>Company</TableHead>
+                    <TableHead>Specialty</TableHead>
                     <TableHead>Contact</TableHead>
-                    <TableHead>Specialties</TableHead>
-                    <TableHead>Rating</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Travel Radius</TableHead>
+                    <TableHead>Insurance</TableHead>
                     <TableHead className="w-20">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {subcontractors.map((subcontractor) => (
+                  {filteredSubcontractors.map((subcontractor) => (
                     <TableRow key={subcontractor.id}>
-                      <TableCell className="font-medium">{subcontractor.name}</TableCell>
-                      <TableCell>{subcontractor.company || 'N/A'}</TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{subcontractor.company}</div>
+                          <div className="text-sm text-gray-500">{subcontractor.name}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {(subcontractor.specialties && subcontractor.specialties[0]) || 'N/A'}
+                      </TableCell>
                       <TableCell>
                         <div className="space-y-1">
                           {subcontractor.email && (
@@ -472,48 +526,105 @@ export default function Subcontractors() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {(subcontractor.specialties || []).slice(0, 3).map((specialty) => (
-                            <Badge key={specialty} variant="outline" className="text-xs">
-                              {specialty}
-                            </Badge>
-                          ))}
-                          {(subcontractor.specialties || []).length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{(subcontractor.specialties || []).length - 3}
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{renderStars(subcontractor.rating)}</TableCell>
-                      <TableCell>
                         <Badge className={cn("text-white", getStatusColor(subcontractor.status))}>
                           {subcontractor.status}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => editSubcontractor(subcontractor)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteSubcontractor(subcontractor.id)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        {subcontractor.travelRadius ? `${subcontractor.travelRadius} miles` : 'Not set'}
+                      </TableCell>
+                      <TableCell>
+                        {subcontractor.insuranceExpiry ? (
+                          <div className="flex items-center text-sm">
+                            <Calendar className="w-3 h-3 mr-1" />
+                            {subcontractor.insuranceExpiry.toLocaleDateString()}
+                          </div>
+                        ) : (
+                          'Not set'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>
+                              <Eye className="w-4 h-4 mr-2" />
+                              View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => editSubcontractor(subcontractor)}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => deleteSubcontractor(subcontractor.id)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
+                {filteredSubcontractors.map((subcontractor) => (
+                  <Card key={subcontractor.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-lg">{subcontractor.company}</CardTitle>
+                          <p className="text-sm text-gray-600">{(subcontractor.specialties && subcontractor.specialties[0]) || 'N/A'}</p>
+                        </div>
+                        <Badge className={cn("text-white text-xs", getStatusColor(subcontractor.status))}>
+                          {subcontractor.status}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div>
+                        <p className="font-medium text-sm">{subcontractor.name}</p>
+                        {subcontractor.phone && (
+                          <p className="text-sm text-gray-600">{subcontractor.phone}</p>
+                        )}
+                        {subcontractor.email && (
+                          <p className="text-sm text-gray-600">{subcontractor.email}</p>
+                        )}
+                      </div>
+
+                      {subcontractor.insuranceExpiry && (
+                        <div className="text-xs text-gray-500">
+                          Insurance Expires: {subcontractor.insuranceExpiry.toLocaleDateString()}
+                        </div>
+                      )}
+
+                      <div className="flex justify-end space-x-2">
+                        <Button variant="ghost" size="sm">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => editSubcontractor(subcontractor)}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => deleteSubcontractor(subcontractor.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
