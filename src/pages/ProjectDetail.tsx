@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -7,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { EditProjectDialog } from '@/components/projects/EditProjectDialog';
+import { NewBillingDialog } from '@/components/billing/NewBillingDialog';
 import { 
   Calendar, 
   MapPin, 
@@ -16,7 +18,11 @@ import {
   ArrowLeft,
   Clock,
   CheckCircle,
-  Edit
+  Edit,
+  Plus,
+  FileText,
+  Wrench,
+  Users
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -29,11 +35,21 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [billingData, setBillingData] = useState<any[]>([]);
+  const [changeOrders, setChangeOrders] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [projectSubcontractors, setProjectSubcontractors] = useState<any[]>([]);
+  const [sovItems, setSovItems] = useState<any[]>([]);
 
   useEffect(() => {
     if (id) {
       fetchProject();
       fetchBillingData();
+      fetchChangeOrders();
+      fetchTasks();
+      fetchDocuments();
+      fetchProjectSubcontractors();
+      fetchSOVItems();
     }
   }, [id]);
 
@@ -76,13 +92,94 @@ export default function ProjectDetail() {
         .from('project_billing')
         .select('*')
         .eq('project_id', id)
-        .order('billing_period_end', { ascending: false })
-        .limit(5);
+        .order('billing_period_end', { ascending: false });
 
       if (error) throw error;
       setBillingData(data || []);
     } catch (error) {
       console.error('Error fetching billing data:', error);
+    }
+  };
+
+  const fetchChangeOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('change_orders')
+        .select('*')
+        .eq('project_id', id)
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+      setChangeOrders(data || []);
+    } catch (error) {
+      console.error('Error fetching change orders:', error);
+    }
+  };
+
+  const fetchTasks = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('project_id', id)
+        .order('start_date', { ascending: true });
+
+      if (error) throw error;
+      setTasks(data || []);
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+    }
+  };
+
+  const fetchDocuments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('project_id', id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setDocuments(data || []);
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+    }
+  };
+
+  const fetchProjectSubcontractors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('project_subcontractors')
+        .select(`
+          *,
+          subcontractors:subcontractor_id (
+            name,
+            company,
+            phone,
+            email
+          )
+        `)
+        .eq('project_id', id);
+
+      if (error) throw error;
+      setProjectSubcontractors(data || []);
+    } catch (error) {
+      console.error('Error fetching project subcontractors:', error);
+    }
+  };
+
+  const fetchSOVItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sov_items')
+        .select('*')
+        .eq('project_id', id)
+        .order('item_number', { ascending: true });
+
+      if (error) throw error;
+      setSovItems(data || []);
+    } catch (error) {
+      console.error('Error fetching SOV items:', error);
     }
   };
 
@@ -118,11 +215,10 @@ export default function ProjectDetail() {
     }
   };
 
-  const mockFinancials = {
-    totalExpenses: 1250000,
-    totalBilled: 1400000,
-    totalReceived: 1200000
-  };
+  // Calculate real financials from billing data
+  const totalBilled = billingData.reduce((sum, billing) => sum + (billing.billed_amount || 0), 0);
+  const totalReceived = billingData.reduce((sum, billing) => sum + (billing.paid_amount || 0), 0);
+  const totalOutstanding = billingData.reduce((sum, billing) => sum + (billing.remaining_amount || 0), 0);
 
   return (
     <Layout 
@@ -250,30 +346,30 @@ export default function ProjectDetail() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-                  <DollarSign className="h-4 w-4 text-red-600" />
+                  <CardTitle className="text-sm font-medium">Total Billed</CardTitle>
+                  <DollarSign className="h-4 w-4 text-blue-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-red-600">
-                    ${mockFinancials.totalExpenses.toLocaleString()}
+                  <div className="text-2xl font-bold text-blue-600">
+                    ${totalBilled.toLocaleString()}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Cost to date
+                    Total invoiced
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Billed</CardTitle>
-                  <DollarSign className="h-4 w-4 text-blue-600" />
+                  <CardTitle className="text-sm font-medium">Total Received</CardTitle>
+                  <DollarSign className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">
-                    ${billingData.reduce((sum, billing) => sum + billing.billed_amount, 0).toLocaleString()}
+                  <div className="text-2xl font-bold text-green-600">
+                    ${totalReceived.toLocaleString()}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Total invoiced
+                    Payments received
                   </p>
                 </CardContent>
               </Card>
@@ -285,7 +381,7 @@ export default function ProjectDetail() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-orange-600">
-                    ${billingData.reduce((sum, billing) => sum + billing.remaining_amount, 0).toLocaleString()}
+                    ${totalOutstanding.toLocaleString()}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Unpaid invoices
@@ -295,15 +391,18 @@ export default function ProjectDetail() {
             </div>
 
             {/* Recent Billing */}
-            {billingData.length > 0 && (
-              <Card>
-                <CardHeader className="flex justify-between items-center">
-                  <CardTitle>Recent Billing</CardTitle>
+            <Card>
+              <CardHeader className="flex justify-between items-center">
+                <CardTitle>Recent Billing</CardTitle>
+                <div className="flex gap-2">
+                  <NewBillingDialog onBillingCreated={fetchBillingData} />
                   <Button variant="outline" size="sm" onClick={() => navigate('/project-billing')}>
                     View All Billing
                   </Button>
-                </CardHeader>
-                <CardContent>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {billingData.length > 0 ? (
                   <div className="space-y-3">
                     {billingData.slice(0, 3).map((billing) => (
                       <div key={billing.id} className="flex justify-between items-center p-3 border rounded-lg">
@@ -322,82 +421,152 @@ export default function ProjectDetail() {
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                ) : (
+                  <p className="text-center text-gray-500 py-4">No billing records found</p>
+                )}
+              </CardContent>
+            </Card>
 
-            {/* Project Progress */}
+            {/* SOV Summary */}
             <Card>
-              <CardHeader>
-                <CardTitle>Project Progress</CardTitle>
+              <CardHeader className="flex justify-between items-center">
+                <CardTitle>Schedule of Values Summary</CardTitle>
+                <Button variant="outline" size="sm" onClick={() => navigate('/sov')}>
+                  View Full SOV
+                </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Overall Completion</span>
-                    <span className="text-sm text-muted-foreground">{project.completionPercentage}%</span>
+                {sovItems.length > 0 ? (
+                  <div className="space-y-2">
+                    {sovItems.slice(0, 5).map((item) => (
+                      <div key={item.id} className="flex justify-between items-center">
+                        <span className="text-sm">{item.item_number} - {item.description}</span>
+                        <span className="font-medium">${item.scheduled_value.toLocaleString()}</span>
+                      </div>
+                    ))}
                   </div>
-                  <Progress value={project.completionPercentage} />
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                    <div>
-                      <p className="text-sm text-gray-500">Phase</p>
-                      <p className="font-medium">Construction</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Days Remaining</p>
-                      <p className="font-medium">45 days</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Budget Utilization</p>
-                      <p className="font-medium">78%</p>
-                    </div>
-                  </div>
-                </div>
+                ) : (
+                  <p className="text-center text-gray-500 py-4">No SOV items found</p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="schedule">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex justify-between items-center">
                 <CardTitle>Project Schedule</CardTitle>
+                <Button onClick={() => navigate('/schedule')} className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Open Full Schedule
+                </Button>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">Schedule management and timeline view will be displayed here.</p>
+                {tasks.length > 0 ? (
+                  <div className="space-y-3">
+                    {tasks.slice(0, 5).map((task) => (
+                      <div key={task.id} className="flex justify-between items-center p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">{task.title}</p>
+                          <p className="text-sm text-gray-500">
+                            {task.start_date && format(new Date(task.start_date), 'MMM dd')} - 
+                            {task.end_date && format(new Date(task.end_date), 'MMM dd, yyyy')}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <Badge variant={task.status === 'Completed' ? 'default' : 'secondary'}>
+                            {task.status}
+                          </Badge>
+                          <p className="text-sm text-gray-500 mt-1">{task.progress}% complete</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-gray-500 py-4">No tasks found. Create a schedule to get started.</p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="expenses">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex justify-between items-center">
                 <CardTitle>Project Expenses</CardTitle>
+                <Button onClick={() => navigate('/expenses')} className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  Manage Expenses
+                </Button>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">Expense tracking and approval workflow will be displayed here.</p>
+                <p className="text-center text-gray-500 py-4">No expenses tracked yet. Start tracking project expenses.</p>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="change-orders">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex justify-between items-center">
                 <CardTitle>Change Orders</CardTitle>
+                <Button onClick={() => navigate('/change-orders')} className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Manage Change Orders
+                </Button>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">Change order management will be displayed here.</p>
+                {changeOrders.length > 0 ? (
+                  <div className="space-y-3">
+                    {changeOrders.slice(0, 5).map((co) => (
+                      <div key={co.id} className="flex justify-between items-center p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">CO #{co.number}</p>
+                          <p className="text-sm text-gray-500">{co.description}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">${co.amount.toLocaleString()}</p>
+                          <Badge variant={co.status === 'Approved' ? 'default' : 'secondary'}>
+                            {co.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-gray-500 py-4">No change orders found</p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="documents">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex justify-between items-center">
                 <CardTitle>Project Documents</CardTitle>
+                <Button onClick={() => navigate('/documents')} className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Manage Documents
+                </Button>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">Document management system will be displayed here.</p>
+                {documents.length > 0 ? (
+                  <div className="space-y-3">
+                    {documents.slice(0, 5).map((doc) => (
+                      <div key={doc.id} className="flex justify-between items-center p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">{doc.name}</p>
+                          <p className="text-sm text-gray-500">{doc.category}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-500">
+                            {format(new Date(doc.created_at), 'MMM dd, yyyy')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-gray-500 py-4">No documents uploaded yet</p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -408,29 +577,71 @@ export default function ProjectDetail() {
                 <CardTitle>Burn Analysis</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">Budget burn rate and cost analysis will be displayed here.</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">${project.contractValue?.toLocaleString() || '0'}</div>
+                    <p className="text-sm text-gray-500">Contract Value</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">${totalBilled.toLocaleString()}</div>
+                    <p className="text-sm text-gray-500">Billed to Date</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-600">
+                      {project.contractValue ? Math.round((totalBilled / project.contractValue) * 100) : 0}%
+                    </div>
+                    <p className="text-sm text-gray-500">Billing Progress</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="equipment">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex justify-between items-center">
                 <CardTitle>Project Equipment</CardTitle>
+                <Button onClick={() => navigate('/equipment')} className="flex items-center gap-2">
+                  <Wrench className="w-4 h-4" />
+                  Manage Equipment
+                </Button>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">Equipment allocation and tracking will be displayed here.</p>
+                <p className="text-center text-gray-500 py-4">Equipment allocation and tracking will be displayed here.</p>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="subcontractors">
             <Card>
-              <CardHeader>
-                <CardTitle>Subcontractors</CardTitle>
+              <CardHeader className="flex justify-between items-center">
+                <CardTitle>Project Subcontractors</CardTitle>
+                <Button onClick={() => navigate('/subcontractors')} className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Manage Subcontractors
+                </Button>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">Subcontractor management will be displayed here.</p>
+                {projectSubcontractors.length > 0 ? (
+                  <div className="space-y-3">
+                    {projectSubcontractors.map((ps) => (
+                      <div key={ps.id} className="flex justify-between items-center p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">{ps.subcontractors?.name || 'Unknown'}</p>
+                          <p className="text-sm text-gray-500">{ps.role}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">${ps.contract_amount?.toLocaleString() || '0'}</p>
+                          <Badge variant={ps.status === 'Active' ? 'default' : 'secondary'}>
+                            {ps.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-gray-500 py-4">No subcontractors assigned yet</p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

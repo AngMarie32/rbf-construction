@@ -1,59 +1,25 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Plus, Calendar as CalendarIcon, Edit, Trash2, FileText, DollarSign } from 'lucide-react';
+import { Search, Plus, FileText, DollarSign, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
-
-interface ChangeOrder {
-  id: string;
-  projectId: string;
-  number: string;
-  date: Date;
-  description: string;
-  amount: number;
-  status: 'Draft' | 'Pending' | 'Approved' | 'Rejected';
-}
-
-interface Project {
-  id: string;
-  name: string;
-}
-
-const STATUS_OPTIONS = [
-  { value: 'Draft', label: 'Draft', color: 'bg-gray-500' },
-  { value: 'Pending', label: 'Pending', color: 'bg-yellow-500' },
-  { value: 'Approved', label: 'Approved', color: 'bg-green-500' },
-  { value: 'Rejected', label: 'Rejected', color: 'bg-red-500' }
-];
 
 export default function ChangeOrders() {
+  const [projects, setProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('');
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [changeOrders, setChangeOrders] = useState<ChangeOrder[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingChangeOrder, setEditingChangeOrder] = useState<ChangeOrder | null>(null);
-  
-  const [newChangeOrder, setNewChangeOrder] = useState({
-    number: '',
-    date: new Date(),
-    description: '',
-    amount: '',
-    status: 'Draft' as 'Draft' | 'Pending' | 'Approved' | 'Rejected'
-  });
+  const [changeOrders, setChangeOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchProjects();
@@ -62,6 +28,8 @@ export default function ChangeOrders() {
   useEffect(() => {
     if (selectedProject) {
       fetchChangeOrders();
+    } else {
+      setChangeOrders([]);
     }
   }, [selectedProject]);
 
@@ -69,7 +37,7 @@ export default function ChangeOrders() {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name')
+        .select('id, name, status')
         .order('name');
 
       if (error) throw error;
@@ -77,141 +45,61 @@ export default function ChangeOrders() {
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');
-    }
-  };
-
-  const fetchChangeOrders = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('change_orders')
-        .select('*')
-        .eq('project_id', selectedProject)
-        .order('date', { ascending: false });
-
-      if (error) throw error;
-
-      const mappedChangeOrders = (data || []).map(co => ({
-        id: co.id,
-        projectId: co.project_id,
-        number: co.number,
-        date: new Date(co.date),
-        description: co.description,
-        amount: co.amount,
-        status: co.status as ChangeOrder['status']
-      }));
-
-      setChangeOrders(mappedChangeOrders);
-    } catch (error) {
-      console.error('Error fetching change orders:', error);
-      toast.error('Failed to load change orders');
     } finally {
       setLoading(false);
     }
   };
 
-  const generateChangeOrderNumber = async () => {
-    const changeOrderCount = changeOrders.length + 1;
-    return `CO-${String(changeOrderCount).padStart(3, '0')}`;
-  };
-
-  const saveChangeOrder = async () => {
-    if (!selectedProject || !newChangeOrder.description || !newChangeOrder.amount) {
-      toast.error('Please fill in required fields');
-      return;
-    }
-
+  const fetchChangeOrders = async () => {
     try {
-      const amount = parseFloat(newChangeOrder.amount);
-      if (isNaN(amount)) {
-        toast.error('Please enter a valid amount');
-        return;
-      }
-
-      const changeOrderData = {
-        project_id: selectedProject,
-        number: newChangeOrder.number || await generateChangeOrderNumber(),
-        date: newChangeOrder.date.toISOString().split('T')[0],
-        description: newChangeOrder.description,
-        amount: amount,
-        status: newChangeOrder.status
-      };
-
-      if (editingChangeOrder) {
-        const { error } = await supabase
-          .from('change_orders')
-          .update(changeOrderData)
-          .eq('id', editingChangeOrder.id);
-
-        if (error) throw error;
-        toast.success('Change order updated successfully');
-      } else {
-        const { error } = await supabase
-          .from('change_orders')
-          .insert(changeOrderData);
-
-        if (error) throw error;
-        toast.success('Change order created successfully');
-      }
-
-      setDialogOpen(false);
-      setEditingChangeOrder(null);
-      setNewChangeOrder({
-        number: '',
-        date: new Date(),
-        description: '',
-        amount: '',
-        status: 'Draft'
-      });
-      fetchChangeOrders();
-    } catch (error) {
-      console.error('Error saving change order:', error);
-      toast.error('Failed to save change order');
-    }
-  };
-
-  const deleteChangeOrder = async (id: string) => {
-    try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('change_orders')
-        .delete()
-        .eq('id', id);
+        .select('*')
+        .eq('project_id', selectedProject)
+        .order('number');
 
       if (error) throw error;
-      toast.success('Change order deleted successfully');
-      fetchChangeOrders();
+      setChangeOrders(data || []);
     } catch (error) {
-      console.error('Error deleting change order:', error);
-      toast.error('Failed to delete change order');
+      console.error('Error fetching change orders:', error);
+      toast.error('Failed to load change orders');
     }
   };
 
-  const editChangeOrder = async (changeOrder: ChangeOrder) => {
-    setEditingChangeOrder(changeOrder);
-    setNewChangeOrder({
-      number: changeOrder.number,
-      date: changeOrder.date,
-      description: changeOrder.description,
-      amount: changeOrder.amount.toString(),
-      status: changeOrder.status
-    });
-    setDialogOpen(true);
-  };
+  const filteredChangeOrders = changeOrders.filter(co => {
+    const matchesSearch = co.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         co.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || co.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalAmount = changeOrders.reduce((sum, co) => sum + (co.amount || 0), 0);
+  const approvedAmount = changeOrders
+    .filter(co => co.status === 'Approved')
+    .reduce((sum, co) => sum + (co.amount || 0), 0);
 
   const getStatusColor = (status: string) => {
-    return STATUS_OPTIONS.find(s => s.value === status)?.color || 'bg-gray-500';
+    switch (status) {
+      case 'Draft': return 'bg-gray-500';
+      case 'Submitted': return 'bg-blue-500';
+      case 'Approved': return 'bg-green-500';
+      case 'Rejected': return 'bg-red-500';
+      default: return 'bg-gray-500';
+    }
   };
 
-  const totalApproved = changeOrders
-    .filter(co => co.status === 'Approved')
-    .reduce((sum, co) => sum + co.amount, 0);
-
-  const totalPending = changeOrders
-    .filter(co => co.status === 'Pending')
-    .reduce((sum, co) => sum + co.amount, 0);
+  if (loading) {
+    return (
+      <Layout title="Change Orders" subtitle="Manage project change orders">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
-    <Layout title="Change Orders" subtitle="Manage project change orders and modifications">
+    <Layout title="Change Orders" subtitle="Manage project change orders">
       <div className="space-y-6">
         {/* Project Selection */}
         <Card>
@@ -220,13 +108,13 @@ export default function ChangeOrders() {
           </CardHeader>
           <CardContent>
             <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choose a project to manage change orders..." />
+              <SelectTrigger className="w-full max-w-md">
+                <SelectValue placeholder="Choose a project to view change orders" />
               </SelectTrigger>
               <SelectContent>
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
-                    {project.name}
+                    {project.name} ({project.status})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -241,228 +129,173 @@ export default function ChangeOrders() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Change Orders</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <FileText className="h-4 w-4 text-blue-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{changeOrders.length}</div>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {changeOrders.length}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    All change orders
+                  </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Approved Value</CardTitle>
+                  <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
                   <DollarSign className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-green-600">
-                    ${totalApproved.toLocaleString()}
+                    ${totalAmount.toLocaleString()}
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    All change orders
+                  </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Value</CardTitle>
-                  <DollarSign className="h-4 w-4 text-yellow-600" />
+                  <CardTitle className="text-sm font-medium">Approved Amount</CardTitle>
+                  <DollarSign className="h-4 w-4 text-orange-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">
-                    ${totalPending.toLocaleString()}
+                  <div className="text-2xl font-bold text-orange-600">
+                    ${approvedAmount.toLocaleString()}
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Approved change orders
+                  </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Approval Rate</CardTitle>
+                  <CardTitle className="text-sm font-medium">Pending</CardTitle>
+                  <FileText className="h-4 w-4 text-red-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    {changeOrders.length > 0 
-                      ? Math.round((changeOrders.filter(co => co.status === 'Approved').length / changeOrders.length) * 100)
-                      : 0
-                    }%
+                  <div className="text-2xl font-bold text-red-600">
+                    {changeOrders.filter(co => co.status === 'Submitted').length}
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Awaiting approval
+                  </p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Change Orders Management */}
+            {/* Controls */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
+              <div className="flex gap-4 flex-1">
+                <div className="relative max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search change orders..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="Draft">Draft</SelectItem>
+                    <SelectItem value="Submitted">Submitted</SelectItem>
+                    <SelectItem value="Approved">Approved</SelectItem>
+                    <SelectItem value="Rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                New Change Order
+              </Button>
+            </div>
+
+            {/* Change Orders List */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader>
                 <CardTitle>Change Orders</CardTitle>
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button onClick={async () => {
-                      setEditingChangeOrder(null);
-                      const nextNumber = await generateChangeOrderNumber();
-                      setNewChangeOrder({
-                        number: nextNumber,
-                        date: new Date(),
-                        description: '',
-                        amount: '',
-                        status: 'Draft'
-                      });
-                    }}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Change Order
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>{editingChangeOrder ? 'Edit Change Order' : 'Add New Change Order'}</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="number">Change Order Number</Label>
-                          <Input
-                            id="number"
-                            value={newChangeOrder.number}
-                            onChange={(e) => setNewChangeOrder({ ...newChangeOrder, number: e.target.value })}
-                            placeholder="CO-001"
-                          />
-                        </div>
-
-                        <div>
-                          <Label>Date</Label>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-left font-normal",
-                                  !newChangeOrder.date && "text-muted-foreground"
-                                )}
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {newChangeOrder.date ? format(newChangeOrder.date, "PPP") : "Pick a date"}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                              <Calendar
-                                mode="single"
-                                selected={newChangeOrder.date}
-                                onSelect={(date) => date && setNewChangeOrder({ ...newChangeOrder, date })}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="description">Description</Label>
-                        <Textarea
-                          id="description"
-                          value={newChangeOrder.description}
-                          onChange={(e) => setNewChangeOrder({ ...newChangeOrder, description: e.target.value })}
-                          placeholder="Describe the change order details..."
-                          rows={4}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="amount">Amount ($)</Label>
-                          <Input
-                            id="amount"
-                            type="number"
-                            step="0.01"
-                            value={newChangeOrder.amount}
-                            onChange={(e) => setNewChangeOrder({ ...newChangeOrder, amount: e.target.value })}
-                            placeholder="0.00"
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="status">Status</Label>
-                          <Select value={newChangeOrder.status} onValueChange={(value: 'Draft' | 'Pending' | 'Approved' | 'Rejected') => setNewChangeOrder({ ...newChangeOrder, status: value })}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {STATUS_OPTIONS.map((status) => (
-                                <SelectItem key={status.value} value={status.value}>
-                                  {status.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <Button onClick={saveChangeOrder} className="w-full">
-                        {editingChangeOrder ? 'Update Change Order' : 'Create Change Order'}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
               </CardHeader>
               <CardContent>
-                {loading ? (
-                  <div className="text-center py-8">Loading change orders...</div>
+                {filteredChangeOrders.length > 0 ? (
+                  <div className="space-y-4">
+                    {filteredChangeOrders.map((co) => (
+                      <div key={co.id} className="flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h4 className="font-semibold">CO #{co.number}</h4>
+                            <Badge className={`${getStatusColor(co.status)} text-white`}>
+                              {co.status}
+                            </Badge>
+                            <div className="flex items-center text-sm text-gray-500">
+                              <Calendar className="w-4 h-4 mr-1" />
+                              {format(new Date(co.date), 'MMM dd, yyyy')}
+                            </div>
+                          </div>
+                          <p className="text-gray-600 mb-2">{co.description}</p>
+                          <div className="flex items-center gap-4 text-sm">
+                            <span className="text-gray-500">Amount:</span>
+                            <span className={`font-medium ${co.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {co.amount >= 0 ? '+' : ''}${co.amount.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm">
+                            Edit
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <FileText className="w-4 h-4 mr-1" />
+                            View
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : changeOrders.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    No change orders found. Add your first change order to get started.
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 text-lg">No change orders found for this project.</p>
+                    <p className="text-gray-400 mt-2">Create your first change order to get started.</p>
+                    <Button className="mt-4">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create First Change Order
+                    </Button>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Number</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="w-20">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {changeOrders.map((changeOrder) => (
-                        <TableRow key={changeOrder.id}>
-                          <TableCell className="font-medium">{changeOrder.number}</TableCell>
-                          <TableCell>{format(changeOrder.date, "MMM dd, yyyy")}</TableCell>
-                          <TableCell className="max-w-xs truncate">{changeOrder.description}</TableCell>
-                          <TableCell className={cn(
-                            "font-medium",
-                            changeOrder.amount >= 0 ? "text-green-600" : "text-red-600"
-                          )}>
-                            ${Math.abs(changeOrder.amount).toLocaleString()}
-                            {changeOrder.amount < 0 && " (Credit)"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={cn("text-white", getStatusColor(changeOrder.status))}>
-                              {changeOrder.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => editChangeOrder(changeOrder)}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteChangeOrder(changeOrder.id)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No change orders match your search criteria.</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
           </>
+        )}
+
+        {!selectedProject && (
+          <Card>
+            <CardContent className="text-center py-16">
+              <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Change Orders</h3>
+              <p className="text-gray-500 mb-6">
+                Select a project above to view and manage change orders.
+              </p>
+              {projects.length === 0 && (
+                <div className="mt-4">
+                  <p className="text-gray-400 mb-4">No projects found. Create a project first.</p>
+                  <Button onClick={() => navigate('/projects')}>
+                    Go to Projects
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
       </div>
     </Layout>
