@@ -148,7 +148,9 @@ export const generateProposalPDF = (proposalData: any) => {
   pdf.text('Scope of Work:', 20, 100);
   
   pdf.setFontSize(10);
-  const scopeLines = proposalData.scope.split('\n');
+  // Add type checking for scope
+  const scope = proposalData.scope || '';
+  const scopeLines = typeof scope === 'string' ? scope.split('\n') : [scope.toString()];
   let yPos = 115;
   scopeLines.forEach((line: string) => {
     pdf.text(line, 25, yPos);
