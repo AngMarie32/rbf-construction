@@ -8,9 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Calculator, Download, FileText, Save } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Trash2, FileText, Save, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+// Import new components
+import { CreateBidDialog } from '@/components/bid-planner/CreateBidDialog';
+import { TemplateLibrary } from '@/components/bid-planner/TemplateLibrary';
+import { BidOverview } from '@/components/bid-planner/BidOverview';
 
 interface BidItem {
   id: string;
@@ -35,15 +41,6 @@ interface BidTemplate {
   isDefault: boolean;
 }
 
-interface TemplateItem {
-  id: string;
-  category: string;
-  subcategory: string;
-  description: string;
-  unit: string;
-  unitCost: number;
-}
-
 const UNIT_OPTIONS = [
   { value: 'each', label: 'Each' },
   { value: 'day', label: 'Day' },
@@ -64,9 +61,9 @@ export default function BidPlanner() {
   const [bidItems, setBidItems] = useState<BidItem[]>([]);
   const [templates, setTemplates] = useState<BidTemplate[]>([]);
   const [loading, setLoading] = useState(false);
-  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [createBidOpen, setCreateBidOpen] = useState(false);
+  const [templateLibraryOpen, setTemplateLibraryOpen] = useState(false);
   const [newTemplateDialogOpen, setNewTemplateDialogOpen] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   
   const [newItem, setNewItem] = useState({
     category: '',
@@ -192,9 +189,8 @@ export default function BidPlanner() {
         if (insertError) throw insertError;
       }
 
-      toast.success(`Template "${templates.find(t => t.id === templateId)?.name}" loaded successfully`);
+      toast.success(`Template loaded successfully`);
       fetchBidItems();
-      setTemplateDialogOpen(false);
     } catch (error) {
       console.error('Error loading template:', error);
       toast.error('Failed to load template');
@@ -219,7 +215,6 @@ export default function BidPlanner() {
 
       if (templateError) throw templateError;
 
-      // Add current bid items to template
       if (bidItems.length > 0) {
         const templateItems = bidItems.map(item => ({
           template_id: templateData.id,
@@ -368,6 +363,8 @@ export default function BidPlanner() {
     return acc;
   }, {} as Record<string, BidItem[]>);
 
+  const selectedProjectData = projects.find(p => p.id === selectedProject);
+
   return (
     <Layout title="Bid Planner" subtitle="Plan and estimate project costs with templates">
       <div className="space-y-6">
@@ -394,54 +391,22 @@ export default function BidPlanner() {
 
         {selectedProject && (
           <>
-            {/* Template Actions */}
+            {/* Enhanced Action Bar */}
             <Card>
               <CardHeader>
-                <CardTitle>Template Options</CardTitle>
+                <CardTitle>Bid Management</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex gap-4 flex-wrap">
-                  <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline">
-                        <FileText className="w-4 h-4 mr-2" />
-                        Load Template
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Load Bid Template</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Choose a template..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {templates.map((template) => (
-                              <SelectItem key={template.id} value={template.id}>
-                                {template.name} {template.isDefault && '(Default)'}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {selectedTemplate && (
-                          <div className="p-3 bg-gray-50 rounded">
-                            <p className="text-sm text-gray-600">
-                              {templates.find(t => t.id === selectedTemplate)?.description}
-                            </p>
-                          </div>
-                        )}
-                        <Button 
-                          onClick={() => selectedTemplate && loadTemplate(selectedTemplate)} 
-                          disabled={!selectedTemplate}
-                          className="w-full"
-                        >
-                          Load Template
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <Button onClick={() => setCreateBidOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create New Bid
+                  </Button>
+                  
+                  <Button variant="outline" onClick={() => setTemplateLibraryOpen(true)}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Template Library
+                  </Button>
 
                   <Dialog open={newTemplateDialogOpen} onOpenChange={setNewTemplateDialogOpen}>
                     <DialogTrigger asChild>
@@ -487,194 +452,249 @@ export default function BidPlanner() {
               </CardContent>
             </Card>
 
-            {/* Add New Item */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Add Bid Item</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
-                  <div>
-                    <Label htmlFor="category">Category *</Label>
-                    <Input
-                      id="category"
-                      value={newItem.category}
-                      onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-                      placeholder="General Conditions"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="subcategory">Subcategory</Label>
-                    <Input
-                      id="subcategory"
-                      value={newItem.subcategory}
-                      onChange={(e) => setNewItem({ ...newItem, subcategory: e.target.value })}
-                      placeholder="Permits"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="description">Description *</Label>
-                    <Input
-                      id="description"
-                      value={newItem.description}
-                      onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                      placeholder="Building permits"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="unit">Unit</Label>
-                    <Select value={newItem.unit} onValueChange={(value) => setNewItem({ ...newItem, unit: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {UNIT_OPTIONS.map((unit) => (
-                          <SelectItem key={unit.value} value={unit.value}>
-                            {unit.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="unitCost">Unit Cost ($) *</Label>
-                    <Input
-                      id="unitCost"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={newItem.unitCost}
-                      onChange={(e) => setNewItem({ ...newItem, unitCost: e.target.value })}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="quantity">Quantity</Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      min="1"
-                      value={newItem.quantity}
-                      onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
-                      placeholder="1"
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <Button onClick={addBidItem} className="w-full">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Tabbed Interface */}
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="overview">Bid Overview</TabsTrigger>
+                <TabsTrigger value="items">Line Items</TabsTrigger>
+                <TabsTrigger value="settings">Settings</TabsTrigger>
+              </TabsList>
 
-            {/* Bid Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Calculator className="w-5 h-5 mr-2" />
-                    Total Estimate
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-green-600">
-                    ${totalEstimate.toLocaleString()}
-                  </div>
-                </CardContent>
-              </Card>
+              <TabsContent value="overview" className="space-y-6">
+                <BidOverview
+                  totalEstimate={totalEstimate}
+                  itemCount={bidItems.length}
+                  categoryCount={Object.keys(categorizedItems).length}
+                  projectName={selectedProjectData?.name}
+                />
+              </TabsContent>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Total Items</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{bidItems.length}</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Categories</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{Object.keys(categorizedItems).length}</div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Bid Items Table */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Bid Items</CardTitle>
-                <Button variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="text-center py-8">Loading bid items...</div>
-                ) : bidItems.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    No bid items found. Add your first item above or load a template.
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {Object.entries(categorizedItems).map(([category, items]) => (
-                      <div key={category}>
-                        <div className="flex items-center mb-3">
-                          <Badge variant="secondary" className="mr-2">
-                            {category}
-                          </Badge>
-                          <span className="text-sm text-gray-500">
-                            ${items.reduce((sum, item) => sum + item.total, 0).toLocaleString()}
-                          </span>
-                        </div>
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Subcategory</TableHead>
-                              <TableHead>Description</TableHead>
-                              <TableHead>Unit</TableHead>
-                              <TableHead>Unit Cost</TableHead>
-                              <TableHead>Quantity</TableHead>
-                              <TableHead>Total</TableHead>
-                              <TableHead className="w-20">Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {items.map((item) => (
-                              <TableRow key={item.id}>
-                                <TableCell>{item.subcategory}</TableCell>
-                                <TableCell>{item.description}</TableCell>
-                                <TableCell>{UNIT_OPTIONS.find(u => u.value === item.unit)?.label || item.unit}</TableCell>
-                                <TableCell>${item.unitCost.toLocaleString()}</TableCell>
-                                <TableCell>{item.quantity}</TableCell>
-                                <TableCell className="font-medium">
-                                  ${item.total.toLocaleString()}
-                                </TableCell>
-                                <TableCell>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => deleteBidItem(item.id)}
-                                    className="text-red-600 hover:text-red-800"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+              <TabsContent value="items" className="space-y-6">
+                {/* Add New Item */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Add Bid Item</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+                      <div>
+                        <Label htmlFor="category">Category *</Label>
+                        <Input
+                          id="category"
+                          value={newItem.category}
+                          onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+                          placeholder="General Conditions"
+                        />
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      <div>
+                        <Label htmlFor="subcategory">Subcategory</Label>
+                        <Input
+                          id="subcategory"
+                          value={newItem.subcategory}
+                          onChange={(e) => setNewItem({ ...newItem, subcategory: e.target.value })}
+                          placeholder="Permits"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="description">Description *</Label>
+                        <Input
+                          id="description"
+                          value={newItem.description}
+                          onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                          placeholder="Building permits"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="unit">Unit</Label>
+                        <Select value={newItem.unit} onValueChange={(value) => setNewItem({ ...newItem, unit: value })}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {UNIT_OPTIONS.map((unit) => (
+                              <SelectItem key={unit.value} value={unit.value}>
+                                {unit.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="unitCost">Unit Cost ($) *</Label>
+                        <Input
+                          id="unitCost"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={newItem.unitCost}
+                          onChange={(e) => setNewItem({ ...newItem, unitCost: e.target.value })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="quantity">Quantity</Label>
+                        <Input
+                          id="quantity"
+                          type="number"
+                          min="1"
+                          value={newItem.quantity}
+                          onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
+                          placeholder="1"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <Button onClick={addBidItem} className="w-full">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Bid Items Table */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle>Bid Items</CardTitle>
+                    <Button variant="outline">
+                      <Download className="w-4 h-4 mr-2" />
+                      Export
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {loading ? (
+                      <div className="text-center py-8">Loading bid items...</div>
+                    ) : bidItems.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        No bid items found. Add your first item above or load a template.
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {Object.entries(categorizedItems).map(([category, items]) => (
+                          <div key={category}>
+                            <div className="flex items-center mb-3">
+                              <Badge variant="secondary" className="mr-2">
+                                {category}
+                              </Badge>
+                              <span className="text-sm text-gray-500">
+                                ${items.reduce((sum, item) => sum + item.total, 0).toLocaleString()}
+                              </span>
+                            </div>
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Subcategory</TableHead>
+                                  <TableHead>Description</TableHead>
+                                  <TableHead>Unit</TableHead>
+                                  <TableHead>Unit Cost</TableHead>
+                                  <TableHead>Quantity</TableHead>
+                                  <TableHead>Total</TableHead>
+                                  <TableHead className="w-20">Actions</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {items.map((item) => (
+                                  <TableRow key={item.id}>
+                                    <TableCell>{item.subcategory}</TableCell>
+                                    <TableCell>{item.description}</TableCell>
+                                    <TableCell>{UNIT_OPTIONS.find(u => u.value === item.unit)?.label || item.unit}</TableCell>
+                                    <TableCell>${item.unitCost.toLocaleString()}</TableCell>
+                                    <TableCell>{item.quantity}</TableCell>
+                                    <TableCell className="font-medium">
+                                      ${item.total.toLocaleString()}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => deleteBidItem(item.id)}
+                                        className="text-red-600 hover:text-red-800"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="settings" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Bid Settings</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="profitMargin">Profit Margin (%)</Label>
+                        <Input
+                          id="profitMargin"
+                          type="number"
+                          min="0"
+                          max="100"
+                          defaultValue="15"
+                          placeholder="15"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="overhead">Overhead (%)</Label>
+                        <Input
+                          id="overhead"
+                          type="number"
+                          min="0"
+                          max="100"
+                          defaultValue="10"
+                          placeholder="10"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="contingency">Contingency (%)</Label>
+                        <Input
+                          id="contingency"
+                          type="number"
+                          min="0"
+                          max="100"
+                          defaultValue="5"
+                          placeholder="5"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="bondRate">Bond Rate (%)</Label>
+                        <Input
+                          id="bondRate"
+                          type="number"
+                          min="0"
+                          max="100"
+                          defaultValue="1"
+                          placeholder="1"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+
+            {/* Dialogs */}
+            <CreateBidDialog
+              open={createBidOpen}
+              onOpenChange={setCreateBidOpen}
+              onBidCreated={fetchBidItems}
+              projectId={selectedProject}
+            />
+
+            <TemplateLibrary
+              open={templateLibraryOpen}
+              onOpenChange={setTemplateLibraryOpen}
+              onTemplateSelected={loadTemplate}
+            />
           </>
         )}
       </div>
