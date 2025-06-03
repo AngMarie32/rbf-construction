@@ -79,3 +79,85 @@ export const exportCSV = (data: any[], filename: string = 'export.csv') => {
   link.click();
   document.body.removeChild(link);
 };
+
+// Add the missing functions for BidPlanner
+export const generateBidExportPDF = (bidItems: any[], projectName: string) => {
+  const pdf = new jsPDF();
+  
+  // Add title
+  pdf.setFontSize(20);
+  pdf.text(`Bid Estimate - ${projectName}`, 20, 30);
+  
+  // Add date
+  pdf.setFontSize(12);
+  pdf.text(`Generated: ${new Date().toLocaleDateString()}`, 20, 45);
+  
+  let yPosition = 65;
+  
+  // Group by category
+  const categorizedItems = bidItems.reduce((acc, item) => {
+    if (!acc[item.category]) acc[item.category] = [];
+    acc[item.category].push(item);
+    return acc;
+  }, {} as Record<string, any[]>);
+  
+  Object.entries(categorizedItems).forEach(([category, items]) => {
+    // Category header
+    pdf.setFontSize(14);
+    pdf.text(category, 20, yPosition);
+    yPosition += 10;
+    
+    // Items
+    pdf.setFontSize(10);
+    items.forEach((item) => {
+      const line = `${item.description} - ${item.quantity} ${item.unit} x $${item.unitCost} = $${item.total}`;
+      pdf.text(line, 25, yPosition);
+      yPosition += 6;
+      
+      if (yPosition > 270) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+    });
+    
+    yPosition += 5;
+  });
+  
+  // Total
+  const total = bidItems.reduce((sum, item) => sum + item.total, 0);
+  pdf.setFontSize(14);
+  pdf.text(`Total Estimate: $${total.toLocaleString()}`, 20, yPosition + 10);
+  
+  pdf.save(`bid-estimate-${projectName.replace(/\s+/g, '-').toLowerCase()}.pdf`);
+};
+
+export const generateProposalPDF = (proposalData: any) => {
+  const pdf = new jsPDF();
+  
+  // Header
+  pdf.setFontSize(20);
+  pdf.text('Project Proposal', 20, 30);
+  
+  pdf.setFontSize(12);
+  pdf.text(`Project: ${proposalData.projectName}`, 20, 50);
+  pdf.text(`Client: ${proposalData.client}`, 20, 65);
+  pdf.text(`Date: ${proposalData.date}`, 20, 80);
+  
+  // Scope
+  pdf.setFontSize(14);
+  pdf.text('Scope of Work:', 20, 100);
+  
+  pdf.setFontSize(10);
+  const scopeLines = proposalData.scope.split('\n');
+  let yPos = 115;
+  scopeLines.forEach((line: string) => {
+    pdf.text(line, 25, yPos);
+    yPos += 6;
+  });
+  
+  // Total
+  pdf.setFontSize(16);
+  pdf.text(`Total Amount: $${proposalData.amount.toLocaleString()}`, 20, yPos + 20);
+  
+  pdf.save(`proposal-${proposalData.projectName.replace(/\s+/g, '-').toLowerCase()}.pdf`);
+};

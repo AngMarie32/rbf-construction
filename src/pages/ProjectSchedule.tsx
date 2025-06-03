@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,7 +27,7 @@ import {
   Clock,
   Target,
   Link,
-  FileTemplate,
+  File,
   Settings,
   Info
 } from 'lucide-react';
@@ -308,8 +307,10 @@ export default function ProjectSchedule() {
         await exportToPDF('gantt-chart', `project-schedule-gantt-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
       } else if (activeTab === 'calendar') {
         await exportToPDF('schedule-calendar', `project-schedule-calendar-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+      } else if (activeTab === 'critical-path') {
+        await exportToPDF('critical-path-view', `project-schedule-critical-path-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
       } else {
-        // Export as CSV for other views
+        // Export as CSV for list view
         const exportData = filteredTasks.map(task => ({
           'Task Name': task.title,
           'Project': projects.find(p => p.id === task.projectId)?.name || '',
@@ -361,7 +362,7 @@ export default function ProjectSchedule() {
               Quick Planner
             </Button>
             <Button variant="outline" onClick={() => setTemplateManagerOpen(true)}>
-              <FileTemplate className="w-4 h-4 mr-2" />
+              <File className="w-4 h-4 mr-2" />
               Templates
             </Button>
             <Button variant="outline" onClick={handleExport}>
@@ -410,7 +411,7 @@ export default function ProjectSchedule() {
                     placeholder="Search by task name..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-full min-w-[250px]"
+                    className="pl-10 w-full"
                   />
                 </div>
               </div>
@@ -546,11 +547,12 @@ export default function ProjectSchedule() {
           </TabsContent>
 
           <TabsContent value="critical-path">
-            <CriticalPath
-              tasks={filteredTasks}
-              projects={projects}
-              onTaskUpdate={handleTaskUpdate}
-            />
+            <div id="critical-path-view">
+              <CriticalPath
+                tasks={filteredTasks}
+                selectedProjects={selectedProjects}
+              />
+            </div>
           </TabsContent>
 
           <TabsContent value="list">
