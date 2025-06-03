@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { NewEquipmentDialog } from '@/components/equipment/NewEquipmentDialog';
 import { MaintenanceDialog } from '@/components/equipment/MaintenanceDialog';
+import { EquipmentEstimator } from '@/components/equipment/EquipmentEstimator';
+import { AllMaintenanceView } from '@/components/equipment/AllMaintenanceView';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Search, Plus, Grid, List, MoreHorizontal, Wrench, Calendar } from 'lucide-react';
+import { Search, Plus, Grid, List, MoreHorizontal, Wrench, Calendar, Eye, Edit, Trash2, PlusCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Equipment } from '@/types';
@@ -30,6 +32,12 @@ interface DatabaseEquipment {
   updated_at: string;
 }
 
+interface EstimatorItem {
+  equipment: Equipment;
+  duration: number;
+  unit: 'hours' | 'days';
+}
+
 export default function EquipmentPage() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [filteredEquipment, setFilteredEquipment] = useState<Equipment[]>([]);
@@ -40,6 +48,9 @@ export default function EquipmentPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedEquipment, setSelectedEquipment] = useState<string>('');
   const [showMaintenance, setShowMaintenance] = useState(false);
+  const [estimatorItems, setEstimatorItems] = useState<EstimatorItem[]>([]);
+  const [showEstimator, setShowEstimator] = useState(false);
+  const [showAllMaintenance, setShowAllMaintenance] = useState(false);
 
   useEffect(() => {
     fetchEquipment();
@@ -133,6 +144,59 @@ export default function EquipmentPage() {
     setShowMaintenance(true);
   };
 
+  const addToEstimator = (equipmentItem: Equipment) => {
+    const existing = estimatorItems.find(item => item.equipment.id === equipmentItem.id);
+    if (existing) {
+      toast.info('Equipment already added to estimator');
+      return;
+    }
+
+    const newItem: EstimatorItem = {
+      equipment: equipmentItem,
+      duration: 8,
+      unit: 'hours'
+    };
+
+    setEstimatorItems([...estimatorItems, newItem]);
+    setShowEstimator(true);
+    toast.success(`${equipmentItem.name} added to estimator`);
+  };
+
+  const removeFromEstimator = (equipmentId: string) => {
+    setEstimatorItems(estimatorItems.filter(item => item.equipment.id !== equipmentId));
+    if (estimatorItems.length === 1) {
+      setShowEstimator(false);
+    }
+  };
+
+  const updateEstimatorDuration = (equipmentId: string, duration: number, unit: 'hours' | 'days') => {
+    setEstimatorItems(estimatorItems.map(item => 
+      item.equipment.id === equipmentId 
+        ? { ...item, duration, unit }
+        : item
+    ));
+  };
+
+  const saveEstimate = () => {
+    console.log('Saving estimate:', estimatorItems);
+    toast.success('Estimate saved successfully');
+  };
+
+  const exportEstimate = () => {
+    console.log('Exporting estimate:', estimatorItems);
+    toast.success('Estimate exported successfully');
+  };
+
+  const viewEquipment = (equipmentItem: Equipment) => {
+    console.log('Viewing equipment:', equipmentItem.name);
+    toast.info(`Viewing ${equipmentItem.name}`);
+  };
+
+  const editEquipment = (equipmentItem: Equipment) => {
+    console.log('Editing equipment:', equipmentItem.name);
+    toast.info(`Editing ${equipmentItem.name}`);
+  };
+
   const categories = ['Heavy Machinery', 'Vehicles', 'Trailers', 'Other'];
 
   if (loading) {
@@ -147,7 +211,7 @@ export default function EquipmentPage() {
 
   return (
     <Layout title="Equipment Tracker & Cost Estimator" subtitle="Manage and track equipment for your construction projects">
-      <div className="space-y-6">
+      <div className={cn("space-y-6", showEstimator && "mr-96")}>
         {/* Header Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
@@ -187,6 +251,13 @@ export default function EquipmentPage() {
           </div>
           <div className="flex items-center space-x-2">
             <Button
+              variant="outline"
+              onClick={() => setShowAllMaintenance(true)}
+            >
+              <Calendar className="w-4 h-4 mr-2" />
+              All Maintenance
+            </Button>
+            <Button
               variant={viewMode === 'grid' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setViewMode('grid')}
@@ -199,6 +270,12 @@ export default function EquipmentPage() {
               onClick={() => setViewMode('list')}
             >
               <List className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowEstimator(!showEstimator)}
+            >
+              Cost Estimator ({estimatorItems.length})
             </Button>
             <NewEquipmentDialog onEquipmentCreated={fetchEquipment} />
           </div>
@@ -266,7 +343,15 @@ export default function EquipmentPage() {
                     <p className="text-gray-600 mb-2">Value: ${item.value.toLocaleString()}</p>
                     <p className="text-blue-600 font-semibold mb-3">${item.hourlyRate}/hr</p>
                     <Badge variant="secondary" className="mb-3">{item.category}</Badge>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center space-x-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => addToEstimator(item)}
+                      >
+                        <PlusCircle className="w-4 h-4 mr-1" />
+                        Add
+                      </Button>
                       <Button 
                         size="sm" 
                         className="bg-blue-600 hover:bg-blue-700"
@@ -281,13 +366,20 @@ export default function EquipmentPage() {
                             <MoreHorizontal className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>View</DropdownMenuItem>
-                          <DropdownMenuItem>Edit</DropdownMenuItem>
+                        <DropdownMenuContent align="end" className="bg-white border shadow-lg z-50">
+                          <DropdownMenuItem onClick={() => viewEquipment(item)} className="cursor-pointer">
+                            <Eye className="w-4 h-4 mr-2" />
+                            View
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => editEquipment(item)} className="cursor-pointer">
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
                           <DropdownMenuItem 
-                            className="text-red-600"
+                            className="text-red-600 cursor-pointer"
                             onClick={() => deleteEquipment(item.id)}
                           >
+                            <Trash2 className="w-4 h-4 mr-2" />
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -310,7 +402,7 @@ export default function EquipmentPage() {
                     <TableHead>Year</TableHead>
                     <TableHead>Value</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="w-[160px]">Actions</TableHead>
+                    <TableHead className="w-[200px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -338,7 +430,14 @@ export default function EquipmentPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => addToEstimator(item)}
+                          >
+                            <PlusCircle className="w-4 h-4" />
+                          </Button>
                           <Button 
                             variant="outline" 
                             size="sm"
@@ -352,13 +451,20 @@ export default function EquipmentPage() {
                                 <MoreHorizontal className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>View</DropdownMenuItem>
-                              <DropdownMenuItem>Edit</DropdownMenuItem>
+                            <DropdownMenuContent align="end" className="bg-white border shadow-lg z-50">
+                              <DropdownMenuItem onClick={() => viewEquipment(item)} className="cursor-pointer">
+                                <Eye className="w-4 h-4 mr-2" />
+                                View
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => editEquipment(item)} className="cursor-pointer">
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
                               <DropdownMenuItem 
-                                className="text-red-600"
+                                className="text-red-600 cursor-pointer"
                                 onClick={() => deleteEquipment(item.id)}
                               >
+                                <Trash2 className="w-4 h-4 mr-2" />
                                 Delete
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -372,23 +478,29 @@ export default function EquipmentPage() {
             </CardContent>
           </Card>
         )}
-
-        {/* Selected Equipment Sidebar */}
-        {selectedEquipment && (
-          <div className="fixed right-0 top-0 h-full w-80 bg-white border-l shadow-lg p-6 z-50">
-            <h3 className="text-lg font-semibold mb-4">Selected Equipment</h3>
-            <div className="text-center text-gray-500">
-              Drag and drop equipment here or use the Add button
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Equipment Estimator Sidebar */}
+      {showEstimator && (
+        <EquipmentEstimator
+          selectedEquipment={estimatorItems}
+          onRemoveEquipment={removeFromEstimator}
+          onUpdateDuration={updateEstimatorDuration}
+          onSaveEstimate={saveEstimate}
+          onExportEstimate={exportEstimate}
+        />
+      )}
 
       <MaintenanceDialog
         open={showMaintenance}
         onOpenChange={setShowMaintenance}
         equipmentId={selectedEquipment}
         equipmentName={equipment.find(e => e.id === selectedEquipment)?.name || ''}
+      />
+
+      <AllMaintenanceView
+        open={showAllMaintenance}
+        onOpenChange={setShowAllMaintenance}
       />
     </Layout>
   );

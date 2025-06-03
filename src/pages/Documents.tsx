@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Upload, Search, Filter, FileText, MoreHorizontal } from 'lucide-react';
+import { Upload, Search, Filter, FileText, MoreHorizontal, Download, Edit, Trash2, Eye } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -24,8 +24,6 @@ interface Document {
   fileSize?: number;
   mimeType?: string;
   uploadedBy?: string;
-  version?: number;
-  isCurrentVersion?: boolean;
   description?: string;
   tags?: string[];
   createdAt: Date;
@@ -84,8 +82,6 @@ export default function Documents() {
         fileSize: doc.file_size,
         mimeType: doc.mime_type,
         uploadedBy: doc.uploaded_by,
-        version: doc.version,
-        isCurrentVersion: doc.is_current_version,
         description: doc.description,
         tags: doc.tags || [],
         createdAt: new Date(doc.created_at),
@@ -111,7 +107,6 @@ export default function Documents() {
           category: documentData.folder || 'General',
           project_id: documentData.project_id || null,
           tags: documentData.tags.length > 0 ? documentData.tags : null,
-          version: 1,
           is_current_version: true
         });
 
@@ -125,6 +120,8 @@ export default function Documents() {
   };
 
   const deleteDocument = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this document?')) return;
+    
     try {
       const { error } = await supabase
         .from('documents')
@@ -138,6 +135,21 @@ export default function Documents() {
       console.error('Error deleting document:', error);
       toast.error('Failed to delete document');
     }
+  };
+
+  const viewDocument = (document: Document) => {
+    console.log('Viewing document:', document.name);
+    toast.info(`Viewing ${document.name}`);
+  };
+
+  const editDocument = (document: Document) => {
+    console.log('Editing document:', document.name);
+    toast.info(`Editing ${document.name}`);
+  };
+
+  const downloadDocument = (document: Document) => {
+    console.log('Downloading document:', document.name);
+    toast.info(`Downloading ${document.name}`);
   };
 
   // Filter documents based on search and selected folder
@@ -218,7 +230,6 @@ export default function Documents() {
                       <TableHead>Category</TableHead>
                       <TableHead>Tags</TableHead>
                       <TableHead>Created</TableHead>
-                      <TableHead>Version</TableHead>
                       <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -266,25 +277,30 @@ export default function Documents() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">
-                            v{document.version || 1}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="sm">
                                 <MoreHorizontal className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>View</DropdownMenuItem>
-                              <DropdownMenuItem>Edit</DropdownMenuItem>
-                              <DropdownMenuItem>Download</DropdownMenuItem>
+                            <DropdownMenuContent align="end" className="bg-white border shadow-lg z-50">
+                              <DropdownMenuItem onClick={() => viewDocument(document)} className="cursor-pointer">
+                                <Eye className="w-4 h-4 mr-2" />
+                                View
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => editDocument(document)} className="cursor-pointer">
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => downloadDocument(document)} className="cursor-pointer">
+                                <Download className="w-4 h-4 mr-2" />
+                                Download
+                              </DropdownMenuItem>
                               <DropdownMenuItem 
-                                className="text-red-600"
+                                className="text-red-600 cursor-pointer"
                                 onClick={() => deleteDocument(document.id)}
                               >
+                                <Trash2 className="w-4 h-4 mr-2" />
                                 Delete
                               </DropdownMenuItem>
                             </DropdownMenuContent>
