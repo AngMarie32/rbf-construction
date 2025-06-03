@@ -243,14 +243,14 @@ export function QuickPlanner({ open, onOpenChange, projects, onTasksAdded }: Qui
                     </TableCell>
                     <TableCell>
                       <Select 
-                        value={task.dependencies[0] || ''} 
-                        onValueChange={(value) => updateTask(task.id, 'dependencies', value ? [value] : [])}
+                        value={task.dependencies[0] || 'none'} 
+                        onValueChange={(value) => updateTask(task.id, 'dependencies', value === 'none' ? [] : [value])}
                       >
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select dependency" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No dependency</SelectItem>
+                          <SelectItem value="none">No dependency</SelectItem>
                           {getAvailableDependencies(task.id).map((depTask) => (
                             <SelectItem key={depTask.id} value={depTask.id}>
                               {depTask.item}
