@@ -1,4 +1,3 @@
-
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -14,12 +13,14 @@ export const exportToPDF = async (elementId: string, filename: string = 'export.
     element.style.display = 'block';
 
     const canvas = await html2canvas(element, {
-      scale: 2,
+      scale: 1.5,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       width: element.scrollWidth,
-      height: element.scrollHeight
+      height: element.scrollHeight,
+      windowWidth: 1200,
+      windowHeight: 800
     });
 
     // Restore original display
@@ -36,11 +37,16 @@ export const exportToPDF = async (elementId: string, filename: string = 'export.
     const pdfHeight = pdf.internal.pageSize.getHeight();
     const imgWidth = canvas.width;
     const imgHeight = canvas.height;
-    const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-    const imgX = (pdfWidth - imgWidth * ratio) / 2;
-    const imgY = 0;
+    
+    // Better scaling calculation
+    const ratio = Math.min(pdfWidth / (imgWidth * 0.264583), pdfHeight / (imgHeight * 0.264583));
+    const scaledWidth = imgWidth * 0.264583 * ratio;
+    const scaledHeight = imgHeight * 0.264583 * ratio;
+    
+    const imgX = (pdfWidth - scaledWidth) / 2;
+    const imgY = 10;
 
-    pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+    pdf.addImage(imgData, 'PNG', imgX, imgY, scaledWidth, scaledHeight);
     pdf.save(filename);
     
     return true;

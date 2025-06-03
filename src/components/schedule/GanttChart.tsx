@@ -77,13 +77,97 @@ export function GanttChart({
     return projectColor;
   };
 
+  const renderDependencyLines = () => {
+    if (!showDependencies) return null;
+
+    return filteredTasks.map((task, taskIndex) => {
+      if (!task.dependencies || task.dependencies.length === 0) return null;
+
+      return task.dependencies.map((depId) => {
+        const depTask = filteredTasks.find(t => t.id === depId);
+        if (!depTask) return null;
+
+        const depTaskIndex = filteredTasks.findIndex(t => t.id === depId);
+        const taskPosition = getTaskPosition(task);
+        const depPosition = getTaskPosition(depTask);
+
+        // Calculate line positions
+        const startX = parseFloat(depPosition.left.replace('%', '')) + parseFloat(depPosition.width.replace('%', ''));
+        const endX = parseFloat(taskPosition.left.replace('%', ''));
+        const startY = (depTaskIndex + 1) * 48 + 24; // Adjust for project headers
+        const endY = (taskIndex + 1) * 48 + 24;
+
+        return (
+          <g key={`${task.id}-${depId}`}>
+            {/* Horizontal line from end of dependency task */}
+            <line
+              x1={`${startX}%`}
+              y1={startY}
+              x2={`${startX + 2}%`}
+              y2={startY}
+              stroke="#666"
+              strokeWidth="1"
+              markerEnd="url(#arrowhead)"
+            />
+            {/* Vertical connector */}
+            <line
+              x1={`${startX + 2}%`}
+              y1={startY}
+              x2={`${startX + 2}%`}
+              y2={endY}
+              stroke="#666"
+              strokeWidth="1"
+            />
+            {/* Horizontal line to start of task */}
+            <line
+              x1={`${startX + 2}%`}
+              y1={endY}
+              x2={`${endX}%`}
+              y2={endY}
+              stroke="#666"
+              strokeWidth="1"
+              markerEnd="url(#arrowhead)"
+            />
+          </g>
+        );
+      });
+    });
+  };
+
   return (
-    <div className="bg-white rounded-lg border">
+    <div className="bg-white rounded-lg border relative">
+      {/* SVG for dependency lines */}
+      {showDependencies && (
+        <svg 
+          className="absolute inset-0 pointer-events-none z-10" 
+          style={{ width: '100%', height: '100%' }}
+        >
+          <defs>
+            <marker
+              id="arrowhead"
+              markerWidth="10"
+              markerHeight="7"
+              refX="9"
+              refY="3.5"
+              orient="auto"
+            >
+              <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
+            </marker>
+          </defs>
+          {renderDependencyLines()}
+        </svg>
+      )}
+
       <div className="p-4 border-b">
         <h3 className="text-lg font-semibold">Project Timeline</h3>
         {showCriticalPath && (
           <p className="text-sm text-gray-600 mt-1">
             Critical path tasks are highlighted in red
+          </p>
+        )}
+        {showDependencies && (
+          <p className="text-sm text-gray-600 mt-1">
+            Dependency arrows show task relationships
           </p>
         )}
       </div>
@@ -97,14 +181,14 @@ export function GanttChart({
               key={index} 
               className="flex-1 p-4 text-center border-r font-medium text-sm"
             >
-              {format(month, 'MMM')}
+              {format(month, 'MMM yyyy')}
             </div>
           ))}
         </div>
       </div>
 
       {/* Task Rows */}
-      <div className="max-h-96 overflow-y-auto">
+      <div className="max-h-96 overflow-y-auto relative">
         {projects
           .filter(project => selectedProjects.length === 0 || selectedProjects.includes(project.id))
           .map((project) => {
@@ -130,21 +214,7 @@ export function GanttChart({
                     </div>
                   </div>
                   <div className="flex-1 relative p-3">
-                    {projectTasks.length > 0 && (
-                      <div 
-                        className="absolute top-2 h-6 rounded flex items-center px-2 text-white text-xs font-medium"
-                        style={{ 
-                          backgroundColor: project.color,
-                          left: getTaskPosition(projectTasks[0]).left,
-                          width: `${Math.max(...projectTasks.map(t => {
-                            const pos = getTaskPosition(t);
-                            return parseFloat(pos.left.replace('%', '')) + parseFloat(pos.width.replace('%', ''));
-                          })) - Math.min(...projectTasks.map(t => parseFloat(getTaskPosition(t).left.replace('%', ''))))}%`
-                        }}
-                      >
-                        {project.name} ({Math.round(projectTasks.reduce((sum, task) => sum + task.progress, 0) / projectTasks.length)}%)
-                      </div>
-                    )}
+                    {/* Project timeline bar */}
                   </div>
                 </div>
 
@@ -166,7 +236,7 @@ export function GanttChart({
                           </div>
                           <span className="font-medium text-sm">{task.title}</span>
                         </div>
-                        {showDependencies && task.dependencies.length > 0 && (
+                        {showDependencies && task.dependencies && task.dependencies.length > 0 && (
                           <div className="ml-6 mt-1">
                             <span className="text-xs text-gray-500">
                               Dependencies: {task.dependencies.length}

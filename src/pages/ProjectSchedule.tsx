@@ -29,7 +29,9 @@ import {
   Link,
   File,
   Settings,
-  Info
+  Info,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { format, addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -95,6 +97,9 @@ export default function ProjectSchedule() {
   });
 
   const [loading, setLoading] = useState(true);
+
+  // For template integration with QuickPlanner
+  const [templateTasks, setTemplateTasks] = useState<any[]>([]);
 
   useEffect(() => {
     fetchProjects();
@@ -288,17 +293,11 @@ export default function ProjectSchedule() {
   };
 
   const handleTemplateApplied = (templateTasks: any[]) => {
-    // Add template tasks to the current task list for the quick planner
-    const tasksWithProject = templateTasks.map(task => ({
-      ...task,
-      projectId: selectedProjects[0] || projects[0]?.id || ''
-    }));
-    
+    // Store template tasks and open QuickPlanner
+    setTemplateTasks(templateTasks);
     setQuickPlannerOpen(true);
     setTemplateManagerOpen(false);
-    
-    // You could pre-populate the quick planner with these tasks
-    toast.success('Template applied - add tasks via Quick Planner');
+    toast.success('Template loaded into Quick Planner');
   };
 
   const handleExport = async () => {
@@ -426,28 +425,30 @@ export default function ProjectSchedule() {
                 />
               </div>
 
-              {/* Date Navigation */}
+              {/* Date Navigation - Fixed Layout */}
               <div className="space-y-2">
                 <Label>Date Range</Label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 bg-gray-50 rounded-lg p-1">
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => navigateDate('prev')}
+                    className="h-8 w-8 p-0 hover:bg-white"
                   >
-                    ←
+                    <ChevronLeft className="w-4 h-4" />
                   </Button>
-                  <div className="text-sm font-medium min-w-32 text-center">
+                  <div className="text-sm font-medium flex-1 text-center px-2">
                     {viewMode === 'week' && format(dateRange.from, 'MMM dd')}
                     {viewMode === 'month' && format(dateRange.from, 'MMM yyyy')}
                     {viewMode === 'quarter' && `Q${Math.ceil((dateRange.from.getMonth() + 1) / 3)} ${format(dateRange.from, 'yyyy')}`}
                   </div>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => navigateDate('next')}
+                    className="h-8 w-8 p-0 hover:bg-white"
                   >
-                    →
+                    <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
@@ -642,6 +643,7 @@ export default function ProjectSchedule() {
         onOpenChange={setQuickPlannerOpen}
         projects={projects}
         onTasksAdded={handleQuickPlannerTasksAdded}
+        templateTasks={templateTasks}
       />
 
       <TemplateManager

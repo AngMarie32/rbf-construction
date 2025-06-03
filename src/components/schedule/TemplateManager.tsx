@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -46,6 +45,8 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
     description: '',
     items: [] as any[]
   });
+
+  const [selectedTemplate, setSelectedTemplate] = useState<ScheduleTemplate | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -159,25 +160,27 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
     }
   };
 
-  const applyTemplate = async (template: ScheduleTemplate) => {
-    try {
-      const tasks = template.items.map((item, index) => ({
-        id: `temp-${Date.now()}-${index}`,
-        item: item.title,
-        description: item.description,
-        startDate: new Date(),
-        duration: item.duration,
-        dependencies: item.dependencies,
-        projectId: ''
-      }));
+  const applyTemplate = (template: ScheduleTemplate) => {
+    // Create a copy of the template items to avoid modifying the original
+    const templateTasks = template.items.map((item, index) => ({
+      id: `temp-${Date.now()}-${index}`,
+      item: item.title,
+      description: item.description,
+      startDate: new Date(),
+      duration: item.duration,
+      dependencies: [],
+      projectId: '',
+      category: item.category
+    }));
 
-      onTemplateApplied(tasks);
-      onOpenChange(false);
-      toast.success(`Applied schedule template: ${template.name}`);
-    } catch (error) {
-      console.error('Error applying schedule template:', error);
-      toast.error('Failed to apply schedule template');
-    }
+    // Apply template and close dialog
+    onTemplateApplied(templateTasks);
+    toast.success(`Applied template: ${template.name}`);
+  };
+
+  const previewTemplate = (template: ScheduleTemplate) => {
+    setSelectedTemplate(template);
+    setActiveTab('preview');
   };
 
   const addTemplateItem = () => {
@@ -219,6 +222,7 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
           <TabsList>
             <TabsTrigger value="browse">Browse Templates</TabsTrigger>
             <TabsTrigger value="create">Create Template</TabsTrigger>
+            {selectedTemplate && <TabsTrigger value="preview">Preview Template</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="browse" className="space-y-4 overflow-y-auto max-h-[70vh]">
@@ -251,6 +255,14 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
                     <div className="flex gap-2">
                       <Button 
                         size="sm" 
+                        onClick={() => previewTemplate(template)}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        Preview
+                      </Button>
+                      <Button 
+                        size="sm" 
                         onClick={() => applyTemplate(template)}
                         className="flex-1"
                       >
@@ -271,6 +283,52 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
               </div>
             )}
           </TabsContent>
+
+          {selectedTemplate && (
+            <TabsContent value="preview" className="space-y-4 overflow-y-auto max-h-[70vh]">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold">{selectedTemplate.name}</h3>
+                  {selectedTemplate.description && (
+                    <p className="text-gray-600">{selectedTemplate.description}</p>
+                  )}
+                </div>
+
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Category</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedTemplate.items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{item.title}</TableCell>
+                          <TableCell>{item.description}</TableCell>
+                          <TableCell>{item.duration} days</TableCell>
+                          <TableCell>{item.category}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button onClick={() => applyTemplate(selectedTemplate)}>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Apply This Template
+                  </Button>
+                  <Button variant="outline" onClick={() => setActiveTab('browse')}>
+                    Back to Templates
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+          )}
 
           <TabsContent value="create" className="space-y-4 overflow-y-auto max-h-[70vh]">
             <div className="space-y-4">

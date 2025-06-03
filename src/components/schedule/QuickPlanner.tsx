@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,12 +34,29 @@ interface QuickPlannerProps {
   onOpenChange: (open: boolean) => void;
   projects: Project[];
   onTasksAdded: (tasks: QuickTask[]) => void;
+  templateTasks?: any[];
 }
 
-export function QuickPlanner({ open, onOpenChange, projects, onTasksAdded }: QuickPlannerProps) {
+export function QuickPlanner({ open, onOpenChange, projects, onTasksAdded, templateTasks = [] }: QuickPlannerProps) {
   const [tasks, setTasks] = useState<QuickTask[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [saving, setSaving] = useState(false);
+
+  // Load template tasks when provided
+  useEffect(() => {
+    if (templateTasks.length > 0 && open) {
+      const formattedTasks = templateTasks.map(task => ({
+        id: task.id || `temp-${Date.now()}-${Math.random()}`,
+        item: task.item || task.title || '',
+        description: task.description || '',
+        startDate: task.startDate || new Date(),
+        duration: task.duration || 1,
+        dependencies: task.dependencies || [],
+        projectId: selectedProject
+      }));
+      setTasks(formattedTasks);
+    }
+  }, [templateTasks, open, selectedProject]);
 
   const addTask = () => {
     const newTask: QuickTask = {
@@ -167,6 +183,9 @@ export function QuickPlanner({ open, onOpenChange, projects, onTasksAdded }: Qui
               <li>• Duration is in days - the end date will be calculated automatically</li>
               <li>• Dependencies can be set to other tasks in this batch</li>
               <li>• All tasks will be created with "Not Started" status</li>
+              {templateTasks.length > 0 && (
+                <li>• Template tasks have been loaded - modify as needed before saving</li>
+              )}
             </ul>
           </div>
 
