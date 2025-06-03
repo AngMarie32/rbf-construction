@@ -5,36 +5,29 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Trash2, Save, Copy, Edit } from 'lucide-react';
+import { Plus, Trash2, Save, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-interface Template {
+interface ScheduleTemplate {
   id: string;
   name: string;
   description: string;
   isDefault: boolean;
-  items: TemplateItem[];
+  items: ScheduleTemplateItem[];
 }
 
-interface TemplateItem {
+interface ScheduleTemplateItem {
   id: string;
+  title: string;
   description: string;
+  duration: number;
   category: string;
-  subcategory?: string;
-  unit: string;
-  unitCost: number;
+  dependencies: string[];
   templateId: string;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  color: string;
 }
 
 interface TemplateManagerProps {
@@ -44,9 +37,7 @@ interface TemplateManagerProps {
 }
 
 export function TemplateManager({ open, onOpenChange, onTemplateApplied }: TemplateManagerProps) {
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
-  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [templates, setTemplates] = useState<ScheduleTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('browse');
   
@@ -66,14 +57,14 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
     try {
       setLoading(true);
       const { data: templatesData, error: templatesError } = await supabase
-        .from('bid_templates')
+        .from('schedule_templates')
         .select('*')
         .order('name');
 
       if (templatesError) throw templatesError;
 
       const { data: itemsData, error: itemsError } = await supabase
-        .from('bid_template_items')
+        .from('schedule_template_items')
         .select('*');
 
       if (itemsError) throw itemsError;
@@ -82,22 +73,22 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
         id: template.id,
         name: template.name,
         description: template.description,
-        isDefault: template.is_default, // Map snake_case to camelCase
+        isDefault: template.is_default,
         items: (itemsData || []).filter(item => item.template_id === template.id).map(item => ({
           id: item.id,
+          title: item.title,
           description: item.description,
+          duration: item.duration,
           category: item.category,
-          subcategory: item.subcategory,
-          unit: item.unit,
-          unitCost: item.unit_cost, // Map snake_case to camelCase
-          templateId: item.template_id // Map snake_case to camelCase
+          dependencies: item.dependencies || [],
+          templateId: item.template_id
         }))
       }));
 
       setTemplates(templatesWithItems);
     } catch (error) {
-      console.error('Error fetching templates:', error);
-      toast.error('Failed to load templates');
+      console.error('Error fetching schedule templates:', error);
+      toast.error('Failed to load schedule templates');
     } finally {
       setLoading(false);
     }
@@ -112,7 +103,7 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
     try {
       setLoading(true);
       const { data: template, error: templateError } = await supabase
-        .from('bid_templates')
+        .from('schedule_templates')
         .insert({
           name: newTemplate.name,
           description: newTemplate.description
@@ -125,27 +116,27 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
       if (newTemplate.items.length > 0) {
         const itemsToInsert = newTemplate.items.map(item => ({
           template_id: template.id,
+          title: item.title,
           description: item.description,
+          duration: item.duration,
           category: item.category,
-          subcategory: item.subcategory,
-          unit: item.unit,
-          unit_cost: item.unitCost
+          dependencies: item.dependencies || []
         }));
 
         const { error: itemsError } = await supabase
-          .from('bid_template_items')
+          .from('schedule_template_items')
           .insert(itemsToInsert);
 
         if (itemsError) throw itemsError;
       }
 
-      toast.success('Template saved successfully');
+      toast.success('Schedule template saved successfully');
       fetchTemplates();
       setActiveTab('browse');
       setNewTemplate({ name: '', description: '', items: [] });
     } catch (error) {
-      console.error('Error saving template:', error);
-      toast.error('Failed to save template');
+      console.error('Error saving schedule template:', error);
+      toast.error('Failed to save schedule template');
     } finally {
       setLoading(false);
     }
@@ -154,48 +145,49 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
   const deleteTemplate = async (id: string) => {
     try {
       const { error } = await supabase
-        .from('bid_templates')
+        .from('schedule_templates')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
 
-      toast.success('Template deleted successfully');
+      toast.success('Schedule template deleted successfully');
       fetchTemplates();
     } catch (error) {
-      console.error('Error deleting template:', error);
-      toast.error('Failed to delete template');
+      console.error('Error deleting schedule template:', error);
+      toast.error('Failed to delete schedule template');
     }
   };
 
-  const applyTemplate = async (template: Template) => {
+  const applyTemplate = async (template: ScheduleTemplate) => {
     try {
       const tasks = template.items.map((item, index) => ({
         id: `temp-${Date.now()}-${index}`,
-        item: item.description,
-        description: `${item.category} - ${item.description}`,
+        item: item.title,
+        description: item.description,
         startDate: new Date(),
-        duration: 1,
-        dependencies: [],
-        projectId: '' // Will be set when selecting project
+        duration: item.duration,
+        dependencies: item.dependencies,
+        projectId: ''
       }));
 
       onTemplateApplied(tasks);
-      toast.success(`Applied template: ${template.name}`);
+      onOpenChange(false);
+      toast.success(`Applied schedule template: ${template.name}`);
     } catch (error) {
-      console.error('Error applying template:', error);
-      toast.error('Failed to apply template');
+      console.error('Error applying schedule template:', error);
+      toast.error('Failed to apply schedule template');
     }
   };
 
   const addTemplateItem = () => {
     const newItem = {
       id: `temp-${Date.now()}`,
+      title: '',
       description: '',
+      duration: 1,
       category: '',
-      subcategory: '',
-      unit: 'each',
-      unitCost: 0
+      dependencies: []
     };
     setNewTemplate({
       ...newTemplate,
@@ -231,10 +223,10 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
 
           <TabsContent value="browse" className="space-y-4 overflow-y-auto max-h-[70vh]">
             {loading ? (
-              <div className="text-center py-8">Loading templates...</div>
+              <div className="text-center py-8">Loading schedule templates...</div>
             ) : templates.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                No templates found. Create your first template to get started.
+                No schedule templates found. Create your first template to get started.
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -253,7 +245,7 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
                     </div>
                     
                     <div className="text-sm text-gray-500 mb-3">
-                      {template.items.length} items
+                      {template.items.length} tasks
                     </div>
                     
                     <div className="flex gap-2">
@@ -304,10 +296,10 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
               </div>
 
               <div className="flex items-center justify-between">
-                <h4 className="font-medium">Template Items</h4>
+                <h4 className="font-medium">Template Tasks</h4>
                 <Button onClick={addTemplateItem} size="sm">
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Item
+                  Add Task
                 </Button>
               </div>
 
@@ -316,10 +308,10 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Title</TableHead>
                         <TableHead>Description</TableHead>
+                        <TableHead>Duration (Days)</TableHead>
                         <TableHead>Category</TableHead>
-                        <TableHead>Unit</TableHead>
-                        <TableHead>Cost</TableHead>
                         <TableHead className="w-20">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -328,9 +320,25 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
                         <TableRow key={item.id}>
                           <TableCell>
                             <Input
+                              value={item.title}
+                              onChange={(e) => updateTemplateItem(index, 'title', e.target.value)}
+                              placeholder="Task title"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
                               value={item.description}
                               onChange={(e) => updateTemplateItem(index, 'description', e.target.value)}
-                              placeholder="Item description"
+                              placeholder="Task description"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.duration}
+                              onChange={(e) => updateTemplateItem(index, 'duration', parseInt(e.target.value) || 1)}
+                              placeholder="1"
                             />
                           </TableCell>
                           <TableCell>
@@ -338,31 +346,6 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
                               value={item.category}
                               onChange={(e) => updateTemplateItem(index, 'category', e.target.value)}
                               placeholder="Category"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Select 
-                              value={item.unit} 
-                              onValueChange={(value) => updateTemplateItem(index, 'unit', value)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="each">Each</SelectItem>
-                                <SelectItem value="days">Days</SelectItem>
-                                <SelectItem value="hours">Hours</SelectItem>
-                                <SelectItem value="sq ft">Sq Ft</SelectItem>
-                                <SelectItem value="linear ft">Linear Ft</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              value={item.unitCost}
-                              onChange={(e) => updateTemplateItem(index, 'unitCost', parseFloat(e.target.value) || 0)}
-                              placeholder="0.00"
                             />
                           </TableCell>
                           <TableCell>

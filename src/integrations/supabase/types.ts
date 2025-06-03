@@ -1002,6 +1002,74 @@ export type Database = {
         }
         Relationships: []
       }
+      schedule_template_items: {
+        Row: {
+          category: string | null
+          created_at: string
+          dependencies: string[] | null
+          description: string | null
+          duration: number
+          id: string
+          template_id: string | null
+          title: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          dependencies?: string[] | null
+          description?: string | null
+          duration?: number
+          id?: string
+          template_id?: string | null
+          title: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          dependencies?: string[] | null
+          description?: string | null
+          duration?: number
+          id?: string
+          template_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedule_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sov_items: {
         Row: {
           category: string

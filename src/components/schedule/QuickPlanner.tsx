@@ -108,6 +108,8 @@ export function QuickPlanner({ open, onOpenChange, projects, onTasksAdded }: Qui
       onTasksAdded(tasks);
       setTasks([]);
       setSelectedProject('');
+      onOpenChange(false);
+      toast.success('Tasks saved successfully');
     } catch (error) {
       console.error('Error saving tasks:', error);
       toast.error('Failed to save tasks');
@@ -120,9 +122,15 @@ export function QuickPlanner({ open, onOpenChange, projects, onTasksAdded }: Qui
     return tasks.filter(task => task.id !== currentTaskId && task.item);
   };
 
+  const calculateEndDate = (startDate: Date, duration: number) => {
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + duration - 1);
+    return endDate;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Quick Planner - Bulk Task Entry</DialogTitle>
         </DialogHeader>
@@ -155,8 +163,8 @@ export function QuickPlanner({ open, onOpenChange, projects, onTasksAdded }: Qui
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h4 className="font-medium text-blue-900 mb-2">Quick Planner Instructions</h4>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Enter tasks one by one with item name, description, start date, and duration</li>
-              <li>• Duration is in days - the system will calculate the end date automatically</li>
+              <li>• Enter tasks with item name, description, start date, and duration</li>
+              <li>• Duration is in days - the end date will be calculated automatically</li>
               <li>• Dependencies can be set to other tasks in this batch</li>
               <li>• All tasks will be created with "Not Started" status</li>
             </ul>
@@ -167,16 +175,17 @@ export function QuickPlanner({ open, onOpenChange, projects, onTasksAdded }: Qui
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-48">Item *</TableHead>
+                  <TableHead className="w-48">Task Name *</TableHead>
                   <TableHead className="w-80">Description *</TableHead>
                   <TableHead className="w-40">Start Date</TableHead>
                   <TableHead className="w-32">Duration (Days)</TableHead>
+                  <TableHead className="w-40">End Date</TableHead>
                   <TableHead className="w-48">Dependencies</TableHead>
                   <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tasks.map((task, index) => (
+                {tasks.map((task) => (
                   <TableRow key={task.id}>
                     <TableCell>
                       <Input
@@ -205,7 +214,7 @@ export function QuickPlanner({ open, onOpenChange, projects, onTasksAdded }: Qui
                             )}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {task.startDate ? format(task.startDate, "PPP") : "Pick date"}
+                            {task.startDate ? format(task.startDate, "MMM dd") : "Pick date"}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
@@ -226,6 +235,11 @@ export function QuickPlanner({ open, onOpenChange, projects, onTasksAdded }: Qui
                         onChange={(e) => updateTask(task.id, 'duration', parseInt(e.target.value) || 1)}
                         className="w-full"
                       />
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm text-gray-600">
+                        {format(calculateEndDate(task.startDate, task.duration), "MMM dd, yyyy")}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Select 
@@ -259,7 +273,7 @@ export function QuickPlanner({ open, onOpenChange, projects, onTasksAdded }: Qui
                 ))}
                 {tasks.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                       No tasks added yet. Click "Add Task" to get started.
                     </TableCell>
                   </TableRow>
