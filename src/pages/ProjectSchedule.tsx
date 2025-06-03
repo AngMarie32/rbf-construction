@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,14 +13,15 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Calendar as CalendarIcon, Edit, Trash2, Download, RefreshCw, Search, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, Edit, Trash2, Download, RefreshCw, Search, Settings, ChevronLeft, ChevronRight, List, BarChart3, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, addDays, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
+import { format, addDays, startOfMonth, endOfMonth, eachMonthOfInterval, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { CriticalPath } from '@/components/schedule/CriticalPath';
 import { ProjectSelector } from '@/components/schedule/ProjectSelector';
 import { QuickPlanner } from '@/components/schedule/QuickPlanner';
+import { GanttChart } from '@/components/schedule/GanttChart';
 
 interface Task {
   id: string;
@@ -65,7 +67,7 @@ export default function ProjectSchedule() {
   const [showCriticalPath, setShowCriticalPath] = useState(true);
   const [showMilestones, setShowMilestones] = useState(true);
   const [showDependencies, setShowDependencies] = useState(true);
-  const [viewMode, setViewMode] = useState<'Week' | 'Month' | 'Quarter'>('Week');
+  const [viewMode, setViewMode] = useState<'Week' | 'Month' | 'Quarter'>('Month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [dateRange, setDateRange] = useState({
     from: new Date(2025, 4, 1), // May 1, 2025
@@ -254,27 +256,24 @@ export default function ProjectSchedule() {
     return matchesSearch && matchesStatus && matchesProject;
   });
 
-  // Generate months for the timeline
-  const months = eachMonthOfInterval({
-    start: dateRange.from,
-    end: dateRange.to
-  });
-
-  const getTaskPosition = (task: Task) => {
-    const totalDays = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
-    const taskStartDays = Math.ceil((task.startDate.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
-    const taskDuration = task.duration;
-    
-    const leftPercent = Math.max(0, (taskStartDays / totalDays) * 100);
-    const widthPercent = Math.min(100 - leftPercent, (taskDuration / totalDays) * 100);
-    
-    return { left: `${leftPercent}%`, width: `${widthPercent}%` };
+  const calculateDuration = (startDate: Date, endDate: Date) => {
+    return differenceInDays(endDate, startDate) + 1;
   };
 
   const handleBulkTasksAdded = (tasks: any[]) => {
     fetchTasks();
     setQuickPlannerOpen(false);
     toast.success(`${tasks.length} tasks added successfully`);
+  };
+
+  const handleTaskUpdate = (taskId: string, updates: Partial<Task>) => {
+    console.log('Updating task:', taskId, updates);
+    // This would typically update the task in the database
+    setTasks(prevTasks => 
+      prevTasks.map(task => 
+        task.id === taskId ? { ...task, ...updates } : task
+      )
+    );
   };
 
   return (
@@ -548,7 +547,7 @@ export default function ProjectSchedule() {
             {/* Active Date Range Badge */}
             <div className="mb-4">
               <Badge variant="secondary" className="text-sm">
-                Date: {format(dateRange.from, "MMM d")} - {format(dateRange.to, "MMM d, yyyy")} ×
+                Date: {format(dateRange.from, "MMM d")} - {format(dateRange.to, "MMM d, yyyy")}
               </Badge>
             </div>
 
@@ -613,130 +612,17 @@ export default function ProjectSchedule() {
         <Tabs value={currentView} onValueChange={(value: any) => setCurrentView(value)}>
           {/* Gantt View */}
           <TabsContent value="gantt">
-            <Card>
-              <CardContent className="p-0">
-                {loading ? (
-                  <div className="text-center py-8">Loading tasks...</div>
-                ) : filteredTasks.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    No tasks found. Add your first task to get started.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    {/* Timeline Header */}
-                    <div className="flex border-b bg-gray-50">
-                      <div className="w-80 p-4 border-r font-semibold">Project / Task</div>
-                      <div className="flex-1 flex">
-                        {months.map((month, index) => (
-                          <div 
-                            key={index} 
-                            className="flex-1 p-4 text-center border-r font-medium text-sm"
-                          >
-                            {format(month, 'MMM')}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Task Rows */}
-                    <div className="max-h-96 overflow-y-auto">
-                      {/* Group tasks by project */}
-                      {projects
-                        .filter(project => selectedProjects.length === 0 || selectedProjects.includes(project.id))
-                        .map((project) => {
-                          const projectTasks = filteredTasks.filter(task => task.projectId === project.id);
-                          if (projectTasks.length === 0) return null;
-
-                          return (
-                            <div key={project.id}>
-                              {/* Project Header */}
-                              <div className="flex border-b bg-gray-50">
-                                <div className="w-80 p-3 border-r">
-                                  <div className="flex items-center gap-2">
-                                    <div 
-                                      className="w-3 h-3 rounded-full" 
-                                      style={{ backgroundColor: project.color }}
-                                    />
-                                    <span className="font-semibold">{project.name}</span>
-                                    {projectTasks.length > 0 && (
-                                      <span className="text-sm text-gray-500">
-                                        ({Math.round(projectTasks.reduce((sum, task) => sum + task.progress, 0) / projectTasks.length)}%)
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex-1 relative p-3">
-                                  {projectTasks.length > 0 && (
-                                    <div 
-                                      className="absolute top-2 h-6 rounded flex items-center px-2 text-white text-xs font-medium"
-                                      style={{ 
-                                        backgroundColor: project.color,
-                                        left: getTaskPosition(projectTasks[0]).left,
-                                        width: `${Math.max(...projectTasks.map(t => {
-                                          const pos = getTaskPosition(t);
-                                          return parseFloat(pos.left.replace('%', '')) + parseFloat(pos.width.replace('%', ''));
-                                        })) - Math.min(...projectTasks.map(t => parseFloat(getTaskPosition(t).left.replace('%', ''))))}%`
-                                      }}
-                                    >
-                                      {project.name} ({Math.round(projectTasks.reduce((sum, task) => sum + task.progress, 0) / projectTasks.length)}%)
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Project Tasks */}
-                              {projectTasks.map((task) => {
-                                const position = getTaskPosition(task);
-                                return (
-                                  <div key={task.id} className="flex border-b hover:bg-gray-50">
-                                    <div className="w-80 p-3 border-r">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-4 h-4 flex items-center justify-center">
-                                          <div className="w-2 h-2 bg-gray-400 rounded-sm"></div>
-                                        </div>
-                                        <span className="font-medium text-sm">{task.title}</span>
-                                      </div>
-                                    </div>
-                                    <div className="flex-1 relative h-12">
-                                      <div className="flex h-full">
-                                        {months.map((_, index) => (
-                                          <div key={index} className="flex-1 border-r border-gray-100"></div>
-                                        ))}
-                                      </div>
-                                      <div 
-                                        className="absolute top-2 h-8 rounded flex items-center justify-between px-2 text-white text-xs font-medium cursor-pointer hover:opacity-80"
-                                        style={{ 
-                                          ...position,
-                                          backgroundColor: project.color,
-                                          minWidth: '60px'
-                                        }}
-                                        onClick={() => editTask(task)}
-                                      >
-                                        <span className="truncate">{task.title.split(' ')[0]}</span>
-                                        {task.progress > 0 && (
-                                          <span className="text-xs">({task.progress}%)</span>
-                                        )}
-                                      </div>
-                                      {showDependencies && task.dependencies.length > 0 && (
-                                        <div className="absolute top-10 left-2 text-xs text-gray-500">
-                                          ↳ Dependencies: {task.dependencies.length}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <GanttChart
+              tasks={filteredTasks}
+              projects={projects}
+              selectedProjects={selectedProjects}
+              onTaskUpdate={handleTaskUpdate}
+              dateRange={dateRange}
+              showDependencies={showDependencies}
+            />
           </TabsContent>
 
-          {/* Other tabs content */}
+          {/* Calendar View */}
           <TabsContent value="calendar">
             <Card>
               <CardContent className="p-6">
@@ -747,382 +633,94 @@ export default function ProjectSchedule() {
             </Card>
           </TabsContent>
 
+          {/* List View */}
           <TabsContent value="list">
             <Card>
               <CardContent className="p-6">
-                <div className="space-y-6">
-                  {/* Header Controls */}
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle>All Projects Schedule</CardTitle>
-                        <div className="flex items-center gap-2">
-                          <Button onClick={fetchTasks} variant="outline" size="sm">
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                            Refresh
-                          </Button>
-                          <Button onClick={exportSchedule} variant="outline" size="sm">
-                            <Download className="w-4 h-4 mr-2" />
-                            Export
-                          </Button>
-                          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                            <DialogTrigger asChild>
-                              <Button onClick={() => {
-                                setEditingTask(null);
-                                setNewTask({
-                                  title: '',
-                                  projectId: '',
-                                  startDate: new Date(),
-                                  endDate: new Date(),
-                                  status: 'Not Started',
-                                  progress: 0,
-                                  dependencies: []
-                                });
-                              }}>
-                                <Plus className="w-4 h-4 mr-2" />
-                                New Task
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>{editingTask ? 'Edit Task' : 'Add New Task'}</DialogTitle>
-                              </DialogHeader>
-                              <div className="space-y-4">
-                                <div>
-                                  <Label htmlFor="title">Task Title</Label>
-                                  <Input
-                                    id="title"
-                                    value={newTask.title}
-                                    onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                                    placeholder="Enter task title"
-                                  />
+                {loading ? (
+                  <div className="text-center py-8">Loading tasks...</div>
+                ) : filteredTasks.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No tasks found. Add your first task to get started.
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Task</TableHead>
+                        <TableHead>Project</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Start Date</TableHead>
+                        <TableHead>End Date</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Progress</TableHead>
+                        <TableHead className="w-20">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredTasks.map((task) => {
+                        const project = projects.find(p => p.id === task.projectId);
+                        return (
+                          <TableRow key={task.id}>
+                            <TableCell className="font-medium">{task.title}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div 
+                                  className="w-3 h-3 rounded-full" 
+                                  style={{ backgroundColor: project?.color }}
+                                />
+                                {project?.name}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={cn("text-white", getStatusColor(task.status))}>
+                                {task.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{format(task.startDate, "MMM dd, yyyy")}</TableCell>
+                            <TableCell>{format(task.endDate, "MMM dd, yyyy")}</TableCell>
+                            <TableCell>{calculateDuration(task.startDate, task.endDate)} days</TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <div className="w-16 bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className="bg-blue-600 h-2 rounded-full"
+                                    style={{ width: `${task.progress}%` }}
+                                  ></div>
                                 </div>
-
-                                <div>
-                                  <Label htmlFor="project">Project</Label>
-                                  <Select value={newTask.projectId} onValueChange={(value) => setNewTask({ ...newTask, projectId: value })}>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select project..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {projects.map((project) => (
-                                        <SelectItem key={project.id} value={project.id}>
-                                          {project.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <Label>Start Date</Label>
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <Button
-                                          variant="outline"
-                                          className={cn(
-                                            "w-full justify-start text-left font-normal",
-                                            !newTask.startDate && "text-muted-foreground"
-                                          )}
-                                        >
-                                          <CalendarIcon className="mr-2 h-4 w-4" />
-                                          {newTask.startDate ? format(newTask.startDate, "PPP") : "Pick a date"}
-                                        </Button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-auto p-0">
-                                        <Calendar
-                                          mode="single"
-                                          selected={newTask.startDate}
-                                          onSelect={(date) => date && setNewTask({ ...newTask, startDate: date })}
-                                          initialFocus
-                                        />
-                                      </PopoverContent>
-                                    </Popover>
-                                  </div>
-
-                                  <div>
-                                    <Label>End Date</Label>
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <Button
-                                          variant="outline"
-                                          className={cn(
-                                            "w-full justify-start text-left font-normal",
-                                            !newTask.endDate && "text-muted-foreground"
-                                          )}
-                                        >
-                                          <CalendarIcon className="mr-2 h-4 w-4" />
-                                          {newTask.endDate ? format(newTask.endDate, "PPP") : "Pick a date"}
-                                        </Button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-auto p-0">
-                                        <Calendar
-                                          mode="single"
-                                          selected={newTask.endDate}
-                                          onSelect={(date) => date && setNewTask({ ...newTask, endDate: date })}
-                                          initialFocus
-                                        />
-                                      </PopoverContent>
-                                    </Popover>
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <Label htmlFor="status">Status</Label>
-                                    <Select value={newTask.status} onValueChange={(value: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold') => setNewTask({ ...newTask, status: value })}>
-                                      <SelectTrigger>
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {STATUS_OPTIONS.map((status) => (
-                                          <SelectItem key={status.value} value={status.value}>
-                                            {status.label}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-
-                                  <div>
-                                    <Label htmlFor="progress">Progress (%)</Label>
-                                    <Input
-                                      id="progress"
-                                      type="number"
-                                      min="0"
-                                      max="100"
-                                      value={newTask.progress}
-                                      onChange={(e) => setNewTask({ ...newTask, progress: parseInt(e.target.value) || 0 })}
-                                    />
-                                  </div>
-                                </div>
-
-                                <Button onClick={saveTask} className="w-full">
-                                  {editingTask ? 'Update Task' : 'Create Task'}
+                                <span className="text-sm">{task.progress}%</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex space-x-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => editTask(task)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => deleteTask(task.id)}
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
                               </div>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center gap-4">
-                          <ProjectSelector
-                            projects={projects}
-                            selectedProjects={selectedProjects}
-                            onSelectionChange={setSelectedProjects}
-                          />
-                          
-                          <div className="flex items-center gap-1 border rounded-lg p-1">
-                            <Button
-                              variant={currentView === 'list' ? 'default' : 'ghost'}
-                              size="sm"
-                              onClick={() => setCurrentView('list')}
-                            >
-                              <List className="w-4 h-4 mr-1" />
-                              List
-                            </Button>
-                            <Button
-                              variant={currentView === 'gantt' ? 'default' : 'ghost'}
-                              size="sm"
-                              onClick={() => setCurrentView('gantt')}
-                            >
-                              <BarChart3 className="w-4 h-4 mr-1" />
-                              Gantt
-                            </Button>
-                            <Button
-                              variant={currentView === 'critical' ? 'default' : 'ghost'}
-                              size="sm"
-                              onClick={() => setCurrentView('critical')}
-                            >
-                              <AlertTriangle className="w-4 h-4 mr-1" />
-                              Critical Path
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Schedule Overview Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                      <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                          <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
-                          <GanttChart className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">{tasks.length}</div>
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                          <CardTitle className="text-sm font-medium">Completed</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold text-green-600">
-                            {tasks.filter(t => t.status === 'Completed').length}
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                          <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold text-blue-600">
-                            {tasks.filter(t => t.status === 'In Progress').length}
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                          <CardTitle className="text-sm font-medium">Avg Progress</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">
-                            {tasks.length > 0 ? Math.round(tasks.reduce((sum, t) => sum + t.progress, 0) / tasks.length) : 0}%
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    {/* Main Schedule View */}
-                    {currentView === 'list' && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Task List</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          {loading ? (
-                            <div className="text-center py-8">Loading tasks...</div>
-                          ) : tasks.length === 0 ? (
-                            <div className="text-center py-8 text-gray-500">
-                              No tasks found. Add your first task to get started.
-                            </div>
-                          ) : (
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Task</TableHead>
-                                  <TableHead>Project</TableHead>
-                                  <TableHead>Status</TableHead>
-                                  <TableHead>Start Date</TableHead>
-                                  <TableHead>End Date</TableHead>
-                                  <TableHead>Duration</TableHead>
-                                  <TableHead>Progress</TableHead>
-                                  <TableHead className="w-20">Actions</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {tasks.map((task) => {
-                                  const project = projects.find(p => p.id === task.projectId);
-                                  return (
-                                    <TableRow key={task.id}>
-                                      <TableCell className="font-medium">{task.title}</TableCell>
-                                      <TableCell>
-                                        <div className="flex items-center gap-2">
-                                          <div 
-                                            className="w-3 h-3 rounded-full" 
-                                            style={{ backgroundColor: project?.color }}
-                                          />
-                                          {project?.name}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>
-                                        <Badge className={cn("text-white", getStatusColor(task.status))}>
-                                          {task.status}
-                                        </Badge>
-                                      </TableCell>
-                                      <TableCell>{format(task.startDate, "MMM dd, yyyy")}</TableCell>
-                                      <TableCell>{format(task.endDate, "MMM dd, yyyy")}</TableCell>
-                                      <TableCell>{calculateDuration(task.startDate, task.endDate)} days</TableCell>
-                                      <TableCell>
-                                        <div className="flex items-center space-x-2">
-                                          <div className="w-16 bg-gray-200 rounded-full h-2">
-                                            <div
-                                              className="bg-blue-600 h-2 rounded-full"
-                                              style={{ width: `${task.progress}%` }}
-                                            ></div>
-                                          </div>
-                                          <span className="text-sm">{task.progress}%</span>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>
-                                        <div className="flex space-x-2">
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => editTask(task)}
-                                          >
-                                            <Edit className="w-4 h-4" />
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => deleteTask(task.id)}
-                                            className="text-red-600 hover:text-red-800"
-                                          >
-                                            <Trash2 className="w-4 h-4" />
-                                          </Button>
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>
-                                  );
-                                })}
-                              </TableBody>
-                            </Table>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {currentView === 'gantt' && (
-                      <GanttChartComponent
-                        tasks={tasks}
-                        projects={projects}
-                        selectedProjects={selectedProjects}
-                        onTaskUpdate={(taskId, updates) => {
-                          // Handle task updates from Gantt chart
-                          console.log('Task update:', taskId, updates);
-                        }}
-                      />
-                    )}
-
-                    {currentView === 'critical' && (
-                      <CriticalPath
-                        tasks={tasks}
-                        selectedProjects={selectedProjects}
-                      />
-                    )}
-
-                    {/* Schedule Management Instructions */}
-                    <Card className="bg-blue-50 border-blue-200">
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                            <span className="text-white text-sm font-bold">i</span>
-                          </div>
-                          <div className="space-y-2">
-                            <h4 className="font-medium text-blue-900">Schedule Management Instructions</h4>
-                            <div className="text-sm text-blue-800 space-y-1">
-                              <p><strong>Project Selection:</strong> Choose "All Projects" or select multiple projects to view together.</p>
-                              <p><strong>Timeline View:</strong> Use List view for detailed task management, Gantt for visual timeline, or Critical Path for bottleneck analysis.</p>
-                              <p><strong>Task Actions:</strong> Use quick action buttons to edit, set dates, or mark tasks as complete.</p>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
+          {/* Critical Path View */}
           <TabsContent value="critical">
             <CriticalPath
               tasks={filteredTasks}
