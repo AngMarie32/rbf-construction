@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -557,7 +556,7 @@ export default function ProjectSchedule() {
                 <Checkbox 
                   id="critical-path" 
                   checked={showCriticalPath}
-                  onCheckedChange={setShowCriticalPath}
+                  onCheckedChange={(checked) => setShowCriticalPath(checked === true)}
                 />
                 <Label htmlFor="critical-path" className="text-sm">Show Critical Path</Label>
               </div>
@@ -565,7 +564,7 @@ export default function ProjectSchedule() {
                 <Checkbox 
                   id="milestones" 
                   checked={showMilestones}
-                  onCheckedChange={setShowMilestones}
+                  onCheckedChange={(checked) => setShowMilestones(checked === true)}
                 />
                 <Label htmlFor="milestones" className="text-sm">Show Milestones</Label>
               </div>
@@ -573,7 +572,7 @@ export default function ProjectSchedule() {
                 <Checkbox 
                   id="dependencies" 
                   checked={showDependencies}
-                  onCheckedChange={setShowDependencies}
+                  onCheckedChange={(checked) => setShowDependencies(checked === true)}
                 />
                 <Label htmlFor="dependencies" className="text-sm">Show Dependencies</Label>
               </div>
