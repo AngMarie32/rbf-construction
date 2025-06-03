@@ -19,12 +19,15 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  FileText
+  FileText,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { NewBillingDialog } from '@/components/billing/NewBillingDialog';
+import { EditBillingDialog } from '@/components/billing/EditBillingDialog';
 
 interface ProjectBilling {
   id: string;
@@ -53,7 +56,8 @@ export default function ProjectBilling() {
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [projects, setProjects] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [editingBilling, setEditingBilling] = useState<any>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchBillings();
@@ -114,6 +118,52 @@ export default function ProjectBilling() {
       setProjects(data || []);
     } catch (error) {
       console.error('Error fetching projects:', error);
+    }
+  };
+
+  const deleteBilling = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this billing record?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('project_billing')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Billing record deleted successfully');
+      fetchBillings();
+    } catch (error) {
+      console.error('Error deleting billing record:', error);
+      toast.error('Failed to delete billing record');
+    }
+  };
+
+  const handleEdit = (billing: any) => {
+    setEditingBilling(billing);
+    setEditDialogOpen(true);
+  };
+
+  const handleMarkAsPaid = async (billing: any) => {
+    try {
+      const { error } = await supabase
+        .from('project_billing')
+        .update({
+          paid_amount: billing.billed_amount,
+          remaining_amount: 0,
+          status: 'Paid',
+          payment_date: new Date().toISOString().split('T')[0]
+        })
+        .eq('id', billing.id);
+
+      if (error) throw error;
+
+      toast.success('Billing marked as paid');
+      fetchBillings();
+    } catch (error) {
+      console.error('Error updating billing:', error);
+      toast.error('Failed to update billing');
     }
   };
 
@@ -403,12 +453,31 @@ export default function ProjectBilling() {
                           {billing.due_date ? format(new Date(billing.due_date), 'MMM dd, yyyy') : 'N/A'}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Button size="sm" variant="outline">
-                              View
+                          <div className="flex items-center space-x-1">
+                            {billing.status !== 'Paid' && billing.remaining_amount > 0 && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleMarkAsPaid(billing)}
+                                className="text-green-600 hover:text-green-700"
+                              >
+                                Mark Paid
+                              </Button>
+                            )}
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleEdit(billing)}
+                            >
+                              <Edit className="w-4 h-4" />
                             </Button>
-                            <Button size="sm" variant="outline">
-                              Edit
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => deleteBilling(billing.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </TableCell>
@@ -420,6 +489,13 @@ export default function ProjectBilling() {
             </div>
           </CardContent>
         </Card>
+
+        <EditBillingDialog
+          billing={editingBilling}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          onBillingUpdated={fetchBillings}
+        />
       </div>
     </Layout>
   );

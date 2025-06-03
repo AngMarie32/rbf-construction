@@ -219,19 +219,22 @@ export default function EquipmentPage() {
       // Upload image if a new one was selected
       if (imageFile) {
         const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${editingEquipment.id}.${fileExt}`;
+        const fileName = `${Date.now()}-${editingEquipment.id}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
           .from('equipment-images')
           .upload(fileName, imageFile, { upsert: true });
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.log('Storage upload error:', uploadError);
+          // Continue without image if storage fails
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('equipment-images')
+            .getPublicUrl(fileName);
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('equipment-images')
-          .getPublicUrl(fileName);
-
-        imageUrl = publicUrl;
+          imageUrl = publicUrl;
+        }
       }
 
       const { error } = await supabase
@@ -244,7 +247,8 @@ export default function EquipmentPage() {
           value: editingEquipment.value,
           status: editingEquipment.status,
           description: editingEquipment.description,
-          image: imageUrl
+          image: imageUrl,
+          updated_at: new Date().toISOString()
         })
         .eq('id', editingEquipment.id);
 

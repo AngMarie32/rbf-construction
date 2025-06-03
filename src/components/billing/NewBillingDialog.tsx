@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -25,14 +26,14 @@ interface NewBillingDialogProps {
 
 interface FormData {
   projectId: string;
-  billingPeriodStart: string;
-  billingPeriodEnd: string;
+  billingPeriodStart: Date | undefined;
+  billingPeriodEnd: Date | undefined;
   invoiceNumber: string;
   billedAmount: string;
   paidAmount: string;
   status: string;
-  invoiceDate: string;
-  dueDate: string;
+  invoiceDate: Date | undefined;
+  dueDate: Date | undefined;
   notes: string;
 }
 
@@ -42,14 +43,14 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
   const [projects, setProjects] = useState<any[]>([]);
   const [formData, setFormData] = useState<FormData>({
     projectId: '',
-    billingPeriodStart: '',
-    billingPeriodEnd: '',
+    billingPeriodStart: undefined,
+    billingPeriodEnd: undefined,
     invoiceNumber: '',
     billedAmount: '',
     paidAmount: '',
     status: 'Draft',
-    invoiceDate: '',
-    dueDate: '',
+    invoiceDate: undefined,
+    dueDate: undefined,
     notes: ''
   });
 
@@ -88,19 +89,29 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.projectId || !formData.billingPeriodStart || !formData.billingPeriodEnd || !formData.billedAmount) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
     setLoading(true);
 
     try {
+      const billedAmount = parseFloat(formData.billedAmount) || 0;
+      const paidAmount = parseFloat(formData.paidAmount) || 0;
+      
       const billingData = {
         project_id: formData.projectId,
-        billing_period_start: formData.billingPeriodStart,
-        billing_period_end: formData.billingPeriodEnd,
+        billing_period_start: format(formData.billingPeriodStart, 'yyyy-MM-dd'),
+        billing_period_end: format(formData.billingPeriodEnd, 'yyyy-MM-dd'),
         invoice_number: formData.invoiceNumber || null,
-        billed_amount: parseFloat(formData.billedAmount),
-        paid_amount: parseFloat(formData.paidAmount),
+        billed_amount: billedAmount,
+        paid_amount: paidAmount,
+        remaining_amount: billedAmount - paidAmount,
         status: formData.status,
-        invoice_date: formData.invoiceDate || null,
-        due_date: formData.dueDate || null,
+        invoice_date: formData.invoiceDate ? format(formData.invoiceDate, 'yyyy-MM-dd') : null,
+        due_date: formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : null,
         notes: formData.notes || null
       };
 
@@ -114,18 +125,17 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
       setOpen(false);
       setFormData({
         projectId: '',
-        billingPeriodStart: '',
-        billingPeriodEnd: '',
+        billingPeriodStart: undefined,
+        billingPeriodEnd: undefined,
         invoiceNumber: '',
         billedAmount: '',
         paidAmount: '',
         status: 'Draft',
-        invoiceDate: '',
-        dueDate: '',
+        invoiceDate: undefined,
+        dueDate: undefined,
         notes: ''
       });
       
-      // Call the callback to refresh the billing list
       if (onBillingCreated) {
         onBillingCreated();
       }
@@ -142,14 +152,14 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
       <DialogTrigger asChild>
         <Button variant="outline">Add Billing</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Billing Record</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="projectId" className="text-right">
-              Project
+              Project *
             </Label>
             <Select
               value={formData.projectId}
@@ -167,21 +177,20 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
               </SelectContent>
             </Select>
           </div>
+          
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="billingPeriodStart" className="text-right">
-              Billing Period Start
-            </Label>
+            <Label className="text-right">Period Start *</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
-                  variant={"outline"}
+                  variant="outline"
                   className={cn(
-                    "w-[240px] justify-start text-left font-normal",
+                    "col-span-3 justify-start text-left font-normal",
                     !formData.billingPeriodStart && "text-muted-foreground"
                   )}
                 >
                   {formData.billingPeriodStart ? (
-                    format(new Date(formData.billingPeriodStart), "MMM dd, yyyy")
+                    format(formData.billingPeriodStart, "MMM dd, yyyy")
                   ) : (
                     <span>Pick a date</span>
                   )}
@@ -191,34 +200,27 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={formData.billingPeriodStart ? new Date(formData.billingPeriodStart) : undefined}
-                  onSelect={(date) => setFormData({
-                    ...formData,
-                    billingPeriodStart: date ? format(date, 'yyyy-MM-dd') : ''
-                  })}
-                  disabled={(date) =>
-                    date > new Date()
-                  }
+                  selected={formData.billingPeriodStart}
+                  onSelect={(date) => setFormData(prev => ({ ...prev, billingPeriodStart: date }))}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
           </div>
+          
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="billingPeriodEnd" className="text-right">
-              Billing Period End
-            </Label>
+            <Label className="text-right">Period End *</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
-                  variant={"outline"}
+                  variant="outline"
                   className={cn(
-                    "w-[240px] justify-start text-left font-normal",
+                    "col-span-3 justify-start text-left font-normal",
                     !formData.billingPeriodEnd && "text-muted-foreground"
                   )}
                 >
                   {formData.billingPeriodEnd ? (
-                    format(new Date(formData.billingPeriodEnd), "MMM dd, yyyy")
+                    format(formData.billingPeriodEnd, "MMM dd, yyyy")
                   ) : (
                     <span>Pick a date</span>
                   )}
@@ -228,19 +230,14 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={formData.billingPeriodEnd ? new Date(formData.billingPeriodEnd) : undefined}
-                  onSelect={(date) => setFormData({
-                    ...formData,
-                    billingPeriodEnd: date ? format(date, 'yyyy-MM-dd') : ''
-                  })}
-                  disabled={(date) =>
-                    date > new Date()
-                  }
+                  selected={formData.billingPeriodEnd}
+                  onSelect={(date) => setFormData(prev => ({ ...prev, billingPeriodEnd: date }))}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
           </div>
+          
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="invoiceNumber" className="text-right">
               Invoice Number
@@ -254,9 +251,10 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
               className="col-span-3"
             />
           </div>
+          
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="billedAmount" className="text-right">
-              Billed Amount
+              Billed Amount *
             </Label>
             <Input
               type="number"
@@ -266,8 +264,10 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
               onChange={handleInputChange}
               className="col-span-3"
               placeholder="0.00"
+              step="0.01"
             />
           </div>
+          
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="paidAmount" className="text-right">
               Paid Amount
@@ -280,8 +280,10 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
               onChange={handleInputChange}
               className="col-span-3"
               placeholder="0.00"
+              step="0.01"
             />
           </div>
+          
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="status" className="text-right">
               Status
@@ -302,21 +304,20 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
               </SelectContent>
             </Select>
           </div>
+          
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="invoiceDate" className="text-right">
-              Invoice Date
-            </Label>
-             <Popover>
+            <Label className="text-right">Invoice Date</Label>
+            <Popover>
               <PopoverTrigger asChild>
                 <Button
-                  variant={"outline"}
+                  variant="outline"
                   className={cn(
-                    "w-[240px] justify-start text-left font-normal",
+                    "col-span-3 justify-start text-left font-normal",
                     !formData.invoiceDate && "text-muted-foreground"
                   )}
                 >
                   {formData.invoiceDate ? (
-                    format(new Date(formData.invoiceDate), "MMM dd, yyyy")
+                    format(formData.invoiceDate, "MMM dd, yyyy")
                   ) : (
                     <span>Pick a date</span>
                   )}
@@ -326,34 +327,27 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={formData.invoiceDate ? new Date(formData.invoiceDate) : undefined}
-                  onSelect={(date) => setFormData({
-                    ...formData,
-                    invoiceDate: date ? format(date, 'yyyy-MM-dd') : ''
-                  })}
-                  disabled={(date) =>
-                    date > new Date()
-                  }
+                  selected={formData.invoiceDate}
+                  onSelect={(date) => setFormData(prev => ({ ...prev, invoiceDate: date }))}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
           </div>
-           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="dueDate" className="text-right">
-              Due Date
-            </Label>
-             <Popover>
+          
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right">Due Date</Label>
+            <Popover>
               <PopoverTrigger asChild>
                 <Button
-                  variant={"outline"}
+                  variant="outline"
                   className={cn(
-                    "w-[240px] justify-start text-left font-normal",
+                    "col-span-3 justify-start text-left font-normal",
                     !formData.dueDate && "text-muted-foreground"
                   )}
                 >
                   {formData.dueDate ? (
-                    format(new Date(formData.dueDate), "MMM dd, yyyy")
+                    format(formData.dueDate, "MMM dd, yyyy")
                   ) : (
                     <span>Pick a date</span>
                   )}
@@ -363,19 +357,14 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={formData.dueDate ? new Date(formData.dueDate) : undefined}
-                  onSelect={(date) => setFormData({
-                    ...formData,
-                    dueDate: date ? format(date, 'yyyy-MM-dd') : ''
-                  })}
-                  disabled={(date) =>
-                    date > new Date()
-                  }
+                  selected={formData.dueDate}
+                  onSelect={(date) => setFormData(prev => ({ ...prev, dueDate: date }))}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
           </div>
+          
           <div className="grid grid-cols-4 items-start gap-4">
             <Label htmlFor="notes" className="text-right mt-2">
               Notes
@@ -389,7 +378,8 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
               placeholder="Billing notes"
             />
           </div>
-          <Button type="submit" disabled={loading}>
+          
+          <Button type="submit" disabled={loading} className="col-span-4">
             {loading ? 'Creating...' : 'Create Billing'}
           </Button>
         </form>

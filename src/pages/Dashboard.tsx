@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -31,10 +32,12 @@ interface DatabaseProject {
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [billingData, setBillingData] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchProjects();
+    fetchBillingData();
   }, []);
 
   const fetchProjects = async () => {
@@ -46,7 +49,6 @@ export default function Dashboard() {
 
       if (error) throw error;
       
-      // Map database response to our Project interface
       const mappedProjects: Project[] = (data || []).map((dbProject: DatabaseProject) => ({
         id: dbProject.id,
         name: dbProject.name,
@@ -69,6 +71,27 @@ export default function Dashboard() {
       toast.error('Failed to load projects');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBillingData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('project_billing')
+        .select('billed_amount, paid_amount, remaining_amount');
+
+      if (error) throw error;
+
+      const totals = (data || []).reduce((acc, billing) => ({
+        totalBilled: acc.totalBilled + (billing.billed_amount || 0),
+        totalReceived: acc.totalReceived + (billing.paid_amount || 0),
+        totalOutstanding: acc.totalOutstanding + (billing.remaining_amount || 0)
+      }), { totalBilled: 0, totalReceived: 0, totalOutstanding: 0 });
+
+      setBillingData(totals);
+    } catch (error) {
+      console.error('Error fetching billing data:', error);
+      setBillingData({ totalBilled: 0, totalReceived: 0, totalOutstanding: 0 });
     }
   };
 
@@ -126,6 +149,56 @@ export default function Dashboard() {
             icon={<DollarSign className="w-6 h-6" />}
           />
         </div>
+
+        {/* Financial Overview */}
+        {billingData && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Billed</CardTitle>
+                <DollarSign className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  ${billingData.totalBilled.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Total invoiced amount
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Received</CardTitle>
+                <DollarSign className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  ${billingData.totalReceived.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Payments received
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
+                <DollarSign className="h-4 w-4 text-orange-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">
+                  ${billingData.totalOutstanding.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Amount pending payment
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Recent Projects */}
         <Card>
