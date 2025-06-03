@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -87,7 +86,7 @@ export default function ProjectBilling() {
         billed_amount: billing.billed_amount,
         paid_amount: billing.paid_amount,
         remaining_amount: billing.remaining_amount,
-        status: billing.status,
+        status: billing.status as 'Draft' | 'Sent' | 'Paid' | 'Overdue' | 'Cancelled',
         invoice_date: billing.invoice_date,
         due_date: billing.due_date,
         payment_date: billing.payment_date,
