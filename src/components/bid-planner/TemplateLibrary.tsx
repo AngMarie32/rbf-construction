@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -71,9 +70,12 @@ export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: Temp
 
       if (error) throw error;
 
-      // Mock additional template data for demonstration
-      const enhancedTemplates = (data || []).map(template => ({
-        ...template,
+      // Properly map the Supabase data to match the Template interface
+      const enhancedTemplates: Template[] = (data || []).map(template => ({
+        id: template.id,
+        name: template.name,
+        description: template.description || '',
+        isDefault: template.is_default || false,
         category: template.name.includes('HVAC') ? 'HVAC' : 
                  template.name.includes('Electrical') ? 'Electrical' :
                  template.name.includes('Plumbing') ? 'Plumbing' :
