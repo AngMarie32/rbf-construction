@@ -10,6 +10,7 @@ import {
   DollarSign,
   Percent
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface BidOverviewProps {
   totalEstimate: number;
@@ -22,6 +23,21 @@ export function BidOverview({ totalEstimate, itemCount, categoryCount, projectNa
   const profit = totalEstimate * 0.15; // 15% profit margin
   const overhead = totalEstimate * 0.10; // 10% overhead
   const directCosts = totalEstimate - profit - overhead;
+
+  const handleExportToPDF = () => {
+    // Mock PDF export functionality
+    toast.success('PDF export started (Feature in development)');
+  };
+
+  const handleScheduleReview = () => {
+    // Mock schedule review functionality
+    toast.success('Review scheduled (Feature in development)');
+  };
+
+  const handleAdjustMargins = () => {
+    // Mock margin adjustment functionality
+    toast.success('Margin adjustment opened (Feature in development)');
+  };
 
   return (
     <div className="space-y-6">
@@ -127,15 +143,15 @@ export function BidOverview({ totalEstimate, itemCount, categoryCount, projectNa
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExportToPDF}>
               <FileText className="w-4 h-4 mr-2" />
               Export to PDF
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleScheduleReview}>
               <Calendar className="w-4 h-4 mr-2" />
               Schedule Review
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleAdjustMargins}>
               <Percent className="w-4 h-4 mr-2" />
               Adjust Margins
             </Button>

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Trash2, FileText, Save, Download } from 'lucide-react';
+import { Plus, Trash2, FileText, Save, Download, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -32,6 +33,7 @@ interface BidItem {
 interface Project {
   id: string;
   name: string;
+  client?: string;
 }
 
 interface BidTemplate {
@@ -64,6 +66,7 @@ export default function BidPlanner() {
   const [createBidOpen, setCreateBidOpen] = useState(false);
   const [templateLibraryOpen, setTemplateLibraryOpen] = useState(false);
   const [newTemplateDialogOpen, setNewTemplateDialogOpen] = useState(false);
+  const [createProposalDialogOpen, setCreateProposalDialogOpen] = useState(false);
   
   const [newItem, setNewItem] = useState({
     category: '',
@@ -94,7 +97,7 @@ export default function BidPlanner() {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name')
+        .select('id, name, client')
         .order('name');
 
       if (error) throw error;
@@ -356,12 +359,80 @@ export default function BidPlanner() {
     }
   };
 
+  const createProposalFromBid = async (useCategories: boolean = true) => {
+    if (!selectedProject || bidItems.length === 0) {
+      toast.error('No bid items to create proposal from');
+      return;
+    }
+
+    try {
+      const selectedProjectData = projects.find(p => p.id === selectedProject);
+      const totalAmount = bidItems.reduce((sum, item) => sum + item.total, 0);
+      
+      let proposalData;
+      
+      if (useCategories) {
+        // Group by categories and create summary
+        const categorySummary = bidItems.reduce((acc, item) => {
+          if (!acc[item.category]) {
+            acc[item.category] = 0;
+          }
+          acc[item.category] += item.total;
+          return acc;
+        }, {} as Record<string, number>);
+        
+        const scopeText = Object.entries(categorySummary)
+          .map(([category, amount]) => `${category}: $${amount.toLocaleString()}`)
+          .join('\n');
+          
+        proposalData = {
+          project_name: selectedProjectData?.name || 'Unnamed Project',
+          client: selectedProjectData?.client || 'Client Name',
+          scope: scopeText,
+          amount: totalAmount,
+          status: 'Draft'
+        };
+      } else {
+        // Use all line items
+        const scopeText = bidItems
+          .map(item => `${item.category} - ${item.description}: $${item.total.toLocaleString()}`)
+          .join('\n');
+          
+        proposalData = {
+          project_name: selectedProjectData?.name || 'Unnamed Project',
+          client: selectedProjectData?.client || 'Client Name',
+          scope: scopeText,
+          amount: totalAmount,
+          status: 'Draft'
+        };
+      }
+
+      const { error } = await supabase
+        .from('proposals')
+        .insert(proposalData);
+
+      if (error) throw error;
+
+      toast.success('Proposal created successfully from bid');
+      setCreateProposalDialogOpen(false);
+    } catch (error) {
+      console.error('Error creating proposal:', error);
+      toast.error('Failed to create proposal');
+    }
+  };
+
   const totalEstimate = bidItems.reduce((sum, item) => sum + item.total, 0);
   const categorizedItems = bidItems.reduce((acc, item) => {
     if (!acc[item.category]) acc[item.category] = [];
     acc[item.category].push(item);
     return acc;
   }, {} as Record<string, BidItem[]>);
+
+  const categoryTotals = Object.entries(categorizedItems).map(([category, items]) => ({
+    category,
+    total: items.reduce((sum, item) => sum + item.total, 0),
+    itemCount: items.length
+  }));
 
   const selectedProjectData = projects.find(p => p.id === selectedProject);
 
@@ -448,6 +519,61 @@ export default function BidPlanner() {
                   <Button onClick={exportToSOV} disabled={bidItems.length === 0}>
                     Export to SOV
                   </Button>
+
+                  <Dialog open={createProposalDialogOpen} onOpenChange={setCreateProposalDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" disabled={bidItems.length === 0}>
+                        <Send className="w-4 h-4 mr-2" />
+                        Create Proposal
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Create Proposal from Bid</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <p className="text-sm text-gray-600">
+                          Choose how to create the proposal from your bid items:
+                        </p>
+                        <div className="space-y-4">
+                          <Card className="p-4">
+                            <h4 className="font-medium mb-2">Category Summary</h4>
+                            <p className="text-sm text-gray-600 mb-3">
+                              Group items by category with totals (recommended for client presentation)
+                            </p>
+                            <div className="space-y-2">
+                              {categoryTotals.map(({ category, total, itemCount }) => (
+                                <div key={category} className="flex justify-between text-sm">
+                                  <span>{category} ({itemCount} items)</span>
+                                  <span className="font-medium">${total.toLocaleString()}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <Button 
+                              onClick={() => createProposalFromBid(true)} 
+                              className="w-full mt-3"
+                            >
+                              Use Category Summary
+                            </Button>
+                          </Card>
+                          
+                          <Card className="p-4">
+                            <h4 className="font-medium mb-2">Detailed Line Items</h4>
+                            <p className="text-sm text-gray-600 mb-3">
+                              Include all individual line items (detailed breakdown)
+                            </p>
+                            <Button 
+                              onClick={() => createProposalFromBid(false)} 
+                              variant="outline" 
+                              className="w-full"
+                            >
+                              Use All Line Items
+                            </Button>
+                          </Card>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </CardContent>
             </Card>

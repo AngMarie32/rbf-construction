@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,8 +14,7 @@ import {
   Building, 
   HardHat, 
   Search,
-  Star,
-  Filter
+  Star
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -23,7 +23,6 @@ interface Template {
   id: string;
   name: string;
   description: string;
-  category: string;
   isDefault: boolean;
   itemCount?: number;
 }
@@ -34,20 +33,10 @@ interface TemplateLibraryProps {
   onTemplateSelected: (templateId: string) => void;
 }
 
-const TEMPLATE_CATEGORIES = [
-  { value: 'HVAC', label: 'HVAC', icon: Wrench, color: 'bg-blue-100 text-blue-800' },
-  { value: 'Electrical', label: 'Electrical', icon: Zap, color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'Plumbing', label: 'Plumbing', icon: Droplets, color: 'bg-blue-100 text-blue-600' },
-  { value: 'Fire Protection', label: 'Fire Protection', icon: Flame, color: 'bg-red-100 text-red-800' },
-  { value: 'General Construction', label: 'General Construction', icon: Building, color: 'bg-gray-100 text-gray-800' },
-  { value: 'Site Work', label: 'Site Work', icon: HardHat, color: 'bg-green-100 text-green-800' }
-];
-
 export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: TemplateLibraryProps) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [filteredTemplates, setFilteredTemplates] = useState<Template[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -58,7 +47,7 @@ export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: Temp
 
   useEffect(() => {
     filterTemplates();
-  }, [templates, searchTerm, selectedCategory]);
+  }, [templates, searchTerm]);
 
   const fetchTemplates = async () => {
     try {
@@ -76,10 +65,6 @@ export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: Temp
         name: template.name,
         description: template.description || '',
         isDefault: template.is_default || false,
-        category: template.name.includes('HVAC') ? 'HVAC' : 
-                 template.name.includes('Electrical') ? 'Electrical' :
-                 template.name.includes('Plumbing') ? 'Plumbing' :
-                 template.name.includes('Fire') ? 'Fire Protection' : 'General Construction',
         itemCount: Math.floor(Math.random() * 50) + 10 // Mock item count
       }));
 
@@ -102,25 +87,7 @@ export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: Temp
       );
     }
 
-    if (selectedCategory) {
-      filtered = filtered.filter(template => template.category === selectedCategory);
-    }
-
     setFilteredTemplates(filtered);
-  };
-
-  const getCategoryIcon = (category: string) => {
-    const categoryData = TEMPLATE_CATEGORIES.find(cat => cat.value === category);
-    if (categoryData) {
-      const Icon = categoryData.icon;
-      return <Icon className="w-5 h-5" />;
-    }
-    return <Building className="w-5 h-5" />;
-  };
-
-  const getCategoryColor = (category: string) => {
-    const categoryData = TEMPLATE_CATEGORIES.find(cat => cat.value === category);
-    return categoryData?.color || 'bg-gray-100 text-gray-800';
   };
 
   return (
@@ -131,7 +98,7 @@ export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: Temp
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Search and Filter */}
+          {/* Search */}
           <div className="flex gap-4">
             <div className="flex-1">
               <Label htmlFor="search">Search Templates</Label>
@@ -142,35 +109,8 @@ export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: Temp
                   placeholder="Search by name or description..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 w-full"
                 />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="category">Category</Label>
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  variant={selectedCategory === '' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedCategory('')}
-                >
-                  All
-                </Button>
-                {TEMPLATE_CATEGORIES.map((category) => {
-                  const Icon = category.icon;
-                  return (
-                    <Button
-                      key={category.value}
-                      variant={selectedCategory === category.value ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedCategory(category.value)}
-                      className="flex items-center gap-1"
-                    >
-                      <Icon className="w-3 h-3" />
-                      {category.label}
-                    </Button>
-                  );
-                })}
               </div>
             </div>
           </div>
@@ -189,16 +129,13 @@ export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: Temp
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">
-                        {getCategoryIcon(template.category)}
+                        <Building className="w-5 h-5" />
                         <CardTitle className="text-sm">{template.name}</CardTitle>
                       </div>
                       {template.isDefault && (
                         <Star className="w-4 h-4 text-yellow-500 fill-current" />
                       )}
                     </div>
-                    <Badge className={getCategoryColor(template.category)}>
-                      {template.category}
-                    </Badge>
                   </CardHeader>
                   <CardContent className="pt-0">
                     <p className="text-sm text-gray-600 mb-3 line-clamp-2">
