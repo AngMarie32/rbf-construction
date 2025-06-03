@@ -14,12 +14,10 @@ interface MaintenanceRecord {
   id: string;
   equipment_id: string;
   equipment_name: string;
-  maintenance_type: string;
   description: string;
   cost: number;
   date: string;
-  status: 'Scheduled' | 'In Progress' | 'Completed';
-  technician: string;
+  next_due?: string;
 }
 
 interface AllMaintenanceViewProps {
@@ -32,7 +30,6 @@ export function AllMaintenanceView({ open, onOpenChange }: AllMaintenanceViewPro
   const [filteredRecords, setFilteredRecords] = useState<MaintenanceRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
   const [dateFilter, setDateFilter] = useState('');
   const [endDateFilter, setEndDateFilter] = useState('');
 
@@ -44,31 +41,34 @@ export function AllMaintenanceView({ open, onOpenChange }: AllMaintenanceViewPro
 
   useEffect(() => {
     filterRecords();
-  }, [maintenanceRecords, searchTerm, statusFilter, dateFilter, endDateFilter]);
+  }, [maintenanceRecords, searchTerm, dateFilter, endDateFilter]);
 
   const fetchMaintenanceRecords = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('maintenance_records')
-        .select(`
-          *,
-          equipment:equipment_id (name)
-        `)
+      const { data: maintenanceData, error: maintenanceError } = await supabase
+        .from('maintenance_logs')
+        .select('*')
         .order('date', { ascending: false });
 
-      if (error) throw error;
+      if (maintenanceError) throw maintenanceError;
 
-      const mappedRecords = (data || []).map(record => ({
+      const { data: equipmentData, error: equipmentError } = await supabase
+        .from('equipment')
+        .select('id, name');
+
+      if (equipmentError) throw equipmentError;
+
+      const equipmentMap = new Map(equipmentData.map(eq => [eq.id, eq.name]));
+
+      const mappedRecords: MaintenanceRecord[] = (maintenanceData || []).map(record => ({
         id: record.id,
         equipment_id: record.equipment_id,
-        equipment_name: record.equipment?.name || 'Unknown Equipment',
-        maintenance_type: record.maintenance_type,
+        equipment_name: equipmentMap.get(record.equipment_id) || 'Unknown Equipment',
         description: record.description,
-        cost: record.cost,
+        cost: record.cost || 0,
         date: record.date,
-        status: record.status,
-        technician: record.technician
+        next_due: record.next_due
       }));
 
       setMaintenanceRecords(mappedRecords);
@@ -86,14 +86,8 @@ export function AllMaintenanceView({ open, onOpenChange }: AllMaintenanceViewPro
     if (searchTerm) {
       filtered = filtered.filter(record =>
         record.equipment_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.maintenance_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.technician.toLowerCase().includes(searchTerm.toLowerCase()) ||
         record.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
-    }
-
-    if (statusFilter !== 'All') {
-      filtered = filtered.filter(record => record.status === statusFilter);
     }
 
     if (dateFilter) {
@@ -108,9 +102,9 @@ export function AllMaintenanceView({ open, onOpenChange }: AllMaintenanceViewPro
   };
 
   const exportRecords = () => {
-    let csvContent = "Equipment,Maintenance Type,Date,Status,Technician,Cost,Description\n";
+    let csvContent = "Equipment,Date,Cost,Next Due,Description\n";
     filteredRecords.forEach(record => {
-      csvContent += `"${record.equipment_name}","${record.maintenance_type}","${record.date}","${record.status}","${record.technician}",${record.cost},"${record.description}"\n`;
+      csvContent += `"${record.equipment_name}","${record.date}",${record.cost},"${record.next_due || 'N/A'}","${record.description}"\n`;
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -124,15 +118,6 @@ export function AllMaintenanceView({ open, onOpenChange }: AllMaintenanceViewPro
     document.body.removeChild(a);
     
     toast.success('Maintenance records exported successfully');
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Completed': return 'bg-green-500 text-white';
-      case 'In Progress': return 'bg-blue-500 text-white';
-      case 'Scheduled': return 'bg-orange-500 text-white';
-      default: return 'bg-gray-500 text-white';
-    }
   };
 
   return (
@@ -151,27 +136,15 @@ export function AllMaintenanceView({ open, onOpenChange }: AllMaintenanceViewPro
         <div className="flex flex-col space-y-4 flex-1 overflow-hidden">
           {/* Filters */}
           <div className="flex flex-wrap gap-4 items-center">
-            <div className="relative flex-1 min-w-[200px]">
+            <div className="relative flex-1 min-w-[300px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                placeholder="Search equipment, type, technician..."
+                placeholder="Search equipment, description..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 w-full"
               />
             </div>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Status</SelectItem>
-                <SelectItem value="Scheduled">Scheduled</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
 
             <div className="flex items-center space-x-2">
               <Calendar className="w-4 h-4 text-gray-500" />
@@ -203,24 +176,22 @@ export function AllMaintenanceView({ open, onOpenChange }: AllMaintenanceViewPro
               <TableHeader>
                 <TableRow>
                   <TableHead>Equipment</TableHead>
-                  <TableHead>Maintenance Type</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Technician</TableHead>
                   <TableHead>Cost</TableHead>
+                  <TableHead>Next Due</TableHead>
                   <TableHead>Description</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       Loading maintenance records...
                     </TableCell>
                   </TableRow>
                 ) : filteredRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                       No maintenance records found
                     </TableCell>
                   </TableRow>
@@ -228,15 +199,11 @@ export function AllMaintenanceView({ open, onOpenChange }: AllMaintenanceViewPro
                   filteredRecords.map((record) => (
                     <TableRow key={record.id}>
                       <TableCell className="font-medium">{record.equipment_name}</TableCell>
-                      <TableCell>{record.maintenance_type}</TableCell>
                       <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(record.status)}>
-                          {record.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{record.technician}</TableCell>
                       <TableCell>${record.cost?.toLocaleString() || '0'}</TableCell>
+                      <TableCell>
+                        {record.next_due ? new Date(record.next_due).toLocaleDateString() : 'N/A'}
+                      </TableCell>
                       <TableCell className="max-w-xs truncate">{record.description}</TableCell>
                     </TableRow>
                   ))
