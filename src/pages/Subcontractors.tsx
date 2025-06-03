@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Plus, Edit, Trash2, Phone, Mail, MoreHorizontal, Grid3X3, List, Search, Filter, Eye, Calendar } from 'lucide-react';
+import { Plus, Edit, Trash2, Phone, Mail, MoreHorizontal, Grid3X3, List, Search, Filter, Eye, Calendar, ArrowUpDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -65,7 +64,9 @@ export default function Subcontractors() {
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Statuses');
-  
+  const [sortField, setSortField] = useState<string>('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
   const [newSubcontractor, setNewSubcontractor] = useState({
     company: '',
     name: '',
@@ -232,13 +233,89 @@ export default function Subcontractors() {
     return STATUS_OPTIONS.find(s => s.value === status)?.color || 'bg-gray-500';
   };
 
-  const filteredSubcontractors = subcontractors.filter(sub => {
+  const getInsuranceStatus = (expiryDate?: Date) => {
+    if (!expiryDate) return 'none';
+    
+    const today = new Date();
+    const expiry = new Date(expiryDate);
+    const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysUntilExpiry <= 0) return 'expired';
+    if (daysUntilExpiry <= 30) return 'warning';
+    return 'valid';
+  };
+
+  const getInsuranceColor = (status: string) => {
+    switch (status) {
+      case 'expired': return 'text-red-600 font-semibold';
+      case 'warning': return 'text-orange-600 font-semibold';
+      case 'valid': return 'text-gray-600';
+      default: return 'text-gray-400';
+    }
+  };
+
+  let filteredAndSortedSubcontractors = subcontractors.filter(sub => {
     const matchesSearch = sub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          sub.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          sub.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'All Statuses' || sub.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  // Apply sorting
+  if (sortField) {
+    filteredAndSortedSubcontractors.sort((a, b) => {
+      let aValue: any = '';
+      let bValue: any = '';
+
+      switch (sortField) {
+        case 'company':
+          aValue = a.company || '';
+          bValue = b.company || '';
+          break;
+        case 'name':
+          aValue = a.name;
+          bValue = b.name;
+          break;
+        case 'specialty':
+          aValue = (a.specialties && a.specialties[0]) || '';
+          bValue = (b.specialties && b.specialties[0]) || '';
+          break;
+        case 'status':
+          aValue = a.status;
+          bValue = b.status;
+          break;
+        case 'insurance':
+          aValue = a.insuranceExpiry ? a.insuranceExpiry.getTime() : 0;
+          bValue = b.insuranceExpiry ? b.insuranceExpiry.getTime() : 0;
+          break;
+        case 'travelRadius':
+          aValue = a.travelRadius || 0;
+          bValue = b.travelRadius || 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
 
   return (
     <Layout title="Subcontractors" subtitle="Manage and track subcontractor information">
@@ -454,7 +531,7 @@ export default function Subcontractors() {
                 placeholder="Search subcontractors..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-64"
+                className="pl-10 w-80 pr-4 py-2"
               />
             </div>
 
@@ -480,7 +557,7 @@ export default function Subcontractors() {
           <CardContent className="p-0">
             {loading ? (
               <div className="text-center py-8">Loading subcontractors...</div>
-            ) : filteredSubcontractors.length === 0 ? (
+            ) : filteredAndSortedSubcontractors.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 No subcontractors found. Add your first subcontractor to get started.
               </div>
@@ -488,17 +565,67 @@ export default function Subcontractors() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Specialty</TableHead>
+                    <TableHead>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleSort('company')}
+                        className="font-semibold"
+                      >
+                        Company
+                        <ArrowUpDown className="w-3 h-3 ml-1" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleSort('specialty')}
+                        className="font-semibold"
+                      >
+                        Specialty
+                        <ArrowUpDown className="w-3 h-3 ml-1" />
+                      </Button>
+                    </TableHead>
                     <TableHead>Contact</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Travel Radius</TableHead>
-                    <TableHead>Insurance</TableHead>
+                    <TableHead>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleSort('status')}
+                        className="font-semibold"
+                      >
+                        Status
+                        <ArrowUpDown className="w-3 h-3 ml-1" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleSort('travelRadius')}
+                        className="font-semibold"
+                      >
+                        Travel Radius
+                        <ArrowUpDown className="w-3 h-3 ml-1" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleSort('insurance')}
+                        className="font-semibold"
+                      >
+                        Insurance
+                        <ArrowUpDown className="w-3 h-3 ml-1" />
+                      </Button>
+                    </TableHead>
                     <TableHead className="w-20">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredSubcontractors.map((subcontractor) => (
+                  {filteredAndSortedSubcontractors.map((subcontractor) => (
                     <TableRow key={subcontractor.id}>
                       <TableCell>
                         <div>
@@ -535,12 +662,12 @@ export default function Subcontractors() {
                       </TableCell>
                       <TableCell>
                         {subcontractor.insuranceExpiry ? (
-                          <div className="flex items-center text-sm">
+                          <div className={cn("flex items-center text-sm", getInsuranceColor(getInsuranceStatus(subcontractor.insuranceExpiry)))}>
                             <Calendar className="w-3 h-3 mr-1" />
                             {subcontractor.insuranceExpiry.toLocaleDateString()}
                           </div>
                         ) : (
-                          'Not set'
+                          <span className="text-gray-400">Not set</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -575,7 +702,7 @@ export default function Subcontractors() {
               </Table>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
-                {filteredSubcontractors.map((subcontractor) => (
+                {filteredAndSortedSubcontractors.map((subcontractor) => (
                   <Card key={subcontractor.id} className="hover:shadow-md transition-shadow">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
@@ -600,7 +727,7 @@ export default function Subcontractors() {
                       </div>
 
                       {subcontractor.insuranceExpiry && (
-                        <div className="text-xs text-gray-500">
+                        <div className={cn("text-xs", getInsuranceColor(getInsuranceStatus(subcontractor.insuranceExpiry)))}>
                           Insurance Expires: {subcontractor.insuranceExpiry.toLocaleDateString()}
                         </div>
                       )}

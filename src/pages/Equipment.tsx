@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { NewEquipmentDialog } from '@/components/equipment/NewEquipmentDialog';
@@ -12,7 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Search, Plus, Grid, List, MoreHorizontal, Wrench, Calendar, Eye, Edit, Trash2, PlusCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Search, Plus, Grid, List, MoreHorizontal, Wrench, Calendar, Eye, Edit, Trash2, PlusCircle, Upload, Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Equipment } from '@/types';
@@ -51,6 +53,9 @@ export default function EquipmentPage() {
   const [estimatorItems, setEstimatorItems] = useState<EstimatorItem[]>([]);
   const [showEstimator, setShowEstimator] = useState(false);
   const [showAllMaintenance, setShowAllMaintenance] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   useEffect(() => {
     fetchEquipment();
@@ -188,13 +193,72 @@ export default function EquipmentPage() {
   };
 
   const viewEquipment = (equipmentItem: Equipment) => {
-    console.log('Viewing equipment:', equipmentItem.name);
-    toast.info(`Viewing ${equipmentItem.name}`);
+    setEditingEquipment(equipmentItem);
+    setEditDialogOpen(true);
   };
 
   const editEquipment = (equipmentItem: Equipment) => {
-    console.log('Editing equipment:', equipmentItem.name);
-    toast.info(`Editing ${equipmentItem.name}`);
+    setEditingEquipment(equipmentItem);
+    setEditDialogOpen(true);
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      toast.success('Image selected for upload');
+    }
+  };
+
+  const saveEquipmentChanges = async () => {
+    if (!editingEquipment) return;
+
+    try {
+      let imageUrl = editingEquipment.image;
+
+      // Upload image if a new one was selected
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${editingEquipment.id}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('equipment-images')
+          .upload(fileName, imageFile, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('equipment-images')
+          .getPublicUrl(fileName);
+
+        imageUrl = publicUrl;
+      }
+
+      const { error } = await supabase
+        .from('equipment')
+        .update({
+          name: editingEquipment.name,
+          category: editingEquipment.category,
+          hourly_rate: editingEquipment.hourlyRate,
+          year: editingEquipment.year,
+          value: editingEquipment.value,
+          status: editingEquipment.status,
+          description: editingEquipment.description,
+          image: imageUrl
+        })
+        .eq('id', editingEquipment.id);
+
+      if (error) throw error;
+
+      toast.success('Equipment updated successfully');
+      setEditDialogOpen(false);
+      setEditingEquipment(null);
+      setImageFile(null);
+      fetchEquipment();
+    } catch (error) {
+      console.error('Error updating equipment:', error);
+      toast.error('Failed to update equipment');
+    }
   };
 
   const categories = ['Heavy Machinery', 'Vehicles', 'Trailers', 'Other'];
@@ -221,7 +285,7 @@ export default function EquipmentPage() {
                 placeholder="Search equipment..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 pr-4 py-2 w-full"
               />
             </div>
             <div className="flex gap-2">
@@ -488,8 +552,145 @@ export default function EquipmentPage() {
           onUpdateDuration={updateEstimatorDuration}
           onSaveEstimate={saveEstimate}
           onExportEstimate={exportEstimate}
+          onClose={() => setShowEstimator(false)}
         />
       )}
+
+      {/* Edit Equipment Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingEquipment ? `Edit ${editingEquipment.name}` : 'Equipment Details'}
+            </DialogTitle>
+          </DialogHeader>
+          {editingEquipment && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">Equipment Name</Label>
+                  <Input
+                    id="name"
+                    value={editingEquipment.name}
+                    onChange={(e) => setEditingEquipment({...editingEquipment, name: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="category">Category</Label>
+                  <Select 
+                    value={editingEquipment.category} 
+                    onValueChange={(value) => setEditingEquipment({...editingEquipment, category: value as Equipment['category']})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map(category => (
+                        <SelectItem key={category} value={category}>{category}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="hourlyRate">Hourly Rate ($)</Label>
+                  <Input
+                    id="hourlyRate"
+                    type="number"
+                    value={editingEquipment.hourlyRate}
+                    onChange={(e) => setEditingEquipment({...editingEquipment, hourlyRate: parseFloat(e.target.value) || 0})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="year">Year</Label>
+                  <Input
+                    id="year"
+                    type="number"
+                    value={editingEquipment.year}
+                    onChange={(e) => setEditingEquipment({...editingEquipment, year: parseInt(e.target.value) || new Date().getFullYear()})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="value">Value ($)</Label>
+                  <Input
+                    id="value"
+                    type="number"
+                    value={editingEquipment.value}
+                    onChange={(e) => setEditingEquipment({...editingEquipment, value: parseFloat(e.target.value) || 0})}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="status">Status</Label>
+                <Select 
+                  value={editingEquipment.status} 
+                  onValueChange={(value) => setEditingEquipment({...editingEquipment, status: value as Equipment['status']})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Available">Available</SelectItem>
+                    <SelectItem value="In Use">In Use</SelectItem>
+                    <SelectItem value="Maintenance">Maintenance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={editingEquipment.description}
+                  onChange={(e) => setEditingEquipment({...editingEquipment, description: e.target.value})}
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="image">Equipment Image</Label>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => document.getElementById('image')?.click()}
+                  >
+                    <Camera className="w-4 h-4 mr-2" />
+                    {imageFile ? 'Change Image' : 'Upload Image'}
+                  </Button>
+                  {imageFile && (
+                    <span className="text-sm text-green-600">{imageFile.name}</span>
+                  )}
+                </div>
+                {editingEquipment.image && (
+                  <div className="mt-2">
+                    <img src={editingEquipment.image} alt="Current" className="w-32 h-32 object-cover rounded" />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={saveEquipmentChanges}>
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <MaintenanceDialog
         open={showMaintenance}

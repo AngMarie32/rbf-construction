@@ -21,6 +21,7 @@ interface EquipmentEstimatorProps {
   onUpdateDuration: (equipmentId: string, duration: number, unit: 'hours' | 'days') => void;
   onSaveEstimate: () => void;
   onExportEstimate: () => void;
+  onClose: () => void;
 }
 
 export function EquipmentEstimator({ 
@@ -28,7 +29,8 @@ export function EquipmentEstimator({
   onRemoveEquipment, 
   onUpdateDuration, 
   onSaveEstimate, 
-  onExportEstimate 
+  onExportEstimate,
+  onClose
 }: EquipmentEstimatorProps) {
   const [sortBy, setSortBy] = useState<string>('name');
 
@@ -52,48 +54,77 @@ export function EquipmentEstimator({
     }
   });
 
+  const handleSaveEstimate = () => {
+    // Create a text version of the estimate
+    const estimateData = {
+      items: selectedEquipment,
+      totalCost,
+      createdAt: new Date().toISOString()
+    };
+    
+    // Save to localStorage for now (could be enhanced to save to database)
+    const savedEstimates = JSON.parse(localStorage.getItem('savedEstimates') || '[]');
+    savedEstimates.push({
+      id: Date.now().toString(),
+      name: `Estimate ${new Date().toLocaleDateString()}`,
+      data: estimateData
+    });
+    localStorage.setItem('savedEstimates', JSON.stringify(savedEstimates));
+    
+    toast.success('Estimate saved successfully');
+    onSaveEstimate();
+  };
+
+  const handleExportEstimate = () => {
+    // Create CSV content
+    let csvContent = "Equipment Name,Category,Duration,Unit,Hourly Rate,Total Cost\n";
+    selectedEquipment.forEach(item => {
+      csvContent += `"${item.equipment.name}","${item.equipment.category}",${item.duration},"${item.unit}",${item.equipment.hourlyRate},${calculateItemCost(item)}\n`;
+    });
+    csvContent += `\nTotal Cost:,,,,,${totalCost}`;
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `equipment-estimate-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    toast.success('Estimate exported successfully');
+    onExportEstimate();
+  };
+
   return (
-    <div className="fixed right-0 top-0 h-full w-96 bg-white border-l shadow-lg z-40 flex flex-col">
+    <div className="fixed right-0 top-0 h-full w-96 bg-white border-l shadow-lg z-50 flex flex-col">
       {/* Header */}
       <div className="p-4 border-b bg-gray-50">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Selected Equipment</h3>
-          <div className="flex items-center space-x-2">
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-32 h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Name (A-Z)</SelectItem>
-                <SelectItem value="cost">Cost</SelectItem>
-                <SelectItem value="category">Category</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <h3 className="text-lg font-semibold">Cost Estimator</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="h-8 w-8 p-0"
+          >
+            <X className="w-4 h-4" />
+          </Button>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Button size="sm" variant="outline" onClick={onSaveEstimate}>
-            <Save className="w-3 h-3 mr-1" />
-            Save
-          </Button>
-          <Button size="sm" variant="outline" onClick={onExportEstimate}>
-            <Download className="w-3 h-3 mr-1" />
-            Export
-          </Button>
-          <div className="flex items-center space-x-2 text-sm">
-            <span>Duration:</span>
-            <Input className="w-16 h-8" defaultValue="8" />
-            <Select defaultValue="hours">
-              <SelectTrigger className="w-16 h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="hours">Hours</SelectItem>
-                <SelectItem value="days">Days</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="flex items-center space-x-2 mb-2">
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-32 h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name">Name (A-Z)</SelectItem>
+              <SelectItem value="cost">Cost</SelectItem>
+              <SelectItem value="category">Category</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -102,7 +133,7 @@ export function EquipmentEstimator({
         {selectedEquipment.length === 0 ? (
           <div className="text-center py-12">
             <Truck className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">Drag and drop equipment here or use the Add button</p>
+            <p className="text-gray-500">Add equipment using the Add button</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -126,8 +157,29 @@ export function EquipmentEstimator({
                         {item.equipment.category}
                       </Badge>
                       <p className="text-xs text-gray-600 mb-2">
-                        {item.equipment.category} - ${item.equipment.hourlyRate}/hr
+                        ${item.equipment.hourlyRate}/hr
                       </p>
+                      <div className="flex items-center space-x-1 mb-2">
+                        <Input
+                          type="number"
+                          value={item.duration}
+                          onChange={(e) => onUpdateDuration(item.equipment.id, parseInt(e.target.value) || 0, item.unit)}
+                          className="w-16 h-6 text-xs"
+                          min="1"
+                        />
+                        <Select 
+                          value={item.unit} 
+                          onValueChange={(value: 'hours' | 'days') => onUpdateDuration(item.equipment.id, item.duration, value)}
+                        >
+                          <SelectTrigger className="w-16 h-6 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="hours">hrs</SelectItem>
+                            <SelectItem value="days">days</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div className="text-right">
                         <span className="text-sm font-semibold text-blue-600">
                           ${calculateItemCost(item).toLocaleString()}
@@ -161,16 +213,6 @@ export function EquipmentEstimator({
                     </div>
                   );
                 })}
-                <div className="border-t pt-2 mt-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Duration:</span>
-                    <span className="text-sm">8 hours</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Hourly Rate:</span>
-                    <span className="text-sm">${(totalCost / 8).toFixed(2)}/hr</span>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </div>
@@ -181,38 +223,14 @@ export function EquipmentEstimator({
               <span className="text-xl font-bold text-blue-600">${totalCost.toLocaleString()}</span>
             </div>
             <div className="flex space-x-2">
-              <Button onClick={onSaveEstimate} className="flex-1">
+              <Button onClick={handleSaveEstimate} className="flex-1">
                 <Save className="w-4 h-4 mr-2" />
-                Save Estimate
+                Save
               </Button>
-              <Button variant="outline" onClick={onExportEstimate}>
+              <Button variant="outline" onClick={handleExportEstimate}>
                 <Download className="w-4 h-4" />
               </Button>
             </div>
-          </div>
-
-          <div className="p-4 border-t">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Cost Breakdown</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-1">
-                  {Array.from(new Set(selectedEquipment.map(item => item.equipment.category))).map(category => {
-                    const categoryItems = selectedEquipment.filter(item => item.equipment.category === category);
-                    const categoryCost = categoryItems.reduce((sum, item) => sum + calculateItemCost(item), 0);
-                    const percentage = totalCost > 0 ? (categoryCost / totalCost) * 100 : 0;
-                    return (
-                      <div key={category} className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span className="text-xs text-gray-600 flex-1">{category}</span>
-                        <span className="text-xs font-medium">${categoryCost.toLocaleString()}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </>
       )}

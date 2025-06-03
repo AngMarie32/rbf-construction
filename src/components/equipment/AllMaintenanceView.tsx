@@ -3,12 +3,10 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Search, Filter, Wrench } from 'lucide-react';
-import { format } from 'date-fns';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Search, Download, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -16,10 +14,12 @@ interface MaintenanceRecord {
   id: string;
   equipment_id: string;
   equipment_name: string;
-  date: Date;
+  maintenance_type: string;
   description: string;
   cost: number;
-  nextDue: Date | null;
+  date: string;
+  status: 'Scheduled' | 'In Progress' | 'Completed';
+  technician: string;
 }
 
 interface AllMaintenanceViewProps {
@@ -28,54 +28,50 @@ interface AllMaintenanceViewProps {
 }
 
 export function AllMaintenanceView({ open, onOpenChange }: AllMaintenanceViewProps) {
-  const [records, setRecords] = useState<MaintenanceRecord[]>([]);
+  const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<MaintenanceRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [dateFilter, setDateFilter] = useState('');
+  const [endDateFilter, setEndDateFilter] = useState('');
 
   useEffect(() => {
     if (open) {
-      fetchAllMaintenanceRecords();
+      fetchMaintenanceRecords();
     }
   }, [open]);
 
   useEffect(() => {
     filterRecords();
-  }, [records, searchTerm, statusFilter, startDate, endDate]);
+  }, [maintenanceRecords, searchTerm, statusFilter, dateFilter, endDateFilter]);
 
-  const fetchAllMaintenanceRecords = async () => {
+  const fetchMaintenanceRecords = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const { data: maintenanceData, error: maintenanceError } = await supabase
-        .from('maintenance_logs')
-        .select('*')
+      const { data, error } = await supabase
+        .from('maintenance_records')
+        .select(`
+          *,
+          equipment:equipment_id (name)
+        `)
         .order('date', { ascending: false });
 
-      if (maintenanceError) throw maintenanceError;
+      if (error) throw error;
 
-      const { data: equipmentData, error: equipmentError } = await supabase
-        .from('equipment')
-        .select('id, name')
-        .order('name');
-
-      if (equipmentError) throw equipmentError;
-
-      const equipmentMap = new Map(equipmentData.map(eq => [eq.id, eq.name]));
-
-      const mappedRecords: MaintenanceRecord[] = (maintenanceData || []).map(record => ({
+      const mappedRecords = (data || []).map(record => ({
         id: record.id,
         equipment_id: record.equipment_id,
-        equipment_name: equipmentMap.get(record.equipment_id) || 'Unknown Equipment',
-        date: new Date(record.date),
+        equipment_name: record.equipment?.name || 'Unknown Equipment',
+        maintenance_type: record.maintenance_type,
         description: record.description,
-        cost: record.cost || 0,
-        nextDue: record.next_due ? new Date(record.next_due) : null
+        cost: record.cost,
+        date: record.date,
+        status: record.status,
+        technician: record.technician
       }));
 
-      setRecords(mappedRecords);
+      setMaintenanceRecords(mappedRecords);
     } catch (error) {
       console.error('Error fetching maintenance records:', error);
       toast.error('Failed to load maintenance records');
@@ -85,206 +81,169 @@ export function AllMaintenanceView({ open, onOpenChange }: AllMaintenanceViewPro
   };
 
   const filterRecords = () => {
-    let filtered = records;
+    let filtered = maintenanceRecords;
 
-    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(record =>
         record.equipment_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.maintenance_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.technician.toLowerCase().includes(searchTerm.toLowerCase()) ||
         record.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(record => {
-        if (statusFilter === 'completed') {
-          return !record.nextDue;
-        } else if (statusFilter === 'scheduled') {
-          return record.nextDue && record.nextDue > new Date();
-        } else if (statusFilter === 'overdue') {
-          return record.nextDue && record.nextDue <= new Date();
-        }
-        return true;
-      });
+    if (statusFilter !== 'All') {
+      filtered = filtered.filter(record => record.status === statusFilter);
     }
 
-    // Date range filter
-    if (startDate) {
-      filtered = filtered.filter(record => record.date >= new Date(startDate));
+    if (dateFilter) {
+      filtered = filtered.filter(record => new Date(record.date) >= new Date(dateFilter));
     }
-    if (endDate) {
-      filtered = filtered.filter(record => record.date <= new Date(endDate));
+
+    if (endDateFilter) {
+      filtered = filtered.filter(record => new Date(record.date) <= new Date(endDateFilter));
     }
 
     setFilteredRecords(filtered);
   };
 
-  const totalMaintenanceCost = filteredRecords.reduce((sum, record) => sum + record.cost, 0);
-  const upcomingMaintenance = filteredRecords.filter(record => 
-    record.nextDue && record.nextDue > new Date()
-  ).length;
-  const overdueMaintenance = filteredRecords.filter(record => 
-    record.nextDue && record.nextDue <= new Date()
-  ).length;
+  const exportRecords = () => {
+    let csvContent = "Equipment,Maintenance Type,Date,Status,Technician,Cost,Description\n";
+    filteredRecords.forEach(record => {
+      csvContent += `"${record.equipment_name}","${record.maintenance_type}","${record.date}","${record.status}","${record.technician}",${record.cost},"${record.description}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `maintenance-records-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    toast.success('Maintenance records exported successfully');
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Completed': return 'bg-green-500 text-white';
+      case 'In Progress': return 'bg-blue-500 text-white';
+      case 'Scheduled': return 'bg-orange-500 text-white';
+      default: return 'bg-gray-500 text-white';
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <Wrench className="w-5 h-5" />
-            <span>All Maintenance Records</span>
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl">All Maintenance Records</DialogTitle>
+            <Button onClick={exportRecords} variant="outline" size="sm">
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Total Records</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{filteredRecords.length}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">${totalMaintenanceCost.toLocaleString()}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">{upcomingMaintenance}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Overdue</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">{overdueMaintenance}</div>
-              </CardContent>
-            </Card>
-          </div>
-
+        <div className="flex flex-col space-y-4 flex-1 overflow-hidden">
           {/* Filters */}
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="relative flex-1 min-w-64">
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                placeholder="Search equipment or description..."
+                placeholder="Search equipment, type, technician..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 w-full"
               />
             </div>
+            
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-40">
-                <SelectValue placeholder="All Status" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="scheduled">Scheduled</SelectItem>
-                <SelectItem value="overdue">Overdue</SelectItem>
+                <SelectItem value="All">All Status</SelectItem>
+                <SelectItem value="Scheduled">Scheduled</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Completed">Completed</SelectItem>
               </SelectContent>
             </Select>
+
             <div className="flex items-center space-x-2">
+              <Calendar className="w-4 h-4 text-gray-500" />
               <Input
                 type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-40"
-                placeholder="Start Date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="w-36"
+                placeholder="From date"
               />
               <span className="text-gray-500">to</span>
               <Input
                 type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-40"
-                placeholder="End Date"
+                value={endDateFilter}
+                onChange={(e) => setEndDateFilter(e.target.value)}
+                className="w-36"
+                placeholder="To date"
               />
             </div>
-            <Button variant="outline" onClick={() => {
-              setSearchTerm('');
-              setStatusFilter('all');
-              setStartDate('');
-              setEndDate('');
-            }}>
-              <Filter className="w-4 h-4 mr-2" />
-              Clear Filters
-            </Button>
           </div>
 
-          {/* Records Table */}
-          <Card>
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="text-center py-8">Loading maintenance records...</div>
-              ) : filteredRecords.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No maintenance records found.
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Equipment</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Cost</TableHead>
-                      <TableHead>Next Due</TableHead>
-                      <TableHead>Status</TableHead>
+          <div className="text-sm text-gray-600">
+            Showing {filteredRecords.length} of {maintenanceRecords.length} records
+          </div>
+
+          {/* Table */}
+          <div className="flex-1 overflow-auto border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Equipment</TableHead>
+                  <TableHead>Maintenance Type</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Technician</TableHead>
+                  <TableHead>Cost</TableHead>
+                  <TableHead>Description</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      Loading maintenance records...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredRecords.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                      No maintenance records found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredRecords.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell className="font-medium">{record.equipment_name}</TableCell>
+                      <TableCell>{record.maintenance_type}</TableCell>
+                      <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(record.status)}>
+                          {record.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{record.technician}</TableCell>
+                      <TableCell>${record.cost?.toLocaleString() || '0'}</TableCell>
+                      <TableCell className="max-w-xs truncate">{record.description}</TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredRecords.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell className="font-medium">
-                          {record.equipment_name}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Calendar className="w-4 h-4 text-gray-400" />
-                            <span>{format(record.date, 'MMM dd, yyyy')}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="max-w-xs truncate" title={record.description}>
-                            {record.description}
-                          </div>
-                        </TableCell>
-                        <TableCell>${record.cost.toLocaleString()}</TableCell>
-                        <TableCell>
-                          {record.nextDue ? format(record.nextDue, 'MMM dd, yyyy') : 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          {record.nextDue ? (
-                            record.nextDue > new Date() ? (
-                              <Badge variant="secondary">Scheduled</Badge>
-                            ) : (
-                              <Badge variant="destructive">Overdue</Badge>
-                            )
-                          ) : (
-                            <Badge variant="outline">Completed</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
