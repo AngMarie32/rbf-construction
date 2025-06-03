@@ -1,40 +1,60 @@
-
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar"
+import { format } from 'date-fns';
+import { CalendarIcon } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface NewBillingDialogProps {
-  onBillingCreated: () => void;
+  onBillingCreated?: () => void;
+}
+
+interface FormData {
+  projectId: string;
+  billingPeriodStart: string;
+  billingPeriodEnd: string;
+  invoiceNumber: string;
+  billedAmount: string;
+  paidAmount: string;
+  status: string;
+  invoiceDate: string;
+  dueDate: string;
+  notes: string;
 }
 
 export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
-  const [formData, setFormData] = useState({
-    project_id: '',
-    billing_period_start: '',
-    billing_period_end: '',
-    billed_amount: '',
-    invoice_number: '',
-    invoice_date: '',
-    due_date: '',
+  const [formData, setFormData] = useState<FormData>({
+    projectId: '',
+    billingPeriodStart: '',
+    billingPeriodEnd: '',
+    invoiceNumber: '',
+    billedAmount: '',
+    paidAmount: '',
     status: 'Draft',
+    invoiceDate: '',
+    dueDate: '',
     notes: ''
   });
 
   useEffect(() => {
-    if (open) {
-      fetchProjects();
-    }
-  }, [open]);
+    fetchProjects();
+  }, []);
 
   const fetchProjects = async () => {
     try {
@@ -50,41 +70,64 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
     }
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prevData => ({
+      ...prevData,
+      [name]: value
+    }));
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData(prevData => ({
+      ...prevData,
+      [name]: value
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      const billingData = {
+        project_id: formData.projectId,
+        billing_period_start: formData.billingPeriodStart,
+        billing_period_end: formData.billingPeriodEnd,
+        invoice_number: formData.invoiceNumber || null,
+        billed_amount: parseFloat(formData.billedAmount),
+        paid_amount: parseFloat(formData.paidAmount),
+        status: formData.status,
+        invoice_date: formData.invoiceDate || null,
+        due_date: formData.dueDate || null,
+        notes: formData.notes || null
+      };
+
       const { error } = await supabase
         .from('project_billing')
-        .insert([{
-          project_id: formData.project_id,
-          billing_period_start: formData.billing_period_start,
-          billing_period_end: formData.billing_period_end,
-          billed_amount: parseFloat(formData.billed_amount) || 0,
-          invoice_number: formData.invoice_number || null,
-          invoice_date: formData.invoice_date || null,
-          due_date: formData.due_date || null,
-          status: formData.status,
-          notes: formData.notes || null
-        }]);
+        .insert([billingData]);
 
       if (error) throw error;
 
       toast.success('Billing record created successfully');
       setOpen(false);
       setFormData({
-        project_id: '',
-        billing_period_start: '',
-        billing_period_end: '',
-        billed_amount: '',
-        invoice_number: '',
-        invoice_date: '',
-        due_date: '',
+        projectId: '',
+        billingPeriodStart: '',
+        billingPeriodEnd: '',
+        invoiceNumber: '',
+        billedAmount: '',
+        paidAmount: '',
         status: 'Draft',
+        invoiceDate: '',
+        dueDate: '',
         notes: ''
       });
-      onBillingCreated();
+      
+      // Call the callback to refresh the billing list
+      if (onBillingCreated) {
+        onBillingCreated();
+      }
     } catch (error) {
       console.error('Error creating billing record:', error);
       toast.error('Failed to create billing record');
@@ -96,140 +139,259 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          New Billing
-        </Button>
+        <Button variant="outline">Add Billing</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create New Billing Record</DialogTitle>
+          <DialogTitle>Add New Billing Record</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="project">Project *</Label>
-              <Select value={formData.project_id} onValueChange={(value) => setFormData({...formData, project_id: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select project" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({...formData, status: value})}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Draft">Draft</SelectItem>
-                  <SelectItem value="Sent">Sent</SelectItem>
-                  <SelectItem value="Paid">Paid</SelectItem>
-                  <SelectItem value="Overdue">Overdue</SelectItem>
-                  <SelectItem value="Cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="projectId" className="text-right">
+              Project
+            </Label>
+            <Select
+              value={formData.projectId}
+              onValueChange={(value) => handleSelectChange('projectId', value)}
+            >
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Select a project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="billing_period_start">Billing Period Start *</Label>
-              <Input
-                id="billing_period_start"
-                type="date"
-                value={formData.billing_period_start}
-                onChange={(e) => setFormData({...formData, billing_period_start: e.target.value})}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="billing_period_end">Billing Period End *</Label>
-              <Input
-                id="billing_period_end"
-                type="date"
-                value={formData.billing_period_end}
-                onChange={(e) => setFormData({...formData, billing_period_end: e.target.value})}
-                required
-              />
-            </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="billingPeriodStart" className="text-right">
+              Billing Period Start
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-[240px] justify-start text-left font-normal",
+                    !formData.billingPeriodStart && "text-muted-foreground"
+                  )}
+                >
+                  {formData.billingPeriodStart ? (
+                    format(new Date(formData.billingPeriodStart), "MMM dd, yyyy")
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
+                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={formData.billingPeriodStart ? new Date(formData.billingPeriodStart) : undefined}
+                  onSelect={(date) => setFormData({
+                    ...formData,
+                    billingPeriodStart: date ? format(date, 'yyyy-MM-dd') : ''
+                  })}
+                  disabled={(date) =>
+                    date > new Date()
+                  }
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="billed_amount">Billed Amount *</Label>
-              <Input
-                id="billed_amount"
-                type="number"
-                step="0.01"
-                value={formData.billed_amount}
-                onChange={(e) => setFormData({...formData, billed_amount: e.target.value})}
-                placeholder="0.00"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="invoice_number">Invoice Number</Label>
-              <Input
-                id="invoice_number"
-                value={formData.invoice_number}
-                onChange={(e) => setFormData({...formData, invoice_number: e.target.value})}
-                placeholder="INV-001"
-              />
-            </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="billingPeriodEnd" className="text-right">
+              Billing Period End
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-[240px] justify-start text-left font-normal",
+                    !formData.billingPeriodEnd && "text-muted-foreground"
+                  )}
+                >
+                  {formData.billingPeriodEnd ? (
+                    format(new Date(formData.billingPeriodEnd), "MMM dd, yyyy")
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
+                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={formData.billingPeriodEnd ? new Date(formData.billingPeriodEnd) : undefined}
+                  onSelect={(date) => setFormData({
+                    ...formData,
+                    billingPeriodEnd: date ? format(date, 'yyyy-MM-dd') : ''
+                  })}
+                  disabled={(date) =>
+                    date > new Date()
+                  }
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="invoice_date">Invoice Date</Label>
-              <Input
-                id="invoice_date"
-                type="date"
-                value={formData.invoice_date}
-                onChange={(e) => setFormData({...formData, invoice_date: e.target.value})}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="due_date">Due Date</Label>
-              <Input
-                id="due_date"
-                type="date"
-                value={formData.due_date}
-                onChange={(e) => setFormData({...formData, due_date: e.target.value})}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => setFormData({...formData, notes: e.target.value})}
-              placeholder="Additional notes or comments..."
-              rows={3}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="invoiceNumber" className="text-right">
+              Invoice Number
+            </Label>
+            <Input
+              type="text"
+              name="invoiceNumber"
+              id="invoiceNumber"
+              value={formData.invoiceNumber}
+              onChange={handleInputChange}
+              className="col-span-3"
             />
           </div>
-
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Creating...' : 'Create Billing'}
-            </Button>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="billedAmount" className="text-right">
+              Billed Amount
+            </Label>
+            <Input
+              type="number"
+              name="billedAmount"
+              id="billedAmount"
+              value={formData.billedAmount}
+              onChange={handleInputChange}
+              className="col-span-3"
+              placeholder="0.00"
+            />
           </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="paidAmount" className="text-right">
+              Paid Amount
+            </Label>
+            <Input
+              type="number"
+              name="paidAmount"
+              id="paidAmount"
+              value={formData.paidAmount}
+              onChange={handleInputChange}
+              className="col-span-3"
+              placeholder="0.00"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="status" className="text-right">
+              Status
+            </Label>
+            <Select
+              value={formData.status}
+              onValueChange={(value) => handleSelectChange('status', value)}
+            >
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Draft">Draft</SelectItem>
+                <SelectItem value="Sent">Sent</SelectItem>
+                <SelectItem value="Paid">Paid</SelectItem>
+                <SelectItem value="Overdue">Overdue</SelectItem>
+                <SelectItem value="Cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="invoiceDate" className="text-right">
+              Invoice Date
+            </Label>
+             <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-[240px] justify-start text-left font-normal",
+                    !formData.invoiceDate && "text-muted-foreground"
+                  )}
+                >
+                  {formData.invoiceDate ? (
+                    format(new Date(formData.invoiceDate), "MMM dd, yyyy")
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
+                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={formData.invoiceDate ? new Date(formData.invoiceDate) : undefined}
+                  onSelect={(date) => setFormData({
+                    ...formData,
+                    invoiceDate: date ? format(date, 'yyyy-MM-dd') : ''
+                  })}
+                  disabled={(date) =>
+                    date > new Date()
+                  }
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+           <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="dueDate" className="text-right">
+              Due Date
+            </Label>
+             <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-[240px] justify-start text-left font-normal",
+                    !formData.dueDate && "text-muted-foreground"
+                  )}
+                >
+                  {formData.dueDate ? (
+                    format(new Date(formData.dueDate), "MMM dd, yyyy")
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
+                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={formData.dueDate ? new Date(formData.dueDate) : undefined}
+                  onSelect={(date) => setFormData({
+                    ...formData,
+                    dueDate: date ? format(date, 'yyyy-MM-dd') : ''
+                  })}
+                  disabled={(date) =>
+                    date > new Date()
+                  }
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="grid grid-cols-4 items-start gap-4">
+            <Label htmlFor="notes" className="text-right mt-2">
+              Notes
+            </Label>
+            <Input
+              as="textarea"
+              name="notes"
+              id="notes"
+              value={formData.notes}
+              onChange={handleInputChange}
+              className="col-span-3"
+              placeholder="Billing notes"
+            />
+          </div>
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Creating...' : 'Create Billing'}
+          </Button>
         </form>
       </DialogContent>
     </Dialog>

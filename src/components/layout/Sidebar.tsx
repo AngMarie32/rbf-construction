@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -14,31 +15,49 @@ import {
   Users, 
   Wrench,
   FileCheck,
-  Settings,
   ChevronLeft,
   ChevronRight,
   LogOut,
   Clock,
   Edit,
   Receipt,
-  Package
+  Package,
+  CreditCard,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Projects', href: '/projects', icon: Calendar },
-  { name: 'Proposals', href: '/proposals', icon: FileText },
-  { name: 'Bid Planner', href: '/bid-planner', icon: Calculator },
-  { name: 'Schedule of Values', href: '/sov', icon: List },
-  { name: 'Payment Apps', href: '/payment-apps', icon: DollarSign },
-  { name: 'Analytics', href: '/analytics', icon: TrendingUp },
-  { name: 'Equipment', href: '/equipment', icon: Wrench },
-  { name: 'Project Schedule', href: '/schedule', icon: Clock },
-  { name: 'Change Orders', href: '/change-orders', icon: Edit },
-  { name: 'Expenses', href: '/expenses', icon: Receipt },
-  { name: 'Bid Packages', href: '/bid-packages', icon: Package },
-  { name: 'Subcontractors', href: '/subcontractors', icon: Users },
-  { name: 'Documents', href: '/documents', icon: FileCheck },
+const menuSections = [
+  {
+    title: 'Company Dashboards',
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: Home },
+      { name: 'Analytics', href: '/analytics', icon: TrendingUp },
+    ]
+  },
+  {
+    title: 'Tools',
+    items: [
+      { name: 'Bid Planner', href: '/bid-planner', icon: Calculator },
+      { name: 'Equipment', href: '/equipment', icon: Wrench },
+      { name: 'Subcontractors', href: '/subcontractors', icon: Users },
+      { name: 'Documents', href: '/documents', icon: FileCheck },
+    ]
+  },
+  {
+    title: 'Project Management',
+    items: [
+      { name: 'Projects', href: '/projects', icon: Calendar },
+      { name: 'Project Schedule', href: '/schedule', icon: Clock },
+      { name: 'Proposals', href: '/proposals', icon: FileText },
+      { name: 'Schedule of Values', href: '/sov', icon: List },
+      { name: 'Payment Apps', href: '/payment-apps', icon: DollarSign },
+      { name: 'Project Billing', href: '/project-billing', icon: CreditCard },
+      { name: 'Change Orders', href: '/change-orders', icon: Edit },
+      { name: 'Expenses', href: '/expenses', icon: Receipt },
+      { name: 'Bid Packages', href: '/bid-packages', icon: Package },
+    ]
+  }
 ];
 
 interface SidebarProps {
@@ -47,8 +66,17 @@ interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['Company Dashboards', 'Tools', 'Project Management']);
   const location = useLocation();
   const { user, signOut } = useAuth();
+
+  const toggleSection = (sectionTitle: string) => {
+    setExpandedSections(prev => 
+      prev.includes(sectionTitle) 
+        ? prev.filter(s => s !== sectionTitle)
+        : [...prev, sectionTitle]
+    );
+  };
 
   return (
     <div className={cn(
@@ -81,29 +109,51 @@ export function Sidebar({ className }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-        {navigation.map((item) => {
-          const isActive = location.pathname === item.href;
-          return (
-            <Link
-              key={item.name}
-              to={item.href}
-              className={cn(
-                "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors group",
-                isActive
-                  ? "bg-primary text-white"
-                  : "text-gray-700 hover:bg-gray-100",
-                collapsed && "justify-center"
-              )}
-            >
-              <item.icon className={cn(
-                "w-5 h-5 flex-shrink-0",
-                !collapsed && "mr-3"
-              )} />
-              {!collapsed && <span>{item.name}</span>}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 p-2 space-y-2 overflow-y-auto">
+        {menuSections.map((section) => (
+          <div key={section.title} className="space-y-1">
+            {!collapsed && (
+              <button
+                onClick={() => toggleSection(section.title)}
+                className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-700 transition-colors"
+              >
+                <span>{section.title}</span>
+                {expandedSections.includes(section.title) ? (
+                  <ChevronUp className="w-3 h-3" />
+                ) : (
+                  <ChevronDown className="w-3 h-3" />
+                )}
+              </button>
+            )}
+            
+            {(collapsed || expandedSections.includes(section.title)) && (
+              <div className="space-y-1">
+                {section.items.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={cn(
+                        "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors group",
+                        isActive
+                          ? "bg-primary text-white"
+                          : "text-gray-700 hover:bg-gray-100",
+                        collapsed && "justify-center"
+                      )}
+                    >
+                      <item.icon className={cn(
+                        "w-5 h-5 flex-shrink-0",
+                        !collapsed && "mr-3"
+                      )} />
+                      {!collapsed && <span>{item.name}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
       </nav>
 
       {/* User Section */}
