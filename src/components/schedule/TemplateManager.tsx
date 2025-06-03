@@ -79,8 +79,19 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
       if (itemsError) throw itemsError;
 
       const templatesWithItems = (templatesData || []).map(template => ({
-        ...template,
-        items: (itemsData || []).filter(item => item.template_id === template.id)
+        id: template.id,
+        name: template.name,
+        description: template.description,
+        isDefault: template.is_default, // Map snake_case to camelCase
+        items: (itemsData || []).filter(item => item.template_id === template.id).map(item => ({
+          id: item.id,
+          description: item.description,
+          category: item.category,
+          subcategory: item.subcategory,
+          unit: item.unit,
+          unitCost: item.unit_cost, // Map snake_case to camelCase
+          templateId: item.template_id // Map snake_case to camelCase
+        }))
       }));
 
       setTemplates(templatesWithItems);
