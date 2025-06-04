@@ -252,66 +252,71 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
   const totals = calculateTotals();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 print:space-y-4">
       {/* G702 Header */}
-      <Card>
-        <CardHeader>
-          <CardTitle>G702 - Application and Certificate for Payment</CardTitle>
+      <Card className="print:shadow-none print:border-0">
+        <CardHeader className="print:pb-2">
+          <CardTitle className="print:text-lg">G702 - Application and Certificate for Payment</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="space-y-4 print:space-y-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-2 print:gap-2">
             <div>
-              <Label htmlFor="applicationNumber">Application Number</Label>
+              <Label htmlFor="applicationNumber" className="print:text-sm">Application Number</Label>
               <Input
                 id="applicationNumber"
                 type="number"
                 value={formData.applicationNumber}
                 onChange={(e) => setFormData({ ...formData, applicationNumber: parseInt(e.target.value) || 1 })}
+                className="print:text-sm print:border print:border-gray-400"
               />
             </div>
             <div>
-              <Label htmlFor="periodTo">Period To</Label>
+              <Label htmlFor="periodTo" className="print:text-sm">Period To</Label>
               <Input
                 id="periodTo"
                 type="date"
                 value={formData.periodTo}
                 onChange={(e) => setFormData({ ...formData, periodTo: e.target.value })}
+                className="print:text-sm print:border print:border-gray-400"
               />
             </div>
             <div>
-              <Label htmlFor="contractorName">Contractor</Label>
+              <Label htmlFor="contractorName" className="print:text-sm">Contractor</Label>
               <Input
                 id="contractorName"
                 value={formData.contractorName}
                 onChange={(e) => setFormData({ ...formData, contractorName: e.target.value })}
                 placeholder="Enter contractor name"
+                className="print:text-sm print:border print:border-gray-400"
               />
             </div>
             <div>
-              <Label htmlFor="contractorAddress">Contractor Address</Label>
+              <Label htmlFor="contractorAddress" className="print:text-sm">Contractor Address</Label>
               <Input
                 id="contractorAddress"
                 value={formData.contractorAddress}
                 onChange={(e) => setFormData({ ...formData, contractorAddress: e.target.value })}
                 placeholder="Enter contractor address"
+                className="print:text-sm print:border print:border-gray-400"
               />
             </div>
             <div>
-              <Label htmlFor="projectName">Project</Label>
+              <Label htmlFor="projectName" className="print:text-sm">Project</Label>
               <Input
                 id="projectName"
                 value={`${project.name} - ${project.client}`}
                 readOnly
-                className="bg-gray-100"
+                className="bg-gray-100 print:text-sm print:border print:border-gray-400"
               />
             </div>
             <div>
-              <Label htmlFor="projectNumber">Project Number</Label>
+              <Label htmlFor="projectNumber" className="print:text-sm">Project Number</Label>
               <Input
                 id="projectNumber"
                 value={formData.projectNumber}
                 onChange={(e) => setFormData({ ...formData, projectNumber: e.target.value })}
                 placeholder={project.projectCode || "Enter project number"}
+                className="print:text-sm print:border print:border-gray-400"
               />
             </div>
           </div>
@@ -319,48 +324,48 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
       </Card>
 
       {/* Contract Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Contract Summary</CardTitle>
+      <Card className="print:shadow-none print:border-0">
+        <CardHeader className="print:pb-2">
+          <CardTitle className="print:text-lg">Contract Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <div className="flex justify-between">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4">
+            <div className="space-y-3 print:space-y-2">
+              <div className="flex justify-between print:text-sm">
                 <span>1. Original Contract Sum:</span>
                 <span className="font-medium">${totals.originalContractSum.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between print:text-sm">
                 <span>2. Net Change by Change Orders:</span>
                 <span className="font-medium">${totals.netChangeOrders.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between border-t pt-2">
+              <div className="flex justify-between border-t pt-2 print:text-sm print:border-black">
                 <span className="font-semibold">3. Contract Sum to Date:</span>
                 <span className="font-semibold">${totals.contractSumToDate.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between print:text-sm">
                 <span>4. Total Completed and Stored to Date:</span>
                 <span className="font-medium">${totals.totalCompletedAndStored.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between print:text-sm">
                 <span>5. Retainage ({formData.retainagePercentage}%):</span>
                 <span className="font-medium">${totals.totalRetainage.toLocaleString()}</span>
               </div>
             </div>
-            <div className="space-y-3">
-              <div className="flex justify-between">
+            <div className="space-y-3 print:space-y-2">
+              <div className="flex justify-between print:text-sm">
                 <span>6. Total Earned Less Retainage:</span>
                 <span className="font-medium">${totals.totalEarnedLessRetainage.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between print:text-sm">
                 <span>7. Less Previous Certificates:</span>
                 <span className="font-medium">${totals.lessPreviousPayments.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between border-t pt-2">
+              <div className="flex justify-between border-t pt-2 print:text-sm print:border-black">
                 <span className="font-semibold">8. Current Payment Due:</span>
-                <span className="font-semibold text-green-600">${totals.currentPaymentDue.toLocaleString()}</span>
+                <span className="font-semibold text-green-600 print:text-black">${totals.currentPaymentDue.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between print:text-sm">
                 <span>9. Balance to Finish:</span>
                 <span className="font-medium">${totals.balanceToFinish.toLocaleString()}</span>
               </div>
@@ -370,25 +375,25 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
       </Card>
 
       {/* G703 - Schedule of Values */}
-      <Card>
-        <CardHeader>
-          <CardTitle>G703 - Continuation Sheet (Schedule of Values)</CardTitle>
+      <Card className="print:shadow-none print:border-0">
+        <CardHeader className="print:pb-2">
+          <CardTitle className="print:text-lg">G703 - Continuation Sheet (Schedule of Values)</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
+          <div className="overflow-x-auto print:overflow-visible">
+            <Table className="print:border print:border-black">
               <TableHeader>
-                <TableRow>
-                  <TableHead>Item No.</TableHead>
-                  <TableHead>Description of Work</TableHead>
-                  <TableHead>Scheduled Value</TableHead>
-                  <TableHead>Work Completed From Previous Application</TableHead>
-                  <TableHead>Work Completed This Period</TableHead>
-                  <TableHead>Materials Presently Stored</TableHead>
-                  <TableHead>Total Completed and Stored to Date</TableHead>
-                  <TableHead>% Complete</TableHead>
-                  <TableHead>Balance to Finish</TableHead>
-                  <TableHead>Retainage</TableHead>
+                <TableRow className="print:border-b print:border-black">
+                  <TableHead className="print:border print:border-black print:text-xs print:font-bold print:text-black">Item No.</TableHead>
+                  <TableHead className="print:border print:border-black print:text-xs print:font-bold print:text-black">Description of Work</TableHead>
+                  <TableHead className="print:border print:border-black print:text-xs print:font-bold print:text-black">Scheduled Value</TableHead>
+                  <TableHead className="print:border print:border-black print:text-xs print:font-bold print:text-black">Work Completed From Previous Application</TableHead>
+                  <TableHead className="print:border print:border-black print:text-xs print:font-bold print:text-black">Work Completed This Period</TableHead>
+                  <TableHead className="print:border print:border-black print:text-xs print:font-bold print:text-black">Materials Presently Stored</TableHead>
+                  <TableHead className="print:border print:border-black print:text-xs print:font-bold print:text-black">Total Completed and Stored to Date</TableHead>
+                  <TableHead className="print:border print:border-black print:text-xs print:font-bold print:text-black">% Complete</TableHead>
+                  <TableHead className="print:border print:border-black print:text-xs print:font-bold print:text-black">Balance to Finish</TableHead>
+                  <TableHead className="print:border print:border-black print:text-xs print:font-bold print:text-black">Retainage</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -397,51 +402,53 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
                   const balanceToFinish = item.scheduledValue - item.totalCompletedAndStored;
                   
                   return (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.itemNumber}</TableCell>
-                      <TableCell>
+                    <TableRow key={item.id} className="print:border-b print:border-black">
+                      <TableCell className="font-medium print:border print:border-black print:text-xs">{item.itemNumber}</TableCell>
+                      <TableCell className="print:border print:border-black print:text-xs">
                         <div>
                           <div className="font-medium">{item.description}</div>
-                          <div className="text-sm text-gray-500">{item.category}</div>
+                          <div className="text-sm text-gray-500 print:text-black">{item.category}</div>
                         </div>
                       </TableCell>
-                      <TableCell>${item.scheduledValue.toLocaleString()}</TableCell>
-                      <TableCell>${item.previousApplications.toLocaleString()}</TableCell>
-                      <TableCell>
+                      <TableCell className="print:border print:border-black print:text-xs">${item.scheduledValue.toLocaleString()}</TableCell>
+                      <TableCell className="print:border print:border-black print:text-xs">${item.previousApplications.toLocaleString()}</TableCell>
+                      <TableCell className="print:border print:border-black print:text-xs">
                         <Input
                           type="number"
                           step="0.01"
                           value={item.thisPeriod}
                           onChange={(e) => updateSOVItem(item.id, 'this_period', parseFloat(e.target.value) || 0)}
-                          className="w-24"
+                          className="w-24 print:hidden"
                         />
+                        <span className="hidden print:inline">${item.thisPeriod.toLocaleString()}</span>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="print:border print:border-black print:text-xs">
                         <Input
                           type="number"
                           step="0.01"
                           value={item.materialsStored}
                           onChange={(e) => updateSOVItem(item.id, 'materials_stored', parseFloat(e.target.value) || 0)}
-                          className="w-24"
+                          className="w-24 print:hidden"
                         />
+                        <span className="hidden print:inline">${item.materialsStored.toLocaleString()}</span>
                       </TableCell>
-                      <TableCell className="font-medium">${item.totalCompletedAndStored.toLocaleString()}</TableCell>
-                      <TableCell>{item.percentComplete.toFixed(1)}%</TableCell>
-                      <TableCell>${balanceToFinish.toLocaleString()}</TableCell>
-                      <TableCell>${retainage.toLocaleString()}</TableCell>
+                      <TableCell className="font-medium print:border print:border-black print:text-xs">${item.totalCompletedAndStored.toLocaleString()}</TableCell>
+                      <TableCell className="print:border print:border-black print:text-xs">{item.percentComplete.toFixed(1)}%</TableCell>
+                      <TableCell className="print:border print:border-black print:text-xs">${balanceToFinish.toLocaleString()}</TableCell>
+                      <TableCell className="print:border print:border-black print:text-xs">${retainage.toLocaleString()}</TableCell>
                     </TableRow>
                   );
                 })}
-                <TableRow className="font-semibold bg-gray-50">
-                  <TableCell colSpan={2}>TOTALS</TableCell>
-                  <TableCell>${sovItems.reduce((sum, item) => sum + item.scheduledValue, 0).toLocaleString()}</TableCell>
-                  <TableCell>${sovItems.reduce((sum, item) => sum + item.previousApplications, 0).toLocaleString()}</TableCell>
-                  <TableCell>${sovItems.reduce((sum, item) => sum + item.thisPeriod, 0).toLocaleString()}</TableCell>
-                  <TableCell>${sovItems.reduce((sum, item) => sum + item.materialsStored, 0).toLocaleString()}</TableCell>
-                  <TableCell>${totals.totalCompletedAndStored.toLocaleString()}</TableCell>
-                  <TableCell>-</TableCell>
-                  <TableCell>${totals.balanceToFinish.toLocaleString()}</TableCell>
-                  <TableCell>${totals.totalRetainage.toLocaleString()}</TableCell>
+                <TableRow className="font-semibold bg-gray-50 print:bg-white print:border-b print:border-black">
+                  <TableCell colSpan={2} className="print:border print:border-black print:text-xs print:font-bold">TOTALS</TableCell>
+                  <TableCell className="print:border print:border-black print:text-xs print:font-bold">${sovItems.reduce((sum, item) => sum + item.scheduledValue, 0).toLocaleString()}</TableCell>
+                  <TableCell className="print:border print:border-black print:text-xs print:font-bold">${sovItems.reduce((sum, item) => sum + item.previousApplications, 0).toLocaleString()}</TableCell>
+                  <TableCell className="print:border print:border-black print:text-xs print:font-bold">${sovItems.reduce((sum, item) => sum + item.thisPeriod, 0).toLocaleString()}</TableCell>
+                  <TableCell className="print:border print:border-black print:text-xs print:font-bold">${sovItems.reduce((sum, item) => sum + item.materialsStored, 0).toLocaleString()}</TableCell>
+                  <TableCell className="print:border print:border-black print:text-xs print:font-bold">${totals.totalCompletedAndStored.toLocaleString()}</TableCell>
+                  <TableCell className="print:border print:border-black print:text-xs print:font-bold">-</TableCell>
+                  <TableCell className="print:border print:border-black print:text-xs print:font-bold">${totals.balanceToFinish.toLocaleString()}</TableCell>
+                  <TableCell className="print:border print:border-black print:text-xs print:font-bold">${totals.totalRetainage.toLocaleString()}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -449,9 +456,8 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
         </CardContent>
       </Card>
 
-      {/* Action Buttons */}
-      <div className="flex gap-4 justify-end">
-        <Button variant="outline">Print/Export PDF</Button>
+      {/* Action Buttons - Hidden when printing */}
+      <div className="flex gap-4 justify-end print:hidden">
         <Button onClick={saveG702Application} disabled={loading}>
           {loading ? 'Saving...' : 'Save Application'}
         </Button>

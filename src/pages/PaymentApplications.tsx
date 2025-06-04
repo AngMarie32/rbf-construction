@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,12 +9,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { G702Dialog } from '@/components/forms/G702Dialog';
+import { exportToPDF } from '@/utils/pdfExport';
 
 export default function PaymentApplications() {
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [paymentApps, setPaymentApps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [g702DialogOpen, setG702DialogOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -63,8 +65,73 @@ export default function PaymentApplications() {
     }
   };
 
-  const totalApplicationValue = paymentApps.reduce((sum, app) => sum + (app.current_payment_due || 0), 0);
-  const latestApplication = paymentApps[0];
+  const handleNewApplication = () => {
+    if (!selectedProject) {
+      toast.error('Please select a project first');
+      return;
+    }
+    setG702DialogOpen(true);
+  };
+
+  const handleCreateFirstApplication = () => {
+    if (!selectedProject) {
+      toast.error('Please select a project first');
+      return;
+    }
+    setG702DialogOpen(true);
+  };
+
+  const handleExportG702G703 = async () => {
+    if (!selectedProject) {
+      toast.error('Please select a project first');
+      return;
+    }
+    
+    if (paymentApps.length === 0) {
+      toast.error('No payment applications found to export');
+      return;
+    }
+    
+    setG702DialogOpen(true);
+  };
+
+  const handleViewApplication = (appId: string) => {
+    // For now, we'll open the G702 dialog in view mode
+    setG702DialogOpen(true);
+  };
+
+  const handleExportApplication = async (app: any) => {
+    try {
+      // Create a temporary element with the application data for export
+      const tempDiv = document.createElement('div');
+      tempDiv.id = 'temp-export';
+      tempDiv.innerHTML = `
+        <div style="padding: 20px; font-family: Arial, sans-serif;">
+          <h1>Payment Application #${app.application_number}</h1>
+          <p><strong>Period Ending:</strong> ${format(new Date(app.period_end_date), 'MMM dd, yyyy')}</p>
+          <p><strong>Contract Sum:</strong> $${(app.contract_sum_to_date || 0).toLocaleString()}</p>
+          <p><strong>Work Completed:</strong> $${(app.total_completed_and_stored || 0).toLocaleString()}</p>
+          <p><strong>Less Retainage:</strong> $${(app.retainage || 0).toLocaleString()}</p>
+          <p><strong>Payment Due:</strong> $${(app.current_payment_due || 0).toLocaleString()}</p>
+        </div>
+      `;
+      tempDiv.style.display = 'none';
+      document.body.appendChild(tempDiv);
+      
+      await exportToPDF('temp-export', `payment-application-${app.application_number}.pdf`);
+      document.body.removeChild(tempDiv);
+      
+      toast.success('Payment application exported successfully');
+    } catch (error) {
+      console.error('Error exporting application:', error);
+      toast.error('Failed to export payment application');
+    }
+  };
+
+  const handleApplicationSaved = () => {
+    fetchPaymentApplications();
+    toast.success('Payment application saved successfully');
+  };
 
   if (loading) {
     return (
@@ -75,6 +142,9 @@ export default function PaymentApplications() {
       </Layout>
     );
   }
+
+  const totalApplicationValue = paymentApps.reduce((sum, app) => sum + (app.current_payment_due || 0), 0);
+  const latestApplication = paymentApps[0];
 
   return (
     <Layout title="Payment Applications" subtitle="Manage G702/G703 payment applications">
@@ -154,11 +224,11 @@ export default function PaymentApplications() {
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Payment Applications</h3>
               <div className="flex gap-2">
-                <Button>
+                <Button onClick={handleNewApplication}>
                   <Plus className="w-4 h-4 mr-2" />
                   New Application
                 </Button>
-                <Button variant="outline">
+                <Button variant="outline" onClick={handleExportG702G703}>
                   <Download className="w-4 h-4 mr-2" />
                   Export G702/G703
                 </Button>
@@ -199,11 +269,11 @@ export default function PaymentApplications() {
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => handleViewApplication(app.id)}>
                             <FileText className="w-4 h-4 mr-1" />
                             View
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => handleExportApplication(app)}>
                             <Download className="w-4 h-4 mr-1" />
                             Export
                           </Button>
@@ -215,7 +285,7 @@ export default function PaymentApplications() {
                   <div className="text-center py-8">
                     <p className="text-gray-500 text-lg">No payment applications found for this project.</p>
                     <p className="text-gray-400 mt-2">Create your first payment application to get started.</p>
-                    <Button className="mt-4">
+                    <Button className="mt-4" onClick={handleCreateFirstApplication}>
                       <Plus className="w-4 h-4 mr-2" />
                       Create First Application
                     </Button>
@@ -245,6 +315,14 @@ export default function PaymentApplications() {
             </CardContent>
           </Card>
         )}
+
+        {/* G702/G703 Form Dialog */}
+        <G702Dialog
+          open={g702DialogOpen}
+          onOpenChange={setG702DialogOpen}
+          projectId={selectedProject}
+          onSave={handleApplicationSaved}
+        />
       </div>
     </Layout>
   );
