@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,6 +24,7 @@ import Subcontractors from "./pages/Subcontractors";
 import Documents from "./pages/Documents";
 import NotFound from "./pages/NotFound";
 import ProjectBilling from "./pages/ProjectBilling";
+import BurnRateAnalysis from "./pages/BurnRateAnalysis";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +75,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <BidPlanner />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/burn-analysis"
+              element={
+                <ProtectedRoute>
+                  <BurnRateAnalysis />
                 </ProtectedRoute>
               }
             />

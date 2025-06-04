@@ -24,7 +24,8 @@ import {
   Package,
   CreditCard,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  BarChart3
 } from 'lucide-react';
 
 const menuSections = [
@@ -39,6 +40,7 @@ const menuSections = [
     title: 'Tools',
     items: [
       { name: 'Bid Planner', href: '/bid-planner', icon: Calculator },
+      { name: 'Burn Analysis', href: '/burn-analysis', icon: BarChart3 },
       { name: 'Equipment', href: '/equipment', icon: Wrench },
       { name: 'Subcontractors', href: '/subcontractors', icon: Users },
       { name: 'Documents', href: '/documents', icon: FileCheck },
