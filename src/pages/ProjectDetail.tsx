@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -59,7 +58,7 @@ export default function ProjectDetail() {
         address: data.address || '',
         projectCode: data.project_code || '',
         client: data.client || '',
-        description: data.description || '',
+        description: '', // Default to empty string since description doesn't exist in database
         createdAt: new Date(data.created_at),
         updatedAt: new Date(data.updated_at)
       };
