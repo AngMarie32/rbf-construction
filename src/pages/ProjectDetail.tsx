@@ -5,7 +5,8 @@ import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, BarChart3 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Edit, BarChart3, Plus, FileText, DollarSign, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -19,10 +20,10 @@ export default function ProjectDetail() {
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
   const [billingData, setBillingData] = useState([]);
   const [sovItems, setSovItems] = useState([]);
   const [changeOrders, setChangeOrders] = useState([]);
+  const [paymentApps, setPaymentApps] = useState([]);
 
   useEffect(() => {
     fetchProject();
@@ -58,6 +59,7 @@ export default function ProjectDetail() {
         address: data.address || '',
         projectCode: data.project_code || '',
         client: data.client || '',
+        description: data.description || '',
         createdAt: new Date(data.created_at),
         updatedAt: new Date(data.updated_at)
       };
@@ -80,8 +82,7 @@ export default function ProjectDetail() {
         .from('project_billing')
         .select('*')
         .eq('project_id', id)
-        .order('created_at', { ascending: false })
-        .limit(5);
+        .order('created_at', { ascending: false });
 
       setBillingData(billing || []);
 
@@ -90,8 +91,7 @@ export default function ProjectDetail() {
         .from('sov_items')
         .select('*')
         .eq('project_id', id)
-        .order('item_number')
-        .limit(5);
+        .order('item_number');
 
       setSovItems(sov || []);
 
@@ -100,10 +100,18 @@ export default function ProjectDetail() {
         .from('change_orders')
         .select('*')
         .eq('project_id', id)
-        .order('date', { ascending: false })
-        .limit(5);
+        .order('date', { ascending: false });
 
       setChangeOrders(changes || []);
+
+      // Fetch payment applications
+      const { data: payments } = await supabase
+        .from('payment_applications')
+        .select('*')
+        .eq('project_id', id)
+        .order('application_number', { ascending: false });
+
+      setPaymentApps(payments || []);
     } catch (error) {
       console.error('Error fetching project data:', error);
     }
@@ -111,6 +119,7 @@ export default function ProjectDetail() {
 
   const handleUpdate = async () => {
     await fetchProject();
+    await fetchProjectData();
   };
 
   const getStatusColor = (status: Project['status']) => {
@@ -166,6 +175,9 @@ export default function ProjectDetail() {
                 </div>
                 <CardTitle className="text-2xl">{project.name}</CardTitle>
                 <p className="text-gray-600 mt-1">{project.type}</p>
+                {project.description && (
+                  <p className="text-gray-600 mt-2">{project.description}</p>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={handleViewBurnAnalysis}>
@@ -179,10 +191,11 @@ export default function ProjectDetail() {
         </Card>
 
         {/* Project Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Contract Value</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">${project.contractValue.toLocaleString()}</div>
@@ -194,12 +207,26 @@ export default function ProjectDetail() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Start Date</CardTitle>
+              <CardTitle className="text-sm font-medium">Completion</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{format(new Date(project.startDate), 'MMM dd, yyyy')}</div>
+              <div className="text-2xl font-bold">{project.completionPercentage}%</div>
               <p className="text-xs text-muted-foreground">
-                Project start date
+                Project completion
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Start Date</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{format(new Date(project.startDate), 'MMM dd')}</div>
+              <p className="text-xs text-muted-foreground">
+                {format(new Date(project.startDate), 'yyyy')}
               </p>
             </CardContent>
           </Card>
@@ -207,186 +234,251 @@ export default function ProjectDetail() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Due Date</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{format(new Date(project.dueDate), 'MMM dd, yyyy')}</div>
+              <div className="text-2xl font-bold">{format(new Date(project.dueDate), 'MMM dd')}</div>
               <p className="text-xs text-muted-foreground">
-                Project due date
+                {format(new Date(project.dueDate), 'yyyy')}
               </p>
             </CardContent>
           </Card>
         </div>
 
         {/* Tabs */}
-        <div>
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`${activeTab === 'overview'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-              >
-                Overview
-              </button>
-              <button
-                onClick={() => setActiveTab('billing')}
-                className={`${activeTab === 'billing'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-              >
-                Billing
-              </button>
-              <button
-                onClick={() => setActiveTab('sov')}
-                className={`${activeTab === 'sov'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-              >
-                Schedule of Values
-              </button>
-              <button
-                onClick={() => setActiveTab('changes')}
-                className={`${activeTab === 'changes'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-              >
-                Change Orders
-              </button>
-            </nav>
-          </div>
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="billing">Billing</TabsTrigger>
+            <TabsTrigger value="sov">Schedule of Values</TabsTrigger>
+            <TabsTrigger value="payments">Payment Apps</TabsTrigger>
+            <TabsTrigger value="changes">Change Orders</TabsTrigger>
+          </TabsList>
 
-          {/* Tab Content */}
-          <div className="mt-6">
-            {activeTab === 'overview' && (
-              <Card>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-lg font-semibold">Project Overview</h3>
-                      <p className="text-gray-600">This project is a {project.type.toLowerCase()} project for {project.client}.</p>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-semibold">Client Information</h3>
-                      <p className="text-gray-600">Client: {project.client || 'No client specified'}</p>
-                      <p className="text-gray-600">Address: {project.address || 'No address specified'}</p>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-semibold">Project Progress</h3>
-                      <p className="text-gray-600">Completion: {project.completionPercentage}%</p>
-                      <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                        <div 
-                          className="bg-primary h-2 rounded-full" 
-                          style={{ width: `${project.completionPercentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
+          <TabsContent value="overview" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Project Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-500">Client</h4>
+                    <p className="text-lg">{project.client || 'No client specified'}</p>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-500">Address</h4>
+                    <p className="text-lg">{project.address || 'No address specified'}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-500">Project Code</h4>
+                    <p className="text-lg">{project.projectCode || 'No code assigned'}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-500">Type</h4>
+                    <p className="text-lg">{project.type}</p>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-semibold text-sm text-gray-500 mb-2">Progress</h4>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-primary h-2 rounded-full" 
+                      style={{ width: `${project.completionPercentage}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">{project.completionPercentage}% complete</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            {activeTab === 'billing' && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>Recent Billing Records</CardTitle>
-                  <Button onClick={() => navigate('/project-billing')}>View All</Button>
-                </CardHeader>
-                <CardContent>
-                  {billingData.length > 0 ? (
-                    <div className="space-y-4">
-                      {billingData.map((bill: any) => (
-                        <div key={bill.id} className="flex justify-between items-center p-4 border rounded-lg">
-                          <div>
-                            <p className="font-medium">{bill.invoice_number || `Billing ${bill.id.slice(0, 8)}`}</p>
-                            <p className="text-sm text-gray-600">
-                              {format(new Date(bill.billing_period_start), 'MMM dd')} - {format(new Date(bill.billing_period_end), 'MMM dd, yyyy')}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">${bill.billed_amount?.toLocaleString()}</p>
-                            <Badge variant={bill.status === 'Paid' ? 'default' : 'secondary'}>
-                              {bill.status}
-                            </Badge>
-                          </div>
+          <TabsContent value="billing" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Project Billing</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => navigate('/project-billing')}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Billing
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/project-billing')}>
+                    View All
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {billingData.length > 0 ? (
+                  <div className="space-y-3">
+                    {billingData.slice(0, 5).map((bill: any) => (
+                      <div key={bill.id} className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50">
+                        <div>
+                          <p className="font-medium">{bill.invoice_number || `Billing ${bill.id.slice(0, 8)}`}</p>
+                          <p className="text-sm text-gray-600">
+                            {format(new Date(bill.billing_period_start), 'MMM dd')} - {format(new Date(bill.billing_period_end), 'MMM dd, yyyy')}
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
+                        <div className="text-right">
+                          <p className="font-medium">${bill.billed_amount?.toLocaleString()}</p>
+                          <Badge variant={bill.status === 'Paid' ? 'default' : 'secondary'}>
+                            {bill.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500">No billing records found.</p>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+                    <Button className="mt-4" onClick={() => navigate('/project-billing')}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create First Billing
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            {activeTab === 'sov' && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>Schedule of Values</CardTitle>
-                  <Button onClick={() => navigate('/sov')}>View All</Button>
-                </CardHeader>
-                <CardContent>
-                  {sovItems.length > 0 ? (
-                    <div className="space-y-4">
-                      {sovItems.map((item: any) => (
-                        <div key={item.id} className="flex justify-between items-center p-4 border rounded-lg">
-                          <div>
-                            <p className="font-medium">{item.item_number} - {item.description}</p>
-                            <p className="text-sm text-gray-600">{item.category}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">${item.scheduled_value?.toLocaleString()}</p>
-                            <p className="text-sm text-gray-600">{item.percent_complete}% complete</p>
-                          </div>
+          <TabsContent value="sov" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Schedule of Values</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => navigate('/sov')}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    New SOV Item
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/sov')}>
+                    View All
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {sovItems.length > 0 ? (
+                  <div className="space-y-3">
+                    {sovItems.slice(0, 5).map((item: any) => (
+                      <div key={item.id} className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50">
+                        <div>
+                          <p className="font-medium">{item.item_number} - {item.description}</p>
+                          <p className="text-sm text-gray-600">{item.category}</p>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
+                        <div className="text-right">
+                          <p className="font-medium">${item.scheduled_value?.toLocaleString()}</p>
+                          <p className="text-sm text-gray-600">{item.percent_complete}% complete</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500">No SOV items found.</p>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+                    <Button className="mt-4" onClick={() => navigate('/sov')}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create First SOV Item
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            {activeTab === 'changes' && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>Recent Change Orders</CardTitle>
-                  <Button onClick={() => navigate('/change-orders')}>View All</Button>
-                </CardHeader>
-                <CardContent>
-                  {changeOrders.length > 0 ? (
-                    <div className="space-y-4">
-                      {changeOrders.map((change: any) => (
-                        <div key={change.id} className="flex justify-between items-center p-4 border rounded-lg">
-                          <div>
-                            <p className="font-medium">CO-{change.number}</p>
-                            <p className="text-sm text-gray-600">{change.description}</p>
-                            <p className="text-xs text-gray-500">{format(new Date(change.date), 'MMM dd, yyyy')}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">${change.amount?.toLocaleString()}</p>
-                            <Badge variant={change.status === 'Approved' ? 'default' : 'secondary'}>
-                              {change.status}
-                            </Badge>
-                          </div>
+          <TabsContent value="payments" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Payment Applications</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => navigate('/payment-apps')}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Application
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/payment-apps')}>
+                    View All
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {paymentApps.length > 0 ? (
+                  <div className="space-y-3">
+                    {paymentApps.slice(0, 5).map((app: any) => (
+                      <div key={app.id} className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50">
+                        <div>
+                          <p className="font-medium">Application #{app.application_number}</p>
+                          <p className="text-sm text-gray-600">
+                            Period Ending: {format(new Date(app.period_end_date), 'MMM dd, yyyy')}
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
+                        <div className="text-right">
+                          <p className="font-medium">${(app.current_payment_due || 0).toLocaleString()}</p>
+                          <p className="text-sm text-gray-600">Payment Due</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">No payment applications found.</p>
+                    <Button className="mt-4" onClick={() => navigate('/payment-apps')}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create First Application
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="changes" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Change Orders</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => navigate('/change-orders')}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Change Order
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/change-orders')}>
+                    View All
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {changeOrders.length > 0 ? (
+                  <div className="space-y-3">
+                    {changeOrders.slice(0, 5).map((change: any) => (
+                      <div key={change.id} className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50">
+                        <div>
+                          <p className="font-medium">CO-{change.number}</p>
+                          <p className="text-sm text-gray-600">{change.description}</p>
+                          <p className="text-xs text-gray-500">{format(new Date(change.date), 'MMM dd, yyyy')}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">${change.amount?.toLocaleString()}</p>
+                          <Badge variant={change.status === 'Approved' ? 'default' : 'secondary'}>
+                            {change.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500">No change orders found.</p>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </div>
+                    <Button className="mt-4" onClick={() => navigate('/change-orders')}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create First Change Order
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );
