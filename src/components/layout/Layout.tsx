@@ -14,8 +14,14 @@ export function Layout({ children, title, subtitle }: LayoutProps) {
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Header title={title} subtitle={subtitle} />
+        <Header />
         <main className="flex-1 p-6">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
+            {subtitle && (
+              <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
+            )}
+          </div>
           {children}
         </main>
       </div>
