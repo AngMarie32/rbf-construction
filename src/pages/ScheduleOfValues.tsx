@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, FileText, DollarSign } from 'lucide-react';
+import { Search, Plus, FileText, DollarSign, TrendingUp, Calendar, BarChart3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { CreateSOVDialog } from '@/components/schedule/CreateSOVDialog';
 
 export default function ScheduleOfValues() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -17,6 +18,7 @@ export default function ScheduleOfValues() {
   const [sovItems, setSovItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -64,6 +66,14 @@ export default function ScheduleOfValues() {
     }
   };
 
+  const handleCreateNew = () => {
+    if (!selectedProject) {
+      toast.error('Please select a project first');
+      return;
+    }
+    setCreateDialogOpen(true);
+  };
+
   const filteredItems = sovItems.filter(item =>
     item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.item_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -72,6 +82,15 @@ export default function ScheduleOfValues() {
 
   const totalScheduledValue = sovItems.reduce((sum, item) => sum + (item.scheduled_value || 0), 0);
   const totalCompleted = sovItems.reduce((sum, item) => sum + (item.total_completed_and_stored || 0), 0);
+  const completionPercentage = totalScheduledValue ? Math.round((totalCompleted / totalScheduledValue) * 100) : 0;
+
+  // Group items by category for better organization
+  const groupedItems = filteredItems.reduce((acc, item) => {
+    const category = item.category || 'Other';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(item);
+    return acc;
+  }, {} as Record<string, any[]>);
 
   if (loading) {
     return (
@@ -83,18 +102,17 @@ export default function ScheduleOfValues() {
     );
   }
 
+  const selectedProjectData = projects.find(p => p.id === selectedProject);
+
   return (
     <Layout title="Schedule of Values" subtitle="Manage project schedule of values">
       <div className="space-y-6">
-        {/* Project Selection */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Select Project</CardTitle>
-          </CardHeader>
-          <CardContent>
+        {/* Header with Project Selection */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
             <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger className="w-full max-w-md">
-                <SelectValue placeholder="Choose a project to view SOV" />
+              <SelectTrigger className="w-80">
+                <SelectValue placeholder="Select a project to view SOV" />
               </SelectTrigger>
               <SelectContent>
                 {projects.map((project) => (
@@ -104,16 +122,52 @@ export default function ScheduleOfValues() {
                 ))}
               </SelectContent>
             </Select>
-          </CardContent>
-        </Card>
+          </div>
+          
+          {selectedProject && (
+            <div className="flex gap-2">
+              <Button onClick={handleCreateNew}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create New
+              </Button>
+              <Button variant="outline">
+                <FileText className="w-4 h-4 mr-2" />
+                G703 & G702
+              </Button>
+              <Button variant="outline">
+                Print
+              </Button>
+              <Button variant="outline">
+                Export
+              </Button>
+              <Button variant="outline">
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Edit Values
+              </Button>
+            </div>
+          )}
+        </div>
 
-        {selectedProject && (
+        {selectedProject && selectedProjectData && (
           <>
+            {/* Project Header Info */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">{selectedProjectData.name}</h2>
+                  <p className="text-gray-600">Project #{selectedProject.slice(-8).toUpperCase()}</p>
+                </div>
+                <Badge variant="outline" className="text-sm">
+                  {selectedProjectData.status}
+                </Badge>
+              </div>
+            </div>
+
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Contract Value</CardTitle>
+                  <CardTitle className="text-sm font-medium text-blue-600">Total Contract Sum</CardTitle>
                   <DollarSign className="h-4 w-4 text-blue-600" />
                 </CardHeader>
                 <CardContent>
@@ -121,44 +175,98 @@ export default function ScheduleOfValues() {
                     ${totalScheduledValue.toLocaleString()}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {sovItems.length} line items
+                    Including approved change orders
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Work Completed</CardTitle>
-                  <DollarSign className="h-4 w-4 text-green-600" />
+                  <CardTitle className="text-sm font-medium text-green-600">Completed to Date</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-green-600">
                     ${totalCompleted.toLocaleString()}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {totalScheduledValue ? Math.round((totalCompleted / totalScheduledValue) * 100) : 0}% complete
+                    {completionPercentage}% of total contract value
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Remaining Work</CardTitle>
-                  <DollarSign className="h-4 w-4 text-orange-600" />
+                  <CardTitle className="text-sm font-medium text-purple-600">Remaining Balance</CardTitle>
+                  <DollarSign className="h-4 w-4 text-purple-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">
+                  <div className="text-2xl font-bold text-purple-600">
                     ${(totalScheduledValue - totalCompleted).toLocaleString()}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Balance to finish
+                    {completionPercentage}% of total contract value
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-orange-600">Last Updated</CardTitle>
+                  <Calendar className="h-4 w-4 text-orange-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-orange-600">
+                    May 5, 2025
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    3 days ago by John Doe
                   </p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Controls */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
+            {/* Progress Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Project Completion Progress</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Overall Project Completion</span>
+                    <span className="text-sm font-bold">{completionPercentage}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                      style={{ width: `${completionPercentage}%` }}
+                    ></div>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4 mt-4">
+                    <div className="text-center">
+                      <div className="text-sm text-gray-500">General/Structural</div>
+                      <div className="font-medium">76% Complete</div>
+                      <div className="text-sm text-gray-600">$1,025,000</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-gray-500">Architectural</div>
+                      <div className="font-medium">35% Complete</div>
+                      <div className="text-sm text-gray-600">$412,500</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-gray-500">MEP Systems</div>
+                      <div className="font-medium">32% Complete</div>
+                      <div className="text-sm text-gray-600">$550,000</div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Search and Filter */}
+            <div className="flex gap-4 items-center">
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
@@ -168,66 +276,111 @@ export default function ScheduleOfValues() {
                   className="pl-10"
                 />
               </div>
-              <div className="flex gap-2">
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add SOV Item
-                </Button>
-                <Button variant="outline">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Export SOV
-                </Button>
-              </div>
+              <Select defaultValue="all">
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="this-month">This Month</SelectItem>
+                  <SelectItem value="last-month">Last Month</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline">
+                View Options
+              </Button>
+              <Button variant="outline">
+                Export Options
+              </Button>
             </div>
 
             {/* SOV Items Table */}
             <Card>
               <CardHeader>
-                <CardTitle>Schedule of Values Items</CardTitle>
+                <CardTitle>Schedule of Values</CardTitle>
               </CardHeader>
               <CardContent>
-                {filteredItems.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-2">Item #</th>
-                          <th className="text-left py-2">Description</th>
-                          <th className="text-left py-2">Category</th>
-                          <th className="text-right py-2">Scheduled Value</th>
-                          <th className="text-right py-2">% Complete</th>
-                          <th className="text-right py-2">Completed Value</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredItems.map((item) => (
-                          <tr key={item.id} className="border-b hover:bg-gray-50">
-                            <td className="py-3 font-medium">{item.item_number}</td>
-                            <td className="py-3">{item.description}</td>
-                            <td className="py-3">
-                              <Badge variant="outline">{item.category}</Badge>
-                            </td>
-                            <td className="py-3 text-right font-medium">
-                              ${item.scheduled_value.toLocaleString()}
-                            </td>
-                            <td className="py-3 text-right">
-                              {item.percent_complete || 0}%
-                            </td>
-                            <td className="py-3 text-right font-medium">
-                              ${(item.total_completed_and_stored || 0).toLocaleString()}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                {Object.keys(groupedItems).length > 0 ? (
+                  <div className="space-y-6">
+                    {Object.entries(groupedItems).map(([category, items]) => (
+                      <div key={category}>
+                        <h3 className="text-lg font-semibold mb-3 text-gray-700">{category}</h3>
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="border-b bg-gray-50">
+                                <th className="text-left py-3 px-4 font-medium">Item/Division</th>
+                                <th className="text-left py-3 px-4 font-medium">Description of Work</th>
+                                <th className="text-right py-3 px-4 font-medium">Original Contract Sum</th>
+                                <th className="text-right py-3 px-4 font-medium">Approved Changes</th>
+                                <th className="text-right py-3 px-4 font-medium">Revised Contract Sum</th>
+                                <th className="text-right py-3 px-4 font-medium">Work Completed</th>
+                                <th className="text-center py-3 px-4 font-medium">% Complete</th>
+                                <th className="text-right py-3 px-4 font-medium">Balance to Finish</th>
+                                <th className="text-center py-3 px-4 font-medium">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {items.map((item) => {
+                                const completionPercent = item.scheduled_value ? 
+                                  Math.round(((item.total_completed_and_stored || 0) / item.scheduled_value) * 100) : 0;
+                                const balance = (item.scheduled_value || 0) - (item.total_completed_and_stored || 0);
+                                
+                                return (
+                                  <tr key={item.id} className="border-b hover:bg-gray-50">
+                                    <td className="py-3 px-4 font-medium">{item.item_number}</td>
+                                    <td className="py-3 px-4">{item.description}</td>
+                                    <td className="py-3 px-4 text-right font-medium">
+                                      ${item.scheduled_value.toLocaleString()}
+                                    </td>
+                                    <td className="py-3 px-4 text-right">$0.00</td>
+                                    <td className="py-3 px-4 text-right font-medium">
+                                      ${item.scheduled_value.toLocaleString()}
+                                    </td>
+                                    <td className="py-3 px-4 text-right font-medium">
+                                      ${(item.total_completed_and_stored || 0).toLocaleString()}
+                                    </td>
+                                    <td className="py-3 px-4 text-center">
+                                      <div className="flex items-center justify-center gap-2">
+                                        <div className={`w-16 h-2 rounded-full ${
+                                          completionPercent === 100 ? 'bg-green-500' : 
+                                          completionPercent >= 80 ? 'bg-blue-500' : 'bg-blue-300'
+                                        }`}>
+                                          <div 
+                                            className="h-full bg-current rounded-full transition-all duration-300"
+                                            style={{ width: `${completionPercent}%` }}
+                                          />
+                                        </div>
+                                        <span className="text-sm font-medium">{completionPercent}%</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-3 px-4 text-right font-medium">
+                                      ${balance.toLocaleString()}
+                                    </td>
+                                    <td className="py-3 px-4 text-center">
+                                      <Button variant="ghost" size="sm">
+                                        ⋯
+                                      </Button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : sovItems.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500 text-lg">No SOV items found for this project.</p>
-                    <p className="text-gray-400 mt-2">Add items to get started with schedule of values.</p>
-                    <Button className="mt-4">
+                  <div className="text-center py-16">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FileText className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No SOV items found for this project</h3>
+                    <p className="text-gray-500 mb-6">Get started by creating your first schedule of values.</p>
+                    <Button onClick={handleCreateNew}>
                       <Plus className="w-4 h-4 mr-2" />
-                      Add First SOV Item
+                      Create First SOV Item
                     </Button>
                   </div>
                 ) : (
@@ -259,6 +412,13 @@ export default function ScheduleOfValues() {
             </CardContent>
           </Card>
         )}
+
+        <CreateSOVDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          projectId={selectedProject}
+          onSave={fetchSOVItems}
+        />
       </div>
     </Layout>
   );
