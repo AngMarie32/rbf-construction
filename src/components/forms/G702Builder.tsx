@@ -1,10 +1,11 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -19,10 +20,28 @@ interface G702BuilderProps {
 export function G702Builder({ projectId, formData, setFormData, sovItems, setSovItems }: G702BuilderProps) {
   const [previousPayments, setPreviousPayments] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [applications, setApplications] = useState<any[]>([]);
+  const [selectedApplication, setSelectedApplication] = useState<string>('current');
 
   useEffect(() => {
     fetchPreviousPayments();
+    fetchApplications();
   }, [projectId]);
+
+  const fetchApplications = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('payment_applications_g702')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('application_number', { ascending: false });
+
+      if (error) throw error;
+      setApplications(data || []);
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+    }
+  };
 
   const fetchPreviousPayments = async () => {
     try {
@@ -42,8 +61,17 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
     }
   };
 
-  const updateSOVItemThisPeriod = async (id: string, value: number) => {
-    setLoading(true);
+  const updateSOVItemThisPeriod = useCallback(async (id: string, value: number) => {
+    // Update local state immediately for better UX
+    setSovItems(prevItems => 
+      prevItems.map(item => 
+        item.id === id 
+          ? { ...item, thisPeriod: value }
+          : item
+      )
+    );
+
+    // Debounced database update
     try {
       const { error } = await supabase
         .from('sov_items')
@@ -54,23 +82,21 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
 
       if (error) {
         console.error('Error updating SOV item:', error);
-        throw error;
+        // Revert local state on error
+        setSovItems(prevItems => 
+          prevItems.map(item => 
+            item.id === id 
+              ? { ...item, thisPeriod: item.thisPeriod }
+              : item
+          )
+        );
+        toast.error('Failed to update item');
       }
-
-      // Update local state
-      setSovItems(sovItems.map(item => 
-        item.id === id 
-          ? { ...item, thisPeriod: value }
-          : item
-      ));
-
     } catch (error) {
       console.error('Error updating SOV item:', error);
       toast.error('Failed to update item');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [setSovItems]);
 
   const calculateTotals = () => {
     const totalScheduledValue = sovItems.reduce((sum, item) => sum + (item.scheduledValue || 0), 0);
@@ -96,7 +122,25 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>G703 Continuation Sheet Builder</CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle>G703 Continuation Sheet Builder</CardTitle>
+            <div className="flex items-center gap-4">
+              <Label htmlFor="applicationSelect">Application:</Label>
+              <Select value={selectedApplication} onValueChange={setSelectedApplication}>
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="current">Current Application #{formData.applicationNumber}</SelectItem>
+                  {applications.map((app) => (
+                    <SelectItem key={app.id} value={app.id}>
+                      Application #{app.application_number}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -134,7 +178,7 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
                         value={item.thisPeriod || 0}
                         onChange={(e) => updateSOVItemThisPeriod(item.id, Number(e.target.value) || 0)}
                         className="w-full"
-                        disabled={loading}
+                        disabled={selectedApplication !== 'current'}
                       />
                     </div>
                     <div>${totalCompleted.toLocaleString()}</div>

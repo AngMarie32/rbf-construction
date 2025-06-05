@@ -103,9 +103,9 @@ export default function ProjectDetail() {
 
       setChangeOrders(changes || []);
 
-      // Fetch payment applications
+      // Fetch payment applications from G702 table
       const { data: payments } = await supabase
-        .from('payment_applications')
+        .from('payment_applications_g702')
         .select('*')
         .eq('project_id', id)
         .order('application_number', { ascending: false });
@@ -407,7 +407,7 @@ export default function ProjectDetail() {
                         <div>
                           <p className="font-medium">Application #{app.application_number}</p>
                           <p className="text-sm text-gray-600">
-                            Period Ending: {format(new Date(app.period_end_date), 'MMM dd, yyyy')}
+                            Period Ending: {format(new Date(app.period_to), 'MMM dd, yyyy')}
                           </p>
                         </div>
                         <div className="text-right">

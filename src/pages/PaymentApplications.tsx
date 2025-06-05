@@ -1,11 +1,11 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Plus, Download, DollarSign } from 'lucide-react';
+import { FileText, Plus, Download, DollarSign, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -64,6 +64,23 @@ export default function PaymentApplications() {
     } catch (error) {
       console.error('Error fetching payment applications:', error);
       toast.error('Failed to load payment applications');
+    }
+  };
+
+  const handleDeleteApplication = async (appId: string, applicationNumber: number) => {
+    try {
+      const { error } = await supabase
+        .from('payment_applications_g702')
+        .delete()
+        .eq('id', appId);
+
+      if (error) throw error;
+
+      toast.success(`Application #${applicationNumber} deleted successfully`);
+      fetchPaymentApplications();
+    } catch (error) {
+      console.error('Error deleting application:', error);
+      toast.error('Failed to delete application');
     }
   };
 
@@ -279,6 +296,31 @@ export default function PaymentApplications() {
                             <Download className="w-4 h-4 mr-1" />
                             Export
                           </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                                <Trash2 className="w-4 h-4 mr-1" />
+                                Delete
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Payment Application</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete Application #{app.application_number}? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteApplication(app.id, app.application_number)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </div>
                     ))}

@@ -29,50 +29,51 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
   const totals = calculateTotals();
 
   return (
-    <div className="bg-white p-8 max-w-7xl mx-auto text-black print:shadow-none">
+    <div className="bg-white p-6 mx-auto text-black print:shadow-none print:p-4" style={{ width: '11in', minHeight: '8.5in' }}>
       {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold mb-2">CONTINUATION SHEET</h1>
-        <p className="text-lg">AIA DOCUMENT G703</p>
+      <div className="text-center mb-6">
+        <h1 className="text-xl font-bold mb-1">CONTINUATION SHEET</h1>
+        <p className="text-base font-semibold">AIA DOCUMENT G703™</p>
+        <p className="text-sm">APPLICATION AND CERTIFICATE FOR PAYMENT</p>
       </div>
 
-      {/* Project Information */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div>
-          <label className="font-bold">APPLICATION NUMBER:</label>
-          <p className="border-b border-black">{formData.applicationNumber}</p>
+      {/* Project Information Header */}
+      <div className="grid grid-cols-4 gap-2 mb-4 text-sm">
+        <div className="border border-black p-2">
+          <div className="font-bold text-xs mb-1">APPLICATION NUMBER:</div>
+          <div className="border-b border-black pb-1">{formData.applicationNumber}</div>
         </div>
-        <div>
-          <label className="font-bold">PERIOD TO:</label>
-          <p className="border-b border-black">{new Date(formData.periodTo).toLocaleDateString()}</p>
+        <div className="border border-black p-2">
+          <div className="font-bold text-xs mb-1">PERIOD TO:</div>
+          <div className="border-b border-black pb-1">{new Date(formData.periodTo).toLocaleDateString()}</div>
         </div>
-        <div>
-          <label className="font-bold">PROJECT:</label>
-          <p className="border-b border-black">{project.name}</p>
+        <div className="border border-black p-2 col-span-2">
+          <div className="font-bold text-xs mb-1">PROJECT:</div>
+          <div className="border-b border-black pb-1">{project.name}</div>
         </div>
       </div>
 
-      {/* SOV Items Table */}
-      <div className="mb-8">
-        <table className="w-full border-collapse border border-black text-sm">
+      {/* SOV Table */}
+      <div className="border border-black">
+        <table className="w-full border-collapse text-xs">
           <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-black p-2 text-left">ITEM NO.</th>
-              <th className="border border-black p-2 text-left">DESCRIPTION OF WORK</th>
-              <th className="border border-black p-2 text-right">SCHEDULED VALUE</th>
-              <th className="border border-black p-2 text-right">CHANGE ORDERS</th>
-              <th className="border border-black p-2 text-right">TOTAL CONTRACT</th>
-              <th className="border border-black p-2 text-right">WORK COMPLETED FROM PREVIOUS APPLICATION</th>
-              <th className="border border-black p-2 text-right">WORK COMPLETED THIS PERIOD</th>
-              <th className="border border-black p-2 text-right">MATERIALS PRESENTLY STORED</th>
-              <th className="border border-black p-2 text-right">TOTAL COMPLETED AND STORED TO DATE</th>
-              <th className="border border-black p-2 text-right">PERCENTAGE COMPLETE</th>
-              <th className="border border-black p-2 text-right">BALANCE TO FINISH</th>
-              <th className="border border-black p-2 text-right">RETAINAGE</th>
+            <tr>
+              <th className="border-r border-black p-1 w-12 font-bold">ITEM NO.</th>
+              <th className="border-r border-black p-1 w-32 font-bold">DESCRIPTION OF WORK</th>
+              <th className="border-r border-black p-1 w-20 font-bold">SCHEDULED VALUE</th>
+              <th className="border-r border-black p-1 w-20 font-bold">CHANGE ORDERS</th>
+              <th className="border-r border-black p-1 w-20 font-bold">TOTAL CONTRACT</th>
+              <th className="border-r border-black p-1 w-20 font-bold">WORK COMPLETED FROM PREVIOUS APPLICATION</th>
+              <th className="border-r border-black p-1 w-20 font-bold">WORK COMPLETED THIS PERIOD</th>
+              <th className="border-r border-black p-1 w-20 font-bold">MATERIALS PRESENTLY STORED</th>
+              <th className="border-r border-black p-1 w-20 font-bold">TOTAL COMPLETED AND STORED TO DATE</th>
+              <th className="border-r border-black p-1 w-16 font-bold">PERCENTAGE (%)</th>
+              <th className="border-r border-black p-1 w-20 font-bold">BALANCE TO FINISH</th>
+              <th className="p-1 w-20 font-bold">RETAINAGE</th>
             </tr>
           </thead>
           <tbody>
-            {sovItems.map((item) => {
+            {sovItems.map((item, index) => {
               const totalContract = (item.scheduledValue || 0) + (item.changeOrders || 0);
               const totalCompleted = (item.previousApplications || 0) + (item.thisPeriod || 0) + (item.materialsStored || 0);
               const percentComplete = totalContract > 0 ? (totalCompleted / totalContract) * 100 : 0;
@@ -80,42 +81,42 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               const retainage = totalCompleted * (formData.retainagePercentage / 100);
               
               return (
-                <tr key={item.id}>
-                  <td className="border border-black p-2">{item.itemNumber}</td>
-                  <td className="border border-black p-2">{item.description}</td>
-                  <td className="border border-black p-2 text-right">${(item.scheduledValue || 0).toLocaleString()}</td>
-                  <td className="border border-black p-2 text-right">${(item.changeOrders || 0).toLocaleString()}</td>
-                  <td className="border border-black p-2 text-right">${totalContract.toLocaleString()}</td>
-                  <td className="border border-black p-2 text-right">${(item.previousApplications || 0).toLocaleString()}</td>
-                  <td className="border border-black p-2 text-right">${(item.thisPeriod || 0).toLocaleString()}</td>
-                  <td className="border border-black p-2 text-right">${(item.materialsStored || 0).toLocaleString()}</td>
-                  <td className="border border-black p-2 text-right">${totalCompleted.toLocaleString()}</td>
-                  <td className="border border-black p-2 text-right">{percentComplete.toFixed(1)}%</td>
-                  <td className="border border-black p-2 text-right">${balanceToFinish.toLocaleString()}</td>
-                  <td className="border border-black p-2 text-right">${retainage.toLocaleString()}</td>
+                <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <td className="border-r border-b border-black p-1 text-center">{item.itemNumber}</td>
+                  <td className="border-r border-b border-black p-1">{item.description}</td>
+                  <td className="border-r border-b border-black p-1 text-right">${(item.scheduledValue || 0).toLocaleString()}</td>
+                  <td className="border-r border-b border-black p-1 text-right">${(item.changeOrders || 0).toLocaleString()}</td>
+                  <td className="border-r border-b border-black p-1 text-right">${totalContract.toLocaleString()}</td>
+                  <td className="border-r border-b border-black p-1 text-right">${(item.previousApplications || 0).toLocaleString()}</td>
+                  <td className="border-r border-b border-black p-1 text-right">${(item.thisPeriod || 0).toLocaleString()}</td>
+                  <td className="border-r border-b border-black p-1 text-right">${(item.materialsStored || 0).toLocaleString()}</td>
+                  <td className="border-r border-b border-black p-1 text-right">${totalCompleted.toLocaleString()}</td>
+                  <td className="border-r border-b border-black p-1 text-right">{percentComplete.toFixed(1)}%</td>
+                  <td className="border-r border-b border-black p-1 text-right">${balanceToFinish.toLocaleString()}</td>
+                  <td className="border-b border-black p-1 text-right">${retainage.toLocaleString()}</td>
                 </tr>
               );
             })}
             
             {/* Totals Row */}
-            <tr className="bg-gray-100 font-bold">
-              <td className="border border-black p-2" colSpan={2}>TOTALS</td>
-              <td className="border border-black p-2 text-right">${totals.totalScheduledValue.toLocaleString()}</td>
-              <td className="border border-black p-2 text-right">${totals.totalChangeOrders.toLocaleString()}</td>
-              <td className="border border-black p-2 text-right">${totals.totalContract.toLocaleString()}</td>
-              <td className="border border-black p-2 text-right">
+            <tr className="bg-gray-200 font-bold">
+              <td className="border-r border-b border-black p-1 text-center" colSpan={2}>TOTALS</td>
+              <td className="border-r border-b border-black p-1 text-right">${totals.totalScheduledValue.toLocaleString()}</td>
+              <td className="border-r border-b border-black p-1 text-right">${totals.totalChangeOrders.toLocaleString()}</td>
+              <td className="border-r border-b border-black p-1 text-right">${totals.totalContract.toLocaleString()}</td>
+              <td className="border-r border-b border-black p-1 text-right">
                 ${sovItems.reduce((sum, item) => sum + (item.previousApplications || 0), 0).toLocaleString()}
               </td>
-              <td className="border border-black p-2 text-right">${totals.totalThisPeriod.toLocaleString()}</td>
-              <td className="border border-black p-2 text-right">
+              <td className="border-r border-b border-black p-1 text-right">${totals.totalThisPeriod.toLocaleString()}</td>
+              <td className="border-r border-b border-black p-1 text-right">
                 ${sovItems.reduce((sum, item) => sum + (item.materialsStored || 0), 0).toLocaleString()}
               </td>
-              <td className="border border-black p-2 text-right">${totals.totalCompleted.toLocaleString()}</td>
-              <td className="border border-black p-2 text-right">
+              <td className="border-r border-b border-black p-1 text-right">${totals.totalCompleted.toLocaleString()}</td>
+              <td className="border-r border-b border-black p-1 text-right">
                 {totals.totalContract > 0 ? ((totals.totalCompleted / totals.totalContract) * 100).toFixed(1) : 0}%
               </td>
-              <td className="border border-black p-2 text-right">${totals.balanceToFinish.toLocaleString()}</td>
-              <td className="border border-black p-2 text-right">
+              <td className="border-r border-b border-black p-1 text-right">${totals.balanceToFinish.toLocaleString()}</td>
+              <td className="border-b border-black p-1 text-right">
                 ${(totals.totalCompleted * (formData.retainagePercentage / 100)).toLocaleString()}
               </td>
             </tr>
@@ -123,21 +124,25 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
         </table>
       </div>
 
-      {/* Footer */}
-      <div className="mt-8">
-        <div className="grid grid-cols-2 gap-8">
-          <div>
-            <h3 className="font-bold mb-4">CONTRACTOR'S APPLICATION FOR PAYMENT</h3>
-            <p>Continuation Sheet</p>
-            <p>Application Number: {formData.applicationNumber}</p>
-            <p>Period to: {new Date(formData.periodTo).toLocaleDateString()}</p>
-          </div>
-          <div>
-            <h3 className="font-bold mb-4">PROJECT:</h3>
-            <p>{project.name}</p>
-            <p>Project Number: {formData.projectNumber || project.projectCode}</p>
-          </div>
+      {/* Footer Information */}
+      <div className="mt-6 grid grid-cols-2 gap-8 text-sm">
+        <div>
+          <h3 className="font-bold mb-2">CONTRACTOR'S APPLICATION FOR PAYMENT</h3>
+          <p className="mb-1">Continuation Sheet</p>
+          <p className="mb-1">Application Number: {formData.applicationNumber}</p>
+          <p>Period to: {new Date(formData.periodTo).toLocaleDateString()}</p>
         </div>
+        <div>
+          <h3 className="font-bold mb-2">PROJECT:</h3>
+          <p className="mb-1">{project.name}</p>
+          <p>Project Number: {formData.projectNumber || project.projectCode}</p>
+        </div>
+      </div>
+
+      {/* AIA Copyright Notice */}
+      <div className="mt-6 text-xs text-center text-gray-600">
+        <p>AIA Document G703™ – 1992. Copyright © 1992 by The American Institute of Architects.</p>
+        <p>All rights reserved.</p>
       </div>
     </div>
   );

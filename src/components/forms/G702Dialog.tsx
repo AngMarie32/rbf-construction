@@ -31,11 +31,11 @@ export function G702Dialog({ open, onOpenChange, projectId, onSave }: G702Dialog
   };
 
   const handlePrint = () => {
-    // Add print styles for landscape orientation
+    // Add print styles for landscape orientation and proper page sizing
     const printStyles = `
       @media print {
         @page {
-          size: landscape;
+          size: 11in 8.5in landscape;
           margin: 0.5in;
         }
         
@@ -61,6 +61,22 @@ export function G702Dialog({ open, onOpenChange, projectId, onSave }: G702Dialog
           top: 0;
           width: 100%;
           page-break-before: always;
+        }
+        
+        /* Ensure table fits properly */
+        table {
+          font-size: 10px !important;
+          width: 100% !important;
+        }
+        
+        th, td {
+          padding: 2px !important;
+          font-size: 9px !important;
+        }
+        
+        /* Hide builder controls */
+        .print\\:hidden {
+          display: none !important;
         }
       }
     `;
