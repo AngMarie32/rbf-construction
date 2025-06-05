@@ -1070,9 +1070,49 @@ export type Database = {
         }
         Relationships: []
       }
+      sov_item_change_orders: {
+        Row: {
+          amount: number
+          change_order_id: string | null
+          created_at: string
+          id: string
+          sov_item_id: string | null
+        }
+        Insert: {
+          amount?: number
+          change_order_id?: string | null
+          created_at?: string
+          id?: string
+          sov_item_id?: string | null
+        }
+        Update: {
+          amount?: number
+          change_order_id?: string | null
+          created_at?: string
+          id?: string
+          sov_item_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sov_item_change_orders_change_order_id_fkey"
+            columns: ["change_order_id"]
+            isOneToOne: false
+            referencedRelation: "change_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sov_item_change_orders_sov_item_id_fkey"
+            columns: ["sov_item_id"]
+            isOneToOne: false
+            referencedRelation: "sov_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sov_items: {
         Row: {
           category: string
+          change_orders: number | null
           created_at: string | null
           description: string
           id: string
@@ -1091,6 +1131,7 @@ export type Database = {
         }
         Insert: {
           category: string
+          change_orders?: number | null
           created_at?: string | null
           description: string
           id?: string
@@ -1109,6 +1150,7 @@ export type Database = {
         }
         Update: {
           category?: string
+          change_orders?: number | null
           created_at?: string | null
           description?: string
           id?: string

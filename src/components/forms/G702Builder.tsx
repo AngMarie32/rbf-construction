@@ -4,12 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Import, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -22,360 +16,205 @@ interface G702BuilderProps {
 }
 
 export function G702Builder({ projectId, formData, setFormData, sovItems, setSovItems }: G702BuilderProps) {
-  const [availableSOVItems, setAvailableSOVItems] = useState<any[]>([]);
-  const [availableChangeOrders, setAvailableChangeOrders] = useState<any[]>([]);
-  const [selectedSOVItems, setSelectedSOVItems] = useState<string[]>([]);
-  const [selectedChangeOrders, setSelectedChangeOrders] = useState<string[]>([]);
+  const [previousPayments, setPreviousPayments] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchAvailableItems();
+    fetchPreviousPayments();
   }, [projectId]);
 
-  const fetchAvailableItems = async () => {
+  const fetchPreviousPayments = async () => {
     try {
-      // Fetch all SOV items for the project
-      const { data: sovData, error: sovError } = await supabase
-        .from('sov_items')
-        .select('*')
+      const { data, error } = await supabase
+        .from('payment_applications_g702')
+        .select('current_payment_due')
         .eq('project_id', projectId)
-        .order('item_number');
+        .lt('application_number', formData.applicationNumber);
 
-      if (sovError) throw sovError;
-      setAvailableSOVItems(sovData || []);
+      if (error) throw error;
 
-      // Fetch all change orders for the project
-      const { data: coData, error: coError } = await supabase
-        .from('change_orders')
-        .select('*')
-        .eq('project_id', projectId)
-        .eq('status', 'Approved')
-        .order('number');
-
-      if (coError) throw coError;
-      setAvailableChangeOrders(coData || []);
+      const total = data.reduce((sum, app) => sum + (app.current_payment_due || 0), 0);
+      setPreviousPayments(total);
+      setFormData(prev => ({ ...prev, previousCertificates: total }));
     } catch (error) {
-      console.error('Error fetching available items:', error);
-      toast.error('Failed to load available items');
+      console.error('Error fetching previous payments:', error);
     }
   };
 
-  const handleImportSOVItems = () => {
-    const itemsToImport = availableSOVItems.filter(item => 
-      selectedSOVItems.includes(item.id)
-    );
+  const updateSOVItemThisPeriod = async (id: string, value: number) => {
+    setLoading(true);
+    try {
+      const item = sovItems.find(i => i.id === id);
+      if (!item) return;
 
-    const newItems = itemsToImport.map(item => ({
-      id: item.id,
-      itemNumber: item.item_number,
-      description: item.description,
-      scheduledValue: item.scheduled_value,
-      previousApplications: item.previous_applications || 0,
-      thisPeriod: 0,
-      materialsStored: 0,
-      totalCompletedAndStored: item.total_completed_and_stored || 0,
-      percentComplete: item.percent_complete || 0,
-      category: item.category
-    }));
+      const workCompletedFromPrevious = previousPayments;
+      const totalCompletedAndStored = workCompletedFromPrevious + value + (item.materialsStored || 0);
+      const totalContract = (item.scheduledValue || 0) + (item.changeOrders || 0);
+      const percentComplete = totalContract > 0 ? (totalCompletedAndStored / totalContract) * 100 : 0;
 
-    // Merge with existing items, avoiding duplicates
-    const existingIds = sovItems.map(item => item.id);
-    const filteredNewItems = newItems.filter(item => !existingIds.includes(item.id));
-    
-    setSovItems([...sovItems, ...filteredNewItems]);
-    setSelectedSOVItems([]);
-    toast.success(`Imported ${filteredNewItems.length} SOV items`);
+      const { error } = await supabase
+        .from('sov_items')
+        .update({
+          this_period: value,
+          total_completed_and_stored: totalCompletedAndStored,
+          percent_complete: Math.min(percentComplete, 100)
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Update local state
+      setSovItems(sovItems.map(item => 
+        item.id === id 
+          ? { 
+              ...item, 
+              thisPeriod: value,
+              totalCompletedAndStored,
+              percentComplete: Math.min(percentComplete, 100)
+            }
+          : item
+      ));
+
+    } catch (error) {
+      console.error('Error updating SOV item:', error);
+      toast.error('Failed to update item');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleImportChangeOrders = () => {
-    const ordersToImport = availableChangeOrders.filter(order => 
-      selectedChangeOrders.includes(order.id)
-    );
+  const calculateTotals = () => {
+    const totalScheduledValue = sovItems.reduce((sum, item) => sum + (item.scheduledValue || 0), 0);
+    const totalChangeOrders = sovItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
+    const totalContract = totalScheduledValue + totalChangeOrders;
+    const totalThisPeriod = sovItems.reduce((sum, item) => sum + (item.thisPeriod || 0), 0);
+    const totalCompleted = sovItems.reduce((sum, item) => sum + (item.totalCompletedAndStored || 0), 0);
+    const balanceToFinish = totalContract - totalCompleted;
 
-    const totalChangeOrderAmount = ordersToImport.reduce((sum, order) => sum + order.amount, 0);
-    
-    setFormData({
-      ...formData,
-      netChangeOrders: (formData.netChangeOrders || 0) + totalChangeOrderAmount
-    });
-
-    setSelectedChangeOrders([]);
-    toast.success(`Imported ${ordersToImport.length} change orders totaling $${totalChangeOrderAmount.toLocaleString()}`);
+    return {
+      totalScheduledValue,
+      totalChangeOrders,
+      totalContract,
+      totalThisPeriod,
+      totalCompleted,
+      balanceToFinish
+    };
   };
 
-  const removeSOVItem = (itemId: string) => {
-    setSovItems(sovItems.filter(item => item.id !== itemId));
-  };
+  const totals = calculateTotals();
 
   return (
     <div className="space-y-6">
-      {/* Project Information */}
       <Card>
         <CardHeader>
-          <CardTitle>Project Information</CardTitle>
+          <CardTitle>G703 Continuation Sheet Builder</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Application Number</Label>
-              <Input
-                type="number"
-                value={formData.applicationNumber}
-                onChange={(e) => setFormData({...formData, applicationNumber: parseInt(e.target.value) || 1})}
-              />
+        <CardContent>
+          <div className="space-y-4">
+            <div className="grid grid-cols-4 gap-4 text-sm font-medium border-b pb-2">
+              <div>Item & Description</div>
+              <div>Scheduled Value</div>
+              <div>Change Orders</div>
+              <div>Total Contract</div>
+              <div>Previous Applications</div>
+              <div>This Period</div>
+              <div>Total Completed</div>
+              <div>% Complete</div>
+              <div>Balance to Finish</div>
             </div>
-            <div>
-              <Label>Project Number</Label>
-              <Input
-                value={formData.projectNumber}
-                onChange={(e) => setFormData({...formData, projectNumber: e.target.value})}
-                placeholder="Enter project number"
-              />
+
+            <div className="max-h-96 overflow-y-auto space-y-2">
+              {sovItems.map((item) => {
+                const totalContract = (item.scheduledValue || 0) + (item.changeOrders || 0);
+                const balanceToFinish = totalContract - (item.totalCompletedAndStored || 0);
+                
+                return (
+                  <div key={item.id} className="grid grid-cols-9 gap-2 items-center text-sm border-b pb-2">
+                    <div className="font-medium">
+                      <div>{item.itemNumber}</div>
+                      <div className="text-xs text-gray-600 truncate">{item.description}</div>
+                    </div>
+                    <div>${(item.scheduledValue || 0).toLocaleString()}</div>
+                    <div>${(item.changeOrders || 0).toLocaleString()}</div>
+                    <div className="font-medium">${totalContract.toLocaleString()}</div>
+                    <div>${previousPayments.toLocaleString()}</div>
+                    <div>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={item.thisPeriod || 0}
+                        onChange={(e) => updateSOVItemThisPeriod(item.id, Number(e.target.value) || 0)}
+                        className="w-full"
+                        disabled={loading}
+                      />
+                    </div>
+                    <div>${(item.totalCompletedAndStored || 0).toLocaleString()}</div>
+                    <div>{(item.percentComplete || 0).toFixed(1)}%</div>
+                    <div>${balanceToFinish.toLocaleString()}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-9 gap-2 items-center text-sm font-bold border-t pt-2 bg-gray-50">
+              <div>TOTALS</div>
+              <div>${totals.totalScheduledValue.toLocaleString()}</div>
+              <div>${totals.totalChangeOrders.toLocaleString()}</div>
+              <div>${totals.totalContract.toLocaleString()}</div>
+              <div>${previousPayments.toLocaleString()}</div>
+              <div>${totals.totalThisPeriod.toLocaleString()}</div>
+              <div>${totals.totalCompleted.toLocaleString()}</div>
+              <div>{totals.totalContract > 0 ? ((totals.totalCompleted / totals.totalContract) * 100).toFixed(1) : 0}%</div>
+              <div>${totals.balanceToFinish.toLocaleString()}</div>
             </div>
           </div>
+        </CardContent>
+      </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Application Details</CardTitle>
+        </CardHeader>
+        <CardContent>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Period From</Label>
+              <Label htmlFor="contractorName">Contractor Name</Label>
               <Input
+                id="contractorName"
+                value={formData.contractorName}
+                onChange={(e) => setFormData({ ...formData, contractorName: e.target.value })}
+                placeholder="Enter contractor name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="contractorAddress">Contractor Address</Label>
+              <Input
+                id="contractorAddress"
+                value={formData.contractorAddress}
+                onChange={(e) => setFormData({ ...formData, contractorAddress: e.target.value })}
+                placeholder="Enter contractor address"
+              />
+            </div>
+            <div>
+              <Label htmlFor="retainagePercentage">Retainage Percentage</Label>
+              <Input
+                id="retainagePercentage"
+                type="number"
+                step="0.1"
+                value={formData.retainagePercentage}
+                onChange={(e) => setFormData({ ...formData, retainagePercentage: Number(e.target.value) })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="periodFrom">Period From</Label>
+              <Input
+                id="periodFrom"
                 type="date"
                 value={formData.periodFrom}
-                onChange={(e) => setFormData({...formData, periodFrom: e.target.value})}
-              />
-            </div>
-            <div>
-              <Label>Period To</Label>
-              <Input
-                type="date"
-                value={formData.periodTo}
-                onChange={(e) => setFormData({...formData, periodTo: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, periodFrom: e.target.value })}
               />
             </div>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Contract Date</Label>
-              <Input
-                type="date"
-                value={formData.contractDate}
-                onChange={(e) => setFormData({...formData, contractDate: e.target.value})}
-              />
-            </div>
-            <div>
-              <Label>Architect Project No.</Label>
-              <Input
-                value={formData.architectProjectNo}
-                onChange={(e) => setFormData({...formData, architectProjectNo: e.target.value})}
-                placeholder="e.g. ABC-2025-123"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Contractor Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Contractor Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label>Contractor Name</Label>
-            <Input
-              value={formData.contractorName}
-              onChange={(e) => setFormData({...formData, contractorName: e.target.value})}
-              placeholder="Enter contractor name"
-            />
-          </div>
-          <div>
-            <Label>Contractor Address</Label>
-            <Textarea
-              value={formData.contractorAddress}
-              onChange={(e) => setFormData({...formData, contractorAddress: e.target.value})}
-              placeholder="Enter contractor address"
-              className="min-h-20"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Financial Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Financial Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Original Contract Sum</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formData.originalContractSum}
-                onChange={(e) => setFormData({...formData, originalContractSum: parseFloat(e.target.value) || 0})}
-              />
-            </div>
-            <div>
-              <Label>Net Change by Change Orders</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formData.netChangeOrders}
-                onChange={(e) => setFormData({...formData, netChangeOrders: parseFloat(e.target.value) || 0})}
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label>Retainage Percentage: {formData.retainagePercentage}%</Label>
-            <Slider
-              value={[formData.retainagePercentage]}
-              onValueChange={(value) => setFormData({...formData, retainagePercentage: value[0]})}
-              max={10}
-              min={0}
-              step={0.5}
-              className="mt-2"
-            />
-          </div>
-
-          <div>
-            <Label>Previous Certificates for Payment</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={formData.previousCertificates}
-              onChange={(e) => setFormData({...formData, previousCertificates: parseFloat(e.target.value) || 0})}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Import Change Orders */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Import className="w-5 h-5" />
-            Import Change Orders
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {availableChangeOrders.length > 0 ? (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                {availableChangeOrders.map((order) => (
-                  <div key={order.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`co-${order.id}`}
-                      checked={selectedChangeOrders.includes(order.id)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedChangeOrders([...selectedChangeOrders, order.id]);
-                        } else {
-                          setSelectedChangeOrders(selectedChangeOrders.filter(id => id !== order.id));
-                        }
-                      }}
-                    />
-                    <label htmlFor={`co-${order.id}`} className="flex-1 text-sm">
-                      <div className="flex justify-between">
-                        <span>{order.number} - {order.description}</span>
-                        <Badge variant="outline">${order.amount.toLocaleString()}</Badge>
-                      </div>
-                    </label>
-                  </div>
-                ))}
-              </div>
-              <Button 
-                onClick={handleImportChangeOrders} 
-                disabled={selectedChangeOrders.length === 0}
-                className="w-full"
-              >
-                Import Selected Change Orders ({selectedChangeOrders.length})
-              </Button>
-            </div>
-          ) : (
-            <p className="text-gray-500 text-center py-4">No approved change orders available</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Import SOV Items */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Import className="w-5 h-5" />
-            Import Schedule of Values Items
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {availableSOVItems.length > 0 ? (
-            <div className="space-y-4">
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {availableSOVItems.map((item) => (
-                  <div key={item.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`sov-${item.id}`}
-                      checked={selectedSOVItems.includes(item.id)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedSOVItems([...selectedSOVItems, item.id]);
-                        } else {
-                          setSelectedSOVItems(selectedSOVItems.filter(id => id !== item.id));
-                        }
-                      }}
-                    />
-                    <label htmlFor={`sov-${item.id}`} className="flex-1 text-sm">
-                      <div className="flex justify-between">
-                        <span>{item.item_number} - {item.description}</span>
-                        <Badge variant="outline">${item.scheduled_value.toLocaleString()}</Badge>
-                      </div>
-                    </label>
-                  </div>
-                ))}
-              </div>
-              <Button 
-                onClick={handleImportSOVItems} 
-                disabled={selectedSOVItems.length === 0}
-                className="w-full"
-              >
-                Import Selected SOV Items ({selectedSOVItems.length})
-              </Button>
-            </div>
-          ) : (
-            <p className="text-gray-500 text-center py-4">No SOV items available for this project</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Current SOV Items */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Current Application Items ({sovItems.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {sovItems.length > 0 ? (
-            <div className="space-y-2">
-              {sovItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-2 border rounded">
-                  <div className="flex-1">
-                    <div className="font-medium">{item.itemNumber} - {item.description}</div>
-                    <div className="text-sm text-gray-500">
-                      Scheduled: ${item.scheduledValue.toLocaleString()} | 
-                      This Period: ${item.thisPeriod.toLocaleString()}
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeSOVItem(item.id)}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 text-center py-4">No items added to this application</p>
-          )}
         </CardContent>
       </Card>
     </div>

@@ -21,6 +21,7 @@ interface SOVItem {
   itemNumber: string;
   description: string;
   scheduledValue: number;
+  changeOrders: number;
   previousApplications: number;
   thisPeriod: number;
   materialsStored: number;
@@ -139,6 +140,7 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
         itemNumber: item.item_number,
         description: item.description,
         scheduledValue: item.scheduled_value,
+        changeOrders: item.change_orders || 0,
         previousApplications: item.previous_applications || 0,
         thisPeriod: item.this_period || 0,
         materialsStored: item.materials_stored || 0,
@@ -156,7 +158,7 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
 
   const calculateTotals = () => {
     const originalContractSum = formData.originalContractSum || project?.originalContractSum || 0;
-    const netChangeOrders = formData.netChangeOrders || project?.netChangeOrders || 0;
+    const netChangeOrders = sovItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
     const contractSumToDate = originalContractSum + netChangeOrders;
     
     const totalCompletedAndStored = sovItems.reduce((sum, item) => sum + item.totalCompletedAndStored, 0);
@@ -191,7 +193,8 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
       for (const item of sovItems) {
         if (item.thisPeriod > 0 || item.materialsStored > 0) {
           const newTotalCompleted = item.previousApplications + item.thisPeriod + item.materialsStored;
-          const newPercentComplete = item.scheduledValue > 0 ? (newTotalCompleted / item.scheduledValue) * 100 : 0;
+          const totalContract = item.scheduledValue + item.changeOrders;
+          const newPercentComplete = totalContract > 0 ? (newTotalCompleted / totalContract) * 100 : 0;
           
           await supabase
             .from('sov_items')
@@ -569,7 +572,7 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
         </div>
       </div>
 
-      {/* G703 Document */}
+      {/* Enhanced G703 Document */}
       <div 
         id="g703-document"
         className={`${activeDocument === 'g703' ? 'block' : 'hidden print:block'}`}
@@ -599,38 +602,44 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
               </div>
             </div>
 
-            {/* SOV Table */}
+            {/* Enhanced SOV Table */}
             <div className="overflow-hidden">
               <table className="w-full border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-black bg-gray-50">
-                    <th className="border-r border-black p-1 w-12">A<br/>ITEM<br/>NO.</th>
-                    <th className="border-r border-black p-1 w-48">B<br/>DESCRIPTION OF WORK</th>
-                    <th className="border-r border-black p-1 w-20">C<br/>SCHEDULED<br/>VALUE</th>
-                    <th className="border-r border-black p-1 w-20">D<br/>WORK COMPLETED<br/>FROM PREVIOUS<br/>APPLICATION</th>
-                    <th className="border-r border-black p-1 w-20">E<br/>WORK COMPLETED<br/>THIS PERIOD</th>
-                    <th className="border-r border-black p-1 w-20">F<br/>MATERIALS<br/>PRESENTLY<br/>STORED</th>
-                    <th className="border-r border-black p-1 w-20">G<br/>TOTAL<br/>COMPLETED<br/>AND STORED TO<br/>DATE</th>
-                    <th className="border-r border-black p-1 w-16">H<br/>%<br/>(<br/>G÷C<br/>)</th>
-                    <th className="border-r border-black p-1 w-20">I<br/>BALANCE TO<br/>FINISH<br/>(<br/>C-G<br/>)</th>
-                    <th className="p-1 w-20">J<br/>RETAINAGE<br/>(<br/>%<br/>of G<br/>)</th>
+                    <th className="border-r border-black p-1 w-8">A<br/>ITEM<br/>NO.</th>
+                    <th className="border-r border-black p-1 w-40">B<br/>DESCRIPTION OF WORK</th>
+                    <th className="border-r border-black p-1 w-16">C<br/>SCHEDULED<br/>VALUE</th>
+                    <th className="border-r border-black p-1 w-16">D<br/>CHANGE<br/>ORDERS</th>
+                    <th className="border-r border-black p-1 w-16">E<br/>TOTAL<br/>CONTRACT</th>
+                    <th className="border-r border-black p-1 w-16">F<br/>WORK COMPLETED<br/>FROM PREVIOUS<br/>APPLICATION</th>
+                    <th className="border-r border-black p-1 w-16">G<br/>WORK COMPLETED<br/>THIS PERIOD</th>
+                    <th className="border-r border-black p-1 w-16">H<br/>MATERIALS<br/>PRESENTLY<br/>STORED</th>
+                    <th className="border-r border-black p-1 w-16">I<br/>TOTAL<br/>COMPLETED<br/>AND STORED TO<br/>DATE</th>
+                    <th className="border-r border-black p-1 w-12">J<br/>%<br/>(<br/>I÷E<br/>)</th>
+                    <th className="border-r border-black p-1 w-16">K<br/>BALANCE TO<br/>FINISH<br/>(<br/>E-I<br/>)</th>
+                    <th className="p-1 w-16">L<br/>RETAINAGE<br/>(<br/>%<br/>of I<br/>)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sovItems.map((item, index) => {
+                    const totalContract = item.scheduledValue + (item.changeOrders || 0);
                     const retainage = item.totalCompletedAndStored * (formData.retainagePercentage / 100);
-                    const balanceToFinish = item.scheduledValue - item.totalCompletedAndStored;
+                    const balanceToFinish = totalContract - item.totalCompletedAndStored;
+                    const percentComplete = totalContract > 0 ? (item.totalCompletedAndStored / totalContract) * 100 : 0;
                     
                     return (
                       <tr key={item.id} className="border-b border-gray-300">
                         <td className="border-r border-black p-1 text-center">{index + 1}</td>
                         <td className="border-r border-black p-1">{item.description}</td>
                         <td className="border-r border-black p-1 text-right">${item.scheduledValue.toLocaleString()}</td>
+                        <td className="border-r border-black p-1 text-right">${(item.changeOrders || 0).toLocaleString()}</td>
+                        <td className="border-r border-black p-1 text-right font-medium">${totalContract.toLocaleString()}</td>
                         <td className="border-r border-black p-1 text-right">${item.previousApplications.toLocaleString()}</td>
                         <td className="border-r border-black p-1 text-right">${item.thisPeriod.toLocaleString()}</td>
                         <td className="border-r border-black p-1 text-right">${item.materialsStored.toLocaleString()}</td>
                         <td className="border-r border-black p-1 text-right">${item.totalCompletedAndStored.toLocaleString()}</td>
-                        <td className="border-r border-black p-1 text-center">{item.percentComplete.toFixed(1)}%</td>
+                        <td className="border-r border-black p-1 text-center">{percentComplete.toFixed(1)}%</td>
                         <td className="border-r border-black p-1 text-right">${balanceToFinish.toLocaleString()}</td>
                         <td className="p-1 text-right">${retainage.toLocaleString()}</td>
                       </tr>
@@ -638,10 +647,12 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
                   })}
                   
                   {/* Add empty rows to fill the page */}
-                  {Array.from({ length: Math.max(0, 20 - sovItems.length) }).map((_, index) => (
+                  {Array.from({ length: Math.max(0, 15 - sovItems.length) }).map((_, index) => (
                     <tr key={`empty-${index}`} className="border-b border-gray-300">
                       <td className="border-r border-black p-1 text-center">{sovItems.length + index + 1}</td>
                       <td className="border-r border-black p-1"></td>
+                      <td className="border-r border-black p-1 text-right">$0.00</td>
+                      <td className="border-r border-black p-1 text-right">$0.00</td>
                       <td className="border-r border-black p-1 text-right">$0.00</td>
                       <td className="border-r border-black p-1 text-right">$0.00</td>
                       <td className="border-r border-black p-1 text-right">$0.00</td>
@@ -658,6 +669,8 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
                     <td className="border-r border-black p-1 text-center"></td>
                     <td className="border-r border-black p-1 font-bold">TOTALS</td>
                     <td className="border-r border-black p-1 text-right">${sovItems.reduce((sum, item) => sum + item.scheduledValue, 0).toLocaleString()}</td>
+                    <td className="border-r border-black p-1 text-right">${sovItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0).toLocaleString()}</td>
+                    <td className="border-r border-black p-1 text-right">${totals.contractSumToDate.toLocaleString()}</td>
                     <td className="border-r border-black p-1 text-right">${sovItems.reduce((sum, item) => sum + item.previousApplications, 0).toLocaleString()}</td>
                     <td className="border-r border-black p-1 text-right">${sovItems.reduce((sum, item) => sum + item.thisPeriod, 0).toLocaleString()}</td>
                     <td className="border-r border-black p-1 text-right">${sovItems.reduce((sum, item) => sum + item.materialsStored, 0).toLocaleString()}</td>

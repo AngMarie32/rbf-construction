@@ -20,7 +20,7 @@ export function CreateChangeOrderDialog({ open, onOpenChange, projectId, onSave 
   const [formData, setFormData] = useState({
     number: '',
     description: '',
-    amount: 0,
+    amount: '',
     date: new Date().toISOString().split('T')[0],
     status: 'Draft'
   });
@@ -40,7 +40,7 @@ export function CreateChangeOrderDialog({ open, onOpenChange, projectId, onSave 
           project_id: projectId,
           number: formData.number,
           description: formData.description,
-          amount: Number(formData.amount),
+          amount: Number(formData.amount) || 0,
           date: formData.date,
           status: formData.status
         });
@@ -53,7 +53,7 @@ export function CreateChangeOrderDialog({ open, onOpenChange, projectId, onSave 
       setFormData({
         number: '',
         description: '',
-        amount: 0,
+        amount: '',
         date: new Date().toISOString().split('T')[0],
         status: 'Draft'
       });
@@ -113,7 +113,7 @@ export function CreateChangeOrderDialog({ open, onOpenChange, projectId, onSave 
                 type="number"
                 step="0.01"
                 value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                 placeholder="0.00"
               />
             </div>

@@ -21,10 +21,11 @@ export function EditSOVItemDialog({ open, onOpenChange, item, onSave }: EditSOVI
     item_number: '',
     category: '',
     description: '',
-    scheduled_value: 0,
-    total_completed_and_stored: 0,
-    materials_presently_stored: 0,
-    retainage_percentage: 10
+    scheduled_value: '',
+    change_orders: '',
+    total_completed_and_stored: '',
+    materials_presently_stored: '',
+    retainage_percentage: '10'
   });
   const [loading, setLoading] = useState(false);
 
@@ -34,10 +35,11 @@ export function EditSOVItemDialog({ open, onOpenChange, item, onSave }: EditSOVI
         item_number: item.item_number || '',
         category: item.category || '',
         description: item.description || '',
-        scheduled_value: item.scheduled_value || 0,
-        total_completed_and_stored: item.total_completed_and_stored || 0,
-        materials_presently_stored: item.materials_presently_stored || 0,
-        retainage_percentage: item.retainage_percentage || 10
+        scheduled_value: (item.scheduled_value || 0).toString(),
+        change_orders: (item.change_orders || 0).toString(),
+        total_completed_and_stored: (item.total_completed_and_stored || 0).toString(),
+        materials_presently_stored: (item.materials_presently_stored || 0).toString(),
+        retainage_percentage: (item.retainage_percentage || 10).toString()
       });
     }
   }, [item]);
@@ -47,18 +49,24 @@ export function EditSOVItemDialog({ open, onOpenChange, item, onSave }: EditSOVI
 
     setLoading(true);
     try {
+      const scheduledValue = Number(formData.scheduled_value) || 0;
+      const changeOrders = Number(formData.change_orders) || 0;
+      const totalContract = scheduledValue + changeOrders;
+      const totalCompleted = Number(formData.total_completed_and_stored) || 0;
+      const percentComplete = totalContract > 0 ? Math.round((totalCompleted / totalContract) * 100) : 0;
+
       const { error } = await supabase
         .from('sov_items')
         .update({
           item_number: formData.item_number,
           category: formData.category,
           description: formData.description,
-          scheduled_value: Number(formData.scheduled_value),
-          total_completed_and_stored: Number(formData.total_completed_and_stored),
-          materials_presently_stored: Number(formData.materials_presently_stored),
-          retainage_percentage: Number(formData.retainage_percentage),
-          percent_complete: formData.scheduled_value ? 
-            Math.round((Number(formData.total_completed_and_stored) / Number(formData.scheduled_value)) * 100) : 0
+          scheduled_value: scheduledValue,
+          change_orders: changeOrders,
+          total_completed_and_stored: totalCompleted,
+          materials_presently_stored: Number(formData.materials_presently_stored) || 0,
+          retainage_percentage: Number(formData.retainage_percentage) || 10,
+          percent_complete: percentComplete
         })
         .eq('id', item.id);
 
@@ -97,6 +105,8 @@ export function EditSOVItemDialog({ open, onOpenChange, item, onSave }: EditSOVI
     'Communications',
     'Electronic Safety and Security'
   ];
+
+  const totalContract = (Number(formData.scheduled_value) || 0) + (Number(formData.change_orders) || 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -150,7 +160,30 @@ export function EditSOVItemDialog({ open, onOpenChange, item, onSave }: EditSOVI
                 type="number"
                 step="0.01"
                 value={formData.scheduled_value}
-                onChange={(e) => setFormData({ ...formData, scheduled_value: Number(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, scheduled_value: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="change_orders">Change Orders</Label>
+              <Input
+                id="change_orders"
+                type="number"
+                step="0.01"
+                value={formData.change_orders}
+                onChange={(e) => setFormData({ ...formData, change_orders: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="total_contract">Total Contract (Calculated)</Label>
+              <Input
+                id="total_contract"
+                type="number"
+                value={totalContract.toFixed(2)}
+                disabled
+                className="bg-gray-100"
               />
             </div>
             <div>
@@ -160,7 +193,7 @@ export function EditSOVItemDialog({ open, onOpenChange, item, onSave }: EditSOVI
                 type="number"
                 step="0.01"
                 value={formData.total_completed_and_stored}
-                onChange={(e) => setFormData({ ...formData, total_completed_and_stored: Number(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, total_completed_and_stored: e.target.value })}
               />
             </div>
           </div>
@@ -173,7 +206,7 @@ export function EditSOVItemDialog({ open, onOpenChange, item, onSave }: EditSOVI
                 type="number"
                 step="0.01"
                 value={formData.materials_presently_stored}
-                onChange={(e) => setFormData({ ...formData, materials_presently_stored: Number(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, materials_presently_stored: e.target.value })}
               />
             </div>
             <div>
@@ -183,7 +216,7 @@ export function EditSOVItemDialog({ open, onOpenChange, item, onSave }: EditSOVI
                 type="number"
                 step="0.1"
                 value={formData.retainage_percentage}
-                onChange={(e) => setFormData({ ...formData, retainage_percentage: Number(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, retainage_percentage: e.target.value })}
               />
             </div>
           </div>
