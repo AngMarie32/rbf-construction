@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { CreateChangeOrderDialog } from '@/components/change-orders/CreateChangeOrderDialog';
 
 export default function ChangeOrders() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -19,6 +19,7 @@ export default function ChangeOrders() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -64,6 +65,14 @@ export default function ChangeOrders() {
       console.error('Error fetching change orders:', error);
       toast.error('Failed to load change orders');
     }
+  };
+
+  const handleCreateNew = () => {
+    if (!selectedProject) {
+      toast.error('Please select a project first');
+      return;
+    }
+    setCreateDialogOpen(true);
   };
 
   const filteredChangeOrders = changeOrders.filter(co => {
@@ -212,7 +221,7 @@ export default function ChangeOrders() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button>
+              <Button onClick={handleCreateNew}>
                 <Plus className="w-4 h-4 mr-2" />
                 New Change Order
               </Button>
@@ -263,7 +272,7 @@ export default function ChangeOrders() {
                   <div className="text-center py-8">
                     <p className="text-gray-500 text-lg">No change orders found for this project.</p>
                     <p className="text-gray-400 mt-2">Create your first change order to get started.</p>
-                    <Button className="mt-4">
+                    <Button className="mt-4" onClick={handleCreateNew}>
                       <Plus className="w-4 h-4 mr-2" />
                       Create First Change Order
                     </Button>
@@ -297,6 +306,13 @@ export default function ChangeOrders() {
             </CardContent>
           </Card>
         )}
+
+        <CreateChangeOrderDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          projectId={selectedProject}
+          onSave={fetchChangeOrders}
+        />
       </div>
     </Layout>
   );

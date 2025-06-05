@@ -285,8 +285,8 @@ export default function ProjectBilling() {
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* Summary Cards - Updated to remove collection rate */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Billed</CardTitle>
@@ -301,7 +301,7 @@ export default function ProjectBilling() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Paid</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Payments Received</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
@@ -319,18 +319,6 @@ export default function ProjectBilling() {
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
                 ${totals.totalRemaining.toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Collection Rate</CardTitle>
-              <TrendingUp className="h-4 w-4 text-purple-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-600">
-                {totals.totalBilled > 0 ? Math.round((totals.totalPaid / totals.totalBilled) * 100) : 0}%
               </div>
             </CardContent>
           </Card>
