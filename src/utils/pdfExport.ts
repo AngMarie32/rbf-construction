@@ -1,4 +1,3 @@
-
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -65,6 +64,9 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       format: 'letter'
     });
 
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+
     // Export G702 first
     const g702Element = document.getElementById('g702-document');
     if (g702Element) {
@@ -72,7 +74,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       g702Element.style.display = 'block';
 
       const g702Canvas = await html2canvas(g702Element, {
-        scale: 2,
+        scale: 2.5,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
@@ -85,14 +87,12 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       g702Element.style.display = originalDisplay;
 
       const g702ImgData = g702Canvas.toDataURL('image/png');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      
       const ratio = Math.min(pdfWidth / (g702Canvas.width * 0.264583), pdfHeight / (g702Canvas.height * 0.264583));
       const scaledWidth = g702Canvas.width * 0.264583 * ratio;
       const scaledHeight = g702Canvas.height * 0.264583 * ratio;
       
-      pdf.addImage(g702ImgData, 'PNG', 5, 5, scaledWidth, scaledHeight);
+      const imgX = (pdfWidth - scaledWidth) / 2;
+      pdf.addImage(g702ImgData, 'PNG', imgX, 5, scaledWidth, scaledHeight);
     }
 
     // Add new page for G703
@@ -105,7 +105,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       g703Element.style.display = 'block';
 
       const g703Canvas = await html2canvas(g703Element, {
-        scale: 2,
+        scale: 2.5,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
@@ -118,14 +118,12 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       g703Element.style.display = originalDisplay;
 
       const g703ImgData = g703Canvas.toDataURL('image/png');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      
       const ratio = Math.min(pdfWidth / (g703Canvas.width * 0.264583), pdfHeight / (g703Canvas.height * 0.264583));
       const scaledWidth = g703Canvas.width * 0.264583 * ratio;
       const scaledHeight = g703Canvas.height * 0.264583 * ratio;
       
-      pdf.addImage(g703ImgData, 'PNG', 5, 5, scaledWidth, scaledHeight);
+      const imgX = (pdfWidth - scaledWidth) / 2;
+      pdf.addImage(g703ImgData, 'PNG', imgX, 5, scaledWidth, scaledHeight);
     }
 
     pdf.save(filename);

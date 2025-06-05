@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,8 +52,9 @@ export default function PaymentApplications() {
 
   const fetchPaymentApplications = async () => {
     try {
+      // Fetch from the G702 specific table
       const { data, error } = await supabase
-        .from('payment_applications')
+        .from('payment_applications_g702')
         .select('*')
         .eq('project_id', selectedProject)
         .order('application_number', { ascending: false });
@@ -108,10 +110,10 @@ export default function PaymentApplications() {
       tempDiv.innerHTML = `
         <div style="padding: 20px; font-family: Arial, sans-serif;">
           <h1>Payment Application #${app.application_number}</h1>
-          <p><strong>Period Ending:</strong> ${format(new Date(app.period_end_date), 'MMM dd, yyyy')}</p>
+          <p><strong>Period Ending:</strong> ${format(new Date(app.period_to), 'MMM dd, yyyy')}</p>
           <p><strong>Contract Sum:</strong> $${(app.contract_sum_to_date || 0).toLocaleString()}</p>
           <p><strong>Work Completed:</strong> $${(app.total_completed_and_stored || 0).toLocaleString()}</p>
-          <p><strong>Less Retainage:</strong> $${(app.retainage || 0).toLocaleString()}</p>
+          <p><strong>Less Retainage:</strong> $${(app.total_retainage || 0).toLocaleString()}</p>
           <p><strong>Payment Due:</strong> $${(app.current_payment_due || 0).toLocaleString()}</p>
         </div>
       `;
@@ -214,7 +216,7 @@ export default function PaymentApplications() {
                     #{latestApplication?.application_number || 'N/A'}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {latestApplication ? format(new Date(latestApplication.period_end_date), 'MMM dd, yyyy') : 'No applications'}
+                    {latestApplication ? format(new Date(latestApplication.period_to), 'MMM dd, yyyy') : 'No applications'}
                   </p>
                 </CardContent>
               </Card>
@@ -246,7 +248,7 @@ export default function PaymentApplications() {
                           <div className="flex items-center gap-3">
                             <h4 className="font-semibold">Application #{app.application_number}</h4>
                             <Badge variant="outline">
-                              Period Ending: {format(new Date(app.period_end_date), 'MMM dd, yyyy')}
+                              Period Ending: {format(new Date(app.period_to), 'MMM dd, yyyy')}
                             </Badge>
                           </div>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-sm text-gray-600">
@@ -260,7 +262,7 @@ export default function PaymentApplications() {
                             </div>
                             <div>
                               <span className="text-gray-500">Less Retainage:</span>
-                              <div className="font-medium">${(app.retainage || 0).toLocaleString()}</div>
+                              <div className="font-medium">${(app.total_retainage || 0).toLocaleString()}</div>
                             </div>
                             <div>
                               <span className="text-gray-500">Payment Due:</span>

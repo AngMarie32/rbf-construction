@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Slider } from '@/components/ui/slider';
+import { Settings } from 'lucide-react';
+import { G702Builder } from './G702Builder';
 
 interface G702FormProps {
   projectId: string;
@@ -45,7 +46,7 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
   const [project, setProject] = useState<Project | null>(null);
   const [sovItems, setSovItems] = useState<SOVItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeDocument, setActiveDocument] = useState<'g702' | 'g703'>('g702');
+  const [activeDocument, setActiveDocument] = useState<'g702' | 'g703' | 'builder'>('builder');
   const [notes, setNotes] = useState('');
   const [supportingDocs, setSupportingDocs] = useState('');
   
@@ -281,6 +282,13 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
       {/* Document Toggle */}
       <div className="flex gap-2 print:hidden">
         <Button 
+          variant={activeDocument === 'builder' ? 'default' : 'outline'}
+          onClick={() => setActiveDocument('builder')}
+        >
+          <Settings className="w-4 h-4 mr-2" />
+          Builder
+        </Button>
+        <Button 
           variant={activeDocument === 'g702' ? 'default' : 'outline'}
           onClick={() => setActiveDocument('g702')}
         >
@@ -294,17 +302,30 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
         </Button>
       </div>
 
+      {/* Builder View */}
+      {activeDocument === 'builder' && (
+        <div className="print:hidden">
+          <G702Builder
+            projectId={projectId}
+            formData={formData}
+            setFormData={setFormData}
+            sovItems={sovItems}
+            setSovItems={setSovItems}
+          />
+        </div>
+      )}
+
       {/* G702 Document */}
       <div 
         id="g702-document"
         className={`${activeDocument === 'g702' ? 'block' : 'hidden print:block'} print:page-break-after`}
         style={{ printColorAdjust: 'exact' }}
       >
-        <div className="bg-white p-6 print:p-4 print:text-xs print:landscape" style={{ minHeight: '11in', width: '100%' }}>
+        <div className="bg-white p-6 print:p-4 print:text-xs print:landscape mx-auto" style={{ minHeight: '11in', width: '100%', maxWidth: '11in' }}>
           <div className="border-2 border-black min-h-full">
             {/* Header */}
-            <div className="border-b-2 border-black p-3 bg-white">
-              <h1 className="text-lg font-bold text-center">APPLICATION AND CERTIFICATION FOR PAYMENT</h1>
+            <div className="border-b-2 border-black p-3 bg-white text-center">
+              <h1 className="text-lg font-bold">APPLICATION AND CERTIFICATION FOR PAYMENT</h1>
             </div>
 
             {/* Top Information Row */}
@@ -312,77 +333,57 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
               <div className="col-span-4 border-r border-black p-2">
                 <div className="font-semibold mb-1">TO:</div>
                 <div className="min-h-16 p-1">
-                  <div>{project.client}</div>
-                  <div className="text-xs text-gray-600">{project.address}</div>
+                  <div>{project?.client || ''}</div>
+                  <div className="text-xs text-gray-600">{project?.address || ''}</div>
                 </div>
               </div>
               <div className="col-span-4 border-r border-black p-2">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <div className="font-semibold">APPLICATION NO:</div>
-                    <input 
-                      type="number"
-                      value={formData.applicationNumber}
-                      onChange={(e) => setFormData({...formData, applicationNumber: parseInt(e.target.value) || 1})}
-                      className="w-full border border-gray-400 p-1 print:border-0 text-center font-bold"
-                    />
+                    <div className="w-full border-b border-gray-400 p-1 text-center font-bold bg-transparent">
+                      {formData.applicationNumber}
+                    </div>
                   </div>
                   <div>
                     <div className="font-semibold">PERIOD TO:</div>
-                    <input 
-                      type="date"
-                      value={formData.periodTo}
-                      onChange={(e) => setFormData({...formData, periodTo: e.target.value})}
-                      className="w-full border border-gray-400 p-1 print:border-0"
-                    />
+                    <div className="w-full border-b border-gray-400 p-1 bg-transparent">
+                      {formData.periodTo}
+                    </div>
                   </div>
                 </div>
                 <div className="mt-2">
                   <div className="font-semibold">PROJECT NAME:</div>
-                  <div className="p-1">{project.name}</div>
+                  <div className="p-1">{project?.name || ''}</div>
                 </div>
                 <div className="mt-2">
-                  <div className="font-semibold">SACHSE PROJ NO:</div>
-                  <input 
-                    value={formData.architectProjectNo}
-                    onChange={(e) => setFormData({...formData, architectProjectNo: e.target.value})}
-                    className="w-full border border-gray-400 p-1 print:border-0"
-                  />
+                  <div className="font-semibold">PROJECT #:</div>
+                  <div className="w-full border-b border-gray-400 p-1 bg-transparent">
+                    {formData.projectNumber || project?.projectCode || ''}
+                  </div>
                 </div>
               </div>
               <div className="col-span-4 p-2">
                 <div className="font-semibold mb-2">Distribution to:</div>
                 <div className="space-y-1">
-                  <label className="flex items-center text-xs">
-                    <input 
-                      type="checkbox" 
-                      checked={formData.distributionTo.owner}
-                      onChange={(e) => setFormData({...formData, distributionTo: {...formData.distributionTo, owner: e.target.checked}})}
-                      className="mr-2" 
-                    />
-                    <span className="border border-black px-1">{formData.distributionTo.owner ? 'X' : ' '}</span>
-                    <span className="ml-2">OWNER</span>
-                  </label>
-                  <label className="flex items-center text-xs">
-                    <input 
-                      type="checkbox" 
-                      checked={formData.distributionTo.architect}
-                      onChange={(e) => setFormData({...formData, distributionTo: {...formData.distributionTo, architect: e.target.checked}})}
-                      className="mr-2" 
-                    />
-                    <span className="border border-black px-1">{formData.distributionTo.architect ? 'X' : ' '}</span>
-                    <span className="ml-2">ARCHITECT</span>
-                  </label>
-                  <label className="flex items-center text-xs">
-                    <input 
-                      type="checkbox" 
-                      checked={formData.distributionTo.contractor}
-                      onChange={(e) => setFormData({...formData, distributionTo: {...formData.distributionTo, contractor: e.target.checked}})}
-                      className="mr-2" 
-                    />
-                    <span className="border border-black px-1">{formData.distributionTo.contractor ? 'X' : ' '}</span>
-                    <span className="ml-2">CONTRACTOR</span>
-                  </label>
+                  <div className="flex items-center text-xs">
+                    <span className="border border-black w-4 h-4 mr-2 text-center text-xs">
+                      {formData.distributionTo.owner ? 'X' : ''}
+                    </span>
+                    <span>OWNER</span>
+                  </div>
+                  <div className="flex items-center text-xs">
+                    <span className="border border-black w-4 h-4 mr-2 text-center text-xs">
+                      {formData.distributionTo.architect ? 'X' : ''}
+                    </span>
+                    <span>ARCHITECT</span>
+                  </div>
+                  <div className="flex items-center text-xs">
+                    <span className="border border-black w-4 h-4 mr-2 text-center text-xs">
+                      {formData.distributionTo.contractor ? 'X' : ''}
+                    </span>
+                    <span>CONTRACTOR</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -390,24 +391,17 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
             {/* From Section */}
             <div className="border-b border-black p-2 text-xs">
               <div className="font-semibold mb-1">FROM:</div>
-              <input 
-                value={formData.contractorName}
-                onChange={(e) => setFormData({...formData, contractorName: e.target.value})}
-                placeholder="Contractor Name"
-                className="w-full border border-gray-400 p-1 print:border-0 mb-1"
-              />
-              <textarea 
-                value={formData.contractorAddress}
-                onChange={(e) => setFormData({...formData, contractorAddress: e.target.value})}
-                placeholder="Contractor Address"
-                className="w-full border border-gray-400 p-1 print:border-0 resize-none h-12 text-xs"
-              />
+              <div className="p-1 font-medium">{formData.contractorName || ''}</div>
+              <div className="p-1 text-xs whitespace-pre-line">{formData.contractorAddress || ''}</div>
             </div>
 
             {/* Contractor's Application Section */}
             <div className="p-3 border-b border-black">
               <h2 className="font-bold text-sm mb-3">CONTRACTOR'S APPLICATION FOR PAYMENT</h2>
-              <div className="text-xs">Application is made for payment, as shown below, in connection with the Contract. Continuation Sheet is enclosed.</div>
+              <div className="text-xs mb-4">
+                Application is made for payment, as shown below, in connection with the Contract. 
+                Continuation Sheet, AIA Document G703, is attached.
+              </div>
               
               <div className="grid grid-cols-2 gap-6 mt-4">
                 <div className="space-y-1">
@@ -427,19 +421,23 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
                     <span>4. TOTAL COMPLETED & STORED TO DATE</span>
                     <span className="font-mono">$ {totals.totalCompletedAndStored.toLocaleString()}</span>
                   </div>
+                  <div className="flex justify-between border-b py-1">
+                    <span>5. RETAINAGE:</span>
+                    <span></span>
+                  </div>
                   <div className="space-y-1 ml-4">
                     <div className="flex justify-between">
-                      <span>a. Completed Work</span>
-                      <span className="font-mono">$ {(totals.totalCompletedAndStored * 0.9).toLocaleString()}</span>
+                      <span>a. {formData.retainagePercentage}% of Completed Work ($)</span>
+                      <span className="font-mono">$ {(totals.totalRetainage * 0.9).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>b. Stored Material</span>
-                      <span className="font-mono">$ {(totals.totalCompletedAndStored * 0.1).toLocaleString()}</span>
+                      <span>b. {formData.retainagePercentage}% of Stored Material ($)</span>
+                      <span className="font-mono">$ {(totals.totalRetainage * 0.1).toLocaleString()}</span>
                     </div>
-                  </div>
-                  <div className="flex justify-between border-b py-1 font-semibold">
-                    <span>TOTAL RETAINED</span>
-                    <span className="font-mono">$ {totals.totalRetainage.toLocaleString()}</span>
+                    <div className="flex justify-between border-b py-1 font-semibold">
+                      <span>TOTAL RETAINAGE (Line 5a + 5b)</span>
+                      <span className="font-mono">$ {totals.totalRetainage.toLocaleString()}</span>
+                    </div>
                   </div>
                 </div>
                 
@@ -464,7 +462,7 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
               </div>
 
               {/* Change Order Summary */}
-              <div className="mt-4">
+              <div className="mt-6">
                 <h3 className="font-semibold text-xs mb-2">CHANGE ORDER SUMMARY</h3>
                 <table className="w-full border border-black text-xs">
                   <thead>
@@ -482,13 +480,13 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
                     </tr>
                     <tr className="border-b border-black">
                       <td className="border-r border-black p-1">Total approved this Month</td>
-                      <td className="border-r border-black p-1 text-right">${totals.netChangeOrders.toLocaleString()}</td>
-                      <td className="p-1 text-right">$0.00</td>
+                      <td className="border-r border-black p-1 text-right">${Math.max(totals.netChangeOrders, 0).toLocaleString()}</td>
+                      <td className="p-1 text-right">${Math.abs(Math.min(totals.netChangeOrders, 0)).toLocaleString()}</td>
                     </tr>
                     <tr className="border-b border-black">
                       <td className="border-r border-black p-1">TOTALS</td>
-                      <td className="border-r border-black p-1 text-right">${totals.netChangeOrders.toLocaleString()}</td>
-                      <td className="p-1 text-right">$0.00</td>
+                      <td className="border-r border-black p-1 text-right">${Math.max(totals.netChangeOrders, 0).toLocaleString()}</td>
+                      <td className="p-1 text-right">${Math.abs(Math.min(totals.netChangeOrders, 0)).toLocaleString()}</td>
                     </tr>
                     <tr>
                       <td className="border-r border-black p-1">NET CHANGES by Change Order</td>
@@ -506,12 +504,15 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
                   <div className="text-xs mb-4">
                     The undersigned Contractor certifies that to the best of the Contractor's knowledge, 
                     information and belief the Work covered by this Application for Payment has been 
-                    completed in accordance with the Contract Documents.
+                    completed in accordance with the Contract Documents, that all amounts have been 
+                    paid by the Contractor for Work for which previous Certificates for Payment were 
+                    issued and payments received from the Owner, and that current payment shown herein 
+                    is now due.
                   </div>
                   <div className="space-y-3">
                     <div>
                       <div className="text-xs font-semibold">CONTRACTOR:</div>
-                      <div className="border-b border-black h-6 mt-1"></div>
+                      <div className="border-b border-black h-6 mt-4"></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -535,9 +536,9 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
                     is entitled to payment of the AMOUNT CERTIFIED.
                   </div>
                   <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-xs">AMOUNT CERTIFIED</span>
-                      <span className="font-mono">$ {totals.currentPaymentDue.toLocaleString()}</span>
+                    <div className="flex justify-between border-b-2 border-black py-1">
+                      <span className="text-xs font-semibold">AMOUNT CERTIFIED</span>
+                      <span className="font-mono font-bold">$ {totals.currentPaymentDue.toLocaleString()}</span>
                     </div>
                     <div className="text-xs">
                       (Attach explanation if amount certified differs from the amount applied. Initial all figures on this 
@@ -574,15 +575,26 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
         className={`${activeDocument === 'g703' ? 'block' : 'hidden print:block'}`}
         style={{ printColorAdjust: 'exact' }}
       >
-        <div className="bg-white p-6 print:p-4 print:text-xs print:landscape" style={{ minHeight: '11in', width: '100%' }}>
+        <div className="bg-white p-6 print:p-4 print:text-xs print:landscape mx-auto" style={{ minHeight: '11in', width: '100%', maxWidth: '11in' }}>
           <div className="border-2 border-black min-h-full">
             {/* Header */}
             <div className="border-b border-black p-2">
               <div className="flex justify-between items-start">
-                <h1 className="font-bold text-sm">Continuation Sheet G703</h1>
+                <div>
+                  <h1 className="font-bold text-sm">AIA Document G703™ - 1992</h1>
+                  <h2 className="font-bold text-sm mt-1">CONTINUATION SHEET</h2>
+                  <div className="text-xs mt-2">
+                    APPLICATION AND CERTIFICATE FOR PAYMENT<br/>
+                    Containing Contractor's signed certification that to the best of the Contractor's knowledge, information and belief the Work covered by this Application for Payment has been completed in accordance with the Contract Documents, that all amounts have been paid by the Contractor for Work for which previous Certificates for Payment were issued and payments received from the Owner, and that current payment shown herein is now due.
+                  </div>
+                </div>
                 <div className="text-right text-xs">
-                  <div>APPLICATION NO: {formData.applicationNumber}</div>
-                  <div>PERIOD TO: {formData.periodTo}</div>
+                  <div><strong>APPLICATION NO:</strong> {formData.applicationNumber}</div>
+                  <div><strong>PERIOD TO:</strong> {formData.periodTo}</div>
+                  <div className="mt-2">
+                    <div><strong>PROJECT:</strong> {project?.name || ''}</div>
+                    <div><strong>FROM CONTRACTOR:</strong> {formData.contractorName || ''}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -595,15 +607,13 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
                     <th className="border-r border-black p-1 w-12">A<br/>ITEM<br/>NO.</th>
                     <th className="border-r border-black p-1 w-48">B<br/>DESCRIPTION OF WORK</th>
                     <th className="border-r border-black p-1 w-20">C<br/>SCHEDULED<br/>VALUE</th>
-                    <th className="border-r border-black p-1 w-16">D<br/>CHANGE<br/>ORDERS</th>
-                    <th className="border-r border-black p-1 w-20">E<br/>TOTAL<br/>CONTRACT</th>
-                    <th className="border-r border-black p-1 w-20">F<br/>FROM<br/>PREVIOUS<br/>APPLICATION</th>
-                    <th className="border-r border-black p-1 w-20">G<br/>WORK COMPLETED<br/>THIS PERIOD</th>
-                    <th className="border-r border-black p-1 w-20">H<br/>MATERIALS<br/>PRESENTLY<br/>STORED</th>
-                    <th className="border-r border-black p-1 w-20">I<br/>TOTAL<br/>COMPLETED<br/>AND STORED TO<br/>DATE</th>
-                    <th className="border-r border-black p-1 w-16">J<br/>%<br/>COMPLETE</th>
-                    <th className="border-r border-black p-1 w-20">K<br/>BALANCE TO<br/>FINISH</th>
-                    <th className="p-1 w-20">RETAINAGE</th>
+                    <th className="border-r border-black p-1 w-20">D<br/>WORK COMPLETED<br/>FROM PREVIOUS<br/>APPLICATION</th>
+                    <th className="border-r border-black p-1 w-20">E<br/>WORK COMPLETED<br/>THIS PERIOD</th>
+                    <th className="border-r border-black p-1 w-20">F<br/>MATERIALS<br/>PRESENTLY<br/>STORED</th>
+                    <th className="border-r border-black p-1 w-20">G<br/>TOTAL<br/>COMPLETED<br/>AND STORED TO<br/>DATE</th>
+                    <th className="border-r border-black p-1 w-16">H<br/>%<br/>(<br/>G÷C<br/>)</th>
+                    <th className="border-r border-black p-1 w-20">I<br/>BALANCE TO<br/>FINISH<br/>(<br/>C-G<br/>)</th>
+                    <th className="p-1 w-20">J<br/>RETAINAGE<br/>(<br/>%<br/>of G<br/>)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -616,29 +626,11 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
                         <td className="border-r border-black p-1 text-center">{index + 1}</td>
                         <td className="border-r border-black p-1">{item.description}</td>
                         <td className="border-r border-black p-1 text-right">${item.scheduledValue.toLocaleString()}</td>
-                        <td className="border-r border-black p-1 text-right">$0.00</td>
-                        <td className="border-r border-black p-1 text-right">${item.scheduledValue.toLocaleString()}</td>
                         <td className="border-r border-black p-1 text-right">${item.previousApplications.toLocaleString()}</td>
-                        <td className="border-r border-black p-1">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={item.thisPeriod}
-                            onChange={(e) => updateSOVItem(item.id, 'this_period', parseFloat(e.target.value) || 0)}
-                            className="w-full text-right print:border-0 print:bg-transparent text-xs"
-                          />
-                        </td>
-                        <td className="border-r border-black p-1">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={item.materialsStored}
-                            onChange={(e) => updateSOVItem(item.id, 'materials_stored', parseFloat(e.target.value) || 0)}
-                            className="w-full text-right print:border-0 print:bg-transparent text-xs"
-                          />
-                        </td>
+                        <td className="border-r border-black p-1 text-right">${item.thisPeriod.toLocaleString()}</td>
+                        <td className="border-r border-black p-1 text-right">${item.materialsStored.toLocaleString()}</td>
                         <td className="border-r border-black p-1 text-right">${item.totalCompletedAndStored.toLocaleString()}</td>
-                        <td className="border-r border-black p-1 text-center">{item.percentComplete.toFixed(2)}%</td>
+                        <td className="border-r border-black p-1 text-center">{item.percentComplete.toFixed(1)}%</td>
                         <td className="border-r border-black p-1 text-right">${balanceToFinish.toLocaleString()}</td>
                         <td className="p-1 text-right">${retainage.toLocaleString()}</td>
                       </tr>
@@ -646,7 +638,7 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
                   })}
                   
                   {/* Add empty rows to fill the page */}
-                  {Array.from({ length: Math.max(0, 25 - sovItems.length) }).map((_, index) => (
+                  {Array.from({ length: Math.max(0, 20 - sovItems.length) }).map((_, index) => (
                     <tr key={`empty-${index}`} className="border-b border-gray-300">
                       <td className="border-r border-black p-1 text-center">{sovItems.length + index + 1}</td>
                       <td className="border-r border-black p-1"></td>
@@ -655,137 +647,40 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
                       <td className="border-r border-black p-1 text-right">$0.00</td>
                       <td className="border-r border-black p-1 text-right">$0.00</td>
                       <td className="border-r border-black p-1 text-right">$0.00</td>
-                      <td className="border-r border-black p-1 text-right">$0.00</td>
-                      <td className="border-r border-black p-1 text-right">$0.00</td>
-                      <td className="border-r border-black p-1 text-center">0.00%</td>
+                      <td className="border-r border-black p-1 text-center">0.0%</td>
                       <td className="border-r border-black p-1 text-right">$0.00</td>
                       <td className="p-1 text-right">$0.00</td>
                     </tr>
                   ))}
                   
-                  {/* Grand Totals Row */}
+                  {/* Totals Row */}
                   <tr className="border-t-2 border-black font-semibold bg-gray-100">
                     <td className="border-r border-black p-1 text-center"></td>
-                    <td className="border-r border-black p-1 font-bold">GRAND TOTALS</td>
+                    <td className="border-r border-black p-1 font-bold">TOTALS</td>
                     <td className="border-r border-black p-1 text-right">${sovItems.reduce((sum, item) => sum + item.scheduledValue, 0).toLocaleString()}</td>
-                    <td className="border-r border-black p-1 text-right">${totals.netChangeOrders.toLocaleString()}</td>
-                    <td className="border-r border-black p-1 text-right">${totals.contractSumToDate.toLocaleString()}</td>
                     <td className="border-r border-black p-1 text-right">${sovItems.reduce((sum, item) => sum + item.previousApplications, 0).toLocaleString()}</td>
                     <td className="border-r border-black p-1 text-right">${sovItems.reduce((sum, item) => sum + item.thisPeriod, 0).toLocaleString()}</td>
                     <td className="border-r border-black p-1 text-right">${sovItems.reduce((sum, item) => sum + item.materialsStored, 0).toLocaleString()}</td>
                     <td className="border-r border-black p-1 text-right">${totals.totalCompletedAndStored.toLocaleString()}</td>
-                    <td className="border-r border-black p-1 text-center">{((totals.totalCompletedAndStored / totals.contractSumToDate) * 100).toFixed(2)}%</td>
+                    <td className="border-r border-black p-1 text-center">{((totals.totalCompletedAndStored / totals.contractSumToDate) * 100).toFixed(1)}%</td>
                     <td className="border-r border-black p-1 text-right">${totals.balanceToFinish.toLocaleString()}</td>
                     <td className="p-1 text-right">${totals.totalRetainage.toLocaleString()}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
+
+            {/* Footer */}
+            <div className="p-2 text-xs border-t border-black">
+              <div className="mb-2">
+                <strong>Important Information:</strong> The G703 Continuation Sheet itemizes the portions of work and the values claimed in the current payment application. Each line item should correspond to your approved Schedule of Values.
+              </div>
+              <div className="text-xs text-gray-600">
+                Pursuant to Federal Law this document was prepared by an architect or engineer.
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Customization Panel - Only show when not printing */}
-      <div className="print:hidden">
-        <Card>
-          <CardHeader>
-            <CardTitle>Application Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Period From</Label>
-                <Input
-                  type="date"
-                  value={formData.periodFrom}
-                  onChange={(e) => setFormData({...formData, periodFrom: e.target.value})}
-                />
-              </div>
-              <div>
-                <Label>Contract Date</Label>
-                <Input
-                  type="date"
-                  value={formData.contractDate}
-                  onChange={(e) => setFormData({...formData, contractDate: e.target.value})}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Original Contract Sum</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.originalContractSum}
-                  onChange={(e) => setFormData({...formData, originalContractSum: parseFloat(e.target.value) || 0})}
-                />
-              </div>
-              <div>
-                <Label>Net Change by Change Orders</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.netChangeOrders}
-                  onChange={(e) => setFormData({...formData, netChangeOrders: parseFloat(e.target.value) || 0})}
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label>Retainage Percentage: {formData.retainagePercentage}%</Label>
-              <Slider
-                value={[formData.retainagePercentage]}
-                onValueChange={(value) => setFormData({...formData, retainagePercentage: value[0]})}
-                max={10}
-                min={0}
-                step={0.5}
-                className="mt-2"
-              />
-            </div>
-
-            <div>
-              <Label>Previous Certificates for Payment</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formData.previousCertificates}
-                onChange={(e) => setFormData({...formData, previousCertificates: parseFloat(e.target.value) || 0})}
-              />
-            </div>
-
-            <div>
-              <Label>Supporting Documents</Label>
-              <Textarea
-                value={supportingDocs}
-                onChange={(e) => setSupportingDocs(e.target.value)}
-                placeholder="Drag and drop files here, or click to browse"
-                className="min-h-20"
-              />
-            </div>
-
-            <div>
-              <Label>Notes</Label>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add any additional notes or comments..."
-                className="min-h-20"
-              />
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="certification"
-                checked={formData.certification}
-                onCheckedChange={(checked) => setFormData({...formData, certification: checked as boolean})}
-              />
-              <Label htmlFor="certification" className="text-sm">
-                I certify that to the best of my knowledge and belief, the work covered by this Application for Payment has been completed in accordance with the Contract Documents.
-              </Label>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Action Buttons - Hidden when printing */}
@@ -828,12 +723,10 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
             padding: 16px !important;
           }
           
-          .print\\:border-0 {
+          input, textarea {
             border: none !important;
-          }
-          
-          .print\\:bg-transparent {
             background: transparent !important;
+            outline: none !important;
           }
         }
       `}</style>
