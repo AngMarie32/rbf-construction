@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -6,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Save, Copy } from 'lucide-react';
+import { Plus, Trash2, Save, Copy, FileText, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { exportToPDF } from '@/utils/pdfExport';
 
 interface SOVItem {
   id: string;
@@ -70,6 +70,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
   const [sovItems, setSovItems] = useState<SOVItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
 
   useEffect(() => {
     if (open && projectId) {
@@ -120,6 +121,30 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
       setCustomTemplates(data || []);
     } catch (error) {
       console.error('Error fetching custom templates:', error);
+    }
+  };
+
+  const deleteTemplate = async (templateId: string) => {
+    if (!confirm('Are you sure you want to delete this template?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('bid_templates')
+        .delete()
+        .eq('id', templateId);
+
+      if (error) throw error;
+      
+      await fetchCustomTemplates();
+      toast.success('Template deleted successfully');
+      
+      if (selectedTemplate === templateId) {
+        setSelectedTemplate('');
+        setSovItems([]);
+      }
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      toast.error('Failed to delete template');
     }
   };
 
@@ -205,7 +230,6 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
         category: item.category,
         scheduled_value: item.value,
         percent_complete: 0
-        // Removed total_completed_and_stored as it's a generated column
       }));
 
       const { error } = await supabase
@@ -237,7 +261,6 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
 
     setSavingTemplate(true);
     try {
-      // Save the template
       const { data: template, error: templateError } = await supabase
         .from('bid_templates')
         .insert({
@@ -249,7 +272,6 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
 
       if (templateError) throw templateError;
 
-      // Save template items
       const templateItems = sovItems.map(item => ({
         template_id: template.id,
         category: item.category,
@@ -263,13 +285,105 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
 
       if (itemsError) throw itemsError;
 
-      await fetchCustomTemplates(); // Refresh the templates list
+      await fetchCustomTemplates();
       toast.success(`Template "${templateName}" saved successfully`);
     } catch (error) {
       console.error('Error saving template:', error);
       toast.error('Failed to save template');
     } finally {
       setSavingTemplate(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (sovItems.length === 0) {
+      toast.error('Please add SOV items before exporting');
+      return;
+    }
+
+    setExportingPDF(true);
+    try {
+      // Create a temporary element to render the SOV report
+      const reportElement = document.createElement('div');
+      reportElement.id = 'sov-report';
+      reportElement.style.position = 'absolute';
+      reportElement.style.left = '-9999px';
+      reportElement.style.background = 'white';
+      reportElement.style.padding = '40px';
+      reportElement.style.width = '800px';
+      
+      const totalValue = sovItems.reduce((sum, item) => sum + item.value, 0);
+      
+      reportElement.innerHTML = `
+        <div style="font-family: Arial, sans-serif;">
+          <h1 style="text-align: center; margin-bottom: 30px; color: #1f2937;">Schedule of Values</h1>
+          
+          <div style="margin-bottom: 30px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+              <div>
+                <p><strong>Project Name:</strong> ${projectInfo.projectName}</p>
+                <p><strong>Project Number:</strong> ${projectInfo.projectNumber}</p>
+              </div>
+              <div>
+                <p><strong>Contract Date:</strong> ${projectInfo.contractDate || 'N/A'}</p>
+                <p><strong>Total Contract Amount:</strong> $${totalValue.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr style="background-color: #f3f4f6;">
+                <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left;">Division</th>
+                <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left;">Item Number</th>
+                <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left;">Category</th>
+                <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left;">Description</th>
+                <th style="border: 1px solid #d1d5db; padding: 12px; text-align: right;">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sovItems.map(item => `
+                <tr>
+                  <td style="border: 1px solid #d1d5db; padding: 8px;">${item.division}</td>
+                  <td style="border: 1px solid #d1d5db; padding: 8px;">${item.itemNumber}</td>
+                  <td style="border: 1px solid #d1d5db; padding: 8px;">${item.category}</td>
+                  <td style="border: 1px solid #d1d5db; padding: 8px;">${item.description}</td>
+                  <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">$${item.value.toLocaleString()}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="background-color: #f3f4f6;">
+                <td colspan="4" style="border: 1px solid #d1d5db; padding: 12px; text-align: right; font-weight: bold;">Total Contract Value:</td>
+                <td style="border: 1px solid #d1d5db; padding: 12px; text-align: right; font-weight: bold;">$${totalValue.toLocaleString()}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          ${projectInfo.notes ? `
+            <div style="margin-top: 30px;">
+              <h3>Notes:</h3>
+              <p style="border: 1px solid #d1d5db; padding: 12px; background-color: #f9fafb;">${projectInfo.notes}</p>
+            </div>
+          ` : ''}
+
+          <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 12px;">
+            Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(reportElement);
+      
+      await exportToPDF('sov-report', `sov-${projectInfo.projectName.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`);
+      
+      document.body.removeChild(reportElement);
+      toast.success('SOV report exported successfully');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast.error('Failed to export PDF');
+    } finally {
+      setExportingPDF(false);
     }
   };
 
@@ -338,18 +452,32 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
             {customTemplates.length > 0 && (
               <div className="mt-4">
                 <Label className="text-sm font-medium mb-2 block">Saved Templates</Label>
-                <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a saved template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customTemplates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select a saved template" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customTemplates.map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{template.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedTemplate && customTemplates.find(t => t.id === selectedTemplate) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deleteTemplate(selectedTemplate)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -363,7 +491,6 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                 value={projectInfo.projectName}
                 onChange={(e) => setProjectInfo({...projectInfo, projectName: e.target.value})}
                 placeholder="Enter project name"
-                disabled
               />
             </div>
             <div>
@@ -513,14 +640,25 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
 
         {/* Actions */}
         <div className="flex items-center justify-between pt-4 border-t flex-shrink-0">
-          <Button 
-            variant="outline" 
-            onClick={handleSaveAsTemplate}
-            disabled={savingTemplate || sovItems.length === 0}
-          >
-            <Copy className="w-4 h-4 mr-2" />
-            {savingTemplate ? 'Saving Template...' : 'Save as Template'}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleSaveAsTemplate}
+              disabled={savingTemplate || sovItems.length === 0}
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              {savingTemplate ? 'Saving Template...' : 'Save as Template'}
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              onClick={handleExportPDF}
+              disabled={exportingPDF || sovItems.length === 0}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              {exportingPDF ? 'Exporting...' : 'Export PDF'}
+            </Button>
+          </div>
 
           <div className="flex gap-2">
             <Button

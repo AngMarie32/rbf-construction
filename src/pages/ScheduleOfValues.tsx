@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, FileText, DollarSign, TrendingUp, Calendar, BarChart3 } from 'lucide-react';
+import { Search, Plus, FileText, DollarSign, TrendingUp, Calendar, BarChart3, Eye, Download, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +13,7 @@ import { CreateSOVDialog } from '@/components/schedule/CreateSOVDialog';
 import { G702Dialog } from '@/components/forms/G702Dialog';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
+import { exportToPDF, exportCSV } from '@/utils/pdfExport';
 
 export default function ScheduleOfValues() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -24,6 +24,8 @@ export default function ScheduleOfValues() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [g702DialogOpen, setG702DialogOpen] = useState(false);
   const [projectData, setProjectData] = useState<any>(null);
+  const [viewMode, setViewMode] = useState('all');
+  const [sortBy, setSortBy] = useState('item_number');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -74,17 +76,51 @@ export default function ScheduleOfValues() {
 
   const fetchSOVItems = async () => {
     try {
+      // Fetch SOV items with payment application data
       const { data, error } = await supabase
         .from('sov_items')
-        .select('*')
+        .select(`
+          *,
+          payment_applications_g702!inner(
+            total_completed_and_stored,
+            period_to
+          )
+        `)
         .eq('project_id', selectedProject)
         .order('item_number');
 
       if (error) throw error;
-      setSovItems(data || []);
+
+      // Update SOV items with latest payment application data
+      const updatedItems = data?.map(item => {
+        const latestPayment = item.payment_applications_g702?.reduce((latest: any, current: any) => {
+          return new Date(current.period_to) > new Date(latest.period_to) ? current : latest;
+        });
+
+        return {
+          ...item,
+          total_completed_and_stored: latestPayment?.total_completed_and_stored || item.total_completed_and_stored || 0,
+          percent_complete: item.scheduled_value ? 
+            Math.round(((latestPayment?.total_completed_and_stored || item.total_completed_and_stored || 0) / item.scheduled_value) * 100) : 0
+        };
+      }) || [];
+
+      setSovItems(updatedItems);
     } catch (error) {
-      console.error('Error fetching SOV items:', error);
-      toast.error('Failed to load SOV items');
+      // If no payment applications exist, just fetch SOV items
+      try {
+        const { data, error } = await supabase
+          .from('sov_items')
+          .select('*')
+          .eq('project_id', selectedProject)
+          .order('item_number');
+
+        if (error) throw error;
+        setSovItems(data || []);
+      } catch (fallbackError) {
+        console.error('Error fetching SOV items:', fallbackError);
+        toast.error('Failed to load SOV items');
+      }
     }
   };
 
@@ -104,13 +140,98 @@ export default function ScheduleOfValues() {
     setG702DialogOpen(true);
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!selectedProject) {
       toast.error('Please select a project first');
       return;
     }
-    window.print();
-    toast.success('Print dialog opened');
+
+    try {
+      // Create a temporary element to render the SOV report
+      const reportElement = document.createElement('div');
+      reportElement.id = 'sov-print-report';
+      reportElement.style.position = 'absolute';
+      reportElement.style.left = '-9999px';
+      reportElement.style.background = 'white';
+      reportElement.style.padding = '40px';
+      reportElement.style.width = '800px';
+      
+      const totalScheduledValue = sovItems.reduce((sum, item) => sum + (item.scheduled_value || 0), 0);
+      const totalCompleted = sovItems.reduce((sum, item) => sum + (item.total_completed_and_stored || 0), 0);
+      const completionPercentage = totalScheduledValue ? Math.round((totalCompleted / totalScheduledValue) * 100) : 0;
+      
+      reportElement.innerHTML = `
+        <div style="font-family: Arial, sans-serif;">
+          <h1 style="text-align: center; margin-bottom: 30px; color: #1f2937;">Schedule of Values Report</h1>
+          
+          <div style="margin-bottom: 30px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+              <div>
+                <p><strong>Project:</strong> ${projectData?.name || 'N/A'}</p>
+                <p><strong>Project Code:</strong> ${projectData?.project_code || 'N/A'}</p>
+                <p><strong>Status:</strong> ${projectData?.status || 'N/A'}</p>
+              </div>
+              <div>
+                <p><strong>Contract Value:</strong> $${totalScheduledValue.toLocaleString()}</p>
+                <p><strong>Completed:</strong> $${totalCompleted.toLocaleString()}</p>
+                <p><strong>Progress:</strong> ${completionPercentage}%</p>
+              </div>
+            </div>
+          </div>
+
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr style="background-color: #f3f4f6;">
+                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Item/Division</th>
+                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Description</th>
+                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">Scheduled Value</th>
+                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">Work Completed</th>
+                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">% Complete</th>
+                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sovItems.map(item => {
+                const balance = (item.scheduled_value || 0) - (item.total_completed_and_stored || 0);
+                return `
+                  <tr>
+                    <td style="border: 1px solid #d1d5db; padding: 6px;">${item.item_number}</td>
+                    <td style="border: 1px solid #d1d5db; padding: 6px;">${item.description}</td>
+                    <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${(item.scheduled_value || 0).toLocaleString()}</td>
+                    <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${(item.total_completed_and_stored || 0).toLocaleString()}</td>
+                    <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${item.percent_complete || 0}%</td>
+                    <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${balance.toLocaleString()}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="background-color: #f3f4f6;">
+                <td colspan="2" style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">Totals:</td>
+                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">$${totalScheduledValue.toLocaleString()}</td>
+                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">$${totalCompleted.toLocaleString()}</td>
+                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">${completionPercentage}%</td>
+                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">$${(totalScheduledValue - totalCompleted).toLocaleString()}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 12px;">
+            Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(reportElement);
+      
+      await exportToPDF('sov-print-report', `sov-report-${projectData?.name?.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`);
+      
+      document.body.removeChild(reportElement);
+      toast.success('SOV report generated successfully');
+    } catch (error) {
+      console.error('Error generating report:', error);
+      toast.error('Failed to generate report');
+    }
   };
 
   const handleExport = () => {
@@ -119,25 +240,17 @@ export default function ScheduleOfValues() {
       return;
     }
     
-    const csvContent = [
-      ['Item Number', 'Category', 'Description', 'Scheduled Value', 'Completed Value', 'Percent Complete'],
-      ...sovItems.map(item => [
-        item.item_number,
-        item.category,
-        item.description,
-        item.scheduled_value,
-        item.total_completed_and_stored || 0,
-        item.percent_complete || 0
-      ])
-    ].map(row => row.join(',')).join('\n');
+    const csvData = sovItems.map(item => ({
+      'Item Number': item.item_number,
+      'Category': item.category,
+      'Description': item.description,
+      'Scheduled Value': item.scheduled_value,
+      'Completed Value': item.total_completed_and_stored || 0,
+      'Percent Complete': item.percent_complete || 0,
+      'Balance': (item.scheduled_value || 0) - (item.total_completed_and_stored || 0)
+    }));
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sov-${selectedProject}-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    exportCSV(csvData, `sov-${selectedProject}-${new Date().toISOString().split('T')[0]}.csv`);
     toast.success('SOV exported successfully');
   };
 
@@ -146,14 +259,50 @@ export default function ScheduleOfValues() {
       toast.error('Please select a project first');
       return;
     }
-    toast.info('Edit values functionality coming soon');
+    navigate(`/projects/${selectedProject}/billing`);
   };
 
-  const filteredItems = sovItems.filter(item =>
-    item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.item_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleViewOptions = (option: string) => {
+    setViewMode(option);
+    toast.success(`View changed to: ${option}`);
+  };
+
+  const handleExportOptions = (option: string) => {
+    if (!selectedProject) {
+      toast.error('Please select a project first');
+      return;
+    }
+
+    switch (option) {
+      case 'pdf':
+        handlePrint();
+        break;
+      case 'csv':
+        handleExport();
+        break;
+      case 'excel':
+        toast.info('Excel export coming soon');
+        break;
+      default:
+        toast.info('Export option not implemented yet');
+    }
+  };
+
+  const filteredItems = sovItems.filter(item => {
+    const matchesSearch = item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.item_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (viewMode === 'completed') {
+      return matchesSearch && (item.percent_complete || 0) === 100;
+    } else if (viewMode === 'in-progress') {
+      return matchesSearch && (item.percent_complete || 0) > 0 && (item.percent_complete || 0) < 100;
+    } else if (viewMode === 'not-started') {
+      return matchesSearch && (item.percent_complete || 0) === 0;
+    }
+    
+    return matchesSearch;
+  });
 
   const totalScheduledValue = sovItems.reduce((sum, item) => sum + (item.scheduled_value || 0), 0);
   const totalCompleted = sovItems.reduce((sum, item) => sum + (item.total_completed_and_stored || 0), 0);
@@ -241,11 +390,18 @@ export default function ScheduleOfValues() {
                 G703 & G702
               </Button>
               <Button variant="outline" onClick={handlePrint}>
-                Print
+                Print Report
               </Button>
-              <Button variant="outline" onClick={handleExport}>
-                Export
-              </Button>
+              <Select onValueChange={handleExportOptions}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Export" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="csv">CSV</SelectItem>
+                  <SelectItem value="pdf">PDF</SelectItem>
+                  <SelectItem value="excel">Excel</SelectItem>
+                </SelectContent>
+              </Select>
               <Button variant="outline" onClick={handleEditValues}>
                 <BarChart3 className="w-4 h-4 mr-2" />
                 Edit Values
@@ -332,67 +488,6 @@ export default function ScheduleOfValues() {
               </Card>
             </div>
 
-            {/* Progress Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Project Completion Progress by Category</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Overall Project Completion</span>
-                    <span className="text-sm font-bold">{completionPercentage}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                      style={{ width: `${completionPercentage}%` }}
-                    ></div>
-                  </div>
-                  
-                  {chartData.length > 0 && (
-                    <div className="mt-6">
-                      <ChartContainer
-                        config={{
-                          completed: {
-                            label: "Completed",
-                            color: "#3b82f6",
-                          },
-                          total: {
-                            label: "Total",
-                            color: "#e5e7eb",
-                          },
-                        }}
-                        className="h-[300px]"
-                      >
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={chartData}>
-                            <XAxis 
-                              dataKey="category" 
-                              tick={{ fontSize: 12 }}
-                              angle={-45}
-                              textAnchor="end"
-                              height={80}
-                            />
-                            <YAxis tick={{ fontSize: 12 }} />
-                            <ChartTooltip 
-                              content={<ChartTooltipContent />}
-                              formatter={(value, name) => [
-                                `$${Number(value).toLocaleString()}`,
-                                name === 'completed' ? 'Completed' : 'Total'
-                              ]}
-                            />
-                            <Bar dataKey="total" fill="#e5e7eb" />
-                            <Bar dataKey="completed" fill="#3b82f6" />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </ChartContainer>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Search and Filter */}
             <div className="flex gap-4 items-center">
               <div className="relative flex-1 max-w-md">
@@ -404,22 +499,28 @@ export default function ScheduleOfValues() {
                   className="pl-10"
                 />
               </div>
-              <Select defaultValue="all">
+              <Select value={viewMode} onValueChange={handleViewOptions}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Time</SelectItem>
-                  <SelectItem value="this-month">This Month</SelectItem>
-                  <SelectItem value="last-month">Last Month</SelectItem>
+                  <SelectItem value="all">All Items</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="not-started">Not Started</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" onClick={() => toast.info('View options coming soon')}>
-                View Options
-              </Button>
-              <Button variant="outline" onClick={handleExport}>
-                Export Options
-              </Button>
+              <Select>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Sort By" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="item_number">Item Number</SelectItem>
+                  <SelectItem value="category">Category</SelectItem>
+                  <SelectItem value="value">Value</SelectItem>
+                  <SelectItem value="completion">% Complete</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* SOV Items Table */}
