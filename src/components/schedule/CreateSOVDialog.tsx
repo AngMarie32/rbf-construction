@@ -26,7 +26,7 @@ interface CreateSOVDialogProps {
   onSave: () => void;
 }
 
-const templates = [
+const builtInTemplates = [
   {
     id: 'basic',
     name: 'Basic Template',
@@ -59,6 +59,7 @@ const templates = [
 
 export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: CreateSOVDialogProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [customTemplates, setCustomTemplates] = useState<any[]>([]);
   const [projectInfo, setProjectInfo] = useState({
     projectName: '',
     projectNumber: '',
@@ -73,6 +74,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
   useEffect(() => {
     if (open && projectId) {
       fetchProjectInfo();
+      fetchCustomTemplates();
     }
   }, [open, projectId]);
 
@@ -98,11 +100,36 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
     }
   };
 
+  const fetchCustomTemplates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('bid_templates')
+        .select(`
+          id,
+          name,
+          description,
+          bid_template_items (
+            category,
+            description,
+            unit_cost
+          )
+        `)
+        .order('name');
+
+      if (error) throw error;
+      setCustomTemplates(data || []);
+    } catch (error) {
+      console.error('Error fetching custom templates:', error);
+    }
+  };
+
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId);
-    const template = templates.find(t => t.id === templateId);
-    if (template) {
-      const items = template.items.map((item, index) => ({
+    
+    // Check if it's a built-in template
+    const builtInTemplate = builtInTemplates.find(t => t.id === templateId);
+    if (builtInTemplate) {
+      const items = builtInTemplate.items.map((item, index) => ({
         id: `temp-${index}`,
         division: item.division,
         itemNumber: item.itemNumber,
@@ -111,6 +138,27 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
         value: item.value
       }));
       setSovItems(items);
+      return;
+    }
+
+    // Check if it's a custom template
+    const customTemplate = customTemplates.find(t => t.id === templateId);
+    if (customTemplate && customTemplate.bid_template_items) {
+      const items = customTemplate.bid_template_items.map((item: any, index: number) => ({
+        id: `temp-${index}`,
+        division: Math.floor(index / 100 + 1).toString().padStart(2, '0'),
+        itemNumber: `${Math.floor(index / 100 + 1).toString().padStart(2, '0')}-${(index % 100 + 1).toString().padStart(3, '0')}`,
+        category: item.category,
+        description: item.description,
+        value: item.unit_cost || 0
+      }));
+      setSovItems(items);
+      return;
+    }
+
+    // Start from scratch
+    if (templateId === 'scratch') {
+      setSovItems([]);
     }
   };
 
@@ -156,8 +204,8 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
         description: item.description,
         category: item.category,
         scheduled_value: item.value,
-        percent_complete: 0,
-        total_completed_and_stored: 0
+        percent_complete: 0
+        // Removed total_completed_and_stored as it's a generated column
       }));
 
       const { error } = await supabase
@@ -189,8 +237,33 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
 
     setSavingTemplate(true);
     try {
-      // This would save to a templates table if we had one
-      // For now, just show success message
+      // Save the template
+      const { data: template, error: templateError } = await supabase
+        .from('bid_templates')
+        .insert({
+          name: templateName,
+          description: `Custom template created from project: ${projectInfo.projectName}`
+        })
+        .select()
+        .single();
+
+      if (templateError) throw templateError;
+
+      // Save template items
+      const templateItems = sovItems.map(item => ({
+        template_id: template.id,
+        category: item.category,
+        description: item.description,
+        unit_cost: item.value
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('bid_template_items')
+        .insert(templateItems);
+
+      if (itemsError) throw itemsError;
+
+      await fetchCustomTemplates(); // Refresh the templates list
       toast.success(`Template "${templateName}" saved successfully`);
     } catch (error) {
       console.error('Error saving template:', error);
@@ -214,6 +287,8 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
 
   const totalValue = sovItems.reduce((sum, item) => sum + item.value, 0);
 
+  const allTemplates = [...builtInTemplates, ...customTemplates];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
@@ -226,7 +301,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
           <div>
             <Label className="text-sm font-medium mb-3 block">Select Template</Label>
             <div className="grid grid-cols-3 gap-4">
-              {templates.map((template) => (
+              {builtInTemplates.map((template) => (
                 <div
                   key={template.id}
                   className={`p-4 border rounded-lg cursor-pointer transition-colors ${
@@ -249,10 +324,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                     ? 'border-green-500 bg-green-50' 
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
-                onClick={() => {
-                  setSelectedTemplate('scratch');
-                  setSovItems([]);
-                }}
+                onClick={() => handleTemplateSelect('scratch')}
               >
                 <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-lg mb-3 mx-auto">
                   <Plus className="w-6 h-6 text-green-600" />
@@ -261,6 +333,25 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                 <p className="text-sm text-gray-500 text-center mt-1">Create your own custom structure.</p>
               </div>
             </div>
+
+            {/* Custom Templates Dropdown */}
+            {customTemplates.length > 0 && (
+              <div className="mt-4">
+                <Label className="text-sm font-medium mb-2 block">Saved Templates</Label>
+                <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a saved template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           {/* Project Information */}

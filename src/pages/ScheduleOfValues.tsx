@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { CreateSOVDialog } from '@/components/schedule/CreateSOVDialog';
+import { G702Dialog } from '@/components/forms/G702Dialog';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 
@@ -21,6 +22,7 @@ export default function ScheduleOfValues() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [g702DialogOpen, setG702DialogOpen] = useState(false);
   const [projectData, setProjectData] = useState<any>(null);
   const navigate = useNavigate();
 
@@ -92,6 +94,59 @@ export default function ScheduleOfValues() {
       return;
     }
     setCreateDialogOpen(true);
+  };
+
+  const handleG702G703 = () => {
+    if (!selectedProject) {
+      toast.error('Please select a project first');
+      return;
+    }
+    setG702DialogOpen(true);
+  };
+
+  const handlePrint = () => {
+    if (!selectedProject) {
+      toast.error('Please select a project first');
+      return;
+    }
+    window.print();
+    toast.success('Print dialog opened');
+  };
+
+  const handleExport = () => {
+    if (!selectedProject) {
+      toast.error('Please select a project first');
+      return;
+    }
+    
+    const csvContent = [
+      ['Item Number', 'Category', 'Description', 'Scheduled Value', 'Completed Value', 'Percent Complete'],
+      ...sovItems.map(item => [
+        item.item_number,
+        item.category,
+        item.description,
+        item.scheduled_value,
+        item.total_completed_and_stored || 0,
+        item.percent_complete || 0
+      ])
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sov-${selectedProject}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success('SOV exported successfully');
+  };
+
+  const handleEditValues = () => {
+    if (!selectedProject) {
+      toast.error('Please select a project first');
+      return;
+    }
+    toast.info('Edit values functionality coming soon');
   };
 
   const filteredItems = sovItems.filter(item =>
@@ -181,17 +236,17 @@ export default function ScheduleOfValues() {
                 <Plus className="w-4 h-4 mr-2" />
                 Create New
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" onClick={handleG702G703}>
                 <FileText className="w-4 h-4 mr-2" />
                 G703 & G702
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" onClick={handlePrint}>
                 Print
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" onClick={handleExport}>
                 Export
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" onClick={handleEditValues}>
                 <BarChart3 className="w-4 h-4 mr-2" />
                 Edit Values
               </Button>
@@ -359,10 +414,10 @@ export default function ScheduleOfValues() {
                   <SelectItem value="last-month">Last Month</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => toast.info('View options coming soon')}>
                 View Options
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" onClick={handleExport}>
                 Export Options
               </Button>
             </div>
@@ -491,6 +546,13 @@ export default function ScheduleOfValues() {
           onOpenChange={setCreateDialogOpen}
           projectId={selectedProject}
           onSave={fetchSOVItems}
+        />
+
+        <G702Dialog
+          open={g702DialogOpen}
+          onOpenChange={setG702DialogOpen}
+          projectId={selectedProject}
+          onSave={() => {}}
         />
       </div>
     </Layout>
