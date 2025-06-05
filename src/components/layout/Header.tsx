@@ -12,7 +12,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
-import { Badge } from '@/components/ui/badge';
 
 export function Header() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,9 +31,6 @@ export function Header() {
         {/* Logo and App Name */}
         <div className="flex items-center space-x-4">
           <h1 className="text-2xl font-bold text-gray-900">RBF Construction</h1>
-          <Badge variant="secondary" className="text-xs">
-            Construction Management Platform
-          </Badge>
         </div>
 
         {/* Search Bar */}
