@@ -56,6 +56,7 @@ export default function EquipmentPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     fetchEquipment();
@@ -202,11 +203,47 @@ export default function EquipmentPage() {
     setEditDialogOpen(true);
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      toast.success('Image selected for upload');
+    if (!file || !editingEquipment) return;
+
+    setUploadingImage(true);
+    try {
+      // Create a unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `equipment-${editingEquipment.id}-${Date.now()}.${fileExt}`;
+      
+      // Upload the file to Supabase storage
+      const { error: uploadError } = await supabase.storage
+        .from('equipment-images')
+        .upload(fileName, file, { 
+          cacheControl: '3600',
+          upsert: true 
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        toast.error('Failed to upload image');
+        return;
+      }
+
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('equipment-images')
+        .getPublicUrl(fileName);
+
+      // Update the equipment with the new image URL
+      setEditingEquipment({
+        ...editingEquipment,
+        image: publicUrl
+      });
+
+      toast.success('Image uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error('Failed to upload image');
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -214,29 +251,6 @@ export default function EquipmentPage() {
     if (!editingEquipment) return;
 
     try {
-      let imageUrl = editingEquipment.image;
-
-      // Upload image if a new one was selected
-      if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${Date.now()}-${editingEquipment.id}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('equipment-images')
-          .upload(fileName, imageFile, { upsert: true });
-
-        if (uploadError) {
-          console.log('Storage upload error:', uploadError);
-          // Continue without image if storage fails
-        } else {
-          const { data: { publicUrl } } = supabase.storage
-            .from('equipment-images')
-            .getPublicUrl(fileName);
-
-          imageUrl = publicUrl;
-        }
-      }
-
       const { error } = await supabase
         .from('equipment')
         .update({
@@ -247,7 +261,7 @@ export default function EquipmentPage() {
           value: editingEquipment.value,
           status: editingEquipment.status,
           description: editingEquipment.description,
-          image: imageUrl,
+          image: editingEquipment.image,
           updated_at: new Date().toISOString()
         })
         .eq('id', editingEquipment.id);
@@ -394,12 +408,23 @@ export default function EquipmentPage() {
               <Card key={item.id} className="hover:shadow-lg transition-shadow">
                 <CardContent className="p-0">
                   <div className="relative">
-                    <div className="h-48 bg-gray-200 rounded-t-lg flex items-center justify-center">
+                    <div className="h-48 bg-gray-200 rounded-t-lg flex items-center justify-center overflow-hidden">
                       {item.image ? (
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-t-lg" />
-                      ) : (
-                        <div className="text-gray-400">No Image</div>
-                      )}
+                        <img 
+                          src={item.image} 
+                          alt={item.name} 
+                          className="w-full h-full object-cover rounded-t-lg"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            target.nextElementSibling?.classList.remove('hidden');
+                          }}
+                        />
+                      ) : null}
+                      <div className={cn("text-gray-400 flex items-center justify-center w-full h-full", item.image && "hidden")}>
+                        <Camera className="w-8 h-8 mb-2" />
+                        <span>No Image</span>
+                      </div>
                     </div>
                     <Badge className={cn("absolute top-2 right-2", getStatusColor(item.status))}>
                       {item.status}
@@ -668,13 +693,11 @@ export default function EquipmentPage() {
                     type="button"
                     variant="outline"
                     onClick={() => document.getElementById('image')?.click()}
+                    disabled={uploadingImage}
                   >
                     <Camera className="w-4 h-4 mr-2" />
-                    {imageFile ? 'Change Image' : 'Upload Image'}
+                    {uploadingImage ? 'Uploading...' : editingEquipment.image ? 'Change Image' : 'Upload Image'}
                   </Button>
-                  {imageFile && (
-                    <span className="text-sm text-green-600">{imageFile.name}</span>
-                  )}
                 </div>
                 {editingEquipment.image && (
                   <div className="mt-2">
