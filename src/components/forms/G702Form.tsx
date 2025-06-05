@@ -8,9 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Slider } from '@/components/ui/slider';
 import { Settings } from 'lucide-react';
 import { G702Builder } from './G702Builder';
+import { G702Document } from './G702Document';
+import { G703Document } from './G703Document';
 
 interface G702FormProps {
   projectId: string;
@@ -49,8 +50,7 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
   const [sovItems, setSovItems] = useState<SOVItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeDocument, setActiveDocument] = useState<'g702' | 'g703' | 'builder'>('builder');
-  const [notes, setNotes] = useState('');
-  const [supportingDocs, setSupportingDocs] = useState('');
+  const [calculatedTotals, setCalculatedTotals] = useState<any>(null);
   
   const [formData, setFormData] = useState({
     applicationNumber: 1,
@@ -81,6 +81,13 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
       fetchLastApplicationNumber();
     }
   }, [projectId]);
+
+  // Recalculate totals whenever SOV items or form data changes
+  useEffect(() => {
+    if (sovItems.length > 0) {
+      calculateTotals().then(setCalculatedTotals);
+    }
+  }, [sovItems, formData.applicationNumber, formData.retainagePercentage]);
 
   const fetchLastApplicationNumber = async () => {
     try {
@@ -181,7 +188,6 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
     
     // Total Completed & Stored to Date = Total from G703 from current and all previous applications
     const currentTotalCompleted = sovItems.reduce((sum, item) => sum + (item.totalCompletedAndStored || 0), 0);
-    const previousTotalCompleted = (previousApps || []).reduce((sum, app) => sum + (app.total_completed_and_stored || 0), 0);
     const totalCompletedAndStored = currentTotalCompleted;
     
     // Retainage calculations
@@ -214,11 +220,10 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
   };
 
   const saveG702Application = async () => {
-    if (!project) return;
+    if (!project || !calculatedTotals) return;
 
     try {
       setLoading(true);
-      const totals = await calculateTotals();
 
       // Update SOV items with this period amounts
       for (const item of sovItems) {
@@ -248,17 +253,17 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
           contractor_address: formData.contractorAddress,
           project_name: project.name,
           project_number: formData.projectNumber || project.projectCode,
-          original_contract_sum: totals.originalContractSum,
-          net_change_by_change_orders: totals.netChangeOrders,
-          contract_sum_to_date: totals.contractSumToDate,
-          total_completed_and_stored: totals.totalCompletedAndStored,
-          retainage_completed_work: totals.totalRetainage * 0.9,
-          retainage_stored_materials: totals.totalRetainage * 0.1,
-          total_retainage: totals.totalRetainage,
-          total_earned_less_retainage: totals.totalEarnedLessRetainage,
-          less_previous_certificates: totals.lessPreviousPayments,
-          current_payment_due: totals.currentPaymentDue,
-          balance_to_finish: totals.balanceToFinish
+          original_contract_sum: calculatedTotals.originalContractSum,
+          net_change_by_change_orders: calculatedTotals.netChangeOrders,
+          contract_sum_to_date: calculatedTotals.contractSumToDate,
+          total_completed_and_stored: calculatedTotals.totalCompletedAndStored,
+          retainage_completed_work: calculatedTotals.totalRetainage * 0.9,
+          retainage_stored_materials: calculatedTotals.totalRetainage * 0.1,
+          total_retainage: calculatedTotals.totalRetainage,
+          total_earned_less_retainage: calculatedTotals.totalEarnedLessRetainage,
+          less_previous_certificates: calculatedTotals.lessPreviousPayments,
+          current_payment_due: calculatedTotals.currentPaymentDue,
+          balance_to_finish: calculatedTotals.balanceToFinish
         });
 
       if (error) throw error;
@@ -311,6 +316,28 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
             setFormData={setFormData}
             sovItems={sovItems}
             setSovItems={setSovItems}
+          />
+        </div>
+      )}
+
+      {/* G702 Document View */}
+      {activeDocument === 'g702' && calculatedTotals && (
+        <div id="g702-document">
+          <G702Document
+            project={project}
+            formData={formData}
+            totals={calculatedTotals}
+          />
+        </div>
+      )}
+
+      {/* G703 Document View */}
+      {activeDocument === 'g703' && (
+        <div id="g703-document">
+          <G703Document
+            project={project}
+            formData={formData}
+            sovItems={sovItems}
           />
         </div>
       )}
