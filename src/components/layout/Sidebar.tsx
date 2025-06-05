@@ -17,7 +17,6 @@ import {
   FileCheck,
   ChevronLeft,
   ChevronRight,
-  LogOut,
   Clock,
   Edit,
   Receipt,
@@ -57,7 +56,7 @@ const menuSections = [
       { name: 'Project Billing', href: '/project-billing', icon: CreditCard },
       { name: 'Change Orders', href: '/change-orders', icon: Edit },
       { name: 'Expenses', href: '/expenses', icon: Receipt },
-      { name: 'Bid Packages', href: '/bid-packages', icon: Package },
+      { name: 'Bid Invitations', href: '/bid-packages', icon: Package },
     ]
   }
 ];
@@ -70,7 +69,6 @@ export function Sidebar({ className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [expandedSections, setExpandedSections] = useState<string[]>(['Company Dashboards', 'Tools', 'Project Management']);
   const location = useLocation();
-  const { user, signOut } = useAuth();
 
   const toggleSection = (sectionTitle: string) => {
     setExpandedSections(prev => 
@@ -93,7 +91,7 @@ export function Sidebar({ className }: SidebarProps) {
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <Wrench className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-lg text-gray-900">BuildPro</span>
+            <span className="font-bold text-lg text-gray-900">RBF Construction</span>
           </div>
         )}
         <Button
@@ -157,39 +155,6 @@ export function Sidebar({ className }: SidebarProps) {
           </div>
         ))}
       </nav>
-
-      {/* User Section */}
-      <div className="p-4 border-t border-gray-200">
-        <div className={cn(
-          "flex items-center",
-          collapsed ? "justify-center" : "space-x-3"
-        )}>
-          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium text-gray-700">
-              {user?.email?.charAt(0).toUpperCase() || 'U'}
-            </span>
-          </div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {user?.email || 'User'}
-              </p>
-              <p className="text-xs text-gray-500 truncate">Field Worker</p>
-            </div>
-          )}
-        </div>
-        {!collapsed && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={signOut}
-            className="w-full mt-2 justify-start text-gray-600 hover:text-gray-900"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
-        )}
-      </div>
     </div>
   );
 }
