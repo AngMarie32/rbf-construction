@@ -63,13 +63,12 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
 
   const updateSOVItemThisPeriod = useCallback(async (id: string, value: number) => {
     // Update local state immediately for better UX
-    setSovItems(prevItems => 
-      prevItems.map(item => 
-        item.id === id 
-          ? { ...item, thisPeriod: value }
-          : item
-      )
+    const updatedItems = sovItems.map(item => 
+      item.id === id 
+        ? { ...item, thisPeriod: value }
+        : item
     );
+    setSovItems(updatedItems);
 
     // Debounced database update
     try {
@@ -83,20 +82,19 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
       if (error) {
         console.error('Error updating SOV item:', error);
         // Revert local state on error
-        setSovItems(prevItems => 
-          prevItems.map(item => 
-            item.id === id 
-              ? { ...item, thisPeriod: item.thisPeriod }
-              : item
-          )
+        const revertedItems = sovItems.map(item => 
+          item.id === id 
+            ? { ...item, thisPeriod: item.thisPeriod }
+            : item
         );
+        setSovItems(revertedItems);
         toast.error('Failed to update item');
       }
     } catch (error) {
       console.error('Error updating SOV item:', error);
       toast.error('Failed to update item');
     }
-  }, [setSovItems]);
+  }, [sovItems, setSovItems]);
 
   const calculateTotals = () => {
     const totalScheduledValue = sovItems.reduce((sum, item) => sum + (item.scheduledValue || 0), 0);
