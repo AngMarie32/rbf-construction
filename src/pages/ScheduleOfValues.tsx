@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -76,26 +77,33 @@ export default function ScheduleOfValues() {
 
   const fetchSOVItems = async () => {
     try {
-      // Fetch SOV items with payment application data
-      const { data, error } = await supabase
+      // First, fetch SOV items
+      const { data: sovData, error: sovError } = await supabase
         .from('sov_items')
-        .select(`
-          *,
-          payment_applications_g702!inner(
-            total_completed_and_stored,
-            period_to
-          )
-        `)
+        .select('*')
         .eq('project_id', selectedProject)
         .order('item_number');
 
-      if (error) throw error;
+      if (sovError) throw sovError;
+
+      // Then, fetch payment applications for this project
+      const { data: paymentData, error: paymentError } = await supabase
+        .from('payment_applications_g702')
+        .select('*')
+        .eq('project_id', selectedProject)
+        .order('period_to', { ascending: false });
+
+      if (paymentError) {
+        console.error('Error fetching payment applications:', paymentError);
+        // If no payment applications exist, just use SOV data
+        setSovItems(sovData || []);
+        return;
+      }
 
       // Update SOV items with latest payment application data
-      const updatedItems = data?.map(item => {
-        const latestPayment = item.payment_applications_g702?.reduce((latest: any, current: any) => {
-          return new Date(current.period_to) > new Date(latest.period_to) ? current : latest;
-        });
+      const updatedItems = sovData?.map(item => {
+        // Find the latest payment application
+        const latestPayment = paymentData?.[0]; // Most recent due to ordering
 
         return {
           ...item,
@@ -107,20 +115,8 @@ export default function ScheduleOfValues() {
 
       setSovItems(updatedItems);
     } catch (error) {
-      // If no payment applications exist, just fetch SOV items
-      try {
-        const { data, error } = await supabase
-          .from('sov_items')
-          .select('*')
-          .eq('project_id', selectedProject)
-          .order('item_number');
-
-        if (error) throw error;
-        setSovItems(data || []);
-      } catch (fallbackError) {
-        console.error('Error fetching SOV items:', fallbackError);
-        toast.error('Failed to load SOV items');
-      }
+      console.error('Error fetching SOV items:', error);
+      toast.error('Failed to load SOV items');
     }
   };
 
@@ -315,20 +311,6 @@ export default function ScheduleOfValues() {
     acc[category].push(item);
     return acc;
   }, {} as Record<string, any[]>);
-
-  // Create chart data by category
-  const chartData = Object.entries(groupedItems).map(([category, items]) => {
-    const categoryTotal = Array.isArray(items) ? items.reduce((sum, item) => sum + (item.scheduled_value || 0), 0) : 0;
-    const categoryCompleted = Array.isArray(items) ? items.reduce((sum, item) => sum + (item.total_completed_and_stored || 0), 0) : 0;
-    const percentage = categoryTotal ? Math.round((categoryCompleted / categoryTotal) * 100) : 0;
-    
-    return {
-      category: category.replace(/^Division \d+\s*-?\s*/, ''), // Clean up category names
-      completed: categoryCompleted,
-      total: categoryTotal,
-      percentage
-    };
-  });
 
   const getLastUpdated = () => {
     if (sovItems.length === 0) return null;
