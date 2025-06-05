@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
+import { EditProposalDialog } from '@/components/proposals/EditProposalDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,7 @@ import { Search, Filter, FileText, Edit, Trash2, Eye, Download } from 'lucide-re
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Proposal } from '@/types';
+import { useNavigate } from 'react-router-dom';
 
 interface DatabaseProposal {
   id: string;
@@ -25,11 +27,13 @@ interface DatabaseProposal {
 }
 
 export default function Proposals() {
+  const navigate = useNavigate();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [filteredProposals, setFilteredProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
 
   useEffect(() => {
     fetchProposals();
@@ -103,6 +107,10 @@ export default function Proposals() {
     }
   };
 
+  const handleCreateFromBidPlanner = () => {
+    navigate('/bid-planner');
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Draft': return 'bg-gray-100 text-gray-800';
@@ -114,9 +122,6 @@ export default function Proposals() {
   };
 
   const totalValue = proposals.reduce((sum, proposal) => sum + proposal.amount, 0);
-  const approvedValue = proposals
-    .filter(p => p.status === 'Approved')
-    .reduce((sum, proposal) => sum + proposal.amount, 0);
 
   if (loading) {
     return (
@@ -157,7 +162,12 @@ export default function Proposals() {
               </SelectContent>
             </Select>
           </div>
-          <NewProposalDialog onProposalCreated={fetchProposals} />
+          <div className="flex gap-2">
+            <Button onClick={handleCreateFromBidPlanner} variant="outline">
+              Create from Bid Planner
+            </Button>
+            <NewProposalDialog onProposalCreated={fetchProposals} />
+          </div>
         </div>
 
         {/* Stats */}
@@ -213,7 +223,12 @@ export default function Proposals() {
                     : 'No proposals found. Create your first proposal to get started!'}
                 </p>
                 {!searchTerm && statusFilter === 'all' && (
-                  <NewProposalDialog onProposalCreated={fetchProposals} />
+                  <div className="flex gap-2 justify-center">
+                    <Button onClick={handleCreateFromBidPlanner} variant="outline">
+                      Create from Bid Planner
+                    </Button>
+                    <NewProposalDialog onProposalCreated={fetchProposals} />
+                  </div>
                 )}
               </div>
             ) : (
@@ -252,7 +267,11 @@ export default function Proposals() {
                             <Button variant="ghost" size="sm">
                               <Eye className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setEditingProposal(proposal)}
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
                             <Button 
@@ -273,6 +292,16 @@ export default function Proposals() {
             )}
           </CardContent>
         </Card>
+
+        {/* Edit Proposal Dialog */}
+        {editingProposal && (
+          <EditProposalDialog
+            proposal={editingProposal}
+            open={true}
+            onClose={() => setEditingProposal(null)}
+            onProposalUpdated={fetchProposals}
+          />
+        )}
       </div>
     </Layout>
   );

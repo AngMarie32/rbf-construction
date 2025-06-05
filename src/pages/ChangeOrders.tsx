@@ -1,44 +1,57 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, FileText, DollarSign, Calendar } from 'lucide-react';
+import { Search, Eye, Plus, ArrowLeft, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
-import { CreateChangeOrderDialog } from '@/components/change-orders/CreateChangeOrderDialog';
+
+interface Project {
+  id: string;
+  name: string;
+  client: string;
+  status: string;
+  contract_value: number;
+  completion_percentage: number;
+}
+
+interface ChangeOrder {
+  id: string;
+  number: string;
+  description: string;
+  amount: number;
+  status: string;
+  date: string;
+  created_at: string;
+}
 
 export default function ChangeOrders() {
-  const [projects, setProjects] = useState<any[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>('');
-  const [changeOrders, setChangeOrders] = useState<any[]>([]);
+  const [view, setView] = useState<'overview' | 'project'>('overview');
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [changeOrders, setChangeOrders] = useState<ChangeOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
     fetchProjects();
   }, []);
 
   useEffect(() => {
-    if (selectedProject) {
+    if (selectedProject && view === 'project') {
       fetchChangeOrders();
-    } else {
-      setChangeOrders([]);
     }
-  }, [selectedProject]);
+  }, [selectedProject, view]);
 
   const fetchProjects = async () => {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, status')
+        .select('*')
         .order('name');
 
       if (error) throw error;
@@ -52,11 +65,14 @@ export default function ChangeOrders() {
   };
 
   const fetchChangeOrders = async () => {
+    if (!selectedProject) return;
+
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('change_orders')
         .select('*')
-        .eq('project_id', selectedProject)
+        .eq('project_id', selectedProject.id)
         .order('number');
 
       if (error) throw error;
@@ -64,36 +80,32 @@ export default function ChangeOrders() {
     } catch (error) {
       console.error('Error fetching change orders:', error);
       toast.error('Failed to load change orders');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleCreateNew = () => {
-    if (!selectedProject) {
-      toast.error('Please select a project first');
-      return;
-    }
-    setCreateDialogOpen(true);
+  const handleProjectSelect = (project: Project) => {
+    setSelectedProject(project);
+    setView('project');
   };
 
-  const filteredChangeOrders = changeOrders.filter(co => {
-    const matchesSearch = co.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         co.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || co.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  const totalAmount = changeOrders.reduce((sum, co) => sum + (co.amount || 0), 0);
-  const approvedAmount = changeOrders
-    .filter(co => co.status === 'Approved')
-    .reduce((sum, co) => sum + (co.amount || 0), 0);
+  const filteredProjects = projects.filter(project =>
+    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.client.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Draft': return 'bg-gray-500';
-      case 'Submitted': return 'bg-blue-500';
-      case 'Approved': return 'bg-green-500';
-      case 'Rejected': return 'bg-red-500';
-      default: return 'bg-gray-500';
+      case 'Active': 
+      case 'Approved': return 'bg-green-100 text-green-800';
+      case 'Planning':
+      case 'Draft': return 'bg-blue-100 text-blue-800';
+      case 'On Hold':
+      case 'Pending': return 'bg-yellow-100 text-yellow-800';
+      case 'Completed':
+      case 'Rejected': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -107,212 +119,220 @@ export default function ChangeOrders() {
     );
   }
 
-  return (
-    <Layout title="Change Orders" subtitle="Manage project change orders">
-      <div className="space-y-6">
-        {/* Project Selection */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Select Project</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger className="w-full max-w-md">
-                <SelectValue placeholder="Choose a project to view change orders" />
-              </SelectTrigger>
-              <SelectContent>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name} ({project.status})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
+  if (view === 'project' && selectedProject) {
+    const totalChangeOrders = changeOrders.length;
+    const approvedChangeOrders = changeOrders.filter(co => co.status === 'Approved').length;
+    const totalChangeOrderValue = changeOrders
+      .filter(co => co.status === 'Approved')
+      .reduce((sum, co) => sum + co.amount, 0);
+    const pendingChangeOrders = changeOrders.filter(co => co.status === 'Pending').length;
 
-        {selectedProject && (
-          <>
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Change Orders</CardTitle>
-                  <FileText className="h-4 w-4 text-blue-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">
-                    {changeOrders.length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    All change orders
-                  </p>
-                </CardContent>
-              </Card>
+    return (
+      <Layout title={`Change Orders - ${selectedProject.name}`} subtitle={`Client: ${selectedProject.client}`}>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <Button
+              variant="outline"
+              onClick={() => setView('overview')}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Overview
+            </Button>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              New Change Order
+            </Button>
+          </div>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    ${totalAmount.toLocaleString()}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    All change orders
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Approved Amount</CardTitle>
-                  <DollarSign className="h-4 w-4 text-orange-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">
-                    ${approvedAmount.toLocaleString()}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Approved change orders
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending</CardTitle>
-                  <FileText className="h-4 w-4 text-red-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-red-600">
-                    {changeOrders.filter(co => co.status === 'Submitted').length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Awaiting approval
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Controls */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
-              <div className="flex gap-4 flex-1">
-                <div className="relative max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Search change orders..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="Draft">Draft</SelectItem>
-                    <SelectItem value="Submitted">Submitted</SelectItem>
-                    <SelectItem value="Approved">Approved</SelectItem>
-                    <SelectItem value="Rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button onClick={handleCreateNew}>
-                <Plus className="w-4 h-4 mr-2" />
-                New Change Order
-              </Button>
-            </div>
-
-            {/* Change Orders List */}
+          {/* Project Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Change Orders</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {filteredChangeOrders.length > 0 ? (
-                  <div className="space-y-4">
-                    {filteredChangeOrders.map((co) => (
-                      <div key={co.id} className="flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h4 className="font-semibold">CO #{co.number}</h4>
-                            <Badge className={`${getStatusColor(co.status)} text-white`}>
-                              {co.status}
-                            </Badge>
-                            <div className="flex items-center text-sm text-gray-500">
-                              <Calendar className="w-4 h-4 mr-1" />
-                              {format(new Date(co.date), 'MMM dd, yyyy')}
-                            </div>
-                          </div>
-                          <p className="text-gray-600 mb-2">{co.description}</p>
-                          <div className="flex items-center gap-4 text-sm">
-                            <span className="text-gray-500">Amount:</span>
-                            <span className={`font-medium ${co.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {co.amount >= 0 ? '+' : ''}${co.amount.toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            Edit
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <FileText className="w-4 h-4 mr-1" />
-                            View
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : changeOrders.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500 text-lg">No change orders found for this project.</p>
-                    <p className="text-gray-400 mt-2">Create your first change order to get started.</p>
-                    <Button className="mt-4" onClick={handleCreateNew}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create First Change Order
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">No change orders match your search criteria.</p>
-                  </div>
-                )}
+              <CardContent className="p-4">
+                <div className="text-2xl font-bold">{totalChangeOrders}</div>
+                <p className="text-sm text-gray-600">Total Change Orders</p>
               </CardContent>
             </Card>
-          </>
-        )}
+            <Card>
+              <CardContent className="p-4">
+                <div className="text-2xl font-bold text-green-600">{approvedChangeOrders}</div>
+                <p className="text-sm text-gray-600">Approved</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="text-2xl font-bold text-yellow-600">{pendingChangeOrders}</div>
+                <p className="text-sm text-gray-600">Pending</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="text-2xl font-bold text-blue-600">${totalChangeOrderValue.toLocaleString()}</div>
+                <p className="text-sm text-gray-600">Total Value (Approved)</p>
+              </CardContent>
+            </Card>
+          </div>
 
-        {!selectedProject && (
+          {/* Change Orders Table */}
           <Card>
-            <CardContent className="text-center py-16">
-              <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Change Orders</h3>
-              <p className="text-gray-500 mb-6">
-                Select a project above to view and manage change orders.
-              </p>
-              {projects.length === 0 && (
-                <div className="mt-4">
-                  <p className="text-gray-400 mb-4">No projects found. Create a project first.</p>
-                  <Button onClick={() => navigate('/projects')}>
-                    Go to Projects
+            <CardHeader>
+              <CardTitle>Change Orders</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {changeOrders.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 text-lg mb-4">No change orders found for this project.</p>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create First Change Order
                   </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Number</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead className="w-[100px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {changeOrders.map((co) => (
+                        <TableRow key={co.id}>
+                          <TableCell className="font-medium">{co.number}</TableCell>
+                          <TableCell>{co.description}</TableCell>
+                          <TableCell className={co.amount >= 0 ? 'text-green-600' : 'text-red-600'}>
+                            {co.amount >= 0 ? '+' : ''}${co.amount.toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(co.status)}>
+                              {co.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{new Date(co.date).toLocaleDateString()}</TableCell>
+                          <TableCell>{new Date(co.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="sm">
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </CardContent>
           </Card>
-        )}
+        </div>
+      </Layout>
+    );
+  }
 
-        <CreateChangeOrderDialog
-          open={createDialogOpen}
-          onOpenChange={setCreateDialogOpen}
-          projectId={selectedProject}
-          onSave={fetchChangeOrders}
-        />
+  // Company Overview
+  const totalProjects = projects.length;
+  const activeProjects = projects.filter(p => p.status === 'Active').length;
+  const totalContractValue = projects.reduce((sum, p) => sum + p.contract_value, 0);
+  const avgCompletion = projects.length > 0 
+    ? projects.reduce((sum, p) => sum + p.completion_percentage, 0) / projects.length 
+    : 0;
+
+  return (
+    <Layout title="Change Orders" subtitle="Company overview and project management">
+      <div className="space-y-6">
+        {/* Company Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold">{totalProjects}</div>
+              <p className="text-sm text-gray-600">Total Projects</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-green-600">{activeProjects}</div>
+              <p className="text-sm text-gray-600">Active Projects</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold">${totalContractValue.toLocaleString()}</div>
+              <p className="text-sm text-gray-600">Total Contract Value</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-blue-600">{avgCompletion.toFixed(1)}%</div>
+              <p className="text-sm text-gray-600">Average Completion</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search */}
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Search projects..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        {/* Projects Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Projects with Change Orders</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Project Name</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Contract Value</TableHead>
+                    <TableHead>Completion</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredProjects.map((project) => (
+                    <TableRow key={project.id}>
+                      <TableCell className="font-medium">{project.name}</TableCell>
+                      <TableCell>{project.client}</TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(project.status)}>
+                          {project.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>${project.contract_value.toLocaleString()}</TableCell>
+                      <TableCell>{project.completion_percentage}%</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleProjectSelect(project)}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );
