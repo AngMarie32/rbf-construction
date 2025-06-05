@@ -1,3 +1,4 @@
+
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -13,7 +14,7 @@ export const exportToPDF = async (elementId: string, filename: string = 'export.
     element.style.display = 'block';
 
     const canvas = await html2canvas(element, {
-      scale: 1.5,
+      scale: 2,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
@@ -28,9 +29,9 @@ export const exportToPDF = async (elementId: string, filename: string = 'export.
 
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF({
-      orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+      orientation: 'portrait',
       unit: 'mm',
-      format: 'a4'
+      format: 'letter'
     });
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -38,7 +39,7 @@ export const exportToPDF = async (elementId: string, filename: string = 'export.
     const imgWidth = canvas.width;
     const imgHeight = canvas.height;
     
-    // Better scaling calculation
+    // Calculate scaling to fit the page
     const ratio = Math.min(pdfWidth / (imgWidth * 0.264583), pdfHeight / (imgHeight * 0.264583));
     const scaledWidth = imgWidth * 0.264583 * ratio;
     const scaledHeight = imgHeight * 0.264583 * ratio;
@@ -52,6 +53,81 @@ export const exportToPDF = async (elementId: string, filename: string = 'export.
     return true;
   } catch (error) {
     console.error('Error exporting to PDF:', error);
+    throw error;
+  }
+};
+
+export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Application.pdf') => {
+  try {
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'letter'
+    });
+
+    // Export G702 first
+    const g702Element = document.getElementById('g702-document');
+    if (g702Element) {
+      const originalDisplay = g702Element.style.display;
+      g702Element.style.display = 'block';
+
+      const g702Canvas = await html2canvas(g702Element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: g702Element.scrollWidth,
+        height: g702Element.scrollHeight
+      });
+
+      g702Element.style.display = originalDisplay;
+
+      const g702ImgData = g702Canvas.toDataURL('image/png');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const ratio = Math.min(pdfWidth / (g702Canvas.width * 0.264583), pdfHeight / (g702Canvas.height * 0.264583));
+      const scaledWidth = g702Canvas.width * 0.264583 * ratio;
+      const scaledHeight = g702Canvas.height * 0.264583 * ratio;
+      
+      pdf.addImage(g702ImgData, 'PNG', 10, 10, scaledWidth, scaledHeight);
+    }
+
+    // Add new page for G703
+    pdf.addPage();
+
+    // Export G703
+    const g703Element = document.getElementById('g703-document');
+    if (g703Element) {
+      const originalDisplay = g703Element.style.display;
+      g703Element.style.display = 'block';
+
+      const g703Canvas = await html2canvas(g703Element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: g703Element.scrollWidth,
+        height: g703Element.scrollHeight
+      });
+
+      g703Element.style.display = originalDisplay;
+
+      const g703ImgData = g703Canvas.toDataURL('image/png');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const ratio = Math.min(pdfWidth / (g703Canvas.width * 0.264583), pdfHeight / (g703Canvas.height * 0.264583));
+      const scaledWidth = g703Canvas.width * 0.264583 * ratio;
+      const scaledHeight = g703Canvas.height * 0.264583 * ratio;
+      
+      pdf.addImage(g703ImgData, 'PNG', 10, 10, scaledWidth, scaledHeight);
+    }
+
+    pdf.save(filename);
+    return true;
+  } catch (error) {
+    console.error('Error exporting G702/G703 to PDF:', error);
     throw error;
   }
 };
