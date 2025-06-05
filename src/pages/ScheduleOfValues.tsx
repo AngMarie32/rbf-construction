@@ -205,7 +205,7 @@ export default function ScheduleOfValues() {
                     ${(totalScheduledValue - totalCompleted).toLocaleString()}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {completionPercentage}% of total contract value
+                    {100 - completionPercentage}% of total contract value
                   </p>
                 </CardContent>
               </Card>
@@ -321,7 +321,7 @@ export default function ScheduleOfValues() {
                               </tr>
                             </thead>
                             <tbody>
-                              {items.map((item) => {
+                              {Array.isArray(items) && items.map((item) => {
                                 const completionPercent = item.scheduled_value ? 
                                   Math.round(((item.total_completed_and_stored || 0) / item.scheduled_value) * 100) : 0;
                                 const balance = (item.scheduled_value || 0) - (item.total_completed_and_stored || 0);
