@@ -23,7 +23,6 @@ export function EditSOVItemDialog({ open, onOpenChange, item, onSave }: EditSOVI
     description: '',
     scheduled_value: '',
     change_orders: '',
-    total_completed_and_stored: '',
     materials_presently_stored: '',
     retainage_percentage: '10'
   });
@@ -37,7 +36,6 @@ export function EditSOVItemDialog({ open, onOpenChange, item, onSave }: EditSOVI
         description: item.description || '',
         scheduled_value: (item.scheduled_value || 0).toString(),
         change_orders: (item.change_orders || 0).toString(),
-        total_completed_and_stored: (item.total_completed_and_stored || 0).toString(),
         materials_presently_stored: (item.materials_presently_stored || 0).toString(),
         retainage_percentage: (item.retainage_percentage || 10).toString()
       });
@@ -49,28 +47,23 @@ export function EditSOVItemDialog({ open, onOpenChange, item, onSave }: EditSOVI
 
     setLoading(true);
     try {
-      const scheduledValue = Number(formData.scheduled_value) || 0;
-      const changeOrders = Number(formData.change_orders) || 0;
-      const totalContract = scheduledValue + changeOrders;
-      const totalCompleted = Number(formData.total_completed_and_stored) || 0;
-      const percentComplete = totalContract > 0 ? Math.round((totalCompleted / totalContract) * 100) : 0;
-
       const { error } = await supabase
         .from('sov_items')
         .update({
           item_number: formData.item_number,
           category: formData.category,
           description: formData.description,
-          scheduled_value: scheduledValue,
-          change_orders: changeOrders,
-          total_completed_and_stored: totalCompleted,
+          scheduled_value: Number(formData.scheduled_value) || 0,
+          change_orders: Number(formData.change_orders) || 0,
           materials_presently_stored: Number(formData.materials_presently_stored) || 0,
-          retainage_percentage: Number(formData.retainage_percentage) || 10,
-          percent_complete: percentComplete
+          retainage_percentage: Number(formData.retainage_percentage) || 10
         })
         .eq('id', item.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating SOV item:', error);
+        throw error;
+      }
 
       toast.success('SOV item updated successfully');
       onSave();
@@ -105,8 +98,6 @@ export function EditSOVItemDialog({ open, onOpenChange, item, onSave }: EditSOVI
     'Communications',
     'Electronic Safety and Security'
   ];
-
-  const totalContract = (Number(formData.scheduled_value) || 0) + (Number(formData.change_orders) || 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -171,29 +162,6 @@ export function EditSOVItemDialog({ open, onOpenChange, item, onSave }: EditSOVI
                 step="0.01"
                 value={formData.change_orders}
                 onChange={(e) => setFormData({ ...formData, change_orders: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="total_contract">Total Contract (Calculated)</Label>
-              <Input
-                id="total_contract"
-                type="number"
-                value={totalContract.toFixed(2)}
-                disabled
-                className="bg-gray-100"
-              />
-            </div>
-            <div>
-              <Label htmlFor="total_completed">Total Completed & Stored</Label>
-              <Input
-                id="total_completed"
-                type="number"
-                step="0.01"
-                value={formData.total_completed_and_stored}
-                onChange={(e) => setFormData({ ...formData, total_completed_and_stored: e.target.value })}
               />
             </div>
           </div>

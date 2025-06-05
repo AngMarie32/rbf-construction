@@ -45,7 +45,10 @@ export function CreateChangeOrderDialog({ open, onOpenChange, projectId, onSave 
           status: formData.status
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating change order:', error);
+        throw error;
+      }
 
       toast.success('Change order created successfully');
       onSave();
@@ -59,7 +62,7 @@ export function CreateChangeOrderDialog({ open, onOpenChange, projectId, onSave 
       });
     } catch (error) {
       console.error('Error creating change order:', error);
-      toast.error('Failed to create change order');
+      toast.error('Failed to create change order. Please check the form and try again.');
     } finally {
       setLoading(false);
     }

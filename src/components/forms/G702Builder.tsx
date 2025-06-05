@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -44,34 +45,22 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
   const updateSOVItemThisPeriod = async (id: string, value: number) => {
     setLoading(true);
     try {
-      const item = sovItems.find(i => i.id === id);
-      if (!item) return;
-
-      const workCompletedFromPrevious = previousPayments;
-      const totalCompletedAndStored = workCompletedFromPrevious + value + (item.materialsStored || 0);
-      const totalContract = (item.scheduledValue || 0) + (item.changeOrders || 0);
-      const percentComplete = totalContract > 0 ? (totalCompletedAndStored / totalContract) * 100 : 0;
-
       const { error } = await supabase
         .from('sov_items')
         .update({
-          this_period: value,
-          total_completed_and_stored: totalCompletedAndStored,
-          percent_complete: Math.min(percentComplete, 100)
+          this_period: value
         })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating SOV item:', error);
+        throw error;
+      }
 
       // Update local state
       setSovItems(sovItems.map(item => 
         item.id === id 
-          ? { 
-              ...item, 
-              thisPeriod: value,
-              totalCompletedAndStored,
-              percentComplete: Math.min(percentComplete, 100)
-            }
+          ? { ...item, thisPeriod: value }
           : item
       ));
 
@@ -111,13 +100,12 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="grid grid-cols-4 gap-4 text-sm font-medium border-b pb-2">
+            <div className="grid grid-cols-8 gap-4 text-sm font-medium border-b pb-2">
               <div>Item & Description</div>
               <div>Scheduled Value</div>
               <div>Change Orders</div>
               <div>Total Contract</div>
-              <div>Previous Applications</div>
-              <div>This Period</div>
+              <div>Work Completed This Period</div>
               <div>Total Completed</div>
               <div>% Complete</div>
               <div>Balance to Finish</div>
@@ -126,10 +114,12 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
             <div className="max-h-96 overflow-y-auto space-y-2">
               {sovItems.map((item) => {
                 const totalContract = (item.scheduledValue || 0) + (item.changeOrders || 0);
-                const balanceToFinish = totalContract - (item.totalCompletedAndStored || 0);
+                const totalCompleted = (item.previousApplications || 0) + (item.thisPeriod || 0) + (item.materialsStored || 0);
+                const percentComplete = totalContract > 0 ? (totalCompleted / totalContract) * 100 : 0;
+                const balanceToFinish = totalContract - totalCompleted;
                 
                 return (
-                  <div key={item.id} className="grid grid-cols-9 gap-2 items-center text-sm border-b pb-2">
+                  <div key={item.id} className="grid grid-cols-8 gap-2 items-center text-sm border-b pb-2">
                     <div className="font-medium">
                       <div>{item.itemNumber}</div>
                       <div className="text-xs text-gray-600 truncate">{item.description}</div>
@@ -137,7 +127,6 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
                     <div>${(item.scheduledValue || 0).toLocaleString()}</div>
                     <div>${(item.changeOrders || 0).toLocaleString()}</div>
                     <div className="font-medium">${totalContract.toLocaleString()}</div>
-                    <div>${previousPayments.toLocaleString()}</div>
                     <div>
                       <Input
                         type="number"
@@ -148,20 +137,19 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
                         disabled={loading}
                       />
                     </div>
-                    <div>${(item.totalCompletedAndStored || 0).toLocaleString()}</div>
-                    <div>{(item.percentComplete || 0).toFixed(1)}%</div>
+                    <div>${totalCompleted.toLocaleString()}</div>
+                    <div>{percentComplete.toFixed(1)}%</div>
                     <div>${balanceToFinish.toLocaleString()}</div>
                   </div>
                 );
               })}
             </div>
 
-            <div className="grid grid-cols-9 gap-2 items-center text-sm font-bold border-t pt-2 bg-gray-50">
+            <div className="grid grid-cols-8 gap-2 items-center text-sm font-bold border-t pt-2 bg-gray-50">
               <div>TOTALS</div>
               <div>${totals.totalScheduledValue.toLocaleString()}</div>
               <div>${totals.totalChangeOrders.toLocaleString()}</div>
               <div>${totals.totalContract.toLocaleString()}</div>
-              <div>${previousPayments.toLocaleString()}</div>
               <div>${totals.totalThisPeriod.toLocaleString()}</div>
               <div>${totals.totalCompleted.toLocaleString()}</div>
               <div>{totals.totalContract > 0 ? ((totals.totalCompleted / totals.totalContract) * 100).toFixed(1) : 0}%</div>
@@ -173,28 +161,10 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
 
       <Card>
         <CardHeader>
-          <CardTitle>Application Details</CardTitle>
+          <CardTitle>Application Settings</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="contractorName">Contractor Name</Label>
-              <Input
-                id="contractorName"
-                value={formData.contractorName}
-                onChange={(e) => setFormData({ ...formData, contractorName: e.target.value })}
-                placeholder="Enter contractor name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="contractorAddress">Contractor Address</Label>
-              <Input
-                id="contractorAddress"
-                value={formData.contractorAddress}
-                onChange={(e) => setFormData({ ...formData, contractorAddress: e.target.value })}
-                placeholder="Enter contractor address"
-              />
-            </div>
             <div>
               <Label htmlFor="retainagePercentage">Retainage Percentage</Label>
               <Input
@@ -213,6 +183,51 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
                 value={formData.periodFrom}
                 onChange={(e) => setFormData({ ...formData, periodFrom: e.target.value })}
               />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <Label>Distribution To</Label>
+            <div className="flex gap-4 mt-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="owner"
+                  checked={formData.distributionTo?.owner || false}
+                  onCheckedChange={(checked) => 
+                    setFormData({
+                      ...formData,
+                      distributionTo: { ...formData.distributionTo, owner: checked }
+                    })
+                  }
+                />
+                <Label htmlFor="owner">Owner</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="architect"
+                  checked={formData.distributionTo?.architect || false}
+                  onCheckedChange={(checked) => 
+                    setFormData({
+                      ...formData,
+                      distributionTo: { ...formData.distributionTo, architect: checked }
+                    })
+                  }
+                />
+                <Label htmlFor="architect">Architect</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="contractor"
+                  checked={formData.distributionTo?.contractor || false}
+                  onCheckedChange={(checked) => 
+                    setFormData({
+                      ...formData,
+                      distributionTo: { ...formData.distributionTo, contractor: checked }
+                    })
+                  }
+                />
+                <Label htmlFor="contractor">Contractor</Label>
+              </div>
             </div>
           </div>
         </CardContent>
