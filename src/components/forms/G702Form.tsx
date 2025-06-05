@@ -4,9 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Slider } from '@/components/ui/slider';
 
 interface G702FormProps {
   projectId: string;
@@ -24,6 +27,8 @@ interface SOVItem {
   totalCompletedAndStored: number;
   percentComplete: number;
   category: string;
+  retainageHeld?: number;
+  balanceToFinish?: number;
 }
 
 interface Project {
@@ -42,24 +47,28 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
   const [sovItems, setSovItems] = useState<SOVItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeDocument, setActiveDocument] = useState<'g702' | 'g703'>('g702');
+  const [notes, setNotes] = useState('');
+  const [supportingDocs, setSupportingDocs] = useState('');
   
   const [formData, setFormData] = useState({
     applicationNumber: 1,
-    applicationDate: new Date().toISOString().split('T')[0],
     periodTo: new Date().toISOString().split('T')[0],
+    periodFrom: new Date().toISOString().split('T')[0],
+    contractDate: '',
+    architectProjectNo: '',
     contractorName: '',
     contractorAddress: '',
-    projectNumber: '',
-    contractDate: '',
-    architect: '',
-    retainagePercentage: 10,
+    contractorTitle: '',
+    originalContractSum: 0,
+    netChangeOrders: 0,
+    retainagePercentage: 5,
+    previousCertificates: 0,
     distributionTo: {
-      owner: false,
-      constructionMgr: false,
+      owner: true,
       architect: false,
-      contractor: false,
-      other: false
-    }
+      contractor: false
+    },
+    certification: false
   });
 
   useEffect(() => {
@@ -145,16 +154,16 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
   };
 
   const calculateTotals = () => {
-    const originalContractSum = project?.originalContractSum || 0;
-    const netChangeOrders = project?.netChangeOrders || 0;
+    const originalContractSum = formData.originalContractSum || project?.originalContractSum || 0;
+    const netChangeOrders = formData.netChangeOrders || project?.netChangeOrders || 0;
     const contractSumToDate = originalContractSum + netChangeOrders;
     
     const totalCompletedAndStored = sovItems.reduce((sum, item) => sum + item.totalCompletedAndStored, 0);
     const retainageRate = formData.retainagePercentage / 100;
     const totalRetainage = totalCompletedAndStored * retainageRate;
     const totalEarnedLessRetainage = totalCompletedAndStored - totalRetainage;
-    const lessPreviousPayments = sovItems.reduce((sum, item) => sum + item.previousApplications, 0);
-    const currentPaymentDue = totalEarnedLessRetainage - lessPreviousPayments;
+    const lessPreviousPayments = formData.previousCertificates;
+    const currentPaymentDue = Math.max(totalEarnedLessRetainage - lessPreviousPayments, 0);
     const balanceToFinish = contractSumToDate - totalCompletedAndStored;
 
     return {
@@ -165,7 +174,7 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
       totalRetainage,
       totalEarnedLessRetainage,
       lessPreviousPayments,
-      currentPaymentDue: Math.max(currentPaymentDue, 0),
+      currentPaymentDue,
       balanceToFinish
     };
   };
@@ -291,188 +300,267 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
         className={`${activeDocument === 'g702' ? 'block' : 'hidden print:block'} print:page-break-after`}
         style={{ printColorAdjust: 'exact' }}
       >
-        <div className="bg-white p-8 print:p-6 print:text-sm">
-          <div className="border-2 border-black">
+        <div className="bg-white p-6 print:p-4 print:text-xs print:landscape" style={{ minHeight: '11in', width: '100%' }}>
+          <div className="border-2 border-black min-h-full">
             {/* Header */}
-            <div className="border-b-2 border-black p-4">
-              <h1 className="text-xl font-bold text-center">G702 APPLICATION and CERTIFICATE for PAYMENT</h1>
+            <div className="border-b-2 border-black p-3 bg-white">
+              <h1 className="text-lg font-bold text-center">APPLICATION AND CERTIFICATION FOR PAYMENT</h1>
             </div>
 
-            {/* Form Header Grid */}
-            <div className="grid grid-cols-12 border-b border-black">
-              <div className="col-span-3 border-r border-black p-2">
-                <div className="text-xs font-semibold">To:</div>
-                <div className="h-16 border border-gray-400 mt-1 p-1">
-                  {project.client}
+            {/* Top Information Row */}
+            <div className="grid grid-cols-12 border-b border-black text-xs">
+              <div className="col-span-4 border-r border-black p-2">
+                <div className="font-semibold mb-1">TO:</div>
+                <div className="min-h-16 p-1">
+                  <div>{project.client}</div>
+                  <div className="text-xs text-gray-600">{project.address}</div>
                 </div>
               </div>
-              <div className="col-span-3 border-r border-black p-2">
-                <div className="text-xs font-semibold">Project:</div>
-                <div className="h-16 border border-gray-400 mt-1 p-1">
-                  {project.name}
+              <div className="col-span-4 border-r border-black p-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <div className="font-semibold">APPLICATION NO:</div>
+                    <input 
+                      type="number"
+                      value={formData.applicationNumber}
+                      onChange={(e) => setFormData({...formData, applicationNumber: parseInt(e.target.value) || 1})}
+                      className="w-full border border-gray-400 p-1 print:border-0 text-center font-bold"
+                    />
+                  </div>
+                  <div>
+                    <div className="font-semibold">PERIOD TO:</div>
+                    <input 
+                      type="date"
+                      value={formData.periodTo}
+                      onChange={(e) => setFormData({...formData, periodTo: e.target.value})}
+                      className="w-full border border-gray-400 p-1 print:border-0"
+                    />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <div className="font-semibold">PROJECT NAME:</div>
+                  <div className="p-1">{project.name}</div>
+                </div>
+                <div className="mt-2">
+                  <div className="font-semibold">SACHSE PROJ NO:</div>
+                  <input 
+                    value={formData.architectProjectNo}
+                    onChange={(e) => setFormData({...formData, architectProjectNo: e.target.value})}
+                    className="w-full border border-gray-400 p-1 print:border-0"
+                  />
                 </div>
               </div>
-              <div className="col-span-3 border-r border-black p-2">
-                <div className="text-xs font-semibold">Application #:</div>
-                <input 
-                  type="number"
-                  value={formData.applicationNumber}
-                  onChange={(e) => setFormData({...formData, applicationNumber: parseInt(e.target.value) || 1})}
-                  className="w-full h-8 border border-gray-400 mt-1 p-1 print:border-0"
-                />
-                <div className="text-xs font-semibold mt-2">Application Date:</div>
-                <input 
-                  type="date"
-                  value={formData.applicationDate}
-                  onChange={(e) => setFormData({...formData, applicationDate: e.target.value})}
-                  className="w-full h-8 border border-gray-400 mt-1 p-1 print:border-0"
-                />
-                <div className="text-xs font-semibold mt-2">Period To:</div>
-                <input 
-                  type="date"
-                  value={formData.periodTo}
-                  onChange={(e) => setFormData({...formData, periodTo: e.target.value})}
-                  className="w-full h-8 border border-gray-400 mt-1 p-1 print:border-0"
-                />
-                <div className="text-xs font-semibold mt-2">Project #:</div>
-                <input 
-                  value={formData.projectNumber || project.projectCode}
-                  onChange={(e) => setFormData({...formData, projectNumber: e.target.value})}
-                  className="w-full h-8 border border-gray-400 mt-1 p-1 print:border-0"
-                />
-              </div>
-              <div className="col-span-3 p-2">
-                <div className="text-xs font-semibold">Distribution To:</div>
-                <div className="space-y-1 text-xs mt-1">
-                  <label className="flex items-center">
-                    <input type="checkbox" className="mr-1" /> OWNER
+              <div className="col-span-4 p-2">
+                <div className="font-semibold mb-2">Distribution to:</div>
+                <div className="space-y-1">
+                  <label className="flex items-center text-xs">
+                    <input 
+                      type="checkbox" 
+                      checked={formData.distributionTo.owner}
+                      onChange={(e) => setFormData({...formData, distributionTo: {...formData.distributionTo, owner: e.target.checked}})}
+                      className="mr-2" 
+                    />
+                    <span className="border border-black px-1">{formData.distributionTo.owner ? 'X' : ' '}</span>
+                    <span className="ml-2">OWNER</span>
                   </label>
-                  <label className="flex items-center">
-                    <input type="checkbox" className="mr-1" /> CONSTRUCTION MGR.
+                  <label className="flex items-center text-xs">
+                    <input 
+                      type="checkbox" 
+                      checked={formData.distributionTo.architect}
+                      onChange={(e) => setFormData({...formData, distributionTo: {...formData.distributionTo, architect: e.target.checked}})}
+                      className="mr-2" 
+                    />
+                    <span className="border border-black px-1">{formData.distributionTo.architect ? 'X' : ' '}</span>
+                    <span className="ml-2">ARCHITECT</span>
                   </label>
-                  <label className="flex items-center">
-                    <input type="checkbox" className="mr-1" /> ARCHITECT
-                  </label>
-                  <label className="flex items-center">
-                    <input type="checkbox" className="mr-1" /> CONTRACTOR
-                  </label>
-                  <label className="flex items-center">
-                    <input type="checkbox" className="mr-1" /> OTHER
+                  <label className="flex items-center text-xs">
+                    <input 
+                      type="checkbox" 
+                      checked={formData.distributionTo.contractor}
+                      onChange={(e) => setFormData({...formData, distributionTo: {...formData.distributionTo, contractor: e.target.checked}})}
+                      className="mr-2" 
+                    />
+                    <span className="border border-black px-1">{formData.distributionTo.contractor ? 'X' : ' '}</span>
+                    <span className="ml-2">CONTRACTOR</span>
                   </label>
                 </div>
               </div>
             </div>
 
             {/* From Section */}
-            <div className="grid grid-cols-12 border-b border-black">
-              <div className="col-span-3 border-r border-black p-2">
-                <div className="text-xs font-semibold">From:</div>
-                <input 
-                  value={formData.contractorName}
-                  onChange={(e) => setFormData({...formData, contractorName: e.target.value})}
-                  placeholder="Contractor Name"
-                  className="w-full h-8 border border-gray-400 mt-1 p-1 print:border-0"
-                />
-                <textarea 
-                  value={formData.contractorAddress}
-                  onChange={(e) => setFormData({...formData, contractorAddress: e.target.value})}
-                  placeholder="Contractor Address"
-                  className="w-full h-16 border border-gray-400 mt-1 p-1 print:border-0 resize-none text-xs"
-                />
-              </div>
-              <div className="col-span-3 border-r border-black p-2">
-                <div className="text-xs font-semibold">Architect:</div>
-                <input 
-                  value={formData.architect}
-                  onChange={(e) => setFormData({...formData, architect: e.target.value})}
-                  placeholder="Architect Name"
-                  className="w-full h-8 border border-gray-400 mt-1 p-1 print:border-0"
-                />
-              </div>
-              <div className="col-span-3 border-r border-black p-2">
-                <div className="text-xs font-semibold">Contract Date:</div>
-                <input 
-                  type="date"
-                  value={formData.contractDate}
-                  onChange={(e) => setFormData({...formData, contractDate: e.target.value})}
-                  className="w-full h-8 border border-gray-400 mt-1 p-1 print:border-0"
-                />
-              </div>
-              <div className="col-span-3 p-2">
-                <div className="text-xs font-semibold">Contract For:</div>
-                <div className="h-16 border border-gray-400 mt-1 p-1 text-xs">
-                  {project.name}
-                </div>
-              </div>
+            <div className="border-b border-black p-2 text-xs">
+              <div className="font-semibold mb-1">FROM:</div>
+              <input 
+                value={formData.contractorName}
+                onChange={(e) => setFormData({...formData, contractorName: e.target.value})}
+                placeholder="Contractor Name"
+                className="w-full border border-gray-400 p-1 print:border-0 mb-1"
+              />
+              <textarea 
+                value={formData.contractorAddress}
+                onChange={(e) => setFormData({...formData, contractorAddress: e.target.value})}
+                placeholder="Contractor Address"
+                className="w-full border border-gray-400 p-1 print:border-0 resize-none h-12 text-xs"
+              />
             </div>
 
             {/* Contractor's Application Section */}
-            <div className="p-4 border-b border-black">
-              <h2 className="font-bold text-sm mb-4">CONTRACTOR'S APPLICATION FOR PAYMENT</h2>
+            <div className="p-3 border-b border-black">
+              <h2 className="font-bold text-sm mb-3">CONTRACTOR'S APPLICATION FOR PAYMENT</h2>
+              <div className="text-xs">Application is made for payment, as shown below, in connection with the Contract. Continuation Sheet is enclosed.</div>
               
-              <div className="grid grid-cols-2 gap-8">
-                <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-6 mt-4">
+                <div className="space-y-1">
                   <div className="flex justify-between border-b py-1">
-                    <span className="text-xs">1. ORIGINAL CONTRACT SUM</span>
+                    <span>1. ORIGINAL CONTRACT SUM</span>
                     <span className="font-mono">$ {totals.originalContractSum.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between border-b py-1">
-                    <span className="text-xs">2. Net Change By Change Orders</span>
+                    <span>2. NET CHANGE BY CHANGE ORDERS</span>
                     <span className="font-mono">$ {totals.netChangeOrders.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between border-b-2 border-black py-1 font-semibold">
-                    <span className="text-xs">3. CONTRACT SUM TO DATE</span>
+                    <span>3. CONTRACT SUM TO DATE</span>
                     <span className="font-mono">$ {totals.contractSumToDate.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between border-b py-1">
-                    <span className="text-xs">4. TOTAL COMPLETED AND STORED TO DATE</span>
+                    <span>4. TOTAL COMPLETED & STORED TO DATE</span>
                     <span className="font-mono">$ {totals.totalCompletedAndStored.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between border-b py-1">
-                    <span className="text-xs">5. RETAINAGE for This Application for Payment</span>
+                  <div className="space-y-1 ml-4">
+                    <div className="flex justify-between">
+                      <span>a. Completed Work</span>
+                      <span className="font-mono">$ {(totals.totalCompletedAndStored * 0.9).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>b. Stored Material</span>
+                      <span className="font-mono">$ {(totals.totalCompletedAndStored * 0.1).toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between border-b py-1 font-semibold">
+                    <span>TOTAL RETAINED</span>
                     <span className="font-mono">$ {totals.totalRetainage.toLocaleString()}</span>
                   </div>
                 </div>
                 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <div className="flex justify-between border-b py-1">
-                    <span className="text-xs">6. TOTAL EARNED LESS RETAINAGE</span>
+                    <span>6. TOTAL EARNED LESS RETAINAGE</span>
                     <span className="font-mono">$ {totals.totalEarnedLessRetainage.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between border-b py-1">
-                    <span className="text-xs">7. LESS PREVIOUS CERTIFICATES FOR PAYMENT</span>
+                    <span>7. LESS PREVIOUS CERTIFICATES FOR PAYMENT</span>
                     <span className="font-mono">$ {totals.lessPreviousPayments.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between border-b-2 border-black py-1 font-semibold">
-                    <span className="text-xs">8. CURRENT PAYMENT DUE</span>
+                    <span>8. CURRENT PAYMENT DUE</span>
                     <span className="font-mono">$ {totals.currentPaymentDue.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between border-b py-1">
-                    <span className="text-xs">9. BALANCE TO FINISH, INCLUDING RETAINAGE</span>
+                    <span>9. BALANCE TO FINISH, INCLUDING RETAINAGE</span>
                     <span className="font-mono">$ {totals.balanceToFinish.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
+
+              {/* Change Order Summary */}
+              <div className="mt-4">
+                <h3 className="font-semibold text-xs mb-2">CHANGE ORDER SUMMARY</h3>
+                <table className="w-full border border-black text-xs">
+                  <thead>
+                    <tr className="border-b border-black">
+                      <th className="border-r border-black p-1 text-left"></th>
+                      <th className="border-r border-black p-1">ADDITIONS</th>
+                      <th className="p-1">DEDUCTIONS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-black">
+                      <td className="border-r border-black p-1">Total changes approved in previous months by Owner</td>
+                      <td className="border-r border-black p-1 text-right">$0.00</td>
+                      <td className="p-1 text-right">$0.00</td>
+                    </tr>
+                    <tr className="border-b border-black">
+                      <td className="border-r border-black p-1">Total approved this Month</td>
+                      <td className="border-r border-black p-1 text-right">${totals.netChangeOrders.toLocaleString()}</td>
+                      <td className="p-1 text-right">$0.00</td>
+                    </tr>
+                    <tr className="border-b border-black">
+                      <td className="border-r border-black p-1">TOTALS</td>
+                      <td className="border-r border-black p-1 text-right">${totals.netChangeOrders.toLocaleString()}</td>
+                      <td className="p-1 text-right">$0.00</td>
+                    </tr>
+                    <tr>
+                      <td className="border-r border-black p-1">NET CHANGES by Change Order</td>
+                      <td className="p-1 text-right" colSpan={2}>${totals.netChangeOrders.toLocaleString()}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            {/* Signature Section */}
-            <div className="p-4">
-              <div className="grid grid-cols-2 gap-8">
+            {/* Certification and Signature Section */}
+            <div className="p-3">
+              <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <div className="text-xs font-semibold mb-2">CONTRACTOR:</div>
-                  <div className="border-b border-black mb-2 h-8"></div>
-                  <div className="text-xs">Sign:</div>
-                  <div className="border-b border-black mb-2 h-8 mt-4"></div>
-                  <div className="text-xs">By:</div>
-                  <div className="text-xs">Date:</div>
+                  <div className="text-xs mb-4">
+                    The undersigned Contractor certifies that to the best of the Contractor's knowledge, 
+                    information and belief the Work covered by this Application for Payment has been 
+                    completed in accordance with the Contract Documents.
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="text-xs font-semibold">CONTRACTOR:</div>
+                      <div className="border-b border-black h-6 mt-1"></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-xs">By:</div>
+                        <div className="border-b border-black h-6 mt-8"></div>
+                      </div>
+                      <div>
+                        <div className="text-xs">Date:</div>
+                        <div className="border-b border-black h-6 mt-8"></div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div>
-                  <div className="text-xs">State of:</div>
-                  <div className="text-xs">County of:</div>
-                  <div className="text-xs mt-4">Subscribed and sworn before me this _____ day of</div>
-                  <div className="border-b border-black mt-8 h-8"></div>
-                  <div className="text-xs">Notary Public:</div>
-                  <div className="text-xs">My Commission Expires:</div>
+                  <h3 className="font-semibold text-xs mb-2">ARCHITECT'S CERTIFICATE FOR PAYMENT</h3>
+                  <div className="text-xs mb-4">
+                    In accordance with the Contract Documents, based on on-site observations and the data 
+                    comprising the application, the Architect certifies to the Owner that to the best of the 
+                    Architect's knowledge, information and belief the Work has progressed as indicated, 
+                    the quality of the Work is in accordance with the Contract Documents, and the Contractor 
+                    is entitled to payment of the AMOUNT CERTIFIED.
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-xs">AMOUNT CERTIFIED</span>
+                      <span className="font-mono">$ {totals.currentPaymentDue.toLocaleString()}</span>
+                    </div>
+                    <div className="text-xs">
+                      (Attach explanation if amount certified differs from the amount applied. Initial all figures on this 
+                      Application and on the Continuation Sheet that are changed to conform with the amount certified.)
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-xs">ARCHITECT:</div>
+                        <div className="border-b border-black h-6 mt-8"></div>
+                        <div className="text-xs mt-2">By:</div>
+                        <div className="border-b border-black h-6 mt-4"></div>
+                      </div>
+                      <div>
+                        <div className="text-xs">Date:</div>
+                        <div className="border-b border-black h-6 mt-8"></div>
+                      </div>
+                    </div>
+                    <div className="text-xs mt-4">
+                      This Certificate is not negotiable. The AMOUNT CERTIFIED is payable only to the 
+                      Contractor named herein. Issuance, payment and acceptance of payment are without 
+                      prejudice to any rights of the Owner or Contractor under this Contract.
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -486,95 +574,218 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
         className={`${activeDocument === 'g703' ? 'block' : 'hidden print:block'}`}
         style={{ printColorAdjust: 'exact' }}
       >
-        <div className="bg-white p-8 print:p-6 print:text-xs">
-          <div className="border-2 border-black">
+        <div className="bg-white p-6 print:p-4 print:text-xs print:landscape" style={{ minHeight: '11in', width: '100%' }}>
+          <div className="border-2 border-black min-h-full">
             {/* Header */}
             <div className="border-b border-black p-2">
-              <div className="flex justify-between items-center">
-                <h1 className="font-bold">Continuation Sheet G703</h1>
-                <div className="text-right">
-                  <div>PROJECT: {project.name}</div>
-                  <div>Application #: {formData.applicationNumber}</div>
-                  <div>Application Date: {formData.applicationDate}</div>
-                  <div>Period To: {formData.periodTo}</div>
+              <div className="flex justify-between items-start">
+                <h1 className="font-bold text-sm">Continuation Sheet G703</h1>
+                <div className="text-right text-xs">
+                  <div>APPLICATION NO: {formData.applicationNumber}</div>
+                  <div>PERIOD TO: {formData.periodTo}</div>
                 </div>
-              </div>
-              <div className="text-xs mt-1">
-                Document G702, APPLICATION AND CERTIFICATE FOR PAYMENT, containing<br/>
-                Contractor's Application for Payment, is attached.
               </div>
             </div>
 
-            {/* Table */}
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-black">
-                  <th className="border-r border-black p-1 text-xs font-semibold text-left w-8">Item #</th>
-                  <th className="border-r border-black p-1 text-xs font-semibold text-left">Description of Work</th>
-                  <th className="border-r border-black p-1 text-xs font-semibold text-center w-20">Scheduled Value</th>
-                  <th className="border-r border-black p-1 text-xs font-semibold text-center w-20">Work Completed From Previous Applications</th>
-                  <th className="border-r border-black p-1 text-xs font-semibold text-center w-20">Work Completed This Period</th>
-                  <th className="border-r border-black p-1 text-xs font-semibold text-center w-20">Materials Stored & Used for Current</th>
-                  <th className="border-r border-black p-1 text-xs font-semibold text-center w-20">Total Completed and Stored to Date</th>
-                  <th className="border-r border-black p-1 text-xs font-semibold text-center w-16">% Complete</th>
-                  <th className="border-r border-black p-1 text-xs font-semibold text-center w-20">Balance to Finish</th>
-                  <th className="p-1 text-xs font-semibold text-center w-20">Retainage</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sovItems.map((item, index) => {
-                  const retainage = item.totalCompletedAndStored * (formData.retainagePercentage / 100);
-                  const balanceToFinish = item.scheduledValue - item.totalCompletedAndStored;
+            {/* SOV Table */}
+            <div className="overflow-hidden">
+              <table className="w-full border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-black bg-gray-50">
+                    <th className="border-r border-black p-1 w-12">A<br/>ITEM<br/>NO.</th>
+                    <th className="border-r border-black p-1 w-48">B<br/>DESCRIPTION OF WORK</th>
+                    <th className="border-r border-black p-1 w-20">C<br/>SCHEDULED<br/>VALUE</th>
+                    <th className="border-r border-black p-1 w-16">D<br/>CHANGE<br/>ORDERS</th>
+                    <th className="border-r border-black p-1 w-20">E<br/>TOTAL<br/>CONTRACT</th>
+                    <th className="border-r border-black p-1 w-20">F<br/>FROM<br/>PREVIOUS<br/>APPLICATION</th>
+                    <th className="border-r border-black p-1 w-20">G<br/>WORK COMPLETED<br/>THIS PERIOD</th>
+                    <th className="border-r border-black p-1 w-20">H<br/>MATERIALS<br/>PRESENTLY<br/>STORED</th>
+                    <th className="border-r border-black p-1 w-20">I<br/>TOTAL<br/>COMPLETED<br/>AND STORED TO<br/>DATE</th>
+                    <th className="border-r border-black p-1 w-16">J<br/>%<br/>COMPLETE</th>
+                    <th className="border-r border-black p-1 w-20">K<br/>BALANCE TO<br/>FINISH</th>
+                    <th className="p-1 w-20">RETAINAGE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sovItems.map((item, index) => {
+                    const retainage = item.totalCompletedAndStored * (formData.retainagePercentage / 100);
+                    const balanceToFinish = item.scheduledValue - item.totalCompletedAndStored;
+                    
+                    return (
+                      <tr key={item.id} className="border-b border-gray-300">
+                        <td className="border-r border-black p-1 text-center">{index + 1}</td>
+                        <td className="border-r border-black p-1">{item.description}</td>
+                        <td className="border-r border-black p-1 text-right">${item.scheduledValue.toLocaleString()}</td>
+                        <td className="border-r border-black p-1 text-right">$0.00</td>
+                        <td className="border-r border-black p-1 text-right">${item.scheduledValue.toLocaleString()}</td>
+                        <td className="border-r border-black p-1 text-right">${item.previousApplications.toLocaleString()}</td>
+                        <td className="border-r border-black p-1">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={item.thisPeriod}
+                            onChange={(e) => updateSOVItem(item.id, 'this_period', parseFloat(e.target.value) || 0)}
+                            className="w-full text-right print:border-0 print:bg-transparent text-xs"
+                          />
+                        </td>
+                        <td className="border-r border-black p-1">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={item.materialsStored}
+                            onChange={(e) => updateSOVItem(item.id, 'materials_stored', parseFloat(e.target.value) || 0)}
+                            className="w-full text-right print:border-0 print:bg-transparent text-xs"
+                          />
+                        </td>
+                        <td className="border-r border-black p-1 text-right">${item.totalCompletedAndStored.toLocaleString()}</td>
+                        <td className="border-r border-black p-1 text-center">{item.percentComplete.toFixed(2)}%</td>
+                        <td className="border-r border-black p-1 text-right">${balanceToFinish.toLocaleString()}</td>
+                        <td className="p-1 text-right">${retainage.toLocaleString()}</td>
+                      </tr>
+                    );
+                  })}
                   
-                  return (
-                    <tr key={item.id} className="border-b border-gray-300">
-                      <td className="border-r border-black p-1 text-xs text-center">{index + 1}</td>
-                      <td className="border-r border-black p-1 text-xs">{item.description}</td>
-                      <td className="border-r border-black p-1 text-xs text-right">$ {item.scheduledValue.toLocaleString()}</td>
-                      <td className="border-r border-black p-1 text-xs text-right">$ {item.previousApplications.toLocaleString()}</td>
-                      <td className="border-r border-black p-1 text-xs">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={item.thisPeriod}
-                          onChange={(e) => updateSOVItem(item.id, 'this_period', parseFloat(e.target.value) || 0)}
-                          className="w-full text-right print:border-0 print:bg-transparent"
-                        />
-                      </td>
-                      <td className="border-r border-black p-1 text-xs">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={item.materialsStored}
-                          onChange={(e) => updateSOVItem(item.id, 'materials_stored', parseFloat(e.target.value) || 0)}
-                          className="w-full text-right print:border-0 print:bg-transparent"
-                        />
-                      </td>
-                      <td className="border-r border-black p-1 text-xs text-right">$ {item.totalCompletedAndStored.toLocaleString()}</td>
-                      <td className="border-r border-black p-1 text-xs text-center">{item.percentComplete.toFixed(0)}%</td>
-                      <td className="border-r border-black p-1 text-xs text-right">$ {balanceToFinish.toLocaleString()}</td>
-                      <td className="p-1 text-xs text-right">$ {retainage.toLocaleString()}</td>
+                  {/* Add empty rows to fill the page */}
+                  {Array.from({ length: Math.max(0, 25 - sovItems.length) }).map((_, index) => (
+                    <tr key={`empty-${index}`} className="border-b border-gray-300">
+                      <td className="border-r border-black p-1 text-center">{sovItems.length + index + 1}</td>
+                      <td className="border-r border-black p-1"></td>
+                      <td className="border-r border-black p-1 text-right">$0.00</td>
+                      <td className="border-r border-black p-1 text-right">$0.00</td>
+                      <td className="border-r border-black p-1 text-right">$0.00</td>
+                      <td className="border-r border-black p-1 text-right">$0.00</td>
+                      <td className="border-r border-black p-1 text-right">$0.00</td>
+                      <td className="border-r border-black p-1 text-right">$0.00</td>
+                      <td className="border-r border-black p-1 text-right">$0.00</td>
+                      <td className="border-r border-black p-1 text-center">0.00%</td>
+                      <td className="border-r border-black p-1 text-right">$0.00</td>
+                      <td className="p-1 text-right">$0.00</td>
                     </tr>
-                  );
-                })}
-                
-                {/* Totals Row */}
-                <tr className="border-t-2 border-black font-semibold">
-                  <td className="border-r border-black p-1 text-xs text-center">Grand Total</td>
-                  <td className="border-r border-black p-1 text-xs"></td>
-                  <td className="border-r border-black p-1 text-xs text-right">$ {sovItems.reduce((sum, item) => sum + item.scheduledValue, 0).toLocaleString()}</td>
-                  <td className="border-r border-black p-1 text-xs text-right">$ {sovItems.reduce((sum, item) => sum + item.previousApplications, 0).toLocaleString()}</td>
-                  <td className="border-r border-black p-1 text-xs text-right">$ {sovItems.reduce((sum, item) => sum + item.thisPeriod, 0).toLocaleString()}</td>
-                  <td className="border-r border-black p-1 text-xs text-right">$ {sovItems.reduce((sum, item) => sum + item.materialsStored, 0).toLocaleString()}</td>
-                  <td className="border-r border-black p-1 text-xs text-right">$ {totals.totalCompletedAndStored.toLocaleString()}</td>
-                  <td className="border-r border-black p-1 text-xs text-center">-</td>
-                  <td className="border-r border-black p-1 text-xs text-right">$ {totals.balanceToFinish.toLocaleString()}</td>
-                  <td className="p-1 text-xs text-right">$ {totals.totalRetainage.toLocaleString()}</td>
-                </tr>
-              </tbody>
-            </table>
+                  ))}
+                  
+                  {/* Grand Totals Row */}
+                  <tr className="border-t-2 border-black font-semibold bg-gray-100">
+                    <td className="border-r border-black p-1 text-center"></td>
+                    <td className="border-r border-black p-1 font-bold">GRAND TOTALS</td>
+                    <td className="border-r border-black p-1 text-right">${sovItems.reduce((sum, item) => sum + item.scheduledValue, 0).toLocaleString()}</td>
+                    <td className="border-r border-black p-1 text-right">${totals.netChangeOrders.toLocaleString()}</td>
+                    <td className="border-r border-black p-1 text-right">${totals.contractSumToDate.toLocaleString()}</td>
+                    <td className="border-r border-black p-1 text-right">${sovItems.reduce((sum, item) => sum + item.previousApplications, 0).toLocaleString()}</td>
+                    <td className="border-r border-black p-1 text-right">${sovItems.reduce((sum, item) => sum + item.thisPeriod, 0).toLocaleString()}</td>
+                    <td className="border-r border-black p-1 text-right">${sovItems.reduce((sum, item) => sum + item.materialsStored, 0).toLocaleString()}</td>
+                    <td className="border-r border-black p-1 text-right">${totals.totalCompletedAndStored.toLocaleString()}</td>
+                    <td className="border-r border-black p-1 text-center">{((totals.totalCompletedAndStored / totals.contractSumToDate) * 100).toFixed(2)}%</td>
+                    <td className="border-r border-black p-1 text-right">${totals.balanceToFinish.toLocaleString()}</td>
+                    <td className="p-1 text-right">${totals.totalRetainage.toLocaleString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
+      </div>
+
+      {/* Customization Panel - Only show when not printing */}
+      <div className="print:hidden">
+        <Card>
+          <CardHeader>
+            <CardTitle>Application Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Period From</Label>
+                <Input
+                  type="date"
+                  value={formData.periodFrom}
+                  onChange={(e) => setFormData({...formData, periodFrom: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>Contract Date</Label>
+                <Input
+                  type="date"
+                  value={formData.contractDate}
+                  onChange={(e) => setFormData({...formData, contractDate: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Original Contract Sum</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.originalContractSum}
+                  onChange={(e) => setFormData({...formData, originalContractSum: parseFloat(e.target.value) || 0})}
+                />
+              </div>
+              <div>
+                <Label>Net Change by Change Orders</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.netChangeOrders}
+                  onChange={(e) => setFormData({...formData, netChangeOrders: parseFloat(e.target.value) || 0})}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Retainage Percentage: {formData.retainagePercentage}%</Label>
+              <Slider
+                value={[formData.retainagePercentage]}
+                onValueChange={(value) => setFormData({...formData, retainagePercentage: value[0]})}
+                max={10}
+                min={0}
+                step={0.5}
+                className="mt-2"
+              />
+            </div>
+
+            <div>
+              <Label>Previous Certificates for Payment</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={formData.previousCertificates}
+                onChange={(e) => setFormData({...formData, previousCertificates: parseFloat(e.target.value) || 0})}
+              />
+            </div>
+
+            <div>
+              <Label>Supporting Documents</Label>
+              <Textarea
+                value={supportingDocs}
+                onChange={(e) => setSupportingDocs(e.target.value)}
+                placeholder="Drag and drop files here, or click to browse"
+                className="min-h-20"
+              />
+            </div>
+
+            <div>
+              <Label>Notes</Label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add any additional notes or comments..."
+                className="min-h-20"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="certification"
+                checked={formData.certification}
+                onCheckedChange={(checked) => setFormData({...formData, certification: checked as boolean})}
+              />
+              <Label htmlFor="certification" className="text-sm">
+                I certify that to the best of my knowledge and belief, the work covered by this Application for Payment has been completed in accordance with the Contract Documents.
+              </Label>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Action Buttons - Hidden when printing */}
@@ -583,6 +794,49 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
           {loading ? 'Saving...' : 'Save Application'}
         </Button>
       </div>
+
+      <style jsx>{`
+        @media print {
+          @page {
+            size: landscape;
+            margin: 0.5in;
+          }
+          
+          .print\\:landscape {
+            width: 11in;
+            height: 8.5in;
+          }
+          
+          .print\\:page-break-after {
+            page-break-after: always;
+          }
+          
+          .print\\:hidden {
+            display: none !important;
+          }
+          
+          .print\\:block {
+            display: block !important;
+          }
+          
+          .print\\:text-xs {
+            font-size: 10px !important;
+            line-height: 1.2 !important;
+          }
+          
+          .print\\:p-4 {
+            padding: 16px !important;
+          }
+          
+          .print\\:border-0 {
+            border: none !important;
+          }
+          
+          .print\\:bg-transparent {
+            background: transparent !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -31,7 +31,50 @@ export function G702Dialog({ open, onOpenChange, projectId, onSave }: G702Dialog
   };
 
   const handlePrint = () => {
+    // Add print styles for landscape orientation
+    const printStyles = `
+      @media print {
+        @page {
+          size: landscape;
+          margin: 0.5in;
+        }
+        
+        body * {
+          visibility: hidden;
+        }
+        
+        #g702-document, #g702-document *,
+        #g703-document, #g703-document * {
+          visibility: visible;
+        }
+        
+        #g702-document {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+        }
+        
+        #g703-document {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          page-break-before: always;
+        }
+      }
+    `;
+    
+    const style = document.createElement('style');
+    style.textContent = printStyles;
+    document.head.appendChild(style);
+    
     window.print();
+    
+    // Remove the styles after printing
+    setTimeout(() => {
+      document.head.removeChild(style);
+    }, 1000);
   };
 
   const handleSave = () => {
@@ -41,7 +84,7 @@ export function G702Dialog({ open, onOpenChange, projectId, onSave }: G702Dialog
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto">
+      <DialogContent className="max-w-[98vw] max-h-[98vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex justify-between items-center">
             <DialogTitle>G702/G703 - Application and Certificate for Payment</DialogTitle>

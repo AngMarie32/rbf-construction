@@ -20,8 +20,8 @@ export const exportToPDF = async (elementId: string, filename: string = 'export.
       backgroundColor: '#ffffff',
       width: element.scrollWidth,
       height: element.scrollHeight,
-      windowWidth: 1200,
-      windowHeight: 800
+      windowWidth: 1400,
+      windowHeight: 900
     });
 
     // Restore original display
@@ -29,7 +29,7 @@ export const exportToPDF = async (elementId: string, filename: string = 'export.
 
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF({
-      orientation: 'portrait',
+      orientation: 'landscape',
       unit: 'mm',
       format: 'letter'
     });
@@ -60,7 +60,7 @@ export const exportToPDF = async (elementId: string, filename: string = 'export.
 export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Application.pdf') => {
   try {
     const pdf = new jsPDF({
-      orientation: 'portrait',
+      orientation: 'landscape',
       unit: 'mm',
       format: 'letter'
     });
@@ -77,7 +77,9 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
         allowTaint: true,
         backgroundColor: '#ffffff',
         width: g702Element.scrollWidth,
-        height: g702Element.scrollHeight
+        height: g702Element.scrollHeight,
+        windowWidth: 1400,
+        windowHeight: 900
       });
 
       g702Element.style.display = originalDisplay;
@@ -90,7 +92,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       const scaledWidth = g702Canvas.width * 0.264583 * ratio;
       const scaledHeight = g702Canvas.height * 0.264583 * ratio;
       
-      pdf.addImage(g702ImgData, 'PNG', 10, 10, scaledWidth, scaledHeight);
+      pdf.addImage(g702ImgData, 'PNG', 5, 5, scaledWidth, scaledHeight);
     }
 
     // Add new page for G703
@@ -108,7 +110,9 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
         allowTaint: true,
         backgroundColor: '#ffffff',
         width: g703Element.scrollWidth,
-        height: g703Element.scrollHeight
+        height: g703Element.scrollHeight,
+        windowWidth: 1400,
+        windowHeight: 900
       });
 
       g703Element.style.display = originalDisplay;
@@ -121,7 +125,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       const scaledWidth = g703Canvas.width * 0.264583 * ratio;
       const scaledHeight = g703Canvas.height * 0.264583 * ratio;
       
-      pdf.addImage(g703ImgData, 'PNG', 10, 10, scaledWidth, scaledHeight);
+      pdf.addImage(g703ImgData, 'PNG', 5, 5, scaledWidth, scaledHeight);
     }
 
     pdf.save(filename);
