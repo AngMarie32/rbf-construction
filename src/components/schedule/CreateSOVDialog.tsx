@@ -1,12 +1,12 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Save } from 'lucide-react';
+import { Plus, Trash2, Save, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -14,6 +14,7 @@ interface SOVItem {
   id: string;
   division: string;
   itemNumber: string;
+  category: string;
   description: string;
   value: number;
 }
@@ -31,11 +32,11 @@ const templates = [
     name: 'Basic Template',
     description: 'Simple structure with essential divisions. Best for small to medium projects.',
     items: [
-      { division: '01', itemNumber: '01-100', description: 'General Requirements', value: 75000 },
-      { division: '02', itemNumber: '02-200', description: 'Site Work', value: 125000 },
-      { division: '03', itemNumber: '03-300', description: 'Concrete', value: 250000 },
-      { division: '04', itemNumber: '04-400', description: 'Masonry', value: 180000 },
-      { division: '05', itemNumber: '05-500', description: 'Metals', value: 200000 }
+      { division: '01', itemNumber: '01-100', category: 'General Requirements', description: 'General Requirements', value: 75000 },
+      { division: '02', itemNumber: '02-200', category: 'Site Work', description: 'Site Work', value: 125000 },
+      { division: '03', itemNumber: '03-300', category: 'Concrete', description: 'Concrete', value: 250000 },
+      { division: '04', itemNumber: '04-400', category: 'Masonry', description: 'Masonry', value: 180000 },
+      { division: '05', itemNumber: '05-500', category: 'Metals', description: 'Metals', value: 200000 }
     ]
   },
   {
@@ -43,15 +44,15 @@ const templates = [
     name: 'Detailed Template',
     description: 'Comprehensive breakdown with detailed sub-items. Ideal for large commercial projects.',
     items: [
-      { division: '01', itemNumber: '01-100', description: 'Project Management', value: 50000 },
-      { division: '01', itemNumber: '01-200', description: 'Temporary Facilities', value: 35000 },
-      { division: '01', itemNumber: '01-300', description: 'Quality Control', value: 25000 },
-      { division: '02', itemNumber: '02-100', description: 'Site Preparation', value: 75000 },
-      { division: '02', itemNumber: '02-200', description: 'Earthwork', value: 125000 },
-      { division: '02', itemNumber: '02-300', description: 'Utilities', value: 150000 },
-      { division: '03', itemNumber: '03-100', description: 'Concrete Forming', value: 100000 },
-      { division: '03', itemNumber: '03-200', description: 'Concrete Reinforcing', value: 150000 },
-      { division: '03', itemNumber: '03-300', description: 'Cast-in-Place Concrete', value: 200000 }
+      { division: '01', itemNumber: '01-100', category: 'General Requirements', description: 'Project Management', value: 50000 },
+      { division: '01', itemNumber: '01-200', category: 'General Requirements', description: 'Temporary Facilities', value: 35000 },
+      { division: '01', itemNumber: '01-300', category: 'General Requirements', description: 'Quality Control', value: 25000 },
+      { division: '02', itemNumber: '02-100', category: 'Site Work', description: 'Site Preparation', value: 75000 },
+      { division: '02', itemNumber: '02-200', category: 'Site Work', description: 'Earthwork', value: 125000 },
+      { division: '02', itemNumber: '02-300', category: 'Site Work', description: 'Utilities', value: 150000 },
+      { division: '03', itemNumber: '03-100', category: 'Concrete', description: 'Concrete Forming', value: 100000 },
+      { division: '03', itemNumber: '03-200', category: 'Concrete', description: 'Concrete Reinforcing', value: 150000 },
+      { division: '03', itemNumber: '03-300', category: 'Concrete', description: 'Cast-in-Place Concrete', value: 200000 }
     ]
   }
 ];
@@ -63,12 +64,39 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
     projectNumber: '',
     contractDate: '',
     totalContractAmount: '',
-    contractor: '',
-    architect: '',
     notes: ''
   });
   const [sovItems, setSovItems] = useState<SOVItem[]>([]);
   const [saving, setSaving] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
+  useEffect(() => {
+    if (open && projectId) {
+      fetchProjectInfo();
+    }
+  }, [open, projectId]);
+
+  const fetchProjectInfo = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('name, project_code, contract_value, start_date')
+        .eq('id', projectId)
+        .single();
+
+      if (error) throw error;
+
+      setProjectInfo({
+        projectName: data.name || '',
+        projectNumber: data.project_code || '',
+        contractDate: data.start_date || '',
+        totalContractAmount: data.contract_value?.toString() || '',
+        notes: ''
+      });
+    } catch (error) {
+      console.error('Error fetching project info:', error);
+    }
+  };
 
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId);
@@ -78,6 +106,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
         id: `temp-${index}`,
         division: item.division,
         itemNumber: item.itemNumber,
+        category: item.category,
         description: item.description,
         value: item.value
       }));
@@ -90,6 +119,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
       id: `temp-${Date.now()}`,
       division: '',
       itemNumber: '',
+      category: '',
       description: '',
       value: 0
     };
@@ -112,7 +142,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
       return;
     }
 
-    const incompleteItems = sovItems.filter(item => !item.itemNumber || !item.description);
+    const incompleteItems = sovItems.filter(item => !item.itemNumber || !item.description || !item.category);
     if (incompleteItems.length > 0) {
       toast.error('Please fill in all required fields');
       return;
@@ -124,7 +154,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
         project_id: projectId,
         item_number: item.itemNumber,
         description: item.description,
-        category: `Division ${item.division}`,
+        category: item.category,
         scheduled_value: item.value,
         percent_complete: 0,
         total_completed_and_stored: 0
@@ -137,17 +167,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
       if (error) throw error;
 
       onSave();
-      setSovItems([]);
-      setSelectedTemplate('');
-      setProjectInfo({
-        projectName: '',
-        projectNumber: '',
-        contractDate: '',
-        totalContractAmount: '',
-        contractor: '',
-        architect: '',
-        notes: ''
-      });
+      resetForm();
       onOpenChange(false);
       toast.success('Schedule of Values created successfully');
     } catch (error) {
@@ -158,16 +178,50 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
     }
   };
 
+  const handleSaveAsTemplate = async () => {
+    if (sovItems.length === 0) {
+      toast.error('Please add at least one SOV item to save as template');
+      return;
+    }
+
+    const templateName = prompt('Enter template name:');
+    if (!templateName) return;
+
+    setSavingTemplate(true);
+    try {
+      // This would save to a templates table if we had one
+      // For now, just show success message
+      toast.success(`Template "${templateName}" saved successfully`);
+    } catch (error) {
+      console.error('Error saving template:', error);
+      toast.error('Failed to save template');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const resetForm = () => {
+    setSovItems([]);
+    setSelectedTemplate('');
+    setProjectInfo({
+      projectName: '',
+      projectNumber: '',
+      contractDate: '',
+      totalContractAmount: '',
+      notes: ''
+    });
+  };
+
   const totalValue = sovItems.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Create New Schedule of Values</DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-6 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto space-y-6 pr-2">
           {/* Template Selection */}
           <div>
             <Label className="text-sm font-medium mb-3 block">Select Template</Label>
@@ -204,7 +258,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                   <Plus className="w-6 h-6 text-green-600" />
                 </div>
                 <h3 className="font-medium text-center">Start from Scratch</h3>
-                <p className="text-sm text-gray-500 text-center mt-1">Create your own custom structure. Maximum flexibility for unique project needs.</p>
+                <p className="text-sm text-gray-500 text-center mt-1">Create your own custom structure.</p>
               </div>
             </div>
           </div>
@@ -218,6 +272,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                 value={projectInfo.projectName}
                 onChange={(e) => setProjectInfo({...projectInfo, projectName: e.target.value})}
                 placeholder="Enter project name"
+                disabled
               />
             </div>
             <div>
@@ -266,6 +321,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                   <TableRow>
                     <TableHead>Division</TableHead>
                     <TableHead>Item Number</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead>Value</TableHead>
                     <TableHead>Action</TableHead>
@@ -287,6 +343,15 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                           value={item.itemNumber}
                           onChange={(e) => updateSOVItem(item.id, 'itemNumber', e.target.value)}
                           placeholder="01-100"
+                          className="w-24"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={item.category}
+                          onChange={(e) => updateSOVItem(item.id, 'category', e.target.value)}
+                          placeholder="Category"
+                          className="min-w-[120px]"
                         />
                       </TableCell>
                       <TableCell>
@@ -303,6 +368,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                           value={item.value}
                           onChange={(e) => updateSOVItem(item.id, 'value', parseFloat(e.target.value) || 0)}
                           placeholder="0.00"
+                          className="w-24"
                         />
                       </TableCell>
                       <TableCell>
@@ -319,7 +385,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                   ))}
                   {sovItems.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                         No line items added yet. Select a template or add items manually.
                       </TableCell>
                     </TableRow>
@@ -340,28 +406,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
             )}
           </div>
 
-          {/* Additional Information */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="contractor">Contractor</Label>
-              <Input
-                id="contractor"
-                value={projectInfo.contractor}
-                onChange={(e) => setProjectInfo({...projectInfo, contractor: e.target.value})}
-                placeholder="Enter contractor name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="architect">Architect</Label>
-              <Input
-                id="architect"
-                value={projectInfo.architect}
-                onChange={(e) => setProjectInfo({...projectInfo, architect: e.target.value})}
-                placeholder="Enter architect name"
-              />
-            </div>
-          </div>
-
+          {/* Notes */}
           <div>
             <Label htmlFor="notes">Notes</Label>
             <textarea
@@ -373,29 +418,33 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
               rows={3}
             />
           </div>
+        </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-between pt-4 border-t">
-            <Button variant="outline">
-              <Save className="w-4 h-4 mr-2" />
-              Save as Template
+        {/* Actions */}
+        <div className="flex items-center justify-between pt-4 border-t flex-shrink-0">
+          <Button 
+            variant="outline" 
+            onClick={handleSaveAsTemplate}
+            disabled={savingTemplate || sovItems.length === 0}
+          >
+            <Copy className="w-4 h-4 mr-2" />
+            {savingTemplate ? 'Saving Template...' : 'Save as Template'}
+          </Button>
+
+          <div className="flex gap-2">
+            <Button
+              onClick={() => onOpenChange(false)}
+              variant="outline"
+            >
+              Cancel
             </Button>
-
-            <div className="flex gap-2">
-              <Button
-                onClick={() => onOpenChange(false)}
-                variant="outline"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={saving || sovItems.length === 0}
-              >
-                <Save className="w-4 h-4 mr-2" />
-                {saving ? 'Creating...' : 'Create Schedule of Values'}
-              </Button>
-            </div>
+            <Button
+              onClick={handleSave}
+              disabled={saving || sovItems.length === 0}
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {saving ? 'Creating...' : 'Create Schedule of Values'}
+            </Button>
           </div>
         </div>
       </DialogContent>

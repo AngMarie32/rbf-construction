@@ -11,6 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { CreateSOVDialog } from '@/components/schedule/CreateSOVDialog';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 
 export default function ScheduleOfValues() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -19,6 +21,7 @@ export default function ScheduleOfValues() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [projectData, setProjectData] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,8 +31,10 @@ export default function ScheduleOfValues() {
   useEffect(() => {
     if (selectedProject) {
       fetchSOVItems();
+      fetchProjectData();
     } else {
       setSovItems([]);
+      setProjectData(null);
     }
   }, [selectedProject]);
 
@@ -47,6 +52,21 @@ export default function ScheduleOfValues() {
       toast.error('Failed to load projects');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProjectData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', selectedProject)
+        .single();
+
+      if (error) throw error;
+      setProjectData(data);
+    } catch (error) {
+      console.error('Error fetching project data:', error);
     }
   };
 
@@ -91,6 +111,37 @@ export default function ScheduleOfValues() {
     acc[category].push(item);
     return acc;
   }, {} as Record<string, any[]>);
+
+  // Create chart data by category
+  const chartData = Object.entries(groupedItems).map(([category, items]) => {
+    const categoryTotal = Array.isArray(items) ? items.reduce((sum, item) => sum + (item.scheduled_value || 0), 0) : 0;
+    const categoryCompleted = Array.isArray(items) ? items.reduce((sum, item) => sum + (item.total_completed_and_stored || 0), 0) : 0;
+    const percentage = categoryTotal ? Math.round((categoryCompleted / categoryTotal) * 100) : 0;
+    
+    return {
+      category: category.replace(/^Division \d+\s*-?\s*/, ''), // Clean up category names
+      completed: categoryCompleted,
+      total: categoryTotal,
+      percentage
+    };
+  });
+
+  const getLastUpdated = () => {
+    if (sovItems.length === 0) return null;
+    
+    const lastUpdate = sovItems.reduce((latest, item) => {
+      const itemDate = new Date(item.updated_at || item.created_at);
+      return itemDate > latest ? itemDate : latest;
+    }, new Date(0));
+
+    const daysAgo = Math.floor((Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24));
+    return {
+      date: lastUpdate.toLocaleDateString(),
+      daysAgo
+    };
+  };
+
+  const lastUpdated = getLastUpdated();
 
   if (loading) {
     return (
@@ -217,10 +268,10 @@ export default function ScheduleOfValues() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-orange-600">
-                    May 5, 2025
+                    {lastUpdated ? lastUpdated.date : 'N/A'}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    3 days ago by John Doe
+                    {lastUpdated ? `${lastUpdated.daysAgo} days ago` : 'No data available'}
                   </p>
                 </CardContent>
               </Card>
@@ -229,7 +280,7 @@ export default function ScheduleOfValues() {
             {/* Progress Chart */}
             <Card>
               <CardHeader>
-                <CardTitle>Project Completion Progress</CardTitle>
+                <CardTitle>Project Completion Progress by Category</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -244,23 +295,45 @@ export default function ScheduleOfValues() {
                     ></div>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-4 mt-4">
-                    <div className="text-center">
-                      <div className="text-sm text-gray-500">General/Structural</div>
-                      <div className="font-medium">76% Complete</div>
-                      <div className="text-sm text-gray-600">$1,025,000</div>
+                  {chartData.length > 0 && (
+                    <div className="mt-6">
+                      <ChartContainer
+                        config={{
+                          completed: {
+                            label: "Completed",
+                            color: "#3b82f6",
+                          },
+                          total: {
+                            label: "Total",
+                            color: "#e5e7eb",
+                          },
+                        }}
+                        className="h-[300px]"
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={chartData}>
+                            <XAxis 
+                              dataKey="category" 
+                              tick={{ fontSize: 12 }}
+                              angle={-45}
+                              textAnchor="end"
+                              height={80}
+                            />
+                            <YAxis tick={{ fontSize: 12 }} />
+                            <ChartTooltip 
+                              content={<ChartTooltipContent />}
+                              formatter={(value, name) => [
+                                `$${Number(value).toLocaleString()}`,
+                                name === 'completed' ? 'Completed' : 'Total'
+                              ]}
+                            />
+                            <Bar dataKey="total" fill="#e5e7eb" />
+                            <Bar dataKey="completed" fill="#3b82f6" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </ChartContainer>
                     </div>
-                    <div className="text-center">
-                      <div className="text-sm text-gray-500">Architectural</div>
-                      <div className="font-medium">35% Complete</div>
-                      <div className="text-sm text-gray-600">$412,500</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-sm text-gray-500">MEP Systems</div>
-                      <div className="font-medium">32% Complete</div>
-                      <div className="text-sm text-gray-600">$550,000</div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
