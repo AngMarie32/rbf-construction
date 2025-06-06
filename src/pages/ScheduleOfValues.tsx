@@ -13,7 +13,6 @@ import { CreateSOVDialog } from '@/components/schedule/CreateSOVDialog';
 import { EditSOVItemDialog } from '@/components/schedule/EditSOVItemDialog';
 import { SOVReportDialog } from '@/components/schedule/SOVReportDialog';
 import { G702Dialog } from '@/components/forms/G702Dialog';
-import { ProjectSelector } from '@/components/layout/ProjectSelector';
 import { Table, TableHeader, TableRow, TableBody, TableCell, TableHead } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 
@@ -341,12 +340,28 @@ Retainage: ${item.retainage_percentage || 10}%
     <Layout title="Schedule of Values" subtitle="Manage project schedule of values">
       <div className="space-y-6">
         {!selectedProject ? (
-          <ProjectSelector
-            projects={projects}
-            onProjectSelect={setSelectedProject}
-            title="Schedule of Values"
-            subtitle="Select a project to view and manage its schedule of values"
-          />
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <Card className="w-full max-w-md">
+              <CardHeader className="text-center">
+                <CardTitle className="text-2xl">Schedule of Values</CardTitle>
+                <p className="text-gray-600">Select a project to view and manage its schedule of values</p>
+              </CardHeader>
+              <CardContent>
+                <Select value={selectedProject} onValueChange={setSelectedProject} disabled={loading}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loading ? "Loading projects..." : "Choose a project"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+          </div>
         ) : (
           <>
             {/* Header with Project Selection */}
@@ -505,14 +520,14 @@ Retainage: ${item.retainage_percentage || 10}%
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Schedule of Values Items</CardTitle>
                     <div className="flex gap-2">
-                      <CreateSOVDialog
-                        projectId={selectedProject}
-                        onSave={fetchSOVItems}
-                      />
-                      <SOVReportDialog 
-                        projectData={projectData} 
-                        sovItems={sovItems} 
-                      />
+                      <Button onClick={handleCreateNew}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Item
+                      </Button>
+                      <Button variant="outline" onClick={handleViewReport}>
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Report
+                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -526,10 +541,10 @@ Retainage: ${item.retainage_percentage || 10}%
                             : 'Get started by creating your first schedule of values item.'}
                         </p>
                         {!searchTerm && viewMode === 'all' && (
-                          <CreateSOVDialog
-                            projectId={selectedProject}
-                            onSave={fetchSOVItems}
-                          />
+                          <Button onClick={handleCreateNew}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create SOV Item
+                          </Button>
                         )}
                       </div>
                     ) : (
@@ -649,7 +664,7 @@ Retainage: ${item.retainage_percentage || 10}%
               open={reportDialogOpen}
               onOpenChange={setReportDialogOpen}
               projectData={projectData}
-              sovItems={sovItems}
+              sovItems={sovItems || []}
             />
 
             <G702Dialog
