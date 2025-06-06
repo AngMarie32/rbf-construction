@@ -1,12 +1,11 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { ProjectSelector } from '@/components/layout/ProjectSelector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Search, Eye, Plus, ArrowLeft, FileText } from 'lucide-react';
+import { ArrowLeft, Eye, Plus, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -30,40 +29,16 @@ interface PaymentApplication {
 }
 
 export default function PaymentApplications() {
-  const [view, setView] = useState<'overview' | 'project'>('overview');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
-  const [projects, setProjects] = useState<Project[]>([]);
   const [paymentApps, setPaymentApps] = useState<PaymentApplication[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  useEffect(() => {
-    if (selectedProject && view === 'project') {
+    if (selectedProject) {
       fetchPaymentApplications();
     }
-  }, [selectedProject, view]);
-
-  const fetchProjects = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-      setProjects(data || []);
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-      toast.error('Failed to load projects');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [selectedProject]);
 
   const fetchPaymentApplications = async () => {
     if (!selectedProject) return;
@@ -86,53 +61,30 @@ export default function PaymentApplications() {
     }
   };
 
-  const handleProjectSelect = (project: Project) => {
-    setSelectedProject(project);
-    setView('project');
-  };
-
-  const handleProjectSelection = (projectId: string) => {
+  const handleProjectChange = async (projectId: string) => {
     setSelectedProjectId(projectId);
-    if (projectId) {
-      const project = projects.find(p => p.id === projectId);
-      if (project) {
-        handleProjectSelect(project);
+    if (projectId && projectId !== 'all-projects') {
+      try {
+        const { data, error } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', projectId)
+          .single();
+
+        if (error) throw error;
+        setSelectedProject(data);
+      } catch (error) {
+        console.error('Error fetching project:', error);
+        toast.error('Failed to load project details');
       }
     } else {
-      setView('overview');
       setSelectedProject(null);
     }
   };
 
-  const filteredProjects = projects.filter(project =>
-    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.client.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Active': return 'bg-green-100 text-green-800';
-      case 'Planning': return 'bg-blue-100 text-blue-800';
-      case 'On Hold': return 'bg-yellow-100 text-yellow-800';
-      case 'Completed': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  if (loading) {
-    return (
-      <Layout title="Payment Applications" subtitle="Manage project payment applications">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (view === 'project' && selectedProject) {
+  if (selectedProject) {
     const totalApplications = paymentApps.length;
     const totalPaymentsDue = paymentApps.reduce((sum, app) => sum + (app.current_payment_due || 0), 0);
-    const totalCompleted = paymentApps.reduce((sum, app) => sum + (app.total_completed_and_stored || 0), 0);
     const latestApplication = paymentApps[0];
 
     return (
@@ -141,11 +93,11 @@ export default function PaymentApplications() {
           <div className="flex items-center justify-between">
             <Button
               variant="outline"
-              onClick={() => setView('overview')}
+              onClick={() => setSelectedProject(null)}
               className="flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Overview
+              Back to Project Selection
             </Button>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
@@ -189,7 +141,11 @@ export default function PaymentApplications() {
               <CardTitle>Payment Applications</CardTitle>
             </CardHeader>
             <CardContent>
-              {paymentApps.length === 0 ? (
+              {loading ? (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : paymentApps.length === 0 ? (
                 <div className="text-center py-8">
                   <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500 text-lg mb-4">No payment applications found for this project.</p>
@@ -241,112 +197,21 @@ export default function PaymentApplications() {
     );
   }
 
-  // Company Overview
-  const totalProjects = projects.length;
-  const activeProjects = projects.filter(p => p.status === 'Active').length;
-  const totalContractValue = projects.reduce((sum, p) => sum + p.contract_value, 0);
-  const avgCompletion = projects.length > 0 
-    ? projects.reduce((sum, p) => sum + p.completion_percentage, 0) / projects.length 
-    : 0;
-
   return (
-    <Layout title="Payment Applications" subtitle="Company overview and project management">
+    <Layout title="Payment Applications" subtitle="Select a project to view its payment applications">
       <div className="space-y-6">
-        {/* Project Selector */}
-        <div className="flex items-center gap-4">
-          <ProjectSelector
-            selectedProjectId={selectedProjectId}
-            onProjectChange={handleProjectSelection}
-            placeholder="Select a project to view payment applications"
-            className="w-80"
-          />
-        </div>
-
-        {/* Company Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold">{totalProjects}</div>
-              <p className="text-sm text-gray-600">Total Projects</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-green-600">{activeProjects}</div>
-              <p className="text-sm text-gray-600">Active Projects</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold">${totalContractValue.toLocaleString()}</div>
-              <p className="text-sm text-gray-600">Total Contract Value</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-blue-600">{avgCompletion.toFixed(1)}%</div>
-              <p className="text-sm text-gray-600">Average Completion</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search */}
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Search projects..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
-
-        {/* Projects Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Projects with Payment Applications</CardTitle>
+        <Card className="max-w-2xl mx-auto">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Payment Applications</CardTitle>
+            <p className="text-gray-600">Select a project to manage its payment applications</p>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Project Name</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Contract Value</TableHead>
-                    <TableHead>Completion</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredProjects.map((project) => (
-                    <TableRow key={project.id}>
-                      <TableCell className="font-medium">{project.name}</TableCell>
-                      <TableCell>{project.client}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(project.status)}>
-                          {project.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>${project.contract_value.toLocaleString()}</TableCell>
-                      <TableCell>{project.completion_percentage}%</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleProjectSelect(project)}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+          <CardContent className="space-y-4">
+            <ProjectSelector
+              selectedProjectId={selectedProjectId}
+              onProjectChange={handleProjectChange}
+              placeholder="Choose a project to continue..."
+              className="w-full"
+            />
           </CardContent>
         </Card>
       </div>

@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Filter, FileText, Edit, Trash2, Eye, Download } from 'lucide-react';
+import { Search, Filter, FileText, Edit, Trash2, Download, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Proposal } from '@/types';
@@ -37,6 +37,7 @@ export default function Proposals() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
+  const [showProjectView, setShowProjectView] = useState(false);
 
   useEffect(() => {
     fetchProposals();
@@ -44,7 +45,7 @@ export default function Proposals() {
 
   useEffect(() => {
     filterProposals();
-  }, [proposals, searchTerm, statusFilter]);
+  }, [proposals, searchTerm, statusFilter, selectedProjectId]);
 
   const fetchProposals = async () => {
     try {
@@ -88,13 +89,6 @@ export default function Proposals() {
       filtered = filtered.filter(proposal => proposal.status === statusFilter);
     }
 
-    if (selectedProjectId) {
-      // For proposals, we might filter by project name or client
-      filtered = filtered.filter(proposal => 
-        proposal.projectName.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
     setFilteredProposals(filtered);
   };
 
@@ -121,6 +115,15 @@ export default function Proposals() {
     navigate('/bid-planner');
   };
 
+  const handleProjectChange = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    if (projectId && projectId !== 'all-projects') {
+      setShowProjectView(true);
+    } else {
+      setShowProjectView(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Draft': return 'bg-gray-100 text-gray-800';
@@ -130,8 +133,6 @@ export default function Proposals() {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
-
-  const totalValue = proposals.reduce((sum, proposal) => sum + proposal.amount, 0);
 
   const handleDownloadPDF = (proposal: Proposal) => {
     generateProposalPDF(proposal);
@@ -148,11 +149,55 @@ export default function Proposals() {
     );
   }
 
+  if (!showProjectView) {
+    return (
+      <Layout title="Proposals" subtitle="Select a project to view its proposals or manage all proposals">
+        <div className="space-y-6">
+          <Card className="max-w-2xl mx-auto">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">Proposals</CardTitle>
+              <p className="text-gray-600">Select a project to view its proposals or continue to manage all proposals</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ProjectSelector
+                selectedProjectId={selectedProjectId}
+                onProjectChange={handleProjectChange}
+                placeholder="Choose a project or select 'All Projects'..."
+                className="w-full"
+              />
+              <div className="text-center">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowProjectView(true)}
+                  className="w-full"
+                >
+                  View All Proposals
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
+  const totalValue = filteredProposals.reduce((sum, proposal) => sum + proposal.amount, 0);
+
   return (
     <Layout title="Proposals" subtitle="Manage your project proposals">
       <div className="space-y-6">
         {/* Header Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowProjectView(false)}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Selection
+            </Button>
+          </div>
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -163,12 +208,6 @@ export default function Proposals() {
                 className="pl-10"
               />
             </div>
-            <ProjectSelector
-              selectedProjectId={selectedProjectId}
-              onProjectChange={setSelectedProjectId}
-              placeholder="Filter by project"
-              className="w-60"
-            />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[140px]">
                 <Filter className="w-4 h-4 mr-2" />
@@ -195,14 +234,14 @@ export default function Proposals() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold">{proposals.length}</div>
+              <div className="text-2xl font-bold">{filteredProposals.length}</div>
               <p className="text-sm text-gray-600">Total Proposals</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-green-600">
-                {proposals.filter(p => p.status === 'Approved').length}
+                {filteredProposals.filter(p => p.status === 'Approved').length}
               </div>
               <p className="text-sm text-gray-600">Approved</p>
             </CardContent>
@@ -210,7 +249,7 @@ export default function Proposals() {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-blue-600">
-                {proposals.filter(p => p.status === 'Sent').length}
+                {filteredProposals.filter(p => p.status === 'Sent').length}
               </div>
               <p className="text-sm text-gray-600">Pending</p>
             </CardContent>
