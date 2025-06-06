@@ -1,5 +1,7 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
+import { ProjectSelector } from '@/components/layout/ProjectSelector';
 import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
 import { EditProposalDialog } from '@/components/proposals/EditProposalDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,6 +35,7 @@ export default function Proposals() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
 
   useEffect(() => {
@@ -83,6 +86,13 @@ export default function Proposals() {
 
     if (statusFilter !== 'all') {
       filtered = filtered.filter(proposal => proposal.status === statusFilter);
+    }
+
+    if (selectedProjectId) {
+      // For proposals, we might filter by project name or client
+      filtered = filtered.filter(proposal => 
+        proposal.projectName.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
 
     setFilteredProposals(filtered);
@@ -153,6 +163,12 @@ export default function Proposals() {
                 className="pl-10"
               />
             </div>
+            <ProjectSelector
+              selectedProjectId={selectedProjectId}
+              onProjectChange={setSelectedProjectId}
+              placeholder="Filter by project"
+              className="w-60"
+            />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[140px]">
                 <Filter className="w-4 h-4 mr-2" />

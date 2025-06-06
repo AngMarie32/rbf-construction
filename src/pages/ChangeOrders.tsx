@@ -19,6 +19,7 @@ interface Project {
   status: string;
   contract_value: number;
   completion_percentage: number;
+  net_change_orders?: number;
 }
 
 interface ChangeOrder {
@@ -332,7 +333,7 @@ export default function ChangeOrders() {
           </Card>
         </div>
 
-        {/* Search */}
+        {/* Search and Filters */}
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -347,8 +348,9 @@ export default function ChangeOrders() {
 
         {/* Projects Table */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Projects with Change Orders</CardTitle>
+            <CreateChangeOrderDialog onChangeOrderCreated={fetchProjects} />
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -359,7 +361,7 @@ export default function ChangeOrders() {
                     <TableHead>Client</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Contract Value</TableHead>
-                    <TableHead>Completion</TableHead>
+                    <TableHead>Change Orders</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -374,7 +376,7 @@ export default function ChangeOrders() {
                         </Badge>
                       </TableCell>
                       <TableCell>${project.contract_value.toLocaleString()}</TableCell>
-                      <TableCell>{project.completion_percentage}%</TableCell>
+                      <TableCell>{project.net_change_orders?.toLocaleString() || 'N/A'}</TableCell>
                       <TableCell>
                         <Button
                           variant="ghost"
@@ -391,6 +393,120 @@ export default function ChangeOrders() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Project Detail View */}
+        {view === 'project' && selectedProject && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>{selectedProject.name} - Change Orders</CardTitle>
+                <p className="text-sm text-gray-600">Client: {selectedProject.client}</p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setView('overview')}
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Overview
+                </Button>
+                <CreateChangeOrderDialog 
+                  projectId={selectedProject.id} 
+                  onChangeOrderCreated={fetchChangeOrders} 
+                />
+              </div>
+            </CardHeader>
+            <CardHeader>
+              <CardTitle>Change Orders</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {changeOrders.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 text-lg mb-4">No change orders found for this project.</p>
+                  <CreateChangeOrderDialog 
+                    projectId={selectedProject.id} 
+                    onChangeOrderCreated={fetchChangeOrders} 
+                  />
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Number</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead className="w-[150px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {changeOrders.map((co) => (
+                        <TableRow key={co.id}>
+                          <TableCell className="font-medium">{co.number}</TableCell>
+                          <TableCell>{co.description}</TableCell>
+                          <TableCell className={co.amount >= 0 ? 'text-green-600' : 'text-red-600'}>
+                            {co.amount >= 0 ? '+' : ''}${co.amount.toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(co.status)}>
+                              {co.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{new Date(co.date).toLocaleDateString()}</TableCell>
+                          <TableCell>{new Date(co.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setViewingChangeOrder(co)}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setEditingChangeOrder(co)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => deleteChangeOrder(co.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Dialogs */}
+        <ViewChangeOrderDialog
+          changeOrder={viewingChangeOrder}
+          open={!!viewingChangeOrder}
+          onClose={() => setViewingChangeOrder(null)}
+        />
+
+        <EditChangeOrderDialog
+          changeOrder={editingChangeOrder}
+          open={!!editingChangeOrder}
+          onClose={() => setEditingChangeOrder(null)}
+          onChangeOrderUpdated={fetchChangeOrders}
+        />
       </div>
     </Layout>
   );

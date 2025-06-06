@@ -1,7 +1,8 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Bell, Settings, User, LogOut } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Bell, Settings, User, LogOut, Moon, Sun } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export function Header() {
   const { user, signOut } = useAuth();
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -23,11 +25,31 @@ export function Header() {
     }
   };
 
+  const toggleDarkMode = () => {
+    setIsDarkMode(!isDarkMode);
+    if (!isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
+
   return (
-    <header className="border-b border-gray-200 bg-white px-6 py-4">
+    <header className="border-b border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 px-6 py-4">
       <div className="flex items-center justify-end">
         {/* Right side actions */}
         <div className="flex items-center space-x-4">
+          {/* Dark Mode Toggle */}
+          <div className="flex items-center space-x-2">
+            <Sun className="h-4 w-4" />
+            <Switch
+              checked={isDarkMode}
+              onCheckedChange={toggleDarkMode}
+              aria-label="Toggle dark mode"
+            />
+            <Moon className="h-4 w-4" />
+          </div>
+
           {/* Notifications */}
           <Button variant="ghost" size="sm" className="relative">
             <Bell className="h-5 w-5" />

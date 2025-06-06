@@ -1,6 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
+import { ProjectSelector } from '@/components/layout/ProjectSelector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,7 @@ interface PaymentApplication {
 export default function PaymentApplications() {
   const [view, setView] = useState<'overview' | 'project'>('overview');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [paymentApps, setPaymentApps] = useState<PaymentApplication[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,6 +89,19 @@ export default function PaymentApplications() {
   const handleProjectSelect = (project: Project) => {
     setSelectedProject(project);
     setView('project');
+  };
+
+  const handleProjectSelection = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    if (projectId) {
+      const project = projects.find(p => p.id === projectId);
+      if (project) {
+        handleProjectSelect(project);
+      }
+    } else {
+      setView('overview');
+      setSelectedProject(null);
+    }
   };
 
   const filteredProjects = projects.filter(project =>
@@ -238,6 +252,16 @@ export default function PaymentApplications() {
   return (
     <Layout title="Payment Applications" subtitle="Company overview and project management">
       <div className="space-y-6">
+        {/* Project Selector */}
+        <div className="flex items-center gap-4">
+          <ProjectSelector
+            selectedProjectId={selectedProjectId}
+            onProjectChange={handleProjectSelection}
+            placeholder="Select a project to view payment applications"
+            className="w-80"
+          />
+        </div>
+
         {/* Company Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
