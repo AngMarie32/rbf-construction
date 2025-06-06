@@ -342,7 +342,7 @@ Retainage: ${item.retainage_percentage || 10}%
       <div className="space-y-6">
         {!selectedProject ? (
           <ProjectSelector
-            selectedProject={selectedProject}
+            projects={projects}
             onProjectSelect={setSelectedProject}
             title="Schedule of Values"
             subtitle="Select a project to view and manage its schedule of values"
@@ -507,9 +507,12 @@ Retainage: ${item.retainage_percentage || 10}%
                     <div className="flex gap-2">
                       <CreateSOVDialog
                         projectId={selectedProject}
-                        onSOVCreated={fetchSOVItems}
+                        onSave={fetchSOVItems}
                       />
-                      <SOVReportDialog projectId={selectedProject} />
+                      <SOVReportDialog 
+                        projectData={projectData} 
+                        sovItems={sovItems} 
+                      />
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -525,7 +528,7 @@ Retainage: ${item.retainage_percentage || 10}%
                         {!searchTerm && viewMode === 'all' && (
                           <CreateSOVDialog
                             projectId={selectedProject}
-                            onSOVCreated={fetchSOVItems}
+                            onSave={fetchSOVItems}
                           />
                         )}
                       </div>
