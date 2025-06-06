@@ -1,62 +1,48 @@
 
-import React, { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar"
-import { format } from 'date-fns';
-import { CalendarIcon } from "lucide-react"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface NewBillingDialogProps {
-  onBillingCreated?: () => void;
+  onBillingCreated: () => void;
 }
 
-interface FormData {
-  projectId: string;
-  billingPeriodStart: Date | undefined;
-  billingPeriodEnd: Date | undefined;
-  invoiceNumber: string;
-  billedAmount: string;
-  paidAmount: string;
-  status: string;
-  invoiceDate: Date | undefined;
-  dueDate: Date | undefined;
-  notes: string;
+interface Project {
+  id: string;
+  name: string;
 }
 
 export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
   const [open, setOpen] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
-  const [projects, setProjects] = useState<any[]>([]);
-  const [formData, setFormData] = useState<FormData>({
-    projectId: '',
-    billingPeriodStart: undefined,
-    billingPeriodEnd: undefined,
-    invoiceNumber: '',
-    billedAmount: '',
-    paidAmount: '',
-    status: 'Draft',
-    invoiceDate: undefined,
-    dueDate: undefined,
+  
+  const [formData, setFormData] = useState({
+    project_id: '',
+    billing_period_start: new Date().toISOString().split('T')[0],
+    billing_period_end: new Date().toISOString().split('T')[0],
+    invoice_number: '',
+    billed_amount: '',
+    paid_amount: '0',
+    status: 'Draft' as const,
+    invoice_date: '',
+    due_date: '',
+    payment_date: '',
     notes: ''
   });
 
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    if (open) {
+      fetchProjects();
+    }
+  }, [open]);
 
   const fetchProjects = async () => {
     try {
@@ -69,28 +55,29 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
       setProjects(data || []);
     } catch (error) {
       console.error('Error fetching projects:', error);
+      toast.error('Failed to load projects');
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prevData => ({
-      ...prevData,
-      [name]: value
-    }));
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData(prevData => ({
-      ...prevData,
-      [name]: value
-    }));
+  const resetForm = () => {
+    setFormData({
+      project_id: '',
+      billing_period_start: new Date().toISOString().split('T')[0],
+      billing_period_end: new Date().toISOString().split('T')[0],
+      invoice_number: '',
+      billed_amount: '',
+      paid_amount: '0',
+      status: 'Draft',
+      invoice_date: '',
+      due_date: '',
+      payment_date: '',
+      notes: ''
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.projectId || !formData.billingPeriodStart || !formData.billingPeriodEnd || !formData.billedAmount) {
+    if (!formData.project_id || !formData.billed_amount) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -98,47 +85,32 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
     setLoading(true);
 
     try {
-      const billedAmount = parseFloat(formData.billedAmount) || 0;
-      const paidAmount = parseFloat(formData.paidAmount) || 0;
+      const billedAmount = parseFloat(formData.billed_amount);
+      const paidAmount = parseFloat(formData.paid_amount);
       
-      const billingData = {
-        project_id: formData.projectId,
-        billing_period_start: format(formData.billingPeriodStart, 'yyyy-MM-dd'),
-        billing_period_end: format(formData.billingPeriodEnd, 'yyyy-MM-dd'),
-        invoice_number: formData.invoiceNumber || null,
-        billed_amount: billedAmount,
-        paid_amount: paidAmount,
-        remaining_amount: billedAmount - paidAmount,
-        status: formData.status,
-        invoice_date: formData.invoiceDate ? format(formData.invoiceDate, 'yyyy-MM-dd') : null,
-        due_date: formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : null,
-        notes: formData.notes || null
-      };
-
       const { error } = await supabase
         .from('project_billing')
-        .insert([billingData]);
+        .insert({
+          project_id: formData.project_id,
+          billing_period_start: formData.billing_period_start,
+          billing_period_end: formData.billing_period_end,
+          invoice_number: formData.invoice_number || null,
+          billed_amount: billedAmount,
+          paid_amount: paidAmount,
+          remaining_amount: billedAmount - paidAmount,
+          status: formData.status,
+          invoice_date: formData.invoice_date || null,
+          due_date: formData.due_date || null,
+          payment_date: formData.payment_date || null,
+          notes: formData.notes || null
+        });
 
       if (error) throw error;
 
       toast.success('Billing record created successfully');
+      onBillingCreated();
       setOpen(false);
-      setFormData({
-        projectId: '',
-        billingPeriodStart: undefined,
-        billingPeriodEnd: undefined,
-        invoiceNumber: '',
-        billedAmount: '',
-        paidAmount: '',
-        status: 'Draft',
-        invoiceDate: undefined,
-        dueDate: undefined,
-        notes: ''
-      });
-      
-      if (onBillingCreated) {
-        onBillingCreated();
-      }
+      resetForm();
     } catch (error) {
       console.error('Error creating billing record:', error);
       toast.error('Failed to create billing record');
@@ -150,238 +122,160 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">Add Billing</Button>
+        <Button onClick={resetForm}>
+          <Plus className="w-4 h-4 mr-2" />
+          New Billing Record
+        </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Billing Record</DialogTitle>
+          <DialogTitle>Create New Billing Record</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="projectId" className="text-right">
-              Project *
-            </Label>
-            <Select
-              value={formData.projectId}
-              onValueChange={(value) => handleSelectChange('projectId', value)}
-            >
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Select a project" />
-              </SelectTrigger>
-              <SelectContent>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right">Period Start *</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "col-span-3 justify-start text-left font-normal",
-                    !formData.billingPeriodStart && "text-muted-foreground"
-                  )}
-                >
-                  {formData.billingPeriodStart ? (
-                    format(formData.billingPeriodStart, "MMM dd, yyyy")
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.billingPeriodStart}
-                  onSelect={(date) => setFormData(prev => ({ ...prev, billingPeriodStart: date }))}
-                  initialFocus
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="project">Project *</Label>
+                <Select value={formData.project_id} onValueChange={(value) => setFormData(prev => ({ ...prev, project_id: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="billing_period_start">Billing Period Start *</Label>
+                <Input
+                  id="billing_period_start"
+                  type="date"
+                  value={formData.billing_period_start}
+                  onChange={(e) => setFormData(prev => ({ ...prev, billing_period_start: e.target.value }))}
+                  required
                 />
-              </PopoverContent>
-            </Popover>
-          </div>
-          
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right">Period End *</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "col-span-3 justify-start text-left font-normal",
-                    !formData.billingPeriodEnd && "text-muted-foreground"
-                  )}
-                >
-                  {formData.billingPeriodEnd ? (
-                    format(formData.billingPeriodEnd, "MMM dd, yyyy")
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.billingPeriodEnd}
-                  onSelect={(date) => setFormData(prev => ({ ...prev, billingPeriodEnd: date }))}
-                  initialFocus
+              </div>
+
+              <div>
+                <Label htmlFor="billing_period_end">Billing Period End *</Label>
+                <Input
+                  id="billing_period_end"
+                  type="date"
+                  value={formData.billing_period_end}
+                  onChange={(e) => setFormData(prev => ({ ...prev, billing_period_end: e.target.value }))}
+                  required
                 />
-              </PopoverContent>
-            </Popover>
-          </div>
-          
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="invoiceNumber" className="text-right">
-              Invoice Number
-            </Label>
-            <Input
-              type="text"
-              name="invoiceNumber"
-              id="invoiceNumber"
-              value={formData.invoiceNumber}
-              onChange={handleInputChange}
-              className="col-span-3"
-            />
-          </div>
-          
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="billedAmount" className="text-right">
-              Billed Amount *
-            </Label>
-            <Input
-              type="number"
-              name="billedAmount"
-              id="billedAmount"
-              value={formData.billedAmount}
-              onChange={handleInputChange}
-              className="col-span-3"
-              placeholder="0.00"
-              step="0.01"
-            />
-          </div>
-          
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="paidAmount" className="text-right">
-              Paid Amount
-            </Label>
-            <Input
-              type="number"
-              name="paidAmount"
-              id="paidAmount"
-              value={formData.paidAmount}
-              onChange={handleInputChange}
-              className="col-span-3"
-              placeholder="0.00"
-              step="0.01"
-            />
-          </div>
-          
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="status" className="text-right">
-              Status
-            </Label>
-            <Select
-              value={formData.status}
-              onValueChange={(value) => handleSelectChange('status', value)}
-            >
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Draft">Draft</SelectItem>
-                <SelectItem value="Sent">Sent</SelectItem>
-                <SelectItem value="Paid">Paid</SelectItem>
-                <SelectItem value="Overdue">Overdue</SelectItem>
-                <SelectItem value="Cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right">Invoice Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "col-span-3 justify-start text-left font-normal",
-                    !formData.invoiceDate && "text-muted-foreground"
-                  )}
-                >
-                  {formData.invoiceDate ? (
-                    format(formData.invoiceDate, "MMM dd, yyyy")
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.invoiceDate}
-                  onSelect={(date) => setFormData(prev => ({ ...prev, invoiceDate: date }))}
-                  initialFocus
+              </div>
+
+              <div>
+                <Label htmlFor="invoice_number">Invoice Number</Label>
+                <Input
+                  id="invoice_number"
+                  value={formData.invoice_number}
+                  onChange={(e) => setFormData(prev => ({ ...prev, invoice_number: e.target.value }))}
+                  placeholder="INV-001"
                 />
-              </PopoverContent>
-            </Popover>
-          </div>
-          
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right">Due Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "col-span-3 justify-start text-left font-normal",
-                    !formData.dueDate && "text-muted-foreground"
-                  )}
-                >
-                  {formData.dueDate ? (
-                    format(formData.dueDate, "MMM dd, yyyy")
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.dueDate}
-                  onSelect={(date) => setFormData(prev => ({ ...prev, dueDate: date }))}
-                  initialFocus
+              </div>
+
+              <div>
+                <Label htmlFor="billed_amount">Billed Amount *</Label>
+                <Input
+                  id="billed_amount"
+                  type="number"
+                  step="0.01"
+                  value={formData.billed_amount}
+                  onChange={(e) => setFormData(prev => ({ ...prev, billed_amount: e.target.value }))}
+                  placeholder="0.00"
+                  required
                 />
-              </PopoverContent>
-            </Popover>
+              </div>
+
+              <div>
+                <Label htmlFor="paid_amount">Paid Amount</Label>
+                <Input
+                  id="paid_amount"
+                  type="number"
+                  step="0.01"
+                  value={formData.paid_amount}
+                  onChange={(e) => setFormData(prev => ({ ...prev, paid_amount: e.target.value }))}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="status">Status</Label>
+                <Select value={formData.status} onValueChange={(value: 'Draft' | 'Sent' | 'Paid' | 'Overdue' | 'Cancelled') => setFormData(prev => ({ ...prev, status: value }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Draft">Draft</SelectItem>
+                    <SelectItem value="Sent">Sent</SelectItem>
+                    <SelectItem value="Paid">Paid</SelectItem>
+                    <SelectItem value="Overdue">Overdue</SelectItem>
+                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="invoice_date">Invoice Date</Label>
+                <Input
+                  id="invoice_date"
+                  type="date"
+                  value={formData.invoice_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, invoice_date: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="due_date">Due Date</Label>
+                <Input
+                  id="due_date"
+                  type="date"
+                  value={formData.due_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="payment_date">Payment Date</Label>
+                <Input
+                  id="payment_date"
+                  type="date"
+                  value={formData.payment_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, payment_date: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Additional notes..."
+                  rows={3}
+                />
+              </div>
+            </div>
           </div>
-          
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="notes" className="text-right mt-2">
-              Notes
-            </Label>
-            <Textarea
-              name="notes"
-              id="notes"
-              value={formData.notes}
-              onChange={handleInputChange}
-              className="col-span-3"
-              placeholder="Billing notes"
-            />
+
+          <div className="flex gap-3 pt-4 border-t">
+            <Button type="submit" className="flex-1" disabled={loading}>
+              {loading ? 'Creating...' : 'Create Billing Record'}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
           </div>
-          
-          <Button type="submit" disabled={loading} className="col-span-4">
-            {loading ? 'Creating...' : 'Create Billing'}
-          </Button>
         </form>
       </DialogContent>
     </Dialog>

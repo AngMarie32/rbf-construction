@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,9 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Eye, Plus, ArrowLeft, FileText } from 'lucide-react';
+import { Search, Eye, Plus, ArrowLeft, FileText, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { EditChangeOrderDialog } from '@/components/change-orders/EditChangeOrderDialog';
+import { ViewChangeOrderDialog } from '@/components/change-orders/ViewChangeOrderDialog';
+import { CreateChangeOrderDialog } from '@/components/change-orders/CreateChangeOrderDialog';
 
 interface Project {
   id: string;
@@ -36,6 +38,8 @@ export default function ChangeOrders() {
   const [changeOrders, setChangeOrders] = useState<ChangeOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingChangeOrder, setEditingChangeOrder] = useState<ChangeOrder | null>(null);
+  const [viewingChangeOrder, setViewingChangeOrder] = useState<ChangeOrder | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -90,6 +94,25 @@ export default function ChangeOrders() {
     setView('project');
   };
 
+  const deleteChangeOrder = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this change order?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('change_orders')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Change order deleted successfully');
+      fetchChangeOrders();
+    } catch (error) {
+      console.error('Error deleting change order:', error);
+      toast.error('Failed to delete change order');
+    }
+  };
+
   const filteredProjects = projects.filter(project =>
     project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     project.client.toLowerCase().includes(searchTerm.toLowerCase())
@@ -139,10 +162,10 @@ export default function ChangeOrders() {
               <ArrowLeft className="w-4 h-4" />
               Back to Overview
             </Button>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              New Change Order
-            </Button>
+            <CreateChangeOrderDialog 
+              projectId={selectedProject.id} 
+              onChangeOrderCreated={fetchChangeOrders} 
+            />
           </div>
 
           {/* Project Stats */}
@@ -183,10 +206,10 @@ export default function ChangeOrders() {
                 <div className="text-center py-8">
                   <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500 text-lg mb-4">No change orders found for this project.</p>
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create First Change Order
-                  </Button>
+                  <CreateChangeOrderDialog 
+                    projectId={selectedProject.id} 
+                    onChangeOrderCreated={fetchChangeOrders} 
+                  />
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -199,7 +222,7 @@ export default function ChangeOrders() {
                         <TableHead>Status</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Created</TableHead>
-                        <TableHead className="w-[100px]">Actions</TableHead>
+                        <TableHead className="w-[150px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -218,9 +241,30 @@ export default function ChangeOrders() {
                           <TableCell>{new Date(co.date).toLocaleDateString()}</TableCell>
                           <TableCell>{new Date(co.created_at).toLocaleDateString()}</TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="sm">
-                              <Eye className="w-4 h-4" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setViewingChangeOrder(co)}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setEditingChangeOrder(co)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => deleteChangeOrder(co.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -230,6 +274,20 @@ export default function ChangeOrders() {
               )}
             </CardContent>
           </Card>
+
+          {/* Dialogs */}
+          <ViewChangeOrderDialog
+            changeOrder={viewingChangeOrder}
+            open={!!viewingChangeOrder}
+            onClose={() => setViewingChangeOrder(null)}
+          />
+
+          <EditChangeOrderDialog
+            changeOrder={editingChangeOrder}
+            open={!!editingChangeOrder}
+            onClose={() => setEditingChangeOrder(null)}
+            onChangeOrderUpdated={fetchChangeOrders}
+          />
         </div>
       </Layout>
     );

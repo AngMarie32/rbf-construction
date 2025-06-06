@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
@@ -14,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Proposal } from '@/types';
 import { useNavigate } from 'react-router-dom';
+import { generateProposalPDF } from '@/utils/proposalPdfExport';
 
 interface DatabaseProposal {
   id: string;
@@ -122,6 +122,11 @@ export default function Proposals() {
   };
 
   const totalValue = proposals.reduce((sum, proposal) => sum + proposal.amount, 0);
+
+  const handleDownloadPDF = (proposal: Proposal) => {
+    generateProposalPDF(proposal);
+    toast.success('Proposal PDF downloaded successfully');
+  };
 
   if (loading) {
     return (
@@ -241,7 +246,7 @@ export default function Proposals() {
                       <TableHead>Amount</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Created</TableHead>
-                      <TableHead className="w-[120px]">Actions</TableHead>
+                      <TableHead className="w-[180px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -263,9 +268,13 @@ export default function Proposals() {
                           {proposal.createdAt.toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="w-4 h-4" />
+                          <div className="flex gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleDownloadPDF(proposal)}
+                            >
+                              <Download className="w-4 h-4" />
                             </Button>
                             <Button 
                               variant="ghost" 

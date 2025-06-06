@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Eye, Plus, ArrowLeft } from 'lucide-react';
+import { Search, Eye, Plus, ArrowLeft, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -38,6 +37,8 @@ export default function ScheduleOfValues() {
   const [sovItems, setSovItems] = useState<SOVItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingItem, setEditingItem] = useState<SOVItem | null>(null);
+  const [viewingItem, setViewingItem] = useState<SOVItem | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -84,6 +85,25 @@ export default function ScheduleOfValues() {
       toast.error('Failed to load Schedule of Values items');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteSOVItem = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this SOV item?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('sov_items')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('SOV item deleted successfully');
+      fetchSOVItems();
+    } catch (error) {
+      console.error('Error deleting SOV item:', error);
+      toast.error('Failed to delete SOV item');
     }
   };
 
@@ -195,6 +215,7 @@ export default function ScheduleOfValues() {
                         <TableHead>This Period</TableHead>
                         <TableHead>Total Completed</TableHead>
                         <TableHead>% Complete</TableHead>
+                        <TableHead className="w-[150px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -208,6 +229,32 @@ export default function ScheduleOfValues() {
                           <TableCell>${item.this_period.toLocaleString()}</TableCell>
                           <TableCell>${(item.total_completed_and_stored || 0).toLocaleString()}</TableCell>
                           <TableCell>{item.percent_complete.toFixed(1)}%</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setViewingItem(item)}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEditingItem(item)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteSOVItem(item.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
