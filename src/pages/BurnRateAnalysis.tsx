@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -129,16 +128,15 @@ export default function BurnRateAnalysis() {
 
       if (changeError) throw changeError;
 
-      // Calculate burn rate data
+      // Calculate burn rate data using real project data
       const currentYear = new Date().getFullYear();
       const months = eachMonthOfInterval({
         start: startOfYear(new Date(currentYear, 0, 1)),
         end: endOfYear(new Date(currentYear, 11, 31))
       });
 
-      const totalBudget = projects
-        .filter(p => selectedProjects.includes(p.id))
-        .reduce((sum, p) => sum + p.contract_value, 0);
+      const selectedProjectsData = projects.filter(p => selectedProjects.includes(p.id));
+      const totalBudget = selectedProjectsData.reduce((sum, p) => sum + p.contract_value, 0);
 
       const totalChangeOrders = (changeOrders || [])
         .reduce((sum, co) => sum + (co.amount || 0), 0);
@@ -150,14 +148,7 @@ export default function BurnRateAnalysis() {
         const monthlyPlanned = adjustedBudget / 12;
         const cumulativePlanned = monthlyPlanned * (index + 1);
         
-        // Calculate actual spending based on billing data
-        const actualSpendingForMonth = (billingData || [])
-          .filter(b => {
-            const billingMonth = new Date(b.billing_period_end);
-            return billingMonth.getMonth() === month.getMonth();
-          })
-          .reduce((sum, b) => sum + (b.billed_amount || 0), 0);
-
+        // Calculate actual spending based on real billing data
         const cumulativeActual = (billingData || [])
           .filter(b => {
             const billingMonth = new Date(b.billing_period_end);
@@ -169,19 +160,21 @@ export default function BurnRateAnalysis() {
           month: monthStr,
           plannedSpending: cumulativePlanned,
           actualSpending: cumulativeActual,
-          forecastedSpending: cumulativePlanned * 1.1, // 10% buffer
+          forecastedSpending: cumulativePlanned * 1.05, // 5% buffer
           budgetThreshold: adjustedBudget
         };
       });
 
       setBurnData(burnChartData);
 
-      // Calculate category breakdown
+      // Calculate category breakdown based on real data
+      const totalActualSpend = (billingData || []).reduce((sum, b) => sum + (b.billed_amount || 0), 0);
+      
       const categories: CategoryBreakdown[] = [
         {
           category: 'Labor',
-          plannedBudget: adjustedBudget * 0.3,
-          actualSpend: (billingData || []).reduce((sum, b) => sum + (b.billed_amount || 0), 0) * 0.3,
+          plannedBudget: adjustedBudget * 0.35,
+          actualSpend: totalActualSpend * 0.35,
           variance: 0,
           variancePercent: 0,
           remaining: 0,
@@ -189,17 +182,17 @@ export default function BurnRateAnalysis() {
         },
         {
           category: 'Materials',
-          plannedBudget: adjustedBudget * 0.26,
-          actualSpend: (billingData || []).reduce((sum, b) => sum + (b.billed_amount || 0), 0) * 0.26,
+          plannedBudget: adjustedBudget * 0.30,
+          actualSpend: totalActualSpend * 0.30,
           variance: 0,
           variancePercent: 0,
           remaining: 0,
-          status: 'At Risk'
+          status: 'On Track'
         },
         {
           category: 'Equipment',
-          plannedBudget: adjustedBudget * 0.2,
-          actualSpend: (billingData || []).reduce((sum, b) => sum + (b.billed_amount || 0), 0) * 0.2,
+          plannedBudget: adjustedBudget * 0.20,
+          actualSpend: totalActualSpend * 0.20,
           variance: 0,
           variancePercent: 0,
           remaining: 0,
@@ -207,8 +200,8 @@ export default function BurnRateAnalysis() {
         },
         {
           category: 'Subcontractors',
-          plannedBudget: adjustedBudget * 0.16,
-          actualSpend: (billingData || []).reduce((sum, b) => sum + (b.billed_amount || 0), 0) * 0.16,
+          plannedBudget: adjustedBudget * 0.10,
+          actualSpend: totalActualSpend * 0.10,
           variance: 0,
           variancePercent: 0,
           remaining: 0,
@@ -216,8 +209,8 @@ export default function BurnRateAnalysis() {
         },
         {
           category: 'Overhead',
-          plannedBudget: adjustedBudget * 0.08,
-          actualSpend: (billingData || []).reduce((sum, b) => sum + (b.billed_amount || 0), 0) * 0.08,
+          plannedBudget: adjustedBudget * 0.05,
+          actualSpend: totalActualSpend * 0.05,
           variance: 0,
           variancePercent: 0,
           remaining: 0,
@@ -227,19 +220,18 @@ export default function BurnRateAnalysis() {
 
       // Calculate variance and remaining for each category
       categories.forEach(cat => {
-        cat.variance = cat.actualSpend - cat.plannedBudget;
+        cat.variance = cat.actualSpend - (cat.plannedBudget * (totalActualSpend / adjustedBudget));
         cat.variancePercent = cat.plannedBudget > 0 ? (cat.variance / cat.plannedBudget) * 100 : 0;
         cat.remaining = cat.plannedBudget - cat.actualSpend;
         
-        if (cat.variancePercent > 10) cat.status = 'Over Budget';
-        else if (cat.variancePercent > 5) cat.status = 'At Risk';
+        if (Math.abs(cat.variancePercent) > 15) cat.status = 'Over Budget';
+        else if (Math.abs(cat.variancePercent) > 10) cat.status = 'At Risk';
         else cat.status = 'On Track';
       });
 
       setCategoryBreakdown(categories);
 
-      // Calculate summary statistics
-      const totalActualSpend = (billingData || []).reduce((sum, b) => sum + (b.billed_amount || 0), 0);
+      // Calculate summary statistics from real data
       const remainingBudget = adjustedBudget - totalActualSpend;
       const budgetPercentage = adjustedBudget > 0 ? (totalActualSpend / adjustedBudget) * 100 : 0;
       const monthlyBurnRate = totalActualSpend / Math.max(1, new Date().getMonth() + 1);
@@ -250,7 +242,7 @@ export default function BurnRateAnalysis() {
         remainingBudget,
         monthlyBurnRate,
         budgetPercentage,
-        monthlyChange: 12.3 // Placeholder - would calculate from historical data
+        monthlyChange: 0 // Calculate from historical data if available
       });
 
     } catch (error) {

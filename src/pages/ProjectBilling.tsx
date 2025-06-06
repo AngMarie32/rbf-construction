@@ -269,6 +269,54 @@ export default function ProjectBilling() {
     toast.success('Billing data exported successfully');
   };
 
+  const createBillingFromPayApp = async () => {
+    try {
+      // Fetch the latest payment applications
+      const { data: payApps, error } = await supabase
+        .from('payment_applications_g702')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      // For each payment app that doesn't have a corresponding billing entry
+      for (const payApp of payApps || []) {
+        const { data: existingBilling } = await supabase
+          .from('project_billing')
+          .select('id')
+          .eq('project_id', payApp.project_id)
+          .eq('billing_period_end', payApp.period_to)
+          .single();
+
+        if (!existingBilling && payApp.current_payment_due > 0) {
+          const { error: insertError } = await supabase
+            .from('project_billing')
+            .insert({
+              project_id: payApp.project_id,
+              billing_period_start: new Date(new Date(payApp.period_to).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              billing_period_end: payApp.period_to,
+              billed_amount: payApp.current_payment_due,
+              paid_amount: 0,
+              remaining_amount: payApp.current_payment_due,
+              status: 'Draft',
+              notes: `Auto-generated from Payment Application #${payApp.application_number}`
+            });
+
+          if (insertError) {
+            console.error('Error creating billing from pay app:', insertError);
+          }
+        }
+      }
+
+      toast.success('Billing entries created from payment applications');
+      fetchBillings();
+    } catch (error) {
+      console.error('Error creating billing from payment applications:', error);
+      toast.error('Failed to create billing entries');
+    }
+  };
+
   const totals = calculateTotals();
 
   return (
@@ -278,6 +326,9 @@ export default function ProjectBilling() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center space-x-4">
             <NewBillingDialog onBillingCreated={fetchBillings} />
+            <Button onClick={createBillingFromPayApp} variant="outline">
+              Auto-Create from Pay Apps
+            </Button>
             <Button onClick={exportToCSV} variant="outline" size="sm">
               <Download className="w-4 h-4 mr-2" />
               Export CSV

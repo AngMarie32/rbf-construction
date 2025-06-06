@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
@@ -103,6 +102,49 @@ export default function Proposals() {
     }
   };
 
+  const viewProposal = (proposal: Proposal) => {
+    const details = `
+Project: ${proposal.projectName}
+Client: ${proposal.client}
+Amount: $${proposal.amount.toLocaleString()}
+Status: ${proposal.status}
+Created: ${proposal.createdAt.toLocaleDateString()}
+Scope: ${proposal.scope || 'No scope defined'}
+    `;
+    alert(details);
+  };
+
+  const downloadProposalPDF = (proposal: Proposal) => {
+    // Create a simple PDF content
+    const content = `
+PROPOSAL
+
+Project: ${proposal.projectName}
+Client: ${proposal.client}
+Amount: $${proposal.amount.toLocaleString()}
+Status: ${proposal.status}
+Created: ${proposal.createdAt.toLocaleDateString()}
+
+Scope of Work:
+${proposal.scope || 'No scope defined'}
+
+This proposal is valid for 30 days from the date above.
+    `;
+
+    // Create a blob and download
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${proposal.projectName}-proposal.txt`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    toast.success('Proposal downloaded successfully');
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Draft': return 'bg-gray-100 text-gray-800';
@@ -198,10 +240,6 @@ export default function Proposals() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Proposals ({filteredProposals.length})</CardTitle>
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
           </CardHeader>
           <CardContent>
             {filteredProposals.length === 0 ? (
@@ -226,7 +264,7 @@ export default function Proposals() {
                       <TableHead>Amount</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Created</TableHead>
-                      <TableHead className="w-[120px]">Actions</TableHead>
+                      <TableHead className="w-[180px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -249,11 +287,23 @@ export default function Proposals() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => viewProposal(proposal)}
+                            >
                               <Eye className="w-4 h-4" />
                             </Button>
                             <Button variant="ghost" size="sm">
                               <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => downloadProposalPDF(proposal)}
+                              title="Download PDF"
+                            >
+                              <Download className="w-4 h-4" />
                             </Button>
                             <Button 
                               variant="ghost" 

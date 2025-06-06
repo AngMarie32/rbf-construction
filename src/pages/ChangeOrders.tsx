@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, FileText, DollarSign, Calendar } from 'lucide-react';
+import { Search, Plus, FileText, DollarSign, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -73,6 +73,60 @@ export default function ChangeOrders() {
       return;
     }
     setCreateDialogOpen(true);
+  };
+
+  const viewChangeOrder = (co: any) => {
+    // Simple alert for now - could be enhanced with a proper view modal
+    alert(`Change Order: ${co.number}\nDescription: ${co.description}\nAmount: $${co.amount.toLocaleString()}\nStatus: ${co.status}\nDate: ${format(new Date(co.date), 'MMM dd, yyyy')}`);
+  };
+
+  const editChangeOrder = (co: any) => {
+    // For now, we'll use a simple prompt - could be enhanced with a proper edit modal
+    const newDescription = prompt('Edit description:', co.description);
+    const newAmount = prompt('Edit amount:', co.amount.toString());
+    
+    if (newDescription !== null && newAmount !== null) {
+      updateChangeOrder(co.id, {
+        description: newDescription,
+        amount: parseFloat(newAmount) || co.amount
+      });
+    }
+  };
+
+  const updateChangeOrder = async (id: string, updates: any) => {
+    try {
+      const { error } = await supabase
+        .from('change_orders')
+        .update(updates)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Change order updated successfully');
+      fetchChangeOrders();
+    } catch (error) {
+      console.error('Error updating change order:', error);
+      toast.error('Failed to update change order');
+    }
+  };
+
+  const deleteChangeOrder = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this change order?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('change_orders')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Change order deleted successfully');
+      fetchChangeOrders();
+    } catch (error) {
+      console.error('Error deleting change order:', error);
+      toast.error('Failed to delete change order');
+    }
   };
 
   const filteredChangeOrders = changeOrders.filter(co => {
@@ -257,12 +311,30 @@ export default function ChangeOrders() {
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => viewChangeOrder(co)}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => editChangeOrder(co)}
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
                             Edit
                           </Button>
-                          <Button variant="outline" size="sm">
-                            <FileText className="w-4 h-4 mr-1" />
-                            View
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => deleteChangeOrder(co.id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
                           </Button>
                         </div>
                       </div>
