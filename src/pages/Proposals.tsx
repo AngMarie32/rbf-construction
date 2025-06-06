@@ -1,21 +1,17 @@
 
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { ProjectSelector } from '@/components/layout/ProjectSelector';
 import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
-import { EditProposalDialog } from '@/components/proposals/EditProposalDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Filter, FileText, Edit, Trash2, Download, ArrowLeft } from 'lucide-react';
+import { Search, Filter, FileText, Edit, Trash2, Eye, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Proposal } from '@/types';
-import { useNavigate } from 'react-router-dom';
-import { generateProposalPDF } from '@/utils/proposalPdfExport';
 
 interface DatabaseProposal {
   id: string;
@@ -29,15 +25,11 @@ interface DatabaseProposal {
 }
 
 export default function Proposals() {
-  const navigate = useNavigate();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [filteredProposals, setFilteredProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
-  const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
-  const [showProjectView, setShowProjectView] = useState(false);
 
   useEffect(() => {
     fetchProposals();
@@ -45,7 +37,7 @@ export default function Proposals() {
 
   useEffect(() => {
     filterProposals();
-  }, [proposals, searchTerm, statusFilter, selectedProjectId]);
+  }, [proposals, searchTerm, statusFilter]);
 
   const fetchProposals = async () => {
     try {
@@ -111,19 +103,6 @@ export default function Proposals() {
     }
   };
 
-  const handleCreateFromBidPlanner = () => {
-    navigate('/bid-planner');
-  };
-
-  const handleProjectChange = (projectId: string) => {
-    setSelectedProjectId(projectId);
-    if (projectId && projectId !== 'all-projects') {
-      setShowProjectView(true);
-    } else {
-      setShowProjectView(false);
-    }
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Draft': return 'bg-gray-100 text-gray-800';
@@ -134,10 +113,10 @@ export default function Proposals() {
     }
   };
 
-  const handleDownloadPDF = (proposal: Proposal) => {
-    generateProposalPDF(proposal);
-    toast.success('Proposal PDF downloaded successfully');
-  };
+  const totalValue = proposals.reduce((sum, proposal) => sum + proposal.amount, 0);
+  const approvedValue = proposals
+    .filter(p => p.status === 'Approved')
+    .reduce((sum, proposal) => sum + proposal.amount, 0);
 
   if (loading) {
     return (
@@ -149,55 +128,11 @@ export default function Proposals() {
     );
   }
 
-  if (!showProjectView) {
-    return (
-      <Layout title="Proposals" subtitle="Select a project to view its proposals or manage all proposals">
-        <div className="space-y-6">
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Proposals</CardTitle>
-              <p className="text-gray-600">Select a project to view its proposals or continue to manage all proposals</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ProjectSelector
-                selectedProjectId={selectedProjectId}
-                onProjectChange={handleProjectChange}
-                placeholder="Choose a project or select 'All Projects'..."
-                className="w-full"
-              />
-              <div className="text-center">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowProjectView(true)}
-                  className="w-full"
-                >
-                  View All Proposals
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </Layout>
-    );
-  }
-
-  const totalValue = filteredProposals.reduce((sum, proposal) => sum + proposal.amount, 0);
-
   return (
     <Layout title="Proposals" subtitle="Manage your project proposals">
       <div className="space-y-6">
         {/* Header Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowProjectView(false)}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Selection
-            </Button>
-          </div>
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -222,26 +157,21 @@ export default function Proposals() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={handleCreateFromBidPlanner} variant="outline">
-              Create from Bid Planner
-            </Button>
-            <NewProposalDialog onProposalCreated={fetchProposals} />
-          </div>
+          <NewProposalDialog onProposalCreated={fetchProposals} />
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold">{filteredProposals.length}</div>
+              <div className="text-2xl font-bold">{proposals.length}</div>
               <p className="text-sm text-gray-600">Total Proposals</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-green-600">
-                {filteredProposals.filter(p => p.status === 'Approved').length}
+                {proposals.filter(p => p.status === 'Approved').length}
               </div>
               <p className="text-sm text-gray-600">Approved</p>
             </CardContent>
@@ -249,7 +179,7 @@ export default function Proposals() {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-blue-600">
-                {filteredProposals.filter(p => p.status === 'Sent').length}
+                {proposals.filter(p => p.status === 'Sent').length}
               </div>
               <p className="text-sm text-gray-600">Pending</p>
             </CardContent>
@@ -283,12 +213,7 @@ export default function Proposals() {
                     : 'No proposals found. Create your first proposal to get started!'}
                 </p>
                 {!searchTerm && statusFilter === 'all' && (
-                  <div className="flex gap-2 justify-center">
-                    <Button onClick={handleCreateFromBidPlanner} variant="outline">
-                      Create from Bid Planner
-                    </Button>
-                    <NewProposalDialog onProposalCreated={fetchProposals} />
-                  </div>
+                  <NewProposalDialog onProposalCreated={fetchProposals} />
                 )}
               </div>
             ) : (
@@ -301,7 +226,7 @@ export default function Proposals() {
                       <TableHead>Amount</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Created</TableHead>
-                      <TableHead className="w-[180px]">Actions</TableHead>
+                      <TableHead className="w-[120px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -323,19 +248,11 @@ export default function Proposals() {
                           {proposal.createdAt.toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleDownloadPDF(proposal)}
-                            >
-                              <Download className="w-4 h-4" />
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm">
+                              <Eye className="w-4 h-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => setEditingProposal(proposal)}
-                            >
+                            <Button variant="ghost" size="sm">
                               <Edit className="w-4 h-4" />
                             </Button>
                             <Button 
@@ -356,16 +273,6 @@ export default function Proposals() {
             )}
           </CardContent>
         </Card>
-
-        {/* Edit Proposal Dialog */}
-        {editingProposal && (
-          <EditProposalDialog
-            proposal={editingProposal}
-            open={true}
-            onClose={() => setEditingProposal(null)}
-            onProposalUpdated={fetchProposals}
-          />
-        )}
       </div>
     </Layout>
   );

@@ -1,122 +1,159 @@
 
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { ProjectSelector } from '@/components/layout/ProjectSelector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Search, Filter, FileText, Edit, Trash2, Plus, Download } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { 
+  Plus, 
+  Calendar as CalendarIcon, 
+  Edit, 
+  FileText, 
+  DollarSign, 
+  Download, 
+  Upload, 
+  Clock, 
+  CheckCircle, 
+  AlertTriangle, 
+  MoreHorizontal,
+  Eye,
+  Trash2,
+  Paperclip
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { DateRange } from 'react-day-picker';
+
+interface Expense {
+  id: string;
+  invoiceNumber: string;
+  vendor: string;
+  project: string;
+  projectId?: string;
+  category: string;
+  amount: number;
+  invoiceDate: Date;
+  dueDate?: Date;
+  status: 'Pending' | 'Field Approved' | 'Office Approved' | 'Paid';
+  notes?: string;
+  documentUrl?: string;
+}
 
 interface Project {
   id: string;
   name: string;
-  client: string;
 }
 
-interface Expense {
-  id: string;
-  project_id: string;
-  category: string;
-  description: string;
-  amount: number;
-  date: string;
-  receipt_url: string;
-  status: string;
-  created_at: string;
-}
+const STATUS_OPTIONS = [
+  { value: 'Pending', label: 'Pending', color: 'bg-gray-500', icon: Clock },
+  { value: 'Field Approved', label: 'Field Approved', color: 'bg-yellow-500', icon: CheckCircle },
+  { value: 'Office Approved', label: 'Office Approved', color: 'bg-blue-500', icon: CheckCircle },
+  { value: 'Paid', label: 'Paid', color: 'bg-green-500', icon: CheckCircle }
+];
 
-type ExpenseStatus = 'Pending' | 'Approved' | 'Rejected';
+const CATEGORY_OPTIONS = [
+  'Materials',
+  'Labor',
+  'Equipment',
+  'Permits',
+  'Utilities',
+  'Subcontractor',
+  'Other'
+];
+
+const DATE_FILTER_OPTIONS = [
+  { value: 'all', label: 'All Time' },
+  { value: 'thisMonth', label: 'This Month' },
+  { value: 'lastMonth', label: 'Last Month' },
+  { value: 'thisYear', label: 'This Year' },
+  { value: 'custom', label: 'Custom Range' }
+];
 
 export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>('all-projects');
-  const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [loading, setLoading] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [showNewExpenseDialog, setShowNewExpenseDialog] = useState(false);
-
-  // Form state for new expense
-  const [formData, setFormData] = useState<{
-    project_id: string;
-    category: string;
-    description: string;
-    amount: string;
-    date: string;
-    receipt_url: string;
-    status: ExpenseStatus;
-  }>({
-    project_id: '',
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All Statuses');
+  const [projectFilter, setProjectFilter] = useState('All Projects');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  
+  const [newExpense, setNewExpense] = useState({
+    invoiceNumber: '',
+    vendor: '',
+    project: '',
     category: '',
-    description: '',
     amount: '',
-    date: new Date().toISOString().split('T')[0],
-    receipt_url: '',
-    status: 'Pending'
+    invoiceDate: new Date(),
+    dueDate: null as Date | null,
+    status: 'Pending' as 'Pending' | 'Field Approved' | 'Office Approved' | 'Paid',
+    notes: ''
   });
-
-  const expenseCategories = [
-    'Materials',
-    'Labor',
-    'Equipment',
-    'Permits',
-    'Insurance',
-    'Transportation',
-    'Utilities',
-    'Subcontractors',
-    'Office Supplies',
-    'Other'
-  ];
 
   useEffect(() => {
     fetchExpenses();
     fetchProjects();
   }, []);
 
-  useEffect(() => {
-    filterExpenses();
-  }, [expenses, searchTerm, categoryFilter, statusFilter, selectedProject]);
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast.error('Failed to load projects');
+    }
+  };
 
   const fetchExpenses = async () => {
     try {
-      // Create a mock expenses table query since it doesn't exist in the database
-      const mockExpenses: Expense[] = [
-        {
-          id: '1',
-          project_id: 'project-1',
-          category: 'Materials',
-          description: 'Building materials for foundation',
-          amount: 5000,
-          date: '2024-01-15',
-          receipt_url: '',
-          status: 'Approved',
-          created_at: '2024-01-15T10:00:00Z'
-        },
-        {
-          id: '2',
-          project_id: 'project-2',
-          category: 'Equipment',
-          description: 'Excavator rental',
-          amount: 2500,
-          date: '2024-01-16',
-          receipt_url: '',
-          status: 'Pending',
-          created_at: '2024-01-16T10:00:00Z'
-        }
-      ];
-      
-      setExpenses(mockExpenses);
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          projects (name)
+        `)
+        .order('invoice_date', { ascending: false });
+
+      if (error) throw error;
+
+      const mappedExpenses: Expense[] = (data || []).map((invoice) => ({
+        id: invoice.id,
+        invoiceNumber: invoice.invoice_number,
+        vendor: invoice.client_name,
+        project: invoice.projects?.name || 'No Project',
+        projectId: invoice.project_id,
+        category: 'Materials', // Default for now
+        amount: invoice.total_amount,
+        invoiceDate: new Date(invoice.invoice_date),
+        dueDate: invoice.due_date ? new Date(invoice.due_date) : undefined,
+        status: invoice.status as Expense['status'],
+        notes: invoice.notes
+      }));
+
+      setExpenses(mappedExpenses);
     } catch (error) {
       console.error('Error fetching expenses:', error);
       toast.error('Failed to load expenses');
@@ -125,410 +162,670 @@ export default function Expenses() {
     }
   };
 
-  const fetchProjects = async () => {
+  const updateExpenseStatus = async (expenseId: string, newStatus: Expense['status']) => {
     try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('id, name, client')
-        .order('name');
+      const { error } = await supabase
+        .from('invoices')
+        .update({ status: newStatus })
+        .eq('id', expenseId);
 
       if (error) throw error;
-      setProjects(data || []);
+
+      // Update local state
+      setExpenses(prev => prev.map(exp => 
+        exp.id === expenseId ? { ...exp, status: newStatus } : exp
+      ));
+
+      toast.success(`Expense ${newStatus.toLowerCase()}`);
     } catch (error) {
-      console.error('Error fetching projects:', error);
+      console.error('Error updating expense status:', error);
+      toast.error('Failed to update expense status');
     }
   };
 
-  const filterExpenses = () => {
-    let filtered = expenses;
-
-    if (selectedProject && selectedProject !== 'all-projects') {
-      filtered = filtered.filter(expense => expense.project_id === selectedProject);
+  const handleStatusIconClick = (expense: Expense) => {
+    const currentIndex = STATUS_OPTIONS.findIndex(s => s.value === expense.status);
+    if (currentIndex < STATUS_OPTIONS.length - 1) {
+      const nextStatus = STATUS_OPTIONS[currentIndex + 1].value as Expense['status'];
+      updateExpenseStatus(expense.id, nextStatus);
     }
-
-    if (searchTerm) {
-      filtered = filtered.filter(expense =>
-        expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        expense.category.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (categoryFilter !== 'all') {
-      filtered = filtered.filter(expense => expense.category === categoryFilter);
-    }
-
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(expense => expense.status === statusFilter);
-    }
-
-    setFilteredExpenses(filtered);
   };
 
-  const deleteExpense = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this expense?')) return;
+  const saveExpense = async () => {
+    if (!newExpense.invoiceNumber || !newExpense.vendor || !newExpense.amount) {
+      toast.error('Please fill in required fields');
+      return;
+    }
 
     try {
-      // For now, just remove from local state since table doesn't exist
-      setExpenses(prev => prev.filter(expense => expense.id !== id));
+      const expenseData = {
+        invoice_number: newExpense.invoiceNumber,
+        client_name: newExpense.vendor,
+        project_id: newExpense.project || null,
+        invoice_date: newExpense.invoiceDate.toISOString().split('T')[0],
+        due_date: newExpense.dueDate?.toISOString().split('T')[0] || null,
+        total_amount: parseFloat(newExpense.amount),
+        subtotal: parseFloat(newExpense.amount),
+        tax_amount: 0,
+        status: newExpense.status,
+        notes: newExpense.notes || null
+      };
+
+      if (editingExpense) {
+        const { error } = await supabase
+          .from('invoices')
+          .update(expenseData)
+          .eq('id', editingExpense.id);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('invoices')
+          .insert(expenseData);
+
+        if (error) throw error;
+      }
+
+      toast.success(editingExpense ? 'Expense updated successfully' : 'Expense created successfully');
+      setDialogOpen(false);
+      setEditingExpense(null);
+      resetForm();
+      fetchExpenses();
+    } catch (error) {
+      console.error('Error saving expense:', error);
+      toast.error('Failed to save expense');
+    }
+  };
+
+  const deleteExpense = async (expenseId: string) => {
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', expenseId);
+
+      if (error) throw error;
+
       toast.success('Expense deleted successfully');
+      fetchExpenses();
     } catch (error) {
       console.error('Error deleting expense:', error);
       toast.error('Failed to delete expense');
     }
   };
 
-  const handleCreateExpense = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.project_id || !formData.category || !formData.description || !formData.amount) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
+  const editExpense = (expense: Expense) => {
+    setEditingExpense(expense);
+    setNewExpense({
+      invoiceNumber: expense.invoiceNumber,
+      vendor: expense.vendor,
+      project: expense.projectId || '',
+      category: expense.category,
+      amount: expense.amount.toString(),
+      invoiceDate: expense.invoiceDate,
+      dueDate: expense.dueDate || null,
+      status: expense.status,
+      notes: expense.notes || ''
+    });
+    setDialogOpen(true);
+  };
 
-    try {
-      // For now, just add to local state since table doesn't exist
-      const newExpense: Expense = {
-        id: Date.now().toString(),
-        project_id: formData.project_id,
-        category: formData.category,
-        description: formData.description,
-        amount: parseFloat(formData.amount),
-        date: formData.date,
-        receipt_url: formData.receipt_url,
-        status: formData.status,
-        created_at: new Date().toISOString()
-      };
+  const resetForm = () => {
+    setNewExpense({
+      invoiceNumber: '',
+      vendor: '',
+      project: '',
+      category: '',
+      amount: '',
+      invoiceDate: new Date(),
+      dueDate: null,
+      status: 'Pending',
+      notes: ''
+    });
+    setUploadedFile(null);
+  };
 
-      setExpenses(prev => [newExpense, ...prev]);
-      toast.success('Expense created successfully');
-      setShowNewExpenseDialog(false);
-      setFormData({
-        project_id: '',
-        category: '',
-        description: '',
-        amount: '',
-        date: new Date().toISOString().split('T')[0],
-        receipt_url: '',
-        status: 'Pending'
-      });
-    } catch (error) {
-      console.error('Error creating expense:', error);
-      toast.error('Failed to create expense');
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setUploadedFile(file);
+      toast.success('File uploaded successfully');
     }
   };
+
+  const handleFileDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
+    if (file) {
+      setUploadedFile(file);
+      toast.success('File uploaded successfully');
+    }
+  };
+
+  const exportExpenses = () => {
+    const csvContent = [
+      ['Invoice #', 'Date', 'Vendor', 'Project', 'Category', 'Amount', 'Status', 'Due Date'].join(','),
+      ...filteredExpenses.map(expense => [
+        expense.invoiceNumber,
+        format(expense.invoiceDate, 'M/d/yyyy'),
+        expense.vendor,
+        expense.project,
+        expense.category,
+        expense.amount,
+        expense.status,
+        expense.dueDate ? format(expense.dueDate, 'M/d/yyyy') : 'N/A'
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `expenses-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success('Expenses exported successfully');
+  };
+
+  const getDateRange = () => {
+    const now = new Date();
+    switch (dateFilter) {
+      case 'thisMonth':
+        return { start: startOfMonth(now), end: endOfMonth(now) };
+      case 'lastMonth':
+        const lastMonth = subMonths(now, 1);
+        return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
+      case 'thisYear':
+        return { start: startOfYear(now), end: endOfYear(now) };
+      case 'custom':
+        return customDateRange?.from && customDateRange?.to 
+          ? { start: customDateRange.from, end: customDateRange.to }
+          : null;
+      default:
+        return null;
+    }
+  };
+
+  const filteredExpenses = expenses.filter(expense => {
+    const matchesSearch = expense.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         expense.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         expense.project.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'All Statuses' || expense.status === statusFilter;
+    const matchesProject = projectFilter === 'All Projects' || expense.project === projectFilter;
+    
+    const dateRange = getDateRange();
+    const matchesDate = !dateRange || 
+      (expense.invoiceDate >= dateRange.start && expense.invoiceDate <= dateRange.end);
+    
+    return matchesSearch && matchesStatus && matchesProject && matchesDate;
+  });
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Approved': return 'bg-green-100 text-green-800';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800';
-      case 'Rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+    return STATUS_OPTIONS.find(s => s.value === status)?.color || 'bg-gray-500';
   };
 
-  const getProjectName = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
-    return project ? project.name : 'Unknown Project';
+  const getStatusIcon = (status: string) => {
+    const StatusIcon = STATUS_OPTIONS.find(s => s.value === status)?.icon || AlertTriangle;
+    return <StatusIcon className="w-4 h-4" />;
   };
 
-  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const approvedExpenses = filteredExpenses.filter(e => e.status === 'Approved').reduce((sum, expense) => sum + expense.amount, 0);
-  const pendingExpenses = filteredExpenses.filter(e => e.status === 'Pending').reduce((sum, expense) => sum + expense.amount, 0);
-
-  if (loading) {
-    return (
-      <Layout title="Expenses" subtitle="Manage project expenses and receipts">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-        </div>
-      </Layout>
-    );
-  }
+  // Calculate summary statistics based on filtered data
+  const totalInvoices = filteredExpenses.length;
+  const paidExpenses = filteredExpenses.filter(exp => exp.status === 'Paid').reduce((sum, exp) => sum + exp.amount, 0);
+  const pendingExpenses = filteredExpenses.filter(exp => exp.status === 'Pending').reduce((sum, exp) => sum + exp.amount, 0);
+  const overdueExpenses = filteredExpenses.filter(exp => 
+    exp.dueDate && exp.dueDate < new Date() && exp.status !== 'Paid'
+  ).reduce((sum, exp) => sum + exp.amount, 0);
 
   return (
-    <Layout title="Expenses" subtitle="Manage project expenses and receipts">
+    <Layout title="Expenses" subtitle="Manage and track all project expenses">
       <div className="space-y-6">
-        {/* Header Actions */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
-          <div className="flex flex-col sm:flex-row gap-4 flex-1">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalInvoices}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Paid Invoices</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                ${paidExpenses.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending Invoices</CardTitle>
+              <Clock className="h-4 w-4 text-yellow-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">
+                ${pendingExpenses.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Overdue Invoices</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">
+                ${overdueExpenses.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Expenses Management */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Expenses</CardTitle>
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={exportExpenses}>
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => {
+                    setEditingExpense(null);
+                    resetForm();
+                  }}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Expense
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>{editingExpense ? 'Edit Expense' : 'Create New Expense'}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="invoiceNumber">Invoice Number</Label>
+                        <Input
+                          id="invoiceNumber"
+                          value={newExpense.invoiceNumber}
+                          onChange={(e) => setNewExpense({ ...newExpense, invoiceNumber: e.target.value })}
+                          placeholder="Enter invoice number"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="amount">Amount ($)</Label>
+                        <Input
+                          id="amount"
+                          type="number"
+                          step="0.01"
+                          value={newExpense.amount}
+                          onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Invoice Date</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !newExpense.invoiceDate && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {newExpense.invoiceDate ? format(newExpense.invoiceDate, "PPP") : "Pick a date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={newExpense.invoiceDate}
+                              onSelect={(date) => date && setNewExpense({ ...newExpense, invoiceDate: date })}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      <div>
+                        <Label>Due Date</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !newExpense.dueDate && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {newExpense.dueDate ? format(newExpense.dueDate, "PPP") : "Pick a date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={newExpense.dueDate || undefined}
+                              onSelect={(date) => setNewExpense({ ...newExpense, dueDate: date || null })}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="vendor">Vendor</Label>
+                        <Input
+                          id="vendor"
+                          value={newExpense.vendor}
+                          onChange={(e) => setNewExpense({ ...newExpense, vendor: e.target.value })}
+                          placeholder="Enter vendor name"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="project">Project</Label>
+                        <Select value={newExpense.project} onValueChange={(value) => setNewExpense({ ...newExpense, project: value })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select project" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {projects.map((project) => (
+                              <SelectItem key={project.id} value={project.id}>
+                                {project.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="category">Category</Label>
+                        <Select value={newExpense.category} onValueChange={(value) => setNewExpense({ ...newExpense, category: value })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CATEGORY_OPTIONS.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="status">Status</Label>
+                        <Select value={newExpense.status} onValueChange={(value: 'Pending' | 'Field Approved' | 'Office Approved' | 'Paid') => setNewExpense({ ...newExpense, status: value })}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUS_OPTIONS.map((status) => (
+                              <SelectItem key={status.value} value={status.value}>
+                                {status.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="document">Expense Document</Label>
+                      <div 
+                        className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                        onDrop={handleFileDrop}
+                        onDragOver={(e) => e.preventDefault()}
+                        onClick={() => document.getElementById('fileInput')?.click()}
+                      >
+                        <input
+                          id="fileInput"
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={handleFileUpload}
+                        />
+                        <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                        <p className="mt-2 text-sm text-gray-600">
+                          {uploadedFile ? uploadedFile.name : 'Click or drag file to upload'}
+                        </p>
+                        <p className="text-xs text-gray-500">Supports PDF, JPG, JPEG, PNG</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="notes">Notes</Label>
+                      <Textarea
+                        id="notes"
+                        value={newExpense.notes}
+                        onChange={(e) => setNewExpense({ ...newExpense, notes: e.target.value })}
+                        placeholder="Add any relevant notes about this expense"
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="flex justify-end space-x-2">
+                      <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={saveExpense}>
+                        {editingExpense ? 'Update Expense' : 'Create Expense'}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* Filters */}
+            <div className="flex flex-col lg:flex-row gap-4 mb-6">
               <Input
                 placeholder="Search expenses..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="lg:w-80"
               />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="lg:w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All Statuses">All Statuses</SelectItem>
+                  {STATUS_OPTIONS.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={projectFilter} onValueChange={setProjectFilter}>
+                <SelectTrigger className="lg:w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All Projects">All Projects</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.name}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={dateFilter} onValueChange={(value) => {
+                setDateFilter(value);
+                if (value === 'custom') {
+                  setShowCustomDatePicker(true);
+                } else {
+                  setShowCustomDatePicker(false);
+                  setCustomDateRange(undefined);
+                }
+              }}>
+                <SelectTrigger className="lg:w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DATE_FILTER_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {showCustomDatePicker && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "lg:w-60 justify-start text-left font-normal",
+                        !customDateRange && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customDateRange?.from ? (
+                        customDateRange.to ? (
+                          <>
+                            {format(customDateRange.from, "LLL dd, y")} -{" "}
+                            {format(customDateRange.to, "LLL dd, y")}
+                          </>
+                        ) : (
+                          format(customDateRange.from, "LLL dd, y")
+                        )
+                      ) : (
+                        "Pick a date range"
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={customDateRange?.from}
+                      selected={customDateRange}
+                      onSelect={setCustomDateRange}
+                      numberOfMonths={2}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
-            <ProjectSelector 
-              selectedProjectId={selectedProject} 
-              onProjectChange={setSelectedProject}
-              placeholder="Filter by project"
-              className="w-60"
-            />
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[140px]">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {expenseCategories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="Pending">Pending</SelectItem>
-                <SelectItem value="Approved">Approved</SelectItem>
-                <SelectItem value="Rejected">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button onClick={() => setShowNewExpenseDialog(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            New Expense
-          </Button>
-        </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold">{filteredExpenses.length}</div>
-              <p className="text-sm text-gray-600">Total Expenses</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold">${totalExpenses.toLocaleString()}</div>
-              <p className="text-sm text-gray-600">Total Amount</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-green-600">${approvedExpenses.toLocaleString()}</div>
-              <p className="text-sm text-gray-600">Approved</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-yellow-600">${pendingExpenses.toLocaleString()}</div>
-              <p className="text-sm text-gray-600">Pending</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Expenses Table */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Expenses ({filteredExpenses.length})</CardTitle>
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {filteredExpenses.length === 0 ? (
-              <div className="text-center py-8">
-                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 text-lg mb-4">
-                  {searchTerm || categoryFilter !== 'all' || statusFilter !== 'all' || selectedProject !== 'all-projects'
-                    ? 'No expenses match your filters' 
-                    : 'No expenses found. Create your first expense to get started!'}
-                </p>
-                {!searchTerm && categoryFilter === 'all' && statusFilter === 'all' && selectedProject === 'all-projects' && (
-                  <Button onClick={() => setShowNewExpenseDialog(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create First Expense
-                  </Button>
-                )}
+            {loading ? (
+              <div className="text-center py-8">Loading expenses...</div>
+            ) : filteredExpenses.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No expenses found. Create your first expense to get started.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Project</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-[120px]">Actions</TableHead>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice #</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Vendor</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead className="w-32">Approval / Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredExpenses.map((expense) => (
+                    <TableRow key={expense.id}>
+                      <TableCell className="font-medium text-blue-600">
+                        {expense.invoiceNumber}
+                      </TableCell>
+                      <TableCell>{format(expense.invoiceDate, "M/d/yyyy")}</TableCell>
+                      <TableCell>{expense.vendor}</TableCell>
+                      <TableCell>{expense.project}</TableCell>
+                      <TableCell>{expense.category}</TableCell>
+                      <TableCell className="font-medium">
+                        ${expense.amount.toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn("flex items-center gap-1 text-white", getStatusColor(expense.status))}
+                          onClick={() => handleStatusIconClick(expense)}
+                          disabled={expense.status === 'Paid'}
+                        >
+                          {getStatusIcon(expense.status)}
+                          {expense.status}
+                        </Button>
+                      </TableCell>
+                      <TableCell>
+                        {expense.dueDate ? format(expense.dueDate, "M/d/yyyy") : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleStatusIconClick(expense)}
+                            disabled={expense.status === 'Paid'}
+                          >
+                            <DollarSign className="w-4 h-4" />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <DropdownMenuItem onClick={() => editExpense(expense)}>
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => toast.info('View attachment feature coming soon')}>
+                                <Eye className="w-4 h-4 mr-2" />
+                                View Attachment
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => deleteExpense(expense.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredExpenses.map((expense) => (
-                      <TableRow key={expense.id}>
-                        <TableCell className="font-medium">
-                          {getProjectName(expense.project_id)}
-                        </TableCell>
-                        <TableCell>{expense.category}</TableCell>
-                        <TableCell>{expense.description}</TableCell>
-                        <TableCell className="font-medium">
-                          ${expense.amount.toLocaleString()}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(expense.date).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(expense.status)}>
-                            {expense.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => setEditingExpense(expense)}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => deleteExpense(expense.id)}
-                              className="text-red-600 hover:text-red-800"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>
-
-        {/* New Expense Dialog */}
-        <Dialog open={showNewExpenseDialog} onOpenChange={setShowNewExpenseDialog}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Create New Expense</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreateExpense} className="space-y-4">
-              <div>
-                <Label htmlFor="project">Project *</Label>
-                <Select 
-                  value={formData.project_id} 
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, project_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="category">Category *</Label>
-                <Select 
-                  value={formData.category} 
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {expenseCategories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="description">Description *</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Expense description"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="amount">Amount *</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  value={formData.amount}
-                  onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-                  placeholder="0.00"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="date">Date *</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="status">Status</Label>
-                <Select 
-                  value={formData.status} 
-                  onValueChange={(value: ExpenseStatus) => setFormData(prev => ({ ...prev, status: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pending">Pending</SelectItem>
-                    <SelectItem value="Approved">Approved</SelectItem>
-                    <SelectItem value="Rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="receipt_url">Receipt URL</Label>
-                <Input
-                  id="receipt_url"
-                  value={formData.receipt_url}
-                  onChange={(e) => setFormData(prev => ({ ...prev, receipt_url: e.target.value }))}
-                  placeholder="https://..."
-                />
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1">
-                  Create Expense
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setShowNewExpenseDialog(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
     </Layout>
   );
