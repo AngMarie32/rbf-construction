@@ -60,7 +60,7 @@ export function ProjectSelector({
           <SelectValue placeholder={loading ? "Loading..." : placeholder} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All Projects</SelectItem>
+          <SelectItem value="all-projects">All Projects</SelectItem>
           {projects.map((project) => (
             <SelectItem key={project.id} value={project.id}>
               {project.name} - {project.client}

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { ProjectSelector } from '@/components/layout/ProjectSelector';
@@ -7,6 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Search, Filter, FileText, Edit, Trash2, Plus, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -87,7 +91,7 @@ export default function Expenses() {
   const fetchExpenses = async () => {
     try {
       const { data, error } = await supabase
-        .from('expenses')
+        .from('expenses' as any)
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -145,7 +149,7 @@ export default function Expenses() {
 
     try {
       const { error } = await supabase
-        .from('expenses')
+        .from('expenses' as any)
         .delete()
         .eq('id', id);
 
@@ -168,7 +172,7 @@ export default function Expenses() {
 
     try {
       const { error } = await supabase
-        .from('expenses')
+        .from('expenses' as any)
         .insert({
           project_id: formData.project_id,
           category: formData.category,
@@ -242,19 +246,12 @@ export default function Expenses() {
                 className="pl-10"
               />
             </div>
-            <ProjectSelector value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="All Projects" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Projects</SelectItem>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </ProjectSelector>
+            <ProjectSelector 
+              selectedProjectId={selectedProject} 
+              onProjectChange={setSelectedProject}
+              placeholder="Filter by project"
+              className="w-60"
+            />
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-[140px]">
                 <Filter className="w-4 h-4 mr-2" />
