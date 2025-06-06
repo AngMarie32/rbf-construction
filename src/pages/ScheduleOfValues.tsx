@@ -13,8 +13,9 @@ import { CreateSOVDialog } from '@/components/schedule/CreateSOVDialog';
 import { EditSOVItemDialog } from '@/components/schedule/EditSOVItemDialog';
 import { SOVReportDialog } from '@/components/schedule/SOVReportDialog';
 import { G702Dialog } from '@/components/forms/G702Dialog';
-import { ProjectSelector } from '@/components/schedule/ProjectSelector';
-import { Table, TableHeader, TableRow, TableBody, TableCell, TableHead, Progress } from '@/components/ui/table';
+import { ProjectSelector } from '@/components/layout/ProjectSelector';
+import { Table, TableHeader, TableRow, TableBody, TableCell, TableHead } from '@/components/ui/table';
+import { Progress } from '@/components/ui/progress';
 
 export default function ScheduleOfValues() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -517,11 +518,11 @@ Retainage: ${item.retainage_percentage || 10}%
                         <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">No SOV Items</h3>
                         <p className="text-gray-500 mb-6">
-                          {searchTerm || categoryFilter !== 'all' 
+                          {searchTerm || viewMode !== 'all' 
                             ? 'No items match your search criteria' 
                             : 'Get started by creating your first schedule of values item.'}
                         </p>
-                        {!searchTerm && categoryFilter === 'all' && (
+                        {!searchTerm && viewMode === 'all' && (
                           <CreateSOVDialog
                             projectId={selectedProject}
                             onSOVCreated={fetchSOVItems}
@@ -582,14 +583,14 @@ Retainage: ${item.retainage_percentage || 10}%
                                     <Button 
                                       variant="outline" 
                                       size="sm"
-                                      onClick={() => editSOVItem(item)}
+                                      onClick={() => handleEditItem(item)}
                                     >
                                       <Edit className="w-4 h-4" />
                                     </Button>
                                     <Button 
                                       variant="outline" 
                                       size="sm"
-                                      onClick={() => deleteSOVItem(item.id)}
+                                      onClick={() => handleDeleteItem(item)}
                                       className="text-red-600 hover:text-red-800"
                                     >
                                       <Trash2 className="w-4 h-4" />
