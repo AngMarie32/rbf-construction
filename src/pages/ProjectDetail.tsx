@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Project as ProjectType } from '@/types';
 import { EditProjectDialog } from '@/components/projects/EditProjectDialog';
+import { GanttChart } from '@/components/schedule/GanttChart';
 
 interface Project extends ProjectType {}
 
@@ -23,10 +24,13 @@ export default function ProjectDetail() {
   const [sovItems, setSovItems] = useState([]);
   const [changeOrders, setChangeOrders] = useState([]);
   const [paymentApps, setPaymentApps] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [scheduleProjects, setScheduleProjects] = useState([]);
 
   useEffect(() => {
     fetchProject();
     fetchProjectData();
+    fetchScheduleData();
   }, [id]);
 
   const fetchProject = async () => {
@@ -116,9 +120,74 @@ export default function ProjectDetail() {
     }
   };
 
+  const fetchScheduleData = async () => {
+    if (!id) return;
+
+    try {
+      // Mock schedule data - replace with actual API calls
+      const mockTasks = [
+        {
+          id: '1',
+          title: 'Site Preparation',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-15'),
+          progress: 100,
+          status: 'Completed',
+          projectId: id,
+          dependencies: [],
+          duration: 15,
+          isCritical: true
+        },
+        {
+          id: '2',
+          title: 'Foundation Work',
+          startDate: new Date('2024-01-16'),
+          endDate: new Date('2024-02-15'),
+          progress: 75,
+          status: 'In Progress',
+          projectId: id,
+          dependencies: ['1'],
+          duration: 30,
+          isCritical: true
+        },
+        {
+          id: '3',
+          title: 'Framing',
+          startDate: new Date('2024-02-16'),
+          endDate: new Date('2024-03-31'),
+          progress: 25,
+          status: 'Planned',
+          projectId: id,
+          dependencies: ['2'],
+          duration: 44,
+          isCritical: false
+        }
+      ];
+
+      setTasks(mockTasks);
+      
+      if (project) {
+        setScheduleProjects([{
+          id: project.id,
+          name: project.name,
+          color: '#3b82f6'
+        }]);
+      }
+    } catch (error) {
+      console.error('Error fetching schedule data:', error);
+    }
+  };
+
   const handleUpdate = async () => {
     await fetchProject();
     await fetchProjectData();
+    await fetchScheduleData();
+  };
+
+  const handleTaskUpdate = (taskId: string, updates: Partial<any>) => {
+    setTasks(prev => prev.map(task => 
+      task.id === taskId ? { ...task, ...updates } : task
+    ));
   };
 
   const getStatusColor = (status: Project['status']) => {
@@ -248,6 +317,7 @@ export default function ProjectDetail() {
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
             <TabsTrigger value="sov">Schedule of Values</TabsTrigger>
             <TabsTrigger value="payments">Payment Apps</TabsTrigger>
@@ -289,6 +359,41 @@ export default function ProjectDetail() {
                   </div>
                   <p className="text-sm text-gray-600 mt-1">{project.completionPercentage}% complete</p>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="schedule" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Project Schedule</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {tasks.length > 0 ? (
+                  <GanttChart
+                    tasks={tasks}
+                    projects={scheduleProjects}
+                    selectedProjects={[id]}
+                    onTaskUpdate={handleTaskUpdate}
+                    dateRange={{
+                      from: new Date('2024-01-01'),
+                      to: new Date('2024-12-31')
+                    }}
+                    showDependencies={true}
+                    showCriticalPath={true}
+                    showMilestones={true}
+                    projectData={project}
+                  />
+                ) : (
+                  <div className="text-center py-8">
+                    <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">No schedule data available for this project.</p>
+                    <Button className="mt-4" onClick={() => navigate('/project-schedule')}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Project Schedule
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

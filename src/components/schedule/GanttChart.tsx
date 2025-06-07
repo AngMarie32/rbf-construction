@@ -1,10 +1,12 @@
 
-import { useMemo, useState } from 'react';
-import { format, differenceInDays, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek, isSameDay, isWeekend } from 'date-fns';
-import { AlertTriangle, Calendar, Link2, Target, Edit2, Save, X } from 'lucide-react';
+import { useMemo, useState, useCallback } from 'react';
+import { format, differenceInDays, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek, isSameDay, isWeekend, addDays } from 'date-fns';
+import { AlertTriangle, Calendar, Link2, Target, Edit2, Save, X, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface Task {
   id: string;
@@ -23,6 +25,9 @@ interface Project {
   id: string;
   name: string;
   color: string;
+  client?: string;
+  contractValue?: number;
+  status?: string;
 }
 
 interface GanttChartProps {
@@ -34,6 +39,7 @@ interface GanttChartProps {
   showDependencies?: boolean;
   showCriticalPath?: boolean;
   showMilestones?: boolean;
+  projectData?: Project;
 }
 
 export function GanttChart({ 
@@ -44,10 +50,13 @@ export function GanttChart({
   dateRange,
   showDependencies = false,
   showCriticalPath = false,
-  showMilestones = false
+  showMilestones = false,
+  projectData
 }: GanttChartProps) {
   const [editingTask, setEditingTask] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{ title: string; progress: number }>({ title: '', progress: 0 });
+  const [dragging, setDragging] = useState<{ taskId: string; type: 'move' | 'resize-start' | 'resize-end' } | null>(null);
+  const [dragStart, setDragStart] = useState<{ x: number; originalStartDate: Date; originalEndDate: Date } | null>(null);
 
   const timeData = useMemo(() => {
     const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
@@ -76,12 +85,83 @@ export function GanttChart({
     return { left: `${leftPercent}%`, width: `${widthPercent}%` };
   };
 
+  const calculateProgress = (task: Task) => {
+    const today = new Date();
+    const taskStart = new Date(task.startDate);
+    const taskEnd = new Date(task.endDate);
+    
+    if (today < taskStart) return 0;
+    if (today > taskEnd) return 100;
+    
+    const totalDuration = differenceInDays(taskEnd, taskStart);
+    const daysElapsed = differenceInDays(today, taskStart);
+    
+    return Math.round((daysElapsed / totalDuration) * 100);
+  };
+
   const getTaskColor = (task: Task, projectColor: string) => {
     if (showCriticalPath && task.isCritical) {
-      return '#dc2626'; // Red for critical tasks
+      return '#dc2626';
     }
     return projectColor;
   };
+
+  const handleMouseDown = useCallback((e: React.MouseEvent, taskId: string, type: 'move' | 'resize-start' | 'resize-end') => {
+    e.preventDefault();
+    const task = filteredTasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    setDragging({ taskId, type });
+    setDragStart({
+      x: e.clientX,
+      originalStartDate: new Date(task.startDate),
+      originalEndDate: new Date(task.endDate)
+    });
+  }, [filteredTasks]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!dragging || !dragStart) return;
+
+    const deltaX = e.clientX - dragStart.x;
+    const dayWidth = e.currentTarget.getBoundingClientRect().width / timeData.days.length;
+    const daysDelta = Math.round(deltaX / dayWidth);
+
+    const task = filteredTasks.find(t => t.id === dragging.taskId);
+    if (!task) return;
+
+    let newStartDate = new Date(dragStart.originalStartDate);
+    let newEndDate = new Date(dragStart.originalEndDate);
+
+    if (dragging.type === 'move') {
+      newStartDate = addDays(dragStart.originalStartDate, daysDelta);
+      newEndDate = addDays(dragStart.originalEndDate, daysDelta);
+    } else if (dragging.type === 'resize-start') {
+      newStartDate = addDays(dragStart.originalStartDate, daysDelta);
+      if (newStartDate >= newEndDate) {
+        newStartDate = addDays(newEndDate, -1);
+      }
+    } else if (dragging.type === 'resize-end') {
+      newEndDate = addDays(dragStart.originalEndDate, daysDelta);
+      if (newEndDate <= newStartDate) {
+        newEndDate = addDays(newStartDate, 1);
+      }
+    }
+
+    const newDuration = differenceInDays(newEndDate, newStartDate) + 1;
+    const autoProgress = calculateProgress({ ...task, startDate: newStartDate, endDate: newEndDate });
+
+    onTaskUpdate(dragging.taskId, {
+      startDate: newStartDate,
+      endDate: newEndDate,
+      duration: newDuration,
+      progress: autoProgress
+    });
+  }, [dragging, dragStart, timeData.days.length, filteredTasks, onTaskUpdate]);
+
+  const handleMouseUp = useCallback(() => {
+    setDragging(null);
+    setDragStart(null);
+  }, []);
 
   const handleTaskEdit = (task: Task) => {
     setEditingTask(task.id);
@@ -96,6 +176,58 @@ export function GanttChart({
   const handleCancelEdit = () => {
     setEditingTask(null);
     setEditValues({ title: '', progress: 0 });
+  };
+
+  const exportToPDF = async () => {
+    const element = document.getElementById('gantt-chart-export');
+    if (!element) return;
+
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.getDataURL('image/png');
+      const pdf = new jsPDF('l', 'mm', 'a4');
+      
+      // Add project header information
+      pdf.setFontSize(20);
+      pdf.text(projectData?.name || 'Project Schedule', 20, 20);
+      
+      pdf.setFontSize(12);
+      let yOffset = 35;
+      
+      if (projectData?.client) {
+        pdf.text(`Client: ${projectData.client}`, 20, yOffset);
+        yOffset += 8;
+      }
+      
+      if (projectData?.status) {
+        pdf.text(`Status: ${projectData.status}`, 20, yOffset);
+        yOffset += 8;
+      }
+      
+      if (projectData?.contractValue) {
+        pdf.text(`Contract Value: $${projectData.contractValue.toLocaleString()}`, 20, yOffset);
+        yOffset += 8;
+      }
+      
+      pdf.text(`Date Range: ${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}`, 20, yOffset);
+      yOffset += 15;
+
+      // Add the Gantt chart
+      const imgWidth = 250;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 20, yOffset, imgWidth, imgHeight);
+      
+      pdf.save(`${projectData?.name || 'project'}-schedule.pdf`);
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+    }
   };
 
   const renderDependencyLines = () => {
@@ -134,7 +266,7 @@ export function GanttChart({
   };
 
   return (
-    <div className="bg-white rounded-lg border relative overflow-hidden">
+    <div className="bg-white rounded-lg border relative overflow-hidden" id="gantt-chart-export">
       {/* SVG for dependency lines */}
       {showDependencies && (
         <svg 
@@ -186,9 +318,15 @@ export function GanttChart({
               )}
             </div>
           </div>
-          <Badge variant="outline" className="text-xs">
-            {format(dateRange.from, 'MMM dd')} - {format(dateRange.to, 'MMM dd, yyyy')}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={exportToPDF}>
+              <Download className="w-4 h-4 mr-2" />
+              Export PDF
+            </Button>
+            <Badge variant="outline" className="text-xs">
+              {format(dateRange.from, 'MMM dd')} - {format(dateRange.to, 'MMM dd, yyyy')}
+            </Badge>
+          </div>
         </div>
       </div>
       
@@ -221,7 +359,7 @@ export function GanttChart({
 
         {/* Day Headers */}
         <div className="flex">
-          <div className="w-80 p-2 border-r text-xs text-gray-500 bg-white">Click tasks to edit</div>
+          <div className="w-80 p-2 border-r text-xs text-gray-500 bg-white">Drag task bars to adjust dates</div>
           <div className="flex-1 flex">
             {timeData.days.map((day, index) => {
               const isWeekendDay = isWeekend(day);
@@ -247,7 +385,10 @@ export function GanttChart({
       </div>
 
       {/* Task Rows */}
-      <div className="max-h-96 overflow-y-auto relative">
+      <div className="max-h-96 overflow-y-auto relative"
+           onMouseMove={handleMouseMove}
+           onMouseUp={handleMouseUp}
+           onMouseLeave={handleMouseUp}>
         {projects
           .filter(project => selectedProjects.length === 0 || selectedProjects.includes(project.id))
           .map((project) => {
@@ -293,7 +434,7 @@ export function GanttChart({
                   
                   return (
                     <div key={task.id} className={`
-                      flex border-b hover:bg-gray-50 transition-colors
+                      flex border-b hover:bg-gray-50 transition-colors group
                       ${task.isCritical && showCriticalPath ? 'bg-red-50 border-red-100' : ''}
                     `}>
                       <div className="w-80 p-3 border-r">
@@ -368,22 +509,38 @@ export function GanttChart({
                         
                         {/* Task bar */}
                         <div 
-                          className="absolute top-2 h-10 rounded-lg shadow-sm border border-white/20 cursor-pointer hover:shadow-md transition-all duration-200 flex items-center justify-between px-3"
+                          className="absolute top-2 h-10 rounded-lg shadow-sm border border-white/20 hover:shadow-md transition-all duration-200 flex items-center justify-between px-3 cursor-move"
                           style={{ 
                             ...position,
                             backgroundColor: taskColor,
                             minWidth: '80px'
                           }}
-                          onClick={() => {
-                            onTaskUpdate(task.id, { progress: Math.min(100, task.progress + 10) });
-                          }}
+                          onMouseDown={(e) => handleMouseDown(e, task.id, 'move')}
                         >
-                          <span className="text-white text-xs font-medium truncate">
+                          {/* Resize handle - start */}
+                          <div
+                            className="absolute left-0 top-0 w-3 h-full cursor-w-resize bg-white/20 hover:bg-white/40 rounded-l-lg"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              handleMouseDown(e, task.id, 'resize-start');
+                            }}
+                          />
+                          
+                          <span className="text-white text-xs font-medium truncate flex-1 text-center">
                             {task.title.split(' ').slice(0, 2).join(' ')}
                           </span>
                           <span className="text-white/90 text-xs font-medium">
                             {task.progress}%
                           </span>
+                          
+                          {/* Resize handle - end */}
+                          <div
+                            className="absolute right-0 top-0 w-3 h-full cursor-e-resize bg-white/20 hover:bg-white/40 rounded-r-lg"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              handleMouseDown(e, task.id, 'resize-end');
+                            }}
+                          />
                         </div>
                         
                         {/* Progress overlay */}
