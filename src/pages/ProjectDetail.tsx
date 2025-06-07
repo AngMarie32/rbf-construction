@@ -177,14 +177,15 @@ export default function ProjectDetail() {
       setTasks(mockTasks);
       
       if (project) {
-        setScheduleProjects([{
+        const ganttProject: GanttProject = {
           id: project.id,
           name: project.name,
           color: '#3b82f6',
           client: project.client,
           contractValue: project.contractValue,
           status: project.status
-        }]);
+        };
+        setScheduleProjects([ganttProject]);
       }
     } catch (error) {
       console.error('Error fetching schedule data:', error);
@@ -395,7 +396,7 @@ export default function ProjectDetail() {
                     showDependencies={true}
                     showCriticalPath={true}
                     showMilestones={true}
-                    projectData={project}
+                    projectData={scheduleProjects[0]}
                   />
                 ) : (
                   <div className="text-center py-8">
