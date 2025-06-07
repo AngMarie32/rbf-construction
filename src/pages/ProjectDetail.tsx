@@ -15,6 +15,16 @@ import { GanttChart } from '@/components/schedule/GanttChart';
 
 interface Project extends ProjectType {}
 
+// Separate interface for Gantt chart projects
+interface GanttProject {
+  id: string;
+  name: string;
+  color: string;
+  client?: string;
+  contractValue?: number;
+  status?: string;
+}
+
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -25,7 +35,7 @@ export default function ProjectDetail() {
   const [changeOrders, setChangeOrders] = useState([]);
   const [paymentApps, setPaymentApps] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [scheduleProjects, setScheduleProjects] = useState([]);
+  const [scheduleProjects, setScheduleProjects] = useState<GanttProject[]>([]);
 
   useEffect(() => {
     fetchProject();
