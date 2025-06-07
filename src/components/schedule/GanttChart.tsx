@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import { toast } from 'sonner';
 
 interface Task {
@@ -63,6 +62,7 @@ export function GanttChart({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [lastToastTime, setLastToastTime] = useState(0);
 
   const timeData = useMemo(() => {
     const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
@@ -168,11 +168,16 @@ export function GanttChart({
   const handleMouseUp = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);
-      toast.success('Task updated successfully');
+      // Only show toast if enough time has passed since last toast
+      const now = Date.now();
+      if (now - lastToastTime > 2000) {
+        toast.success('Task updated successfully');
+        setLastToastTime(now);
+      }
     }
     setDragging(null);
     setDragStart(null);
-  }, [isDragging]);
+  }, [isDragging, lastToastTime]);
 
   const handleTaskEdit = (task: Task) => {
     setEditingTask(task.id);
@@ -191,7 +196,7 @@ export function GanttChart({
   };
 
   const scrollTimeline = (direction: 'left' | 'right') => {
-    if (scrollContainerRef.current) {
+    if (scrollContainerRef.current && timelineRef.current) {
       const scrollAmount = 200;
       const newPosition = direction === 'left' 
         ? Math.max(0, scrollPosition - scrollAmount)
@@ -199,6 +204,11 @@ export function GanttChart({
       
       scrollContainerRef.current.scrollLeft = newPosition;
       setScrollPosition(newPosition);
+      
+      // Sync the timeline scroll
+      if (timelineRef.current) {
+        timelineRef.current.style.transform = `translateX(-${newPosition}px)`;
+      }
     }
   };
 
@@ -231,66 +241,85 @@ export function GanttChart({
       }
       
       pdf.text(`Date Range: ${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}`, 20, yOffset);
-      yOffset += 10;
+      yOffset += 15;
 
-      // Create a clean table for the schedule
-      const tableData = filteredTasks.map(task => [
-        task.title,
-        format(task.startDate, 'MMM dd, yyyy'),
-        format(task.endDate, 'MMM dd, yyyy'),
-        `${task.progress}%`,
-        task.status
-      ]);
+      // Project Tasks Section
+      if (projects.length > 0) {
+        pdf.setFontSize(12);
+        pdf.text('Project Tasks', 20, yOffset);
+        yOffset += 10;
+      }
 
-      // Table headers
-      const headers = ['Task', 'Start Date', 'End Date', 'Progress', 'Status'];
+      // Create enhanced task table
+      const tableData = filteredTasks.map(task => {
+        const project = projects.find(p => p.id === task.projectId);
+        return [
+          task.title.length > 25 ? task.title.substring(0, 22) + '...' : task.title,
+          project?.name?.substring(0, 15) || 'Unknown',
+          format(task.startDate, 'MMM dd'),
+          format(task.endDate, 'MMM dd'),
+          `${task.progress}%`,
+          task.status.substring(0, 10)
+        ];
+      });
+
+      // Enhanced table headers
+      const headers = ['Task Name', 'Project', 'Start', 'End', 'Progress', 'Status'];
       
-      // Draw table
+      // Draw enhanced table
       const startY = yOffset;
-      const rowHeight = 8;
-      const colWidths = [60, 30, 30, 20, 25];
+      const rowHeight = 10;
+      const colWidths = [70, 40, 25, 25, 20, 25];
       let currentY = startY;
       
-      // Headers
-      pdf.setFillColor(230, 230, 230);
+      // Headers with better styling
+      pdf.setFillColor(59, 130, 246);
       pdf.rect(20, currentY, colWidths.reduce((a, b) => a + b, 0), rowHeight, 'F');
       
       let currentX = 20;
+      pdf.setTextColor(255, 255, 255);
       headers.forEach((header, index) => {
         pdf.setFontSize(9);
-        pdf.text(header, currentX + 2, currentY + 5);
+        pdf.text(header, currentX + 2, currentY + 6);
         currentX += colWidths[index];
       });
       
       currentY += rowHeight;
+      pdf.setTextColor(0, 0, 0);
       
-      // Data rows
+      // Data rows with alternating colors
       tableData.forEach((row, rowIndex) => {
         if (currentY > pageHeight - 20) {
           pdf.addPage();
           currentY = 20;
         }
         
+        // Alternating row colors
+        if (rowIndex % 2 === 0) {
+          pdf.setFillColor(245, 245, 245);
+          pdf.rect(20, currentY, colWidths.reduce((a, b) => a + b, 0), rowHeight, 'F');
+        }
+        
         currentX = 20;
         row.forEach((cell, cellIndex) => {
           pdf.rect(currentX, currentY, colWidths[cellIndex], rowHeight);
           pdf.setFontSize(8);
-          pdf.text(String(cell).substring(0, 25), currentX + 2, currentY + 5);
+          pdf.text(String(cell), currentX + 2, currentY + 6);
           currentX += colWidths[cellIndex];
         });
         currentY += rowHeight;
       });
 
-      // Add visual timeline on next page if space allows
-      if (currentY < pageHeight - 100) {
+      // Visual timeline section
+      if (currentY < pageHeight - 60) {
         currentY += 20;
         pdf.setFontSize(12);
         pdf.text('Visual Timeline', 20, currentY);
-        currentY += 10;
+        currentY += 15;
         
-        // Simple visual representation
+        // Timeline with better visual representation
         filteredTasks.forEach((task, index) => {
-          if (currentY > pageHeight - 20) {
+          if (currentY > pageHeight - 25) {
             pdf.addPage();
             currentY = 20;
           }
@@ -298,17 +327,41 @@ export function GanttChart({
           const taskStartPercent = differenceInDays(task.startDate, dateRange.from) / timeData.days.length;
           const taskDuration = task.duration / timeData.days.length;
           
-          const barStartX = 80 + (taskStartPercent * 100);
-          const barWidth = Math.max(5, taskDuration * 100);
+          const barStartX = 80 + (taskStartPercent * 120);
+          const barWidth = Math.max(8, taskDuration * 120);
           
+          // Task name
           pdf.setFontSize(8);
-          pdf.text(task.title.substring(0, 15), 20, currentY + 3);
+          pdf.text(task.title.substring(0, 20), 20, currentY + 4);
           
-          // Draw task bar
-          pdf.setFillColor(59, 130, 246);
-          pdf.rect(barStartX, currentY - 1, barWidth, 4, 'F');
+          // Project color coding
+          const project = projects.find(p => p.id === task.projectId);
+          if (project?.color) {
+            const rgb = project.color.match(/\w\w/g);
+            if (rgb) {
+              const [r, g, b] = rgb.map(x => parseInt(x, 16));
+              pdf.setFillColor(r, g, b);
+            }
+          } else {
+            pdf.setFillColor(59, 130, 246);
+          }
           
-          currentY += 8;
+          // Draw enhanced task bar
+          pdf.rect(barStartX, currentY - 1, barWidth, 6, 'F');
+          
+          // Progress indicator
+          if (task.progress > 0) {
+            pdf.setFillColor(34, 197, 94);
+            pdf.rect(barStartX, currentY - 1, (barWidth * task.progress) / 100, 6, 'F');
+          }
+          
+          // Duration text
+          pdf.setTextColor(100, 100, 100);
+          pdf.setFontSize(6);
+          pdf.text(`${task.duration}d`, barStartX + barWidth + 3, currentY + 3);
+          pdf.setTextColor(0, 0, 0);
+          
+          currentY += 10;
         });
       }
       
@@ -334,26 +387,10 @@ export function GanttChart({
         const taskPosition = getTaskPosition(task);
         const depPosition = getTaskPosition(depTask);
 
-        // Calculate project header offset
-        const projectsWithTasks = projects.filter(p => 
-          filteredTasks.some(t => t.projectId === p.id)
-        );
-        let projectHeaderOffset = 0;
-        let currentTaskIndex = 0;
-        
-        for (const project of projectsWithTasks) {
-          const projectTasks = filteredTasks.filter(t => t.projectId === project.id);
-          if (projectTasks.some(t => t.id === task.id || t.id === depId)) {
-            break;
-          }
-          projectHeaderOffset += 1; // One row per project header
-          currentTaskIndex += projectTasks.length;
-        }
-
         const startX = parseFloat(depPosition.left.replace('%', '')) + parseFloat(depPosition.width.replace('%', ''));
         const endX = parseFloat(taskPosition.left.replace('%', ''));
-        const startY = (depTaskIndex + projectHeaderOffset + 1) * 56 + 28;
-        const endY = (taskIndex + projectHeaderOffset + 1) * 56 + 28;
+        const startY = (depTaskIndex + 1) * 70 + 35;
+        const endY = (taskIndex + 1) * 70 + 35;
 
         return (
           <g key={`${task.id}-${depId}`} className="dependency-line">
@@ -378,7 +415,6 @@ export function GanttChart({
               markerEnd={`url(#arrow-${task.id}-${depId})`}
               className="opacity-80"
             />
-            {/* Dependency indicator dot */}
             <circle
               cx={`${startX + 1}%`}
               cy={startY}
@@ -472,7 +508,13 @@ export function GanttChart({
             <div 
               ref={scrollContainerRef}
               className="flex overflow-x-auto scrollbar-hide"
-              onScroll={(e) => setScrollPosition(e.currentTarget.scrollLeft)}
+              onScroll={(e) => {
+                const newPosition = e.currentTarget.scrollLeft;
+                setScrollPosition(newPosition);
+                if (timelineRef.current) {
+                  timelineRef.current.style.transform = `translateX(-${newPosition}px)`;
+                }
+              }}
             >
               {timeData.weeks.map((week, index) => {
                 const weekStart = startOfWeek(week);
@@ -480,7 +522,7 @@ export function GanttChart({
                 const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd })
                   .filter(day => day >= dateRange.from && day <= dateRange.to);
                 
-                const widthPixels = daysInWeek.length * 40; // 40px per day
+                const widthPixels = daysInWeek.length * 40;
                 
                 return (
                   <div 
@@ -586,7 +628,7 @@ export function GanttChart({
                     
                     return (
                       <div key={task.id} className={`
-                        flex border-b hover:bg-muted/30 transition-colors group
+                        flex border-b hover:bg-muted/30 transition-colors group h-16
                         ${task.isCritical && showCriticalPath ? 'bg-destructive/10 border-destructive/20' : ''}
                       `}>
                         <div className="w-80 p-3 border-r">
@@ -597,7 +639,10 @@ export function GanttChart({
                               ) : showMilestones && task.progress === 100 ? (
                                 <Target className="w-3 h-3 text-yellow-500" />
                               ) : hasDependencies ? (
-                                <Link2 className="w-3 h-3 text-purple-500" />
+                                <div className="relative">
+                                  <Link2 className="w-3 h-3 text-purple-500" />
+                                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+                                </div>
                               ) : (
                                 <div className="w-2 h-2 bg-muted-foreground rounded-sm"></div>
                               )}
@@ -639,7 +684,7 @@ export function GanttChart({
                               <Badge variant="outline" className="text-xs">{task.status}</Badge>
                             </div>
                             
-                            {showDependencies && hasDependen​cie​s && (
+                            {showDependencies && hasDependencies && (
                               <div className="flex items-center gap-1">
                                 <Link2 className="w-3 h-3 text-purple-500" />
                                 <span className="text-xs text-purple-600">
@@ -650,7 +695,7 @@ export function GanttChart({
                           </div>
                         </div>
                         
-                        <div className="flex-1 relative h-14 group overflow-hidden">
+                        <div className="flex-1 relative h-16 group overflow-hidden">
                           {/* Synchronized timeline background */}
                           <div 
                             className="flex h-full"
