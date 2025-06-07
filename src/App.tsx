@@ -1,4 +1,5 @@
 
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -28,158 +29,160 @@ import BurnRateAnalysis from "./pages/BurnRateAnalysis";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/projects"
-              element={
-                <ProtectedRoute>
-                  <Projects />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/projects/:id"
-              element={
-                <ProtectedRoute>
-                  <ProjectDetail />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/proposals"
-              element={
-                <ProtectedRoute>
-                  <Proposals />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/bid-planner"
-              element={
-                <ProtectedRoute>
-                  <BidPlanner />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/burn-analysis"
-              element={
-                <ProtectedRoute>
-                  <BurnRateAnalysis />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/sov"
-              element={
-                <ProtectedRoute>
-                  <ScheduleOfValues />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/payment-apps"
-              element={
-                <ProtectedRoute>
-                  <PaymentApplications />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/project-billing"
-              element={
-                <ProtectedRoute>
-                  <ProjectBilling />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/analytics"
-              element={
-                <ProtectedRoute>
-                  <Analytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/equipment"
-              element={
-                <ProtectedRoute>
-                  <Equipment />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/schedule"
-              element={
-                <ProtectedRoute>
-                  <ProjectSchedule />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/change-orders"
-              element={
-                <ProtectedRoute>
-                  <ChangeOrders />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/expenses"
-              element={
-                <ProtectedRoute>
-                  <Expenses />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/bid-packages"
-              element={
-                <ProtectedRoute>
-                  <BidPackages />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/subcontractors"
-              element={
-                <ProtectedRoute>
-                  <Subcontractors />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/documents"
-              element={
-                <ProtectedRoute>
-                  <Documents />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App: React.FC = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/projects"
+                element={
+                  <ProtectedRoute>
+                    <Projects />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/projects/:id"
+                element={
+                  <ProtectedRoute>
+                    <ProjectDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/proposals"
+                element={
+                  <ProtectedRoute>
+                    <Proposals />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/bid-planner"
+                element={
+                  <ProtectedRoute>
+                    <BidPlanner />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/burn-analysis"
+                element={
+                  <ProtectedRoute>
+                    <BurnRateAnalysis />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/sov"
+                element={
+                  <ProtectedRoute>
+                    <ScheduleOfValues />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/payment-apps"
+                element={
+                  <ProtectedRoute>
+                    <PaymentApplications />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/project-billing"
+                element={
+                  <ProtectedRoute>
+                    <ProjectBilling />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/analytics"
+                element={
+                  <ProtectedRoute>
+                    <Analytics />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/equipment"
+                element={
+                  <ProtectedRoute>
+                    <Equipment />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/schedule"
+                element={
+                  <ProtectedRoute>
+                    <ProjectSchedule />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/change-orders"
+                element={
+                  <ProtectedRoute>
+                    <ChangeOrders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/expenses"
+                element={
+                  <ProtectedRoute>
+                    <Expenses />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/bid-packages"
+                element={
+                  <ProtectedRoute>
+                    <BidPackages />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/subcontractors"
+                element={
+                  <ProtectedRoute>
+                    <Subcontractors />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/documents"
+                element={
+                  <ProtectedRoute>
+                    <Documents />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

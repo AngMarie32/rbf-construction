@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -163,18 +164,24 @@ export default function ProjectDetail() {
 
       if (realTasks && realTasks.length > 0) {
         // Transform database tasks to match our interface
-        fetchedTasks = realTasks.map(task => ({
-          id: task.id,
-          title: task.title,
-          startDate: new Date(task.start_date),
-          endDate: new Date(task.end_date),
-          progress: task.progress || 0,
-          status: task.status || 'Planned',
-          projectId: task.project_id,
-          dependencies: task.dependencies || [],
-          duration: task.duration || 1,
-          isCritical: task.is_critical || false
-        }));
+        fetchedTasks = realTasks.map(task => {
+          const startDate = new Date(task.start_date);
+          const endDate = new Date(task.end_date);
+          const calculatedDuration = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+          
+          return {
+            id: task.id,
+            title: task.title,
+            startDate,
+            endDate,
+            progress: task.progress || 0,
+            status: task.status || 'Planned',
+            projectId: task.project_id,
+            dependencies: task.dependencies || [],
+            duration: calculatedDuration, // Calculate duration from dates
+            isCritical: false // Default to false since is_critical doesn't exist in database
+          };
+        });
       } else {
         // Fallback to mock data based on project dates
         const projectStart = new Date(project.startDate);
