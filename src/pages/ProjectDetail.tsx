@@ -170,7 +170,10 @@ export default function ProjectDetail() {
         setScheduleProjects([{
           id: project.id,
           name: project.name,
-          color: '#3b82f6'
+          color: '#3b82f6',
+          client: project.client,
+          contractValue: project.contractValue,
+          status: project.status
         }]);
       }
     } catch (error) {

@@ -1,4 +1,3 @@
-
 import { useMemo, useState, useCallback } from 'react';
 import { format, differenceInDays, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek, isSameDay, isWeekend, addDays } from 'date-fns';
 import { AlertTriangle, Calendar, Link2, Target, Edit2, Save, X, Download } from 'lucide-react';
@@ -190,7 +189,7 @@ export function GanttChart({
         backgroundColor: '#ffffff'
       });
 
-      const imgData = canvas.getDataURL('image/png');
+      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('l', 'mm', 'a4');
       
       // Add project header information
