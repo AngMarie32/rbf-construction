@@ -532,89 +532,53 @@ export default function ProjectDetail() {
               <CardContent>
                 {tasks.length > 0 && scheduleProjects.length > 0 ? (
                   <div className="space-y-4">
-                    {/* Schedule Summary */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-muted/30 rounded-lg">
+                    {/* Compact Schedule Summary */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-muted/30 rounded-lg">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">
-                          {tasks.filter(t => t.status === 'Completed').length}
+                        <div className="text-lg font-bold text-green-600">
+                          {tasks.filter(t => t.progress === 100).length}
                         </div>
-                        <div className="text-sm text-muted-foreground">Completed</div>
+                        <div className="text-xs text-muted-foreground">Completed</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {tasks.filter(t => t.status === 'In Progress').length}
+                        <div className="text-lg font-bold text-blue-600">
+                          {tasks.filter(t => t.progress > 0 && t.progress < 100).length}
                         </div>
-                        <div className="text-sm text-muted-foreground">In Progress</div>
+                        <div className="text-xs text-muted-foreground">In Progress</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-yellow-600">
-                          {tasks.filter(t => t.status === 'Not Started').length}
+                        <div className="text-lg font-bold text-yellow-600">
+                          {tasks.filter(t => t.progress === 0).length}
                         </div>
-                        <div className="text-sm text-muted-foreground">Not Started</div>
+                        <div className="text-xs text-muted-foreground">Not Started</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-red-600">
-                          {tasks.filter(t => t.status === 'Overdue').length}
+                        <div className="text-lg font-bold text-red-600">
+                          {tasks.filter(t => {
+                            const today = new Date();
+                            return new Date(t.endDate) < today && t.progress < 100;
+                          }).length}
                         </div>
-                        <div className="text-sm text-muted-foreground">Overdue</div>
+                        <div className="text-xs text-muted-foreground">Overdue</div>
                       </div>
                     </div>
 
-                    {/* Gantt Chart */}
-                    <GanttChart
-                      tasks={tasks}
-                      projects={scheduleProjects}
-                      selectedProjects={[id]}
-                      onTaskUpdate={handleTaskUpdate}
-                      dateRange={{
-                        from: new Date(project.startDate),
-                        to: new Date(project.dueDate)
-                      }}
-                      showDependencies={true}
-                      showCriticalPath={true}
-                      showMilestones={true}
-                      projectData={scheduleProjects[0]}
-                    />
-
-                    {/* Task List Summary */}
-                    <div className="mt-6">
-                      <h4 className="font-semibold mb-3">Task Details</h4>
-                      <div className="space-y-2">
-                        {tasks.map((task) => (
-                          <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
-                            <div className="flex items-center gap-3">
-                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: scheduleProjects[0]?.color || '#3b82f6' }} />
-                              <div>
-                                <div className="font-medium text-sm">{task.title}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {format(task.startDate, 'MMM dd')} - {format(task.endDate, 'MMM dd')} ({task.duration} days)
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className="text-right">
-                                <div className="text-sm font-medium">{task.progress}%</div>
-                                <div className="w-20 bg-gray-200 rounded-full h-1.5">
-                                  <div 
-                                    className="bg-blue-600 h-1.5 rounded-full" 
-                                    style={{ width: `${task.progress}%` }}
-                                  />
-                                </div>
-                              </div>
-                              <Badge 
-                                variant={
-                                  task.status === 'Completed' ? 'default' : 
-                                  task.status === 'In Progress' ? 'secondary' :
-                                  task.status === 'Overdue' ? 'destructive' : 'outline'
-                                }
-                                className="text-xs"
-                              >
-                                {task.status}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                    {/* Condensed Gantt Chart */}
+                    <div className="border rounded-lg">
+                      <GanttChart
+                        tasks={tasks}
+                        projects={scheduleProjects}
+                        selectedProjects={[id]}
+                        onTaskUpdate={handleTaskUpdate}
+                        dateRange={{
+                          from: new Date(project.startDate),
+                          to: new Date(project.dueDate)
+                        }}
+                        showDependencies={true}
+                        showCriticalPath={true}
+                        showMilestones={true}
+                        projectData={scheduleProjects[0]}
+                      />
                     </div>
                   </div>
                 ) : (

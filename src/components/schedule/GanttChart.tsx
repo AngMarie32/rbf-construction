@@ -1,6 +1,6 @@
 
 import { useMemo, useState, useCallback, useRef } from 'react';
-import { format, differenceInDays, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek, isSameDay, isWeekend, addDays } from 'date-fns';
+import { format, differenceInDays, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek, isSameDay, isWeekend, addDays, isAfter, isBefore } from 'date-fns';
 import { AlertTriangle, Calendar, Link2, Target, Edit2, Save, X, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,7 +60,6 @@ export function GanttChart({
   const [dragStart, setDragStart] = useState<{ x: number; originalStartDate: Date; originalEndDate: Date } | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
 
   const timeData = useMemo(() => {
     const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
@@ -91,14 +90,44 @@ export function GanttChart({
 
   const getTaskStatus = (task: Task) => {
     const today = new Date();
-    const taskStart = new Date(task.startDate);
-    const taskEnd = new Date(task.endDate);
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
     
+    const taskStart = new Date(task.startDate);
+    taskStart.setHours(0, 0, 0, 0);
+    
+    const taskEnd = new Date(task.endDate);
+    taskEnd.setHours(23, 59, 59, 999); // End of day
+    
+    // If manually set to 100%, always completed
     if (task.progress === 100) return 'Completed';
-    if (today < taskStart) return 'Not Started';
-    if (today >= taskStart && today <= taskEnd) return 'In Progress';
-    if (today > taskEnd && task.progress < 100) return 'Overdue';
-    return task.status;
+    
+    // Check if task hasn't started yet
+    if (isBefore(today, taskStart)) return 'Not Started';
+    
+    // Check if task is overdue
+    if (isAfter(today, taskEnd) && task.progress < 100) return 'Overdue';
+    
+    // Check if task is currently active
+    if (!isBefore(today, taskStart) && !isAfter(today, taskEnd)) {
+      // Calculate expected progress based on time elapsed
+      const totalDuration = differenceInDays(taskEnd, taskStart) + 1;
+      const daysElapsed = differenceInDays(today, taskStart) + 1;
+      const expectedProgress = Math.min(100, (daysElapsed / totalDuration) * 100);
+      
+      // Auto-update progress if task is in progress and no manual progress set
+      if (task.progress === 0 || task.status === 'Not Started') {
+        const calculatedProgress = Math.floor(expectedProgress);
+        onTaskUpdate(task.id, { 
+          progress: calculatedProgress,
+          status: 'In Progress'
+        });
+        return 'In Progress';
+      }
+      
+      return 'In Progress';
+    }
+    
+    return task.status || 'Not Started';
   };
 
   const getTaskColor = (task: Task, projectColor: string) => {
@@ -114,7 +143,6 @@ export function GanttChart({
     if (!task) return;
 
     setDragging({ taskId, type });
-    setIsDragging(true);
     setDragStart({
       x: e.clientX,
       originalStartDate: new Date(task.startDate),
@@ -152,20 +180,17 @@ export function GanttChart({
     }
 
     const newDuration = differenceInDays(newEndDate, newStartDate) + 1;
-    const newStatus = getTaskStatus({ ...task, startDate: newStartDate, endDate: newEndDate });
 
     onTaskUpdate(dragging.taskId, {
       startDate: newStartDate,
       endDate: newEndDate,
-      duration: newDuration,
-      status: newStatus
+      duration: newDuration
     });
   }, [dragging, dragStart, timeData.days.length, filteredTasks, onTaskUpdate]);
 
   const handleMouseUp = useCallback(() => {
     setDragging(null);
     setDragStart(null);
-    setIsDragging(false);
   }, []);
 
   const handleTaskEdit = (task: Task) => {
@@ -204,186 +229,123 @@ export function GanttChart({
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       
-      // Enhanced title and header
-      pdf.setFontSize(20);
+      // Title
+      pdf.setFontSize(18);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(projectData?.name || 'Project Schedule', 20, 25);
+      pdf.text(projectData?.name || 'Project Schedule', 20, 20);
       
-      // Project details
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'normal');
-      let yOffset = 40;
+      let yOffset = 35;
       
+      // Project info
       if (projectData?.client) {
+        pdf.setFontSize(11);
+        pdf.setFont('helvetica', 'normal');
         pdf.text(`Client: ${projectData.client}`, 20, yOffset);
-        yOffset += 8;
-      }
-      
-      if (projectData?.status) {
-        pdf.text(`Status: ${projectData.status}`, 20, yOffset);
-        yOffset += 8;
-      }
-      
-      if (projectData?.contractValue) {
-        pdf.text(`Contract Value: $${projectData.contractValue.toLocaleString()}`, 20, yOffset);
-        yOffset += 8;
+        yOffset += 6;
       }
       
       pdf.text(`Date Range: ${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}`, 20, yOffset);
-      yOffset += 15;
+      yOffset += 12;
 
-      // Summary statistics
+      // Summary stats
       const totalTasks = filteredTasks.length;
-      const completedTasks = filteredTasks.filter(t => t.progress === 100).length;
+      const completedTasks = filteredTasks.filter(t => getTaskStatus(t) === 'Completed').length;
       const inProgressTasks = filteredTasks.filter(t => getTaskStatus(t) === 'In Progress').length;
       const overdueTasks = filteredTasks.filter(t => getTaskStatus(t) === 'Overdue').length;
       
-      pdf.setFontSize(14);
+      pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('Project Summary', 20, yOffset);
-      yOffset += 10;
+      pdf.text('Summary', 20, yOffset);
+      yOffset += 8;
       
-      pdf.setFontSize(11);
+      pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(`Total Tasks: ${totalTasks}`, 20, yOffset);
-      pdf.text(`Completed: ${completedTasks} (${Math.round((completedTasks/totalTasks)*100)}%)`, 100, yOffset);
-      yOffset += 7;
-      pdf.text(`In Progress: ${inProgressTasks}`, 20, yOffset);
-      pdf.text(`Overdue: ${overdueTasks}`, 100, yOffset);
+      pdf.text(`Total: ${totalTasks} | Completed: ${completedTasks} | In Progress: ${inProgressTasks} | Overdue: ${overdueTasks}`, 20, yOffset);
       yOffset += 15;
 
-      // Detailed task table
-      const tableData = filteredTasks.map(task => {
-        const project = projects.find(p => p.id === task.projectId);
-        const status = getTaskStatus(task);
-        return [
-          task.title.length > 35 ? task.title.substring(0, 32) + '...' : task.title,
-          project?.name?.substring(0, 25) || 'Unknown',
-          format(task.startDate, 'MMM dd, yyyy'),
-          format(task.endDate, 'MMM dd, yyyy'),
-          `${task.duration} days`,
-          `${task.progress}%`,
-          status
-        ];
-      });
-
-      const headers = ['Task Name', 'Project', 'Start Date', 'End Date', 'Duration', 'Progress', 'Status'];
-      
-      // Enhanced table with better formatting
-      const startY = yOffset;
-      const rowHeight = 12;
-      const colWidths = [65, 40, 30, 30, 25, 20, 30];
-      let currentY = startY;
-      
-      // Header row with better styling
-      pdf.setFillColor(52, 152, 219);
-      pdf.rect(20, currentY, colWidths.reduce((a, b) => a + b, 0), rowHeight, 'F');
-      
-      let currentX = 20;
-      pdf.setTextColor(255, 255, 255);
+      // Enhanced Visual Timeline
+      pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(10);
-      headers.forEach((header, index) => {
-        pdf.text(header, currentX + 2, currentY + 8);
-        currentX += colWidths[index];
-      });
-      
-      currentY += rowHeight;
-      pdf.setTextColor(0, 0, 0);
-      pdf.setFont('helvetica', 'normal');
-      
-      // Data rows with alternating colors
-      tableData.forEach((row, rowIndex) => {
-        if (currentY > pageHeight - 25) {
-          pdf.addPage();
-          currentY = 25;
-        }
-        
-        // Alternating row colors
-        if (rowIndex % 2 === 0) {
-          pdf.setFillColor(248, 249, 250);
-          pdf.rect(20, currentY, colWidths.reduce((a, b) => a + b, 0), rowHeight, 'F');
-        }
-        
-        currentX = 20;
-        row.forEach((cell, cellIndex) => {
-          // Draw cell border
-          pdf.setDrawColor(200, 200, 200);
-          pdf.rect(currentX, currentY, colWidths[cellIndex], rowHeight);
-          
-          // Add text with proper alignment
-          pdf.setFontSize(9);
-          const text = String(cell);
-          pdf.text(text, currentX + 2, currentY + 8);
-          currentX += colWidths[cellIndex];
-        });
-        currentY += rowHeight;
-      });
+      pdf.text('Timeline View', 20, yOffset);
+      yOffset += 10;
 
-      // Visual timeline section on new page if needed
-      if (filteredTasks.length > 0 && filteredTasks.length <= 15) {
-        if (currentY > pageHeight - 100) {
-          pdf.addPage();
-          currentY = 25;
+      // Timeline header
+      const timelineStartX = 20;
+      const timelineWidth = pageWidth - 40;
+      const taskNameWidth = 80;
+      const chartStartX = timelineStartX + taskNameWidth;
+      const chartWidth = timelineWidth - taskNameWidth;
+      
+      // Draw timeline header
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'bold');
+      
+      // Week markers
+      const totalDays = timeData.days.length;
+      timeData.weeks.forEach((week, index) => {
+        const weekStart = startOfWeek(week);
+        const weekDays = eachDayOfInterval({ start: weekStart, end: endOfWeek(week) })
+          .filter(day => day >= dateRange.from && day <= dateRange.to);
+        
+        if (weekDays.length > 0) {
+          const weekStartDay = differenceInDays(weekDays[0], dateRange.from);
+          const weekX = chartStartX + (weekStartDay / totalDays) * chartWidth;
+          
+          pdf.text(format(weekStart, 'MMM dd'), weekX, yOffset);
+          
+          // Draw week separator line
+          pdf.setDrawColor(200, 200, 200);
+          pdf.line(weekX, yOffset + 2, weekX, yOffset + (filteredTasks.length * 8) + 10);
+        }
+      });
+      
+      yOffset += 8;
+
+      // Draw tasks
+      filteredTasks.forEach((task, index) => {
+        const taskY = yOffset + (index * 8);
+        const taskStatus = getTaskStatus(task);
+        
+        // Task name
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        const taskName = task.title.length > 25 ? task.title.substring(0, 22) + '...' : task.title;
+        pdf.text(taskName, timelineStartX, taskY);
+        
+        // Task bar
+        const taskStartDay = Math.max(0, differenceInDays(task.startDate, dateRange.from));
+        const taskBarStartX = chartStartX + (taskStartDay / totalDays) * chartWidth;
+        const taskBarWidth = Math.max(3, (task.duration / totalDays) * chartWidth);
+        
+        // Set color based on status
+        if (taskStatus === 'Completed') {
+          pdf.setFillColor(34, 197, 94); // Green
+        } else if (taskStatus === 'In Progress') {
+          pdf.setFillColor(59, 130, 246); // Blue
+        } else if (taskStatus === 'Overdue') {
+          pdf.setFillColor(239, 68, 68); // Red
         } else {
-          currentY += 20;
+          pdf.setFillColor(156, 163, 175); // Gray
         }
         
-        pdf.setFontSize(14);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Visual Timeline', 20, currentY);
-        currentY += 15;
+        // Draw task bar
+        pdf.rect(taskBarStartX, taskY - 3, taskBarWidth, 5, 'F');
         
-        filteredTasks.forEach((task, index) => {
-          if (currentY > pageHeight - 25) {
-            pdf.addPage();
-            currentY = 25;
-          }
-          
-          const taskStartPercent = Math.max(0, differenceInDays(task.startDate, dateRange.from) / timeData.days.length);
-          const taskDuration = task.duration / timeData.days.length;
-          
-          const barStartX = 90 + (taskStartPercent * 140);
-          const barWidth = Math.max(8, taskDuration * 140);
-          
-          // Task name
-          pdf.setFont('helvetica', 'normal');
-          pdf.setFontSize(9);
-          const taskName = task.title.length > 30 ? task.title.substring(0, 27) + '...' : task.title;
-          pdf.text(taskName, 20, currentY + 6);
-          
-          // Project color bar
-          const project = projects.find(p => p.id === task.projectId);
-          const color = project?.color || '#3b82f6';
-          const rgb = color.match(/\w\w/g);
-          if (rgb) {
-            const [r, g, b] = rgb.map(x => parseInt(x, 16));
-            pdf.setFillColor(r, g, b);
-          } else {
-            pdf.setFillColor(59, 130, 246);
-          }
-          
-          // Task bar
-          pdf.rect(barStartX, currentY, barWidth, 10, 'F');
-          
-          // Progress overlay
-          if (task.progress > 0) {
-            pdf.setFillColor(34, 197, 94);
-            pdf.rect(barStartX, currentY, (barWidth * task.progress) / 100, 10, 'F');
-          }
-          
-          // Duration and dates
-          pdf.setTextColor(100, 100, 100);
-          pdf.setFontSize(8);
-          pdf.text(`${format(task.startDate, 'MM/dd')} - ${format(task.endDate, 'MM/dd')} (${task.progress}%)`, barStartX + barWidth + 5, currentY + 6);
-          pdf.setTextColor(0, 0, 0);
-          
-          currentY += 15;
-        });
-      }
+        // Progress overlay
+        if (task.progress > 0 && task.progress < 100) {
+          pdf.setFillColor(34, 197, 94); // Green progress
+          pdf.rect(taskBarStartX, taskY - 3, (taskBarWidth * task.progress) / 100, 5, 'F');
+        }
+        
+        // Progress percentage
+        pdf.setFontSize(7);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(`${task.progress}%`, taskBarStartX + taskBarWidth + 2, taskY);
+        pdf.setTextColor(0, 0, 0);
+      });
       
       pdf.save(`${projectData?.name || 'project'}-schedule-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-      toast.success('Enhanced PDF exported successfully');
+      toast.success('PDF exported successfully');
     } catch (error) {
       console.error('Error exporting PDF:', error);
       toast.error('Failed to export PDF');
@@ -447,7 +409,7 @@ export function GanttChart({
 
   return (
     <div className="bg-background rounded-lg border relative overflow-hidden" id="gantt-chart-export">
-      {/* Enhanced Header */}
+      {/* Header */}
       <div className="p-4 border-b bg-gradient-to-r from-muted/50 to-muted/30">
         <div className="flex items-center justify-between">
           <div>
@@ -516,17 +478,17 @@ export function GanttChart({
         </svg>
       )}
       
-      {/* Timeline Header - Fixed positioning */}
+      {/* Timeline Header */}
       <div className="border-b bg-muted/50 sticky top-0 z-20">
         {/* Week Headers */}
         <div className="flex border-b">
           <div className="w-80 p-3 border-r font-semibold bg-background sticky left-0 z-30">Project / Task</div>
-          <div className="flex-1">
-            <div className="overflow-x-auto">
-              <div 
-                ref={scrollContainerRef}
-                className="flex min-w-max"
-              >
+          <div className="flex-1 overflow-hidden">
+            <div 
+              ref={scrollContainerRef}
+              className="overflow-x-auto scrollbar-thin scrollbar-track-gray-100 scrollbar-thumb-gray-400"
+            >
+              <div className="flex min-w-max">
                 {timeData.weeks.map((week, index) => {
                   const weekStart = startOfWeek(week);
                   const weekEnd = endOfWeek(week);
@@ -555,8 +517,8 @@ export function GanttChart({
           <div className="w-80 p-2 border-r text-xs text-muted-foreground bg-background sticky left-0 z-30">
             Use scroll or arrows to navigate timeline
           </div>
-          <div className="flex-1">
-            <div className="overflow-x-auto">
+          <div className="flex-1 overflow-hidden">
+            <div className="overflow-x-auto scrollbar-thin scrollbar-track-gray-100 scrollbar-thumb-gray-400">
               <div 
                 ref={timelineRef}
                 className="flex min-w-max"
@@ -586,7 +548,7 @@ export function GanttChart({
         </div>
       </div>
 
-      {/* Task Rows with Better Scrolling */}
+      {/* Task Rows */}
       <ScrollArea className="h-[400px]">
         <div className="relative"
              onMouseMove={handleMouseMove}
@@ -616,8 +578,8 @@ export function GanttChart({
                         )}
                       </div>
                     </div>
-                    <div className="flex-1 relative">
-                      <div className="overflow-x-auto">
+                    <div className="flex-1 relative overflow-hidden">
+                      <div className="overflow-x-auto scrollbar-thin scrollbar-track-gray-100 scrollbar-thumb-gray-400">
                         <div className="flex min-w-max">
                           {timeData.days.map((day, index) => (
                             <div 
@@ -710,8 +672,8 @@ export function GanttChart({
                           </div>
                         </div>
                         
-                        <div className="flex-1 relative h-16 group">
-                          <div className="overflow-x-auto w-full h-full">
+                        <div className="flex-1 relative h-16 group overflow-hidden">
+                          <div className="overflow-x-auto w-full h-full scrollbar-thin scrollbar-track-gray-100 scrollbar-thumb-gray-400">
                             <div className="relative min-w-max h-full">
                               {/* Timeline background */}
                               <div className="flex h-full">
