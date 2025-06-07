@@ -1,3 +1,4 @@
+
 import { useMemo, useState, useCallback, useRef } from 'react';
 import { format, differenceInDays, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek, isSameDay, isWeekend, addDays } from 'date-fns';
 import { AlertTriangle, Calendar, Link2, Target, Edit2, Save, X, Download, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -57,11 +58,9 @@ export function GanttChart({
   const [editValues, setEditValues] = useState<{ title: string; progress: number }>({ title: '', progress: 0 });
   const [dragging, setDragging] = useState<{ taskId: string; type: 'move' | 'resize-start' | 'resize-end' } | null>(null);
   const [dragStart, setDragStart] = useState<{ x: number; originalStartDate: Date; originalEndDate: Date } | null>(null);
-  const [scrollPosition, setScrollPosition] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragUpdateCount, setDragUpdateCount] = useState(0);
 
   const timeData = useMemo(() => {
     const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
@@ -90,27 +89,6 @@ export function GanttChart({
     return { left: `${leftPercent}%`, width: `${widthPercent}%` };
   };
 
-  const calculateProgress = (task: Task) => {
-    const today = new Date();
-    const taskStart = new Date(task.startDate);
-    const taskEnd = new Date(task.endDate);
-    
-    if (today < taskStart) return 0;
-    if (today > taskEnd) return 100;
-    
-    const totalDuration = differenceInDays(taskEnd, taskStart);
-    const daysElapsed = differenceInDays(today, taskStart);
-    
-    return Math.round((daysElapsed / totalDuration) * 100);
-  };
-
-  const getTaskColor = (task: Task, projectColor: string) => {
-    if (showCriticalPath && task.isCritical) {
-      return '#dc2626';
-    }
-    return projectColor;
-  };
-
   const getTaskStatus = (task: Task) => {
     const today = new Date();
     const taskStart = new Date(task.startDate);
@@ -123,6 +101,13 @@ export function GanttChart({
     return task.status;
   };
 
+  const getTaskColor = (task: Task, projectColor: string) => {
+    if (showCriticalPath && task.isCritical) {
+      return '#dc2626';
+    }
+    return projectColor;
+  };
+
   const handleMouseDown = useCallback((e: React.MouseEvent, taskId: string, type: 'move' | 'resize-start' | 'resize-end') => {
     e.preventDefault();
     const task = filteredTasks.find(t => t.id === taskId);
@@ -130,7 +115,6 @@ export function GanttChart({
 
     setDragging({ taskId, type });
     setIsDragging(true);
-    setDragUpdateCount(0);
     setDragStart({
       x: e.clientX,
       originalStartDate: new Date(task.startDate),
@@ -170,9 +154,6 @@ export function GanttChart({
     const newDuration = differenceInDays(newEndDate, newStartDate) + 1;
     const newStatus = getTaskStatus({ ...task, startDate: newStartDate, endDate: newEndDate });
 
-    // Update the task with debouncing
-    setDragUpdateCount(prev => prev + 1);
-    
     onTaskUpdate(dragging.taskId, {
       startDate: newStartDate,
       endDate: newEndDate,
@@ -182,15 +163,10 @@ export function GanttChart({
   }, [dragging, dragStart, timeData.days.length, filteredTasks, onTaskUpdate]);
 
   const handleMouseUp = useCallback(() => {
-    if (isDragging && dragUpdateCount > 0) {
-      setIsDragging(false);
-      // Only show one toast at the end of dragging
-      toast.success('Task updated successfully');
-    }
     setDragging(null);
     setDragStart(null);
-    setDragUpdateCount(0);
-  }, [isDragging, dragUpdateCount]);
+    setIsDragging(false);
+  }, []);
 
   const handleTaskEdit = (task: Task) => {
     setEditingTask(task.id);
@@ -200,7 +176,6 @@ export function GanttChart({
   const handleSaveEdit = (taskId: string) => {
     onTaskUpdate(taskId, editValues);
     setEditingTask(null);
-    toast.success('Task saved successfully');
   };
 
   const handleCancelEdit = () => {
@@ -229,41 +204,61 @@ export function GanttChart({
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       
-      // Title and header
-      pdf.setFontSize(18);
+      // Enhanced title and header
+      pdf.setFontSize(20);
       pdf.setFont('helvetica', 'bold');
       pdf.text(projectData?.name || 'Project Schedule', 20, 25);
       
-      // Project info
-      pdf.setFontSize(11);
+      // Project details
+      pdf.setFontSize(12);
       pdf.setFont('helvetica', 'normal');
       let yOffset = 40;
       
       if (projectData?.client) {
         pdf.text(`Client: ${projectData.client}`, 20, yOffset);
-        yOffset += 7;
+        yOffset += 8;
       }
       
       if (projectData?.status) {
         pdf.text(`Status: ${projectData.status}`, 20, yOffset);
-        yOffset += 7;
+        yOffset += 8;
       }
       
       if (projectData?.contractValue) {
         pdf.text(`Contract Value: $${projectData.contractValue.toLocaleString()}`, 20, yOffset);
-        yOffset += 7;
+        yOffset += 8;
       }
       
-      pdf.text(`Schedule Period: ${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}`, 20, yOffset);
+      pdf.text(`Date Range: ${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}`, 20, yOffset);
       yOffset += 15;
 
-      // Enhanced table
+      // Summary statistics
+      const totalTasks = filteredTasks.length;
+      const completedTasks = filteredTasks.filter(t => t.progress === 100).length;
+      const inProgressTasks = filteredTasks.filter(t => getTaskStatus(t) === 'In Progress').length;
+      const overdueTasks = filteredTasks.filter(t => getTaskStatus(t) === 'Overdue').length;
+      
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Project Summary', 20, yOffset);
+      yOffset += 10;
+      
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Total Tasks: ${totalTasks}`, 20, yOffset);
+      pdf.text(`Completed: ${completedTasks} (${Math.round((completedTasks/totalTasks)*100)}%)`, 100, yOffset);
+      yOffset += 7;
+      pdf.text(`In Progress: ${inProgressTasks}`, 20, yOffset);
+      pdf.text(`Overdue: ${overdueTasks}`, 100, yOffset);
+      yOffset += 15;
+
+      // Detailed task table
       const tableData = filteredTasks.map(task => {
         const project = projects.find(p => p.id === task.projectId);
         const status = getTaskStatus(task);
         return [
-          task.title.length > 30 ? task.title.substring(0, 27) + '...' : task.title,
-          project?.name?.substring(0, 20) || 'Unknown',
+          task.title.length > 35 ? task.title.substring(0, 32) + '...' : task.title,
+          project?.name?.substring(0, 25) || 'Unknown',
           format(task.startDate, 'MMM dd, yyyy'),
           format(task.endDate, 'MMM dd, yyyy'),
           `${task.duration} days`,
@@ -274,22 +269,22 @@ export function GanttChart({
 
       const headers = ['Task Name', 'Project', 'Start Date', 'End Date', 'Duration', 'Progress', 'Status'];
       
-      // Table styling
+      // Enhanced table with better formatting
       const startY = yOffset;
-      const rowHeight = 10;
-      const colWidths = [50, 35, 25, 25, 20, 18, 25];
+      const rowHeight = 12;
+      const colWidths = [65, 40, 30, 30, 25, 20, 30];
       let currentY = startY;
       
-      // Header row
-      pdf.setFillColor(41, 128, 185);
+      // Header row with better styling
+      pdf.setFillColor(52, 152, 219);
       pdf.rect(20, currentY, colWidths.reduce((a, b) => a + b, 0), rowHeight, 'F');
       
       let currentX = 20;
       pdf.setTextColor(255, 255, 255);
       pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
       headers.forEach((header, index) => {
-        pdf.setFontSize(9);
-        pdf.text(header, currentX + 2, currentY + 7);
+        pdf.text(header, currentX + 2, currentY + 8);
         currentX += colWidths[index];
       });
       
@@ -297,7 +292,7 @@ export function GanttChart({
       pdf.setTextColor(0, 0, 0);
       pdf.setFont('helvetica', 'normal');
       
-      // Data rows
+      // Data rows with alternating colors
       tableData.forEach((row, rowIndex) => {
         if (currentY > pageHeight - 25) {
           pdf.addPage();
@@ -312,18 +307,28 @@ export function GanttChart({
         
         currentX = 20;
         row.forEach((cell, cellIndex) => {
+          // Draw cell border
+          pdf.setDrawColor(200, 200, 200);
           pdf.rect(currentX, currentY, colWidths[cellIndex], rowHeight);
-          pdf.setFontSize(8);
+          
+          // Add text with proper alignment
+          pdf.setFontSize(9);
           const text = String(cell);
-          pdf.text(text, currentX + 2, currentY + 7);
+          pdf.text(text, currentX + 2, currentY + 8);
           currentX += colWidths[cellIndex];
         });
         currentY += rowHeight;
       });
 
-      // Visual timeline section
-      if (currentY < pageHeight - 80) {
-        currentY += 20;
+      // Visual timeline section on new page if needed
+      if (filteredTasks.length > 0 && filteredTasks.length <= 15) {
+        if (currentY > pageHeight - 100) {
+          pdf.addPage();
+          currentY = 25;
+        } else {
+          currentY += 20;
+        }
+        
         pdf.setFontSize(14);
         pdf.setFont('helvetica', 'bold');
         pdf.text('Visual Timeline', 20, currentY);
@@ -335,18 +340,19 @@ export function GanttChart({
             currentY = 25;
           }
           
-          const taskStartPercent = differenceInDays(task.startDate, dateRange.from) / timeData.days.length;
+          const taskStartPercent = Math.max(0, differenceInDays(task.startDate, dateRange.from) / timeData.days.length);
           const taskDuration = task.duration / timeData.days.length;
           
-          const barStartX = 80 + (taskStartPercent * 120);
-          const barWidth = Math.max(10, taskDuration * 120);
+          const barStartX = 90 + (taskStartPercent * 140);
+          const barWidth = Math.max(8, taskDuration * 140);
           
           // Task name
           pdf.setFont('helvetica', 'normal');
-          pdf.setFontSize(8);
-          pdf.text(task.title.substring(0, 25), 20, currentY + 4);
+          pdf.setFontSize(9);
+          const taskName = task.title.length > 30 ? task.title.substring(0, 27) + '...' : task.title;
+          pdf.text(taskName, 20, currentY + 6);
           
-          // Project color
+          // Project color bar
           const project = projects.find(p => p.id === task.projectId);
           const color = project?.color || '#3b82f6';
           const rgb = color.match(/\w\w/g);
@@ -358,21 +364,21 @@ export function GanttChart({
           }
           
           // Task bar
-          pdf.rect(barStartX, currentY - 2, barWidth, 8, 'F');
+          pdf.rect(barStartX, currentY, barWidth, 10, 'F');
           
           // Progress overlay
           if (task.progress > 0) {
             pdf.setFillColor(34, 197, 94);
-            pdf.rect(barStartX, currentY - 2, (barWidth * task.progress) / 100, 8, 'F');
+            pdf.rect(barStartX, currentY, (barWidth * task.progress) / 100, 10, 'F');
           }
           
-          // Duration and progress labels
+          // Duration and dates
           pdf.setTextColor(100, 100, 100);
-          pdf.setFontSize(7);
-          pdf.text(`${task.duration}d (${task.progress}%)`, barStartX + barWidth + 5, currentY + 3);
+          pdf.setFontSize(8);
+          pdf.text(`${format(task.startDate, 'MM/dd')} - ${format(task.endDate, 'MM/dd')} (${task.progress}%)`, barStartX + barWidth + 5, currentY + 6);
           pdf.setTextColor(0, 0, 0);
           
-          currentY += 12;
+          currentY += 15;
         });
       }
       
@@ -516,11 +522,10 @@ export function GanttChart({
         <div className="flex border-b">
           <div className="w-80 p-3 border-r font-semibold bg-background sticky left-0 z-30">Project / Task</div>
           <div className="flex-1">
-            <ScrollArea orientation="horizontal" className="w-full">
+            <div className="overflow-x-auto">
               <div 
                 ref={scrollContainerRef}
                 className="flex min-w-max"
-                onScroll={(e) => setScrollPosition(e.currentTarget.scrollLeft)}
               >
                 {timeData.weeks.map((week, index) => {
                   const weekStart = startOfWeek(week);
@@ -541,7 +546,7 @@ export function GanttChart({
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
           </div>
         </div>
 
@@ -551,7 +556,7 @@ export function GanttChart({
             Use scroll or arrows to navigate timeline
           </div>
           <div className="flex-1">
-            <ScrollArea orientation="horizontal" className="w-full">
+            <div className="overflow-x-auto">
               <div 
                 ref={timelineRef}
                 className="flex min-w-max"
@@ -576,7 +581,7 @@ export function GanttChart({
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
           </div>
         </div>
       </div>
@@ -612,7 +617,7 @@ export function GanttChart({
                       </div>
                     </div>
                     <div className="flex-1 relative">
-                      <ScrollArea orientation="horizontal" className="w-full">
+                      <div className="overflow-x-auto">
                         <div className="flex min-w-max">
                           {timeData.days.map((day, index) => (
                             <div 
@@ -622,7 +627,7 @@ export function GanttChart({
                             />
                           ))}
                         </div>
-                      </ScrollArea>
+                      </div>
                     </div>
                   </div>
 
@@ -706,7 +711,7 @@ export function GanttChart({
                         </div>
                         
                         <div className="flex-1 relative h-16 group">
-                          <ScrollArea orientation="horizontal" className="w-full h-full">
+                          <div className="overflow-x-auto w-full h-full">
                             <div className="relative min-w-max h-full">
                               {/* Timeline background */}
                               <div className="flex h-full">
@@ -767,7 +772,7 @@ export function GanttChart({
                                 />
                               )}
                             </div>
-                          </ScrollArea>
+                          </div>
                         </div>
                       </div>
                     );
