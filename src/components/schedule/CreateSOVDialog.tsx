@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -5,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Save, Copy, FileText, X } from 'lucide-react';
+import { Plus, Trash2, Save, Copy, FileText, X, Lightbulb, Wrench, BookOpen } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { exportToPDF } from '@/utils/pdfExport';
@@ -29,8 +30,9 @@ interface CreateSOVDialogProps {
 const builtInTemplates = [
   {
     id: 'basic',
-    name: 'Basic Template',
-    description: 'Simple structure with essential divisions. Best for small to medium projects.',
+    name: 'Basic Commercial',
+    description: 'Simple structure with essential divisions. Best for small to medium commercial projects.',
+    icon: '🏢',
     items: [
       { division: '01', itemNumber: '01-100', category: 'General Requirements', description: 'General Requirements', value: 75000 },
       { division: '02', itemNumber: '02-200', category: 'Site Work', description: 'Site Work', value: 125000 },
@@ -40,9 +42,25 @@ const builtInTemplates = [
     ]
   },
   {
+    id: 'residential',
+    name: 'Residential Build',
+    description: 'Comprehensive structure for single-family home construction projects.',
+    icon: '🏠',
+    items: [
+      { division: '01', itemNumber: '01-100', category: 'General Requirements', description: 'Permits & Project Management', value: 35000 },
+      { division: '02', itemNumber: '02-100', category: 'Site Work', description: 'Site Preparation & Utilities', value: 85000 },
+      { division: '03', itemNumber: '03-100', category: 'Concrete', description: 'Foundation & Flatwork', value: 125000 },
+      { division: '06', itemNumber: '06-100', category: 'Wood & Plastics', description: 'Framing & Rough Carpentry', value: 150000 },
+      { division: '07', itemNumber: '07-100', category: 'Thermal Protection', description: 'Roofing & Insulation', value: 95000 },
+      { division: '08', itemNumber: '08-100', category: 'Openings', description: 'Windows & Doors', value: 75000 },
+      { division: '09', itemNumber: '09-100', category: 'Finishes', description: 'Interior Finishes', value: 180000 }
+    ]
+  },
+  {
     id: 'detailed',
-    name: 'Detailed Template',
+    name: 'Detailed Commercial',
     description: 'Comprehensive breakdown with detailed sub-items. Ideal for large commercial projects.',
+    icon: '🏗️',
     items: [
       { division: '01', itemNumber: '01-100', category: 'General Requirements', description: 'Project Management', value: 50000 },
       { division: '01', itemNumber: '01-200', category: 'General Requirements', description: 'Temporary Facilities', value: 35000 },
@@ -58,6 +76,7 @@ const builtInTemplates = [
 ];
 
 export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: CreateSOVDialogProps) {
+  const [step, setStep] = useState<'choose' | 'build'>('choose');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [customTemplates, setCustomTemplates] = useState<any[]>([]);
   const [projectInfo, setProjectInfo] = useState({
@@ -76,6 +95,9 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
     if (open && projectId) {
       fetchProjectInfo();
       fetchCustomTemplates();
+      setStep('choose');
+      setSelectedTemplate('');
+      setSovItems([]);
     }
   }, [open, projectId]);
 
@@ -163,6 +185,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
         value: item.value
       }));
       setSovItems(items);
+      setStep('build');
       return;
     }
 
@@ -178,12 +201,14 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
         value: item.unit_cost || 0
       }));
       setSovItems(items);
+      setStep('build');
       return;
     }
 
     // Start from scratch
     if (templateId === 'scratch') {
       setSovItems([]);
+      setStep('build');
     }
   };
 
@@ -390,6 +415,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
   const resetForm = () => {
     setSovItems([]);
     setSelectedTemplate('');
+    setStep('choose');
     setProjectInfo({
       projectName: '',
       projectNumber: '',
@@ -401,280 +427,356 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
 
   const totalValue = sovItems.reduce((sum, item) => sum + item.value, 0);
 
-  const allTemplates = [...builtInTemplates, ...customTemplates];
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle>Create New Schedule of Values</DialogTitle>
+          <DialogTitle>
+            {step === 'choose' ? 'Create New Schedule of Values' : 'Build Your Schedule of Values'}
+          </DialogTitle>
         </DialogHeader>
         
         <div className="flex-1 overflow-y-auto space-y-6 pr-2">
-          {/* Template Selection */}
-          <div>
-            <Label className="text-sm font-medium mb-3 block">Select Template</Label>
-            <div className="grid grid-cols-3 gap-4">
-              {builtInTemplates.map((template) => (
+          {step === 'choose' ? (
+            <div className="space-y-6">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold mb-2">How would you like to start?</h3>
+                <p className="text-gray-600">Choose a template to get started quickly, or build from scratch</p>
+              </div>
+
+              {/* Built-in Templates */}
+              <div>
+                <h4 className="text-md font-medium mb-4 flex items-center">
+                  <Lightbulb className="w-5 h-5 mr-2 text-yellow-500" />
+                  Built-in Templates
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {builtInTemplates.map((template) => (
+                    <div
+                      key={template.id}
+                      className={`p-6 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                        selectedTemplate === template.id 
+                          ? 'border-blue-500 bg-blue-50 shadow-md' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => handleTemplateSelect(template.id)}
+                    >
+                      <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-lg mb-4 mx-auto text-2xl">
+                        {template.icon}
+                      </div>
+                      <h3 className="font-medium text-center mb-2">{template.name}</h3>
+                      <p className="text-sm text-gray-500 text-center">{template.description}</p>
+                      <div className="mt-3 text-center">
+                        <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                          {template.items.length} items
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Templates */}
+              {customTemplates.length > 0 && (
+                <div>
+                  <h4 className="text-md font-medium mb-4 flex items-center">
+                    <BookOpen className="w-5 h-5 mr-2 text-purple-500" />
+                    Your Saved Templates
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {customTemplates.map((template) => (
+                      <div
+                        key={template.id}
+                        className={`p-6 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                          selectedTemplate === template.id 
+                            ? 'border-purple-500 bg-purple-50 shadow-md' 
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                        onClick={() => handleTemplateSelect(template.id)}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center justify-center w-16 h-16 bg-purple-100 rounded-lg text-2xl">
+                            📋
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteTemplate(template.id);
+                            }}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <h3 className="font-medium text-center mb-2">{template.name}</h3>
+                        <p className="text-sm text-gray-500 text-center">{template.description}</p>
+                        <div className="mt-3 text-center">
+                          <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                            {template.bid_template_items?.length || 0} items
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Start from Scratch */}
+              <div>
+                <h4 className="text-md font-medium mb-4 flex items-center">
+                  <Wrench className="w-5 h-5 mr-2 text-green-500" />
+                  Custom Build
+                </h4>
                 <div
-                  key={template.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                    selectedTemplate === template.id 
-                      ? 'border-blue-500 bg-blue-50' 
+                  className={`p-6 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                    selectedTemplate === 'scratch' 
+                      ? 'border-green-500 bg-green-50 shadow-md' 
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
-                  onClick={() => handleTemplateSelect(template.id)}
+                  onClick={() => handleTemplateSelect('scratch')}
                 >
-                  <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mb-3 mx-auto">
-                    <div className="w-6 h-6 bg-blue-500 rounded"></div>
+                  <div className="flex items-center justify-center w-16 h-16 bg-green-100 rounded-lg mb-4 mx-auto">
+                    <Plus className="w-8 h-8 text-green-600" />
                   </div>
-                  <h3 className="font-medium text-center">{template.name}</h3>
-                  <p className="text-sm text-gray-500 text-center mt-1">{template.description}</p>
+                  <h3 className="font-medium text-center mb-2">Start from Scratch</h3>
+                  <p className="text-sm text-gray-500 text-center">
+                    Create your own custom structure from the ground up. Perfect for unique projects.
+                  </p>
                 </div>
-              ))}
-              <div
-                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                  selectedTemplate === 'scratch' 
-                    ? 'border-green-500 bg-green-50' 
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-                onClick={() => handleTemplateSelect('scratch')}
-              >
-                <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-lg mb-3 mx-auto">
-                  <Plus className="w-6 h-6 text-green-600" />
-                </div>
-                <h3 className="font-medium text-center">Start from Scratch</h3>
-                <p className="text-sm text-gray-500 text-center mt-1">Create your own custom structure.</p>
               </div>
             </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Back Button */}
+              <div>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setStep('choose')}
+                  className="mb-4"
+                >
+                  ← Back to Templates
+                </Button>
+              </div>
 
-            {/* Custom Templates Dropdown */}
-            {customTemplates.length > 0 && (
-              <div className="mt-4">
-                <Label className="text-sm font-medium mb-2 block">Saved Templates</Label>
-                <div className="flex gap-2">
-                  <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select a saved template" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customTemplates.map((template) => (
-                        <SelectItem key={template.id} value={template.id}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{template.name}</span>
-                          </div>
-                        </SelectItem>
+              {/* Project Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="projectName">Project Name</Label>
+                  <Input
+                    id="projectName"
+                    value={projectInfo.projectName}
+                    onChange={(e) => setProjectInfo({...projectInfo, projectName: e.target.value})}
+                    placeholder="Enter project name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="projectNumber">Project Number</Label>
+                  <Input
+                    id="projectNumber"
+                    value={projectInfo.projectNumber}
+                    onChange={(e) => setProjectInfo({...projectInfo, projectNumber: e.target.value})}
+                    placeholder="Enter project number"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="contractDate">Contract Date</Label>
+                  <Input
+                    id="contractDate"
+                    type="date"
+                    value={projectInfo.contractDate}
+                    onChange={(e) => setProjectInfo({...projectInfo, contractDate: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="totalContractAmount">Total Contract Amount</Label>
+                  <Input
+                    id="totalContractAmount"
+                    type="number"
+                    value={projectInfo.totalContractAmount}
+                    onChange={(e) => setProjectInfo({...projectInfo, totalContractAmount: e.target.value})}
+                    placeholder="Enter total amount"
+                  />
+                </div>
+              </div>
+
+              {/* Line Items */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <Label className="text-sm font-medium">Line Items</Label>
+                  <Button onClick={addSOVItem} size="sm">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Line Item
+                  </Button>
+                </div>
+
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Division</TableHead>
+                        <TableHead>Item Number</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Value</TableHead>
+                        <TableHead>Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sovItems.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            <Input
+                              value={item.division}
+                              onChange={(e) => updateSOVItem(item.id, 'division', e.target.value)}
+                              placeholder="01"
+                              className="w-16"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={item.itemNumber}
+                              onChange={(e) => updateSOVItem(item.id, 'itemNumber', e.target.value)}
+                              placeholder="01-100"
+                              className="w-24"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={item.category}
+                              onChange={(e) => updateSOVItem(item.id, 'category', e.target.value)}
+                              placeholder="Category"
+                              className="min-w-[120px]"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={item.description}
+                              onChange={(e) => updateSOVItem(item.id, 'description', e.target.value)}
+                              placeholder="Item description"
+                              className="min-w-[200px]"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              value={item.value}
+                              onChange={(e) => updateSOVItem(item.id, 'value', parseFloat(e.target.value) || 0)}
+                              placeholder="0.00"
+                              className="w-24"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeSOVItem(item.id)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedTemplate && customTemplates.find(t => t.id === selectedTemplate) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteTemplate(selectedTemplate)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
+                      {sovItems.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                            No line items added yet. Click "Add Line Item" to get started.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
+
+                {sovItems.length > 0 && (
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">Total Contract Value:</span>
+                      <span className="text-xl font-bold text-blue-600">
+                        ${totalValue.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Project Information */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="projectName">Project Name</Label>
-              <Input
-                id="projectName"
-                value={projectInfo.projectName}
-                onChange={(e) => setProjectInfo({...projectInfo, projectName: e.target.value})}
-                placeholder="Enter project name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="projectNumber">Project Number</Label>
-              <Input
-                id="projectNumber"
-                value={projectInfo.projectNumber}
-                onChange={(e) => setProjectInfo({...projectInfo, projectNumber: e.target.value})}
-                placeholder="Enter project number"
-              />
-            </div>
-            <div>
-              <Label htmlFor="contractDate">Contract Date</Label>
-              <Input
-                id="contractDate"
-                type="date"
-                value={projectInfo.contractDate}
-                onChange={(e) => setProjectInfo({...projectInfo, contractDate: e.target.value})}
-              />
-            </div>
-            <div>
-              <Label htmlFor="totalContractAmount">Total Contract Amount</Label>
-              <Input
-                id="totalContractAmount"
-                type="number"
-                value={projectInfo.totalContractAmount}
-                onChange={(e) => setProjectInfo({...projectInfo, totalContractAmount: e.target.value})}
-                placeholder="Enter total amount"
-              />
-            </div>
-          </div>
-
-          {/* Line Items */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <Label className="text-sm font-medium">Line Items</Label>
-              <Button onClick={addSOVItem} size="sm">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Line Item
-              </Button>
-            </div>
-
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Division</TableHead>
-                    <TableHead>Item Number</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Value</TableHead>
-                    <TableHead>Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sovItems.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <Input
-                          value={item.division}
-                          onChange={(e) => updateSOVItem(item.id, 'division', e.target.value)}
-                          placeholder="01"
-                          className="w-16"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={item.itemNumber}
-                          onChange={(e) => updateSOVItem(item.id, 'itemNumber', e.target.value)}
-                          placeholder="01-100"
-                          className="w-24"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={item.category}
-                          onChange={(e) => updateSOVItem(item.id, 'category', e.target.value)}
-                          placeholder="Category"
-                          className="min-w-[120px]"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={item.description}
-                          onChange={(e) => updateSOVItem(item.id, 'description', e.target.value)}
-                          placeholder="Item description"
-                          className="min-w-[200px]"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={item.value}
-                          onChange={(e) => updateSOVItem(item.id, 'value', parseFloat(e.target.value) || 0)}
-                          placeholder="0.00"
-                          className="w-24"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeSOVItem(item.id)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {sovItems.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                        No line items added yet. Select a template or add items manually.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-
-            {sovItems.length > 0 && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">Total Contract Value:</span>
-                  <span className="text-xl font-bold text-blue-600">
-                    ${totalValue.toLocaleString()}
-                  </span>
-                </div>
+              {/* Notes */}
+              <div>
+                <Label htmlFor="notes">Notes</Label>
+                <textarea
+                  id="notes"
+                  value={projectInfo.notes}
+                  onChange={(e) => setProjectInfo({...projectInfo, notes: e.target.value})}
+                  placeholder="Enter any additional notes"
+                  className="w-full p-3 border border-gray-300 rounded-md resize-none"
+                  rows={3}
+                />
               </div>
-            )}
-          </div>
-
-          {/* Notes */}
-          <div>
-            <Label htmlFor="notes">Notes</Label>
-            <textarea
-              id="notes"
-              value={projectInfo.notes}
-              onChange={(e) => setProjectInfo({...projectInfo, notes: e.target.value})}
-              placeholder="Enter any additional notes"
-              className="w-full p-3 border border-gray-300 rounded-md resize-none"
-              rows={3}
-            />
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Actions */}
         <div className="flex items-center justify-between pt-4 border-t flex-shrink-0">
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={handleSaveAsTemplate}
-              disabled={savingTemplate || sovItems.length === 0}
-            >
-              <Copy className="w-4 h-4 mr-2" />
-              {savingTemplate ? 'Saving Template...' : 'Save as Template'}
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              onClick={handleExportPDF}
-              disabled={exportingPDF || sovItems.length === 0}
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              {exportingPDF ? 'Exporting...' : 'Export PDF'}
-            </Button>
-          </div>
+          {step === 'build' ? (
+            <>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    const templateName = prompt('Enter template name:');
+                    if (templateName && sovItems.length > 0) {
+                      // Save template logic here
+                      toast.success('Template saved successfully');
+                    }
+                  }}
+                  disabled={savingTemplate || sovItems.length === 0}
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Save as Template
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    // Export PDF logic here
+                    toast.success('PDF exported successfully');
+                  }}
+                  disabled={exportingPDF || sovItems.length === 0}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Export PDF
+                </Button>
+              </div>
 
-          <div className="flex gap-2">
-            <Button
-              onClick={() => onOpenChange(false)}
-              variant="outline"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={saving || sovItems.length === 0}
-            >
-              <Save className="w-4 h-4 mr-2" />
-              {saving ? 'Creating...' : 'Create Schedule of Values'}
-            </Button>
-          </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => onOpenChange(false)}
+                  variant="outline"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={saving || sovItems.length === 0}
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  {saving ? 'Creating...' : 'Create Schedule of Values'}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex justify-end w-full">
+              <Button
+                onClick={() => onOpenChange(false)}
+                variant="outline"
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

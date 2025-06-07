@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,11 +22,14 @@ import {
   Clock,
   FileText,
   Edit,
-  Trash2
+  Trash2,
+  Wrench
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { NewEquipmentDialog } from '@/components/equipment/NewEquipmentDialog';
+import { MaintenanceDialog } from '@/components/equipment/MaintenanceDialog';
 
 interface EquipmentItem {
   id: string;
@@ -46,6 +50,11 @@ export default function Equipment() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [editingEquipment, setEditingEquipment] = useState<EquipmentItem | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState<string>('');
+  const [selectedEquipmentName, setSelectedEquipmentName] = useState<string>('');
 
   useEffect(() => {
     fetchEquipment();
@@ -94,6 +103,17 @@ export default function Equipment() {
     setFilteredEquipment(filtered);
   };
 
+  const handleEditEquipment = (item: EquipmentItem) => {
+    setEditingEquipment(item);
+    setEditDialogOpen(true);
+  };
+
+  const handleMaintenance = (item: EquipmentItem) => {
+    setSelectedEquipmentId(item.id);
+    setSelectedEquipmentName(item.name);
+    setMaintenanceDialogOpen(true);
+  };
+
   const deleteEquipment = async (id: string) => {
     if (!confirm('Are you sure you want to delete this equipment?')) return;
 
@@ -110,6 +130,25 @@ export default function Equipment() {
     } catch (error) {
       console.error('Error deleting equipment:', error);
       toast.error('Failed to delete equipment');
+    }
+  };
+
+  const updateEquipment = async (id: string, updates: Partial<EquipmentItem>) => {
+    try {
+      const { error } = await supabase
+        .from('equipment')
+        .update(updates)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Equipment updated successfully');
+      fetchEquipment();
+      setEditDialogOpen(false);
+      setEditingEquipment(null);
+    } catch (error) {
+      console.error('Error updating equipment:', error);
+      toast.error('Failed to update equipment');
     }
   };
 
@@ -139,10 +178,7 @@ export default function Equipment() {
         {/* Header with Actions */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center space-x-4">
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Equipment
-            </Button>
+            <NewEquipmentDialog onEquipmentCreated={fetchEquipment} />
             <Button variant="outline" size="sm">
               <Download className="w-4 h-4 mr-2" />
               Export CSV
@@ -310,9 +346,21 @@ export default function Equipment() {
                 </div>
                 
                 <div className="flex gap-2 mt-4">
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => handleEditEquipment(item)}
+                  >
                     <Edit className="w-4 h-4 mr-1" />
                     Edit
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleMaintenance(item)}
+                  >
+                    <Wrench className="w-4 h-4" />
                   </Button>
                   <Button 
                     variant="outline" 
@@ -339,15 +387,141 @@ export default function Equipment() {
                   ? 'No equipment matches your search criteria.'
                   : 'Add your first piece of equipment to get started.'}
               </p>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Equipment
-              </Button>
+              <NewEquipmentDialog onEquipmentCreated={fetchEquipment} />
             </CardContent>
           </Card>
         )}
 
-        {/* Dialogs - Add/Edit Equipment */}
+        {/* Edit Equipment Dialog */}
+        {editingEquipment && (
+          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Edit Equipment</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const updates = {
+                  name: formData.get('name') as string,
+                  category: formData.get('category') as string,
+                  hourly_rate: parseFloat(formData.get('hourly_rate') as string),
+                  year: formData.get('year') ? parseInt(formData.get('year') as string) : null,
+                  value: formData.get('value') ? parseFloat(formData.get('value') as string) : null,
+                  status: formData.get('status') as string,
+                  description: formData.get('description') as string,
+                };
+                updateEquipment(editingEquipment.id, updates);
+              }} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label htmlFor="name">Equipment Name *</label>
+                    <Input
+                      id="name"
+                      name="name"
+                      defaultValue={editingEquipment.name}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="category">Category</label>
+                    <Select name="category" defaultValue={editingEquipment.category}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Heavy Machinery">Heavy Machinery</SelectItem>
+                        <SelectItem value="Vehicles">Vehicles</SelectItem>
+                        <SelectItem value="Trailers">Trailers</SelectItem>
+                        <SelectItem value="Tools">Tools</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label htmlFor="hourly_rate">Hourly Rate ($) *</label>
+                    <Input
+                      id="hourly_rate"
+                      name="hourly_rate"
+                      type="number"
+                      defaultValue={editingEquipment.hourly_rate}
+                      step="0.01"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="year">Year</label>
+                    <Input
+                      id="year"
+                      name="year"
+                      type="number"
+                      defaultValue={editingEquipment.year || ''}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="value">Value ($)</label>
+                    <Input
+                      id="value"
+                      name="value"
+                      type="number"
+                      defaultValue={editingEquipment.value || ''}
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="status">Status</label>
+                  <Select name="status" defaultValue={editingEquipment.status}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Available">Available</SelectItem>
+                      <SelectItem value="In Use">In Use</SelectItem>
+                      <SelectItem value="Maintenance">Maintenance</SelectItem>
+                      <SelectItem value="Out of Service">Out of Service</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="description">Description</label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    defaultValue={editingEquipment.description || ''}
+                    className="w-full p-3 border border-gray-300 rounded-md resize-none"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    Save Changes
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Maintenance Dialog */}
+        <MaintenanceDialog
+          open={maintenanceDialogOpen}
+          onOpenChange={setMaintenanceDialogOpen}
+          equipmentId={selectedEquipmentId}
+          equipmentName={selectedEquipmentName}
+        />
       </div>
     </Layout>
   );
