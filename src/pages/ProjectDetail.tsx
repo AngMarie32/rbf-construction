@@ -25,6 +25,19 @@ interface GanttProject {
   status?: string;
 }
 
+interface Task {
+  id: string;
+  title: string;
+  startDate: Date;
+  endDate: Date;
+  progress: number;
+  status: string;
+  projectId: string;
+  dependencies: string[];
+  duration: number;
+  isCritical?: boolean;
+}
+
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -34,14 +47,19 @@ export default function ProjectDetail() {
   const [sovItems, setSovItems] = useState([]);
   const [changeOrders, setChangeOrders] = useState([]);
   const [paymentApps, setPaymentApps] = useState([]);
-  const [tasks, setTasks] = useState([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [scheduleProjects, setScheduleProjects] = useState<GanttProject[]>([]);
 
   useEffect(() => {
     fetchProject();
     fetchProjectData();
-    fetchScheduleData();
   }, [id]);
+
+  useEffect(() => {
+    if (project) {
+      fetchScheduleData();
+    }
+  }, [project]);
 
   const fetchProject = async () => {
     if (!id) {
@@ -131,51 +149,112 @@ export default function ProjectDetail() {
   };
 
   const fetchScheduleData = async () => {
-    if (!id) return;
+    if (!id || !project) return;
 
     try {
-      // Mock schedule data - replace with actual API calls
-      const mockTasks = [
-        {
-          id: '1',
-          title: 'Site Preparation',
-          startDate: new Date('2024-01-01'),
-          endDate: new Date('2024-01-15'),
-          progress: 100,
-          status: 'Completed',
-          projectId: id,
-          dependencies: [],
-          duration: 15,
-          isCritical: true
-        },
-        {
-          id: '2',
-          title: 'Foundation Work',
-          startDate: new Date('2024-01-16'),
-          endDate: new Date('2024-02-15'),
-          progress: 75,
-          status: 'In Progress',
-          projectId: id,
-          dependencies: ['1'],
-          duration: 30,
-          isCritical: true
-        },
-        {
-          id: '3',
-          title: 'Framing',
-          startDate: new Date('2024-02-16'),
-          endDate: new Date('2024-03-31'),
-          progress: 25,
-          status: 'Planned',
-          projectId: id,
-          dependencies: ['2'],
-          duration: 44,
-          isCritical: false
-        }
-      ];
+      // Try to fetch real tasks from database first
+      const { data: realTasks } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('project_id', id)
+        .order('start_date');
 
-      setTasks(mockTasks);
+      let fetchedTasks: Task[] = [];
+
+      if (realTasks && realTasks.length > 0) {
+        // Transform database tasks to match our interface
+        fetchedTasks = realTasks.map(task => ({
+          id: task.id,
+          title: task.title,
+          startDate: new Date(task.start_date),
+          endDate: new Date(task.end_date),
+          progress: task.progress || 0,
+          status: task.status || 'Planned',
+          projectId: task.project_id,
+          dependencies: task.dependencies || [],
+          duration: task.duration || 1,
+          isCritical: task.is_critical || false
+        }));
+      } else {
+        // Fallback to mock data based on project dates
+        const projectStart = new Date(project.startDate);
+        const projectEnd = new Date(project.dueDate);
+        const projectDuration = Math.max(1, Math.ceil((projectEnd.getTime() - projectStart.getTime()) / (1000 * 60 * 60 * 24)));
+        
+        fetchedTasks = [
+          {
+            id: '1',
+            title: 'Project Planning',
+            startDate: projectStart,
+            endDate: new Date(projectStart.getTime() + (projectDuration * 0.15 * 24 * 60 * 60 * 1000)),
+            progress: 100,
+            status: 'Completed',
+            projectId: id,
+            dependencies: [],
+            duration: Math.ceil(projectDuration * 0.15),
+            isCritical: true
+          },
+          {
+            id: '2',
+            title: 'Foundation & Site Work',
+            startDate: new Date(projectStart.getTime() + (projectDuration * 0.15 * 24 * 60 * 60 * 1000)),
+            endDate: new Date(projectStart.getTime() + (projectDuration * 0.4 * 24 * 60 * 60 * 1000)),
+            progress: project.completionPercentage > 40 ? 100 : Math.max(0, (project.completionPercentage - 15) * 4),
+            status: project.completionPercentage > 40 ? 'Completed' : project.completionPercentage > 15 ? 'In Progress' : 'Planned',
+            projectId: id,
+            dependencies: ['1'],
+            duration: Math.ceil(projectDuration * 0.25),
+            isCritical: true
+          },
+          {
+            id: '3',
+            title: 'Construction Phase',
+            startDate: new Date(projectStart.getTime() + (projectDuration * 0.4 * 24 * 60 * 60 * 1000)),
+            endDate: new Date(projectStart.getTime() + (projectDuration * 0.85 * 24 * 60 * 60 * 1000)),
+            progress: project.completionPercentage > 40 ? Math.min(100, (project.completionPercentage - 40) * 2.22) : 0,
+            status: project.completionPercentage > 85 ? 'Completed' : project.completionPercentage > 40 ? 'In Progress' : 'Planned',
+            projectId: id,
+            dependencies: ['2'],
+            duration: Math.ceil(projectDuration * 0.45),
+            isCritical: false
+          },
+          {
+            id: '4',
+            title: 'Final Inspection & Completion',
+            startDate: new Date(projectStart.getTime() + (projectDuration * 0.85 * 24 * 60 * 60 * 1000)),
+            endDate: projectEnd,
+            progress: project.completionPercentage > 85 ? Math.min(100, (project.completionPercentage - 85) * 6.67) : 0,
+            status: project.completionPercentage === 100 ? 'Completed' : project.completionPercentage > 85 ? 'In Progress' : 'Planned',
+            projectId: id,
+            dependencies: ['3'],
+            duration: Math.ceil(projectDuration * 0.15),
+            isCritical: true
+          }
+        ];
+      }
+
+      setTasks(fetchedTasks);
       
+      // Create gantt project with proper color based on status
+      const statusColors = {
+        'Planning': '#f59e0b',
+        'Open': '#10b981', 
+        'Closed': '#6b7280'
+      };
+      
+      const ganttProject: GanttProject = {
+        id: project.id,
+        name: project.name,
+        color: statusColors[project.status] || '#3b82f6',
+        client: project.client,
+        contractValue: project.contractValue,
+        status: project.status
+      };
+      
+      setScheduleProjects([ganttProject]);
+    } catch (error) {
+      console.error('Error fetching schedule data:', error);
+      // Still create the gantt project even if task fetching fails
       if (project) {
         const ganttProject: GanttProject = {
           id: project.id,
@@ -187,8 +266,6 @@ export default function ProjectDetail() {
         };
         setScheduleProjects([ganttProject]);
       }
-    } catch (error) {
-      console.error('Error fetching schedule data:', error);
     }
   };
 
@@ -198,10 +275,28 @@ export default function ProjectDetail() {
     await fetchScheduleData();
   };
 
-  const handleTaskUpdate = (taskId: string, updates: Partial<any>) => {
+  const handleTaskUpdate = (taskId: string, updates: Partial<Task>) => {
     setTasks(prev => prev.map(task => 
       task.id === taskId ? { ...task, ...updates } : task
     ));
+
+    // Update project completion based on task progress
+    const updatedTasks = tasks.map(task => 
+      task.id === taskId ? { ...task, ...updates } : task
+    );
+    
+    const avgProgress = updatedTasks.reduce((sum, task) => sum + task.progress, 0) / updatedTasks.length;
+    
+    // Update project completion percentage in database
+    if (project) {
+      supabase
+        .from('projects')
+        .update({ completion_percentage: Math.round(avgProgress) })
+        .eq('id', project.id)
+        .then(() => {
+          setProject(prev => prev ? { ...prev, completionPercentage: Math.round(avgProgress) } : null);
+        });
+    }
   };
 
   const getStatusColor = (status: Project['status']) => {
@@ -383,15 +478,15 @@ export default function ProjectDetail() {
                 <CardTitle>Project Schedule</CardTitle>
               </CardHeader>
               <CardContent>
-                {tasks.length > 0 ? (
+                {tasks.length > 0 && scheduleProjects.length > 0 ? (
                   <GanttChart
                     tasks={tasks}
                     projects={scheduleProjects}
                     selectedProjects={[id]}
                     onTaskUpdate={handleTaskUpdate}
                     dateRange={{
-                      from: new Date('2024-01-01'),
-                      to: new Date('2024-12-31')
+                      from: new Date(project.startDate),
+                      to: new Date(project.dueDate)
                     }}
                     showDependencies={true}
                     showCriticalPath={true}
@@ -401,11 +496,7 @@ export default function ProjectDetail() {
                 ) : (
                   <div className="text-center py-8">
                     <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No schedule data available for this project.</p>
-                    <Button className="mt-4" onClick={() => navigate('/project-schedule')}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Project Schedule
-                    </Button>
+                    <p className="text-gray-500">Loading schedule data...</p>
                   </div>
                 )}
               </CardContent>
