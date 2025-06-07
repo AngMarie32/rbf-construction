@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -153,7 +152,7 @@ export default function ProjectDetail() {
     if (!id || !project) return;
 
     try {
-      // Try to fetch real tasks from database first
+      // Fetch real tasks from database first
       const { data: realTasks } = await supabase
         .from('tasks')
         .select('*')
@@ -169,32 +168,53 @@ export default function ProjectDetail() {
           const endDate = new Date(task.end_date);
           const calculatedDuration = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
           
+          // Calculate status based on dates and progress
+          const today = new Date();
+          let status = task.status || 'Not Started';
+          if (task.progress === 100) {
+            status = 'Completed';
+          } else if (today >= startDate && today <= endDate) {
+            status = 'In Progress';
+          } else if (today > endDate && task.progress < 100) {
+            status = 'Overdue';
+          }
+          
           return {
             id: task.id,
             title: task.title,
             startDate,
             endDate,
             progress: task.progress || 0,
-            status: task.status || 'Planned',
+            status,
             projectId: task.project_id,
             dependencies: task.dependencies || [],
-            duration: calculatedDuration, // Calculate duration from dates
-            isCritical: false // Default to false since is_critical doesn't exist in database
+            duration: calculatedDuration,
+            isCritical: false // Can be enhanced based on project logic
           };
         });
       } else {
-        // Fallback to mock data based on project dates
+        // Enhanced fallback with better task breakdown
         const projectStart = new Date(project.startDate);
         const projectEnd = new Date(project.dueDate);
         const projectDuration = Math.max(1, Math.ceil((projectEnd.getTime() - projectStart.getTime()) / (1000 * 60 * 60 * 24)));
         
+        // Create more realistic task progression
+        const today = new Date();
+        const getTaskStatus = (startDate: Date, endDate: Date, progress: number) => {
+          if (progress === 100) return 'Completed';
+          if (today < startDate) return 'Not Started';
+          if (today >= startDate && today <= endDate) return 'In Progress';
+          if (today > endDate && progress < 100) return 'Overdue';
+          return 'Not Started';
+        };
+        
         fetchedTasks = [
           {
-            id: '1',
-            title: 'Project Planning',
+            id: 'phase-1',
+            title: 'Project Initiation & Planning',
             startDate: projectStart,
             endDate: new Date(projectStart.getTime() + (projectDuration * 0.15 * 24 * 60 * 60 * 1000)),
-            progress: 100,
+            progress: Math.min(100, Math.max(0, project.completionPercentage + 20)),
             status: 'Completed',
             projectId: id,
             dependencies: [],
@@ -202,38 +222,50 @@ export default function ProjectDetail() {
             isCritical: true
           },
           {
-            id: '2',
-            title: 'Foundation & Site Work',
+            id: 'phase-2',
+            title: 'Site Preparation & Foundation',
             startDate: new Date(projectStart.getTime() + (projectDuration * 0.15 * 24 * 60 * 60 * 1000)),
             endDate: new Date(projectStart.getTime() + (projectDuration * 0.4 * 24 * 60 * 60 * 1000)),
             progress: project.completionPercentage > 40 ? 100 : Math.max(0, (project.completionPercentage - 15) * 4),
-            status: project.completionPercentage > 40 ? 'Completed' : project.completionPercentage > 15 ? 'In Progress' : 'Planned',
+            status: getTaskStatus(
+              new Date(projectStart.getTime() + (projectDuration * 0.15 * 24 * 60 * 60 * 1000)),
+              new Date(projectStart.getTime() + (projectDuration * 0.4 * 24 * 60 * 60 * 1000)),
+              project.completionPercentage > 40 ? 100 : Math.max(0, (project.completionPercentage - 15) * 4)
+            ),
             projectId: id,
-            dependencies: ['1'],
+            dependencies: ['phase-1'],
             duration: Math.ceil(projectDuration * 0.25),
             isCritical: true
           },
           {
-            id: '3',
-            title: 'Construction Phase',
+            id: 'phase-3',
+            title: 'Main Construction Phase',
             startDate: new Date(projectStart.getTime() + (projectDuration * 0.4 * 24 * 60 * 60 * 1000)),
             endDate: new Date(projectStart.getTime() + (projectDuration * 0.85 * 24 * 60 * 60 * 1000)),
             progress: project.completionPercentage > 40 ? Math.min(100, (project.completionPercentage - 40) * 2.22) : 0,
-            status: project.completionPercentage > 85 ? 'Completed' : project.completionPercentage > 40 ? 'In Progress' : 'Planned',
+            status: getTaskStatus(
+              new Date(projectStart.getTime() + (projectDuration * 0.4 * 24 * 60 * 60 * 1000)),
+              new Date(projectStart.getTime() + (projectDuration * 0.85 * 24 * 60 * 60 * 1000)),
+              project.completionPercentage > 40 ? Math.min(100, (project.completionPercentage - 40) * 2.22) : 0
+            ),
             projectId: id,
-            dependencies: ['2'],
+            dependencies: ['phase-2'],
             duration: Math.ceil(projectDuration * 0.45),
             isCritical: false
           },
           {
-            id: '4',
-            title: 'Final Inspection & Completion',
+            id: 'phase-4',
+            title: 'Final Inspection & Handover',
             startDate: new Date(projectStart.getTime() + (projectDuration * 0.85 * 24 * 60 * 60 * 1000)),
             endDate: projectEnd,
             progress: project.completionPercentage > 85 ? Math.min(100, (project.completionPercentage - 85) * 6.67) : 0,
-            status: project.completionPercentage === 100 ? 'Completed' : project.completionPercentage > 85 ? 'In Progress' : 'Planned',
+            status: getTaskStatus(
+              new Date(projectStart.getTime() + (projectDuration * 0.85 * 24 * 60 * 60 * 1000)),
+              projectEnd,
+              project.completionPercentage > 85 ? Math.min(100, (project.completionPercentage - 85) * 6.67) : 0
+            ),
             projectId: id,
-            dependencies: ['3'],
+            dependencies: ['phase-3'],
             duration: Math.ceil(projectDuration * 0.15),
             isCritical: true
           }
@@ -482,24 +514,109 @@ export default function ProjectDetail() {
           <TabsContent value="schedule" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Project Schedule</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Project Schedule</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs">
+                      {tasks.length} Tasks
+                    </Badge>
+                    <Badge 
+                      variant={project.completionPercentage === 100 ? 'default' : 'secondary'}
+                      className="text-xs"
+                    >
+                      {project.completionPercentage}% Complete
+                    </Badge>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 {tasks.length > 0 && scheduleProjects.length > 0 ? (
-                  <GanttChart
-                    tasks={tasks}
-                    projects={scheduleProjects}
-                    selectedProjects={[id]}
-                    onTaskUpdate={handleTaskUpdate}
-                    dateRange={{
-                      from: new Date(project.startDate),
-                      to: new Date(project.dueDate)
-                    }}
-                    showDependencies={true}
-                    showCriticalPath={true}
-                    showMilestones={true}
-                    projectData={scheduleProjects[0]}
-                  />
+                  <div className="space-y-4">
+                    {/* Schedule Summary */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-muted/30 rounded-lg">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">
+                          {tasks.filter(t => t.status === 'Completed').length}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Completed</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {tasks.filter(t => t.status === 'In Progress').length}
+                        </div>
+                        <div className="text-sm text-muted-foreground">In Progress</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-yellow-600">
+                          {tasks.filter(t => t.status === 'Not Started').length}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Not Started</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-red-600">
+                          {tasks.filter(t => t.status === 'Overdue').length}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Overdue</div>
+                      </div>
+                    </div>
+
+                    {/* Gantt Chart */}
+                    <GanttChart
+                      tasks={tasks}
+                      projects={scheduleProjects}
+                      selectedProjects={[id]}
+                      onTaskUpdate={handleTaskUpdate}
+                      dateRange={{
+                        from: new Date(project.startDate),
+                        to: new Date(project.dueDate)
+                      }}
+                      showDependencies={true}
+                      showCriticalPath={true}
+                      showMilestones={true}
+                      projectData={scheduleProjects[0]}
+                    />
+
+                    {/* Task List Summary */}
+                    <div className="mt-6">
+                      <h4 className="font-semibold mb-3">Task Details</h4>
+                      <div className="space-y-2">
+                        {tasks.map((task) => (
+                          <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
+                            <div className="flex items-center gap-3">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: scheduleProjects[0]?.color || '#3b82f6' }} />
+                              <div>
+                                <div className="font-medium text-sm">{task.title}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {format(task.startDate, 'MMM dd')} - {format(task.endDate, 'MMM dd')} ({task.duration} days)
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <div className="text-sm font-medium">{task.progress}%</div>
+                                <div className="w-20 bg-gray-200 rounded-full h-1.5">
+                                  <div 
+                                    className="bg-blue-600 h-1.5 rounded-full" 
+                                    style={{ width: `${task.progress}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <Badge 
+                                variant={
+                                  task.status === 'Completed' ? 'default' : 
+                                  task.status === 'In Progress' ? 'secondary' :
+                                  task.status === 'Overdue' ? 'destructive' : 'outline'
+                                }
+                                className="text-xs"
+                              >
+                                {task.status}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <div className="text-center py-8">
                     <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
