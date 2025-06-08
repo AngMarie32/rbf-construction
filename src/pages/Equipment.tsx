@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,14 +15,18 @@ import {
   Clock,
   Truck,
   Wrench,
-  Building
+  Building,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { NewEquipmentDialog } from '@/components/equipment/NewEquipmentDialog';
 import { MaintenanceDialog } from '@/components/equipment/MaintenanceDialog';
 import { AllMaintenanceView } from '@/components/equipment/AllMaintenanceView';
 import { EquipmentEstimator } from '@/components/equipment/EquipmentEstimator';
+import { EditEquipmentDialog } from '@/components/equipment/EditEquipmentDialog';
 import type { Equipment } from '@/types';
+import { toast } from 'sonner';
 
 interface EstimatorItem {
   equipment: Equipment;
@@ -37,6 +42,7 @@ export default function Equipment() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
+  const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
   const [allMaintenanceOpen, setAllMaintenanceOpen] = useState(false);
   const [estimatorOpen, setEstimatorOpen] = useState(false);
@@ -61,7 +67,6 @@ export default function Equipment() {
 
       if (error) throw error;
       
-      // Cast the data to Equipment type to handle the type mismatch
       const typedData = (data || []).map(item => ({
         ...item,
         category: item.category as Equipment['category'],
@@ -97,6 +102,25 @@ export default function Equipment() {
     setFilteredEquipment(filtered);
   };
 
+  const handleDeleteEquipment = async (equipmentId: string) => {
+    if (!confirm('Are you sure you want to delete this equipment?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('equipment')
+        .delete()
+        .eq('id', equipmentId);
+
+      if (error) throw error;
+
+      toast.success('Equipment deleted successfully');
+      fetchEquipment();
+    } catch (error) {
+      console.error('Error deleting equipment:', error);
+      toast.error('Failed to delete equipment');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Available': return 'bg-green-500';
@@ -120,6 +144,10 @@ export default function Equipment() {
     setMaintenanceDialogOpen(true);
   };
 
+  const handleEditClick = (eq: Equipment) => {
+    setEditingEquipment(eq);
+  };
+
   const handleAddToEstimator = (eq: Equipment) => {
     const existingItem = selectedEstimatorEquipment.find(item => item.equipment.id === eq.id);
     if (!existingItem) {
@@ -130,6 +158,7 @@ export default function Equipment() {
       }]);
     }
     setEstimatorOpen(true);
+    setViewMode('estimator');
   };
 
   const handleRemoveFromEstimator = (equipmentId: string) => {
@@ -149,16 +178,16 @@ export default function Equipment() {
   };
 
   const handleSaveEstimate = () => {
-    // Save functionality already implemented in EquipmentEstimator
+    toast.success('Estimate saved successfully');
   };
 
   const handleExportEstimate = () => {
-    // Export functionality already implemented in EquipmentEstimator
+    toast.success('Estimate exported successfully');
   };
 
-  const onMaintenanceLogged = () => {
-    // Refresh equipment data when maintenance is logged
-    fetchEquipment();
+  const handleCloseEstimator = () => {
+    setEstimatorOpen(false);
+    setViewMode('equipment');
   };
 
   if (loading) {
@@ -269,9 +298,29 @@ export default function Equipment() {
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-start">
                       <CardTitle className="text-lg">{eq.name}</CardTitle>
-                      <Badge className={`${getStatusColor(eq.status)} text-white`}>
-                        {eq.status}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge className={`${getStatusColor(eq.status)} text-white`}>
+                          {eq.status}
+                        </Badge>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEditClick(eq)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteEquipment(eq.id)}
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       {getCategoryIcon(eq.category)}
@@ -340,6 +389,16 @@ export default function Equipment() {
           />
         )}
 
+        {/* Edit Equipment Dialog */}
+        {editingEquipment && (
+          <EditEquipmentDialog
+            equipment={editingEquipment}
+            open={!!editingEquipment}
+            onOpenChange={(open) => !open && setEditingEquipment(null)}
+            onEquipmentUpdated={fetchEquipment}
+          />
+        )}
+
         {/* All Maintenance View */}
         <AllMaintenanceView
           open={allMaintenanceOpen}
@@ -347,14 +406,16 @@ export default function Equipment() {
         />
 
         {/* Equipment Estimator */}
-        <EquipmentEstimator
-          selectedEquipment={selectedEstimatorEquipment}
-          onRemoveEquipment={handleRemoveFromEstimator}
-          onUpdateDuration={handleUpdateDuration}
-          onSaveEstimate={handleSaveEstimate}
-          onExportEstimate={handleExportEstimate}
-          onClose={() => setEstimatorOpen(false)}
-        />
+        {estimatorOpen && (
+          <EquipmentEstimator
+            selectedEquipment={selectedEstimatorEquipment}
+            onRemoveEquipment={handleRemoveFromEstimator}
+            onUpdateDuration={handleUpdateDuration}
+            onSaveEstimate={handleSaveEstimate}
+            onExportEstimate={handleExportEstimate}
+            onClose={handleCloseEstimator}
+          />
+        )}
       </div>
     </Layout>
   );

@@ -237,8 +237,9 @@ export function GanttChart({
   };
 
   const handleDeleteTask = (taskId: string) => {
-    if (onTaskDelete) {
+    if (onTaskDelete && confirm('Are you sure you want to delete this task?')) {
       onTaskDelete(taskId);
+      toast.success('Task deleted successfully');
     }
   };
 
@@ -773,10 +774,14 @@ export function GanttChart({
                                 />
                               </div>
                               
-                              {/* Progress overlay */}
+                              {/* Progress overlay - improved visibility */}
                               {task.progress > 0 && (
                                 <div 
-                                  className="absolute top-2 h-10 rounded-l-lg bg-green-400/60 pointer-events-none"
+                                  className={`absolute top-2 h-10 rounded-l-lg pointer-events-none ${
+                                    task.isCritical && showCriticalPath 
+                                      ? 'bg-yellow-400/80' 
+                                      : 'bg-blue-400/70'
+                                  }`}
                                   style={{ 
                                     left: position.left,
                                     width: `${(parseFloat(position.width.replace('%', '')) * task.progress) / 100}%`
