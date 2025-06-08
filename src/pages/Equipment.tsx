@@ -37,6 +37,12 @@ interface Equipment {
   updated_at: string;
 }
 
+interface EstimatorItem {
+  equipment: Equipment;
+  duration: number;
+  unit: 'hours' | 'days';
+}
+
 export default function Equipment() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [filteredEquipment, setFilteredEquipment] = useState<Equipment[]>([]);
@@ -46,6 +52,9 @@ export default function Equipment() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
+  const [allMaintenanceOpen, setAllMaintenanceOpen] = useState(false);
+  const [estimatorOpen, setEstimatorOpen] = useState(false);
+  const [selectedEstimatorEquipment, setSelectedEstimatorEquipment] = useState<EstimatorItem[]>([]);
   const [viewMode, setViewMode] = useState<'equipment' | 'maintenance' | 'estimator'>('equipment');
 
   useEffect(() => {
@@ -117,6 +126,42 @@ export default function Equipment() {
     setMaintenanceDialogOpen(true);
   };
 
+  const handleAddToEstimator = (eq: Equipment) => {
+    const existingItem = selectedEstimatorEquipment.find(item => item.equipment.id === eq.id);
+    if (!existingItem) {
+      setSelectedEstimatorEquipment([...selectedEstimatorEquipment, {
+        equipment: eq,
+        duration: 1,
+        unit: 'hours'
+      }]);
+    }
+    setEstimatorOpen(true);
+  };
+
+  const handleRemoveFromEstimator = (equipmentId: string) => {
+    setSelectedEstimatorEquipment(prev => 
+      prev.filter(item => item.equipment.id !== equipmentId)
+    );
+  };
+
+  const handleUpdateDuration = (equipmentId: string, duration: number, unit: 'hours' | 'days') => {
+    setSelectedEstimatorEquipment(prev =>
+      prev.map(item =>
+        item.equipment.id === equipmentId
+          ? { ...item, duration, unit }
+          : item
+      )
+    );
+  };
+
+  const handleSaveEstimate = () => {
+    // Save functionality already implemented in EquipmentEstimator
+  };
+
+  const handleExportEstimate = () => {
+    // Export functionality already implemented in EquipmentEstimator
+  };
+
   if (loading) {
     return (
       <Layout title="Equipment" subtitle="Manage equipment and maintenance">
@@ -141,13 +186,19 @@ export default function Equipment() {
             </Button>
             <Button 
               variant={viewMode === 'maintenance' ? 'default' : 'outline'}
-              onClick={() => setViewMode('maintenance')}
+              onClick={() => {
+                setViewMode('maintenance');
+                setAllMaintenanceOpen(true);
+              }}
             >
               Maintenance Log
             </Button>
             <Button 
               variant={viewMode === 'estimator' ? 'default' : 'outline'}
-              onClick={() => setViewMode('estimator')}
+              onClick={() => {
+                setViewMode('estimator');
+                setEstimatorOpen(true);
+              }}
             >
               Equipment Estimator
             </Button>
@@ -257,9 +308,14 @@ export default function Equipment() {
                         <Settings2 className="w-4 h-4 mr-1" />
                         Maintenance
                       </Button>
-                      <Button size="sm" variant="outline" className="flex-1">
-                        <Calendar className="w-4 h-4 mr-1" />
-                        Schedule
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => handleAddToEstimator(eq)}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Add to Estimate
                       </Button>
                     </div>
                   </CardContent>
@@ -275,17 +331,31 @@ export default function Equipment() {
           </>
         )}
 
-        {viewMode === 'maintenance' && <AllMaintenanceView />}
-        {viewMode === 'estimator' && <EquipmentEstimator />}
-
+        {/* Maintenance Dialog */}
         {selectedEquipment && (
           <MaintenanceDialog
-            equipment={selectedEquipment}
+            equipmentId={selectedEquipment.id}
+            equipmentName={selectedEquipment.name}
             open={maintenanceDialogOpen}
             onOpenChange={setMaintenanceDialogOpen}
-            onMaintenanceLogged={() => {
-              // Could refresh data here if needed
-            }}
+          />
+        )}
+
+        {/* All Maintenance View */}
+        <AllMaintenanceView
+          open={allMaintenanceOpen}
+          onOpenChange={setAllMaintenanceOpen}
+        />
+
+        {/* Equipment Estimator */}
+        {estimatorOpen && (
+          <EquipmentEstimator
+            selectedEquipment={selectedEstimatorEquipment}
+            onRemoveEquipment={handleRemoveFromEstimator}
+            onUpdateDuration={handleUpdateDuration}
+            onSaveEstimate={handleSaveEstimate}
+            onExportEstimate={handleExportEstimate}
+            onClose={() => setEstimatorOpen(false)}
           />
         )}
       </div>
