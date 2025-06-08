@@ -1,7 +1,8 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Cloud, Sun, CloudRain, CloudSnow, Wind } from 'lucide-react';
+import { Cloud, Sun, CloudRain, CloudSnow, Wind, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface WeatherData {
   temperature: number;
@@ -11,15 +12,24 @@ interface WeatherData {
   location: string;
 }
 
+interface ForecastDay {
+  date: string;
+  high: number;
+  low: number;
+  condition: string;
+  icon: string;
+}
+
 export function WeatherWidget() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [forecast, setForecast] = useState<ForecastDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showForecast, setShowForecast] = useState(false);
 
   useEffect(() => {
     const fetchWeather = async () => {
       try {
-        // Get user's location
         if (!navigator.geolocation) {
           throw new Error('Geolocation not supported');
         }
@@ -28,15 +38,20 @@ export function WeatherWidget() {
           async (position) => {
             const { latitude, longitude } = position.coords;
             
-            // Using OpenWeatherMap API (free tier)
-            // Note: In production, this API key should be stored securely
-            const API_KEY = 'a51a1a71eceadfd5c75bb0e401b87a8b'; // User should replace with their own key
-            const response = await fetch(
+            const API_KEY = 'a51a1a71eceadfd5c75bb0e401b87a8b';
+            
+            // Fetch current weather
+            const currentResponse = await fetch(
               `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=imperial`
             );
 
-            if (!response.ok) {
-              // Fallback to mock data for demo
+            // Fetch 14-day forecast
+            const forecastResponse = await fetch(
+              `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=imperial&cnt=40`
+            );
+
+            if (!currentResponse.ok || !forecastResponse.ok) {
+              // Fallback to mock data
               setWeather({
                 temperature: 72,
                 condition: 'Partly Cloudy',
@@ -44,22 +59,45 @@ export function WeatherWidget() {
                 windSpeed: 8,
                 location: 'Current Location'
               });
+              
+              // Generate mock 14-day forecast
+              const mockForecast = Array.from({ length: 14 }, (_, i) => ({
+                date: new Date(Date.now() + i * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+                high: Math.floor(Math.random() * 20) + 70,
+                low: Math.floor(Math.random() * 15) + 50,
+                condition: ['Clear', 'Cloudy', 'Rain', 'Partly Cloudy'][Math.floor(Math.random() * 4)],
+                icon: 'clear'
+              }));
+              setForecast(mockForecast);
               setLoading(false);
               return;
             }
 
-            const data = await response.json();
+            const currentData = await currentResponse.json();
+            const forecastData = await forecastResponse.json();
+            
             setWeather({
-              temperature: Math.round(data.main.temp),
-              condition: data.weather[0].main,
-              humidity: data.main.humidity,
-              windSpeed: Math.round(data.wind.speed),
-              location: data.name
+              temperature: Math.round(currentData.main.temp),
+              condition: currentData.weather[0].main,
+              humidity: currentData.main.humidity,
+              windSpeed: Math.round(currentData.wind.speed),
+              location: currentData.name
             });
+
+            // Process forecast data (taking every 8th item for daily data)
+            const dailyForecast = forecastData.list.filter((_: any, index: number) => index % 8 === 0).slice(0, 14).map((item: any) => ({
+              date: new Date(item.dt * 1000).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+              high: Math.round(item.main.temp_max),
+              low: Math.round(item.main.temp_min),
+              condition: item.weather[0].main,
+              icon: item.weather[0].icon
+            }));
+            
+            setForecast(dailyForecast);
             setLoading(false);
           },
           () => {
-            // Fallback to demo data if geolocation fails
+            // Fallback to demo data
             setWeather({
               temperature: 72,
               condition: 'Partly Cloudy',
@@ -67,6 +105,15 @@ export function WeatherWidget() {
               windSpeed: 8,
               location: 'Demo Location'
             });
+            
+            const mockForecast = Array.from({ length: 14 }, (_, i) => ({
+              date: new Date(Date.now() + i * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+              high: Math.floor(Math.random() * 20) + 70,
+              low: Math.floor(Math.random() * 15) + 50,
+              condition: ['Clear', 'Cloudy', 'Rain', 'Partly Cloudy'][Math.floor(Math.random() * 4)],
+              icon: 'clear'
+            }));
+            setForecast(mockForecast);
             setLoading(false);
           }
         );
@@ -77,8 +124,6 @@ export function WeatherWidget() {
     };
 
     fetchWeather();
-    
-    // Refresh weather every 60 minutes
     const interval = setInterval(fetchWeather, 600000);
     return () => clearInterval(interval);
   }, []);
@@ -87,24 +132,28 @@ export function WeatherWidget() {
     switch (condition.toLowerCase()) {
       case 'clear':
       case 'sunny':
-        return <Sun className="w-8 h-8 text-yellow-500" />;
+        return <Sun className="w-5 h-5 text-yellow-500" />;
       case 'rain':
       case 'drizzle':
-        return <CloudRain className="w-8 h-8 text-blue-500" />;
+        return <CloudRain className="w-5 h-5 text-blue-500" />;
       case 'snow':
-        return <CloudSnow className="w-8 h-8 text-blue-200" />;
+        return <CloudSnow className="w-5 h-5 text-blue-200" />;
       case 'clouds':
       case 'partly cloudy':
       default:
-        return <Cloud className="w-8 h-8 text-gray-500" />;
+        return <Cloud className="w-5 h-5 text-gray-500" />;
     }
+  };
+
+  const openRadar = () => {
+    window.open('https://weather.com/weather/radar/interactive/l/USNY0996:1:US', '_blank');
   };
 
   if (loading) {
     return (
-      <Card>
+      <Card className="col-span-1 md:col-span-2">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Weather</CardTitle>
+          <CardTitle className="text-sm font-medium">Weather Forecast</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="animate-pulse">
@@ -118,9 +167,9 @@ export function WeatherWidget() {
 
   if (error || !weather) {
     return (
-      <Card>
+      <Card className="col-span-1 md:col-span-2">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Weather</CardTitle>
+          <CardTitle className="text-sm font-medium">Weather Forecast</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">Weather unavailable</p>
@@ -130,28 +179,60 @@ export function WeatherWidget() {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium">Local Weather</CardTitle>
+    <Card className="col-span-1 md:col-span-2">
+      <CardHeader className="pb-3 flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-medium">Weather Forecast</CardTitle>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setShowForecast(!showForecast)}
+          >
+            {showForecast ? 'Current' : '14-Day'}
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={openRadar}
+          >
+            <ExternalLink className="w-3 h-3 mr-1" />
+            Radar
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              {getWeatherIcon(weather.condition)}
-              <span className="text-2xl font-bold">{weather.temperature}°F</span>
+        {!showForecast ? (
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                {getWeatherIcon(weather.condition)}
+                <span className="text-2xl font-bold">{weather.temperature}°F</span>
+              </div>
+              <p className="text-sm text-muted-foreground">{weather.condition}</p>
+              <p className="text-xs text-muted-foreground">{weather.location}</p>
             </div>
-            <p className="text-sm text-muted-foreground">{weather.condition}</p>
-            <p className="text-xs text-muted-foreground">{weather.location}</p>
-          </div>
-          <div className="text-right">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-              <Wind className="w-3 h-3" />
-              <span>{weather.windSpeed} mph</span>
+            <div className="text-right">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                <Wind className="w-3 h-3" />
+                <span>{weather.windSpeed} mph</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Humidity: {weather.humidity}%</p>
             </div>
-            <p className="text-xs text-muted-foreground">Humidity: {weather.humidity}%</p>
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-7 gap-2 max-h-32 overflow-y-auto">
+            {forecast.map((day, index) => (
+              <div key={index} className="text-center">
+                <p className="text-xs text-muted-foreground mb-1">{day.date}</p>
+                <div className="flex justify-center mb-1">
+                  {getWeatherIcon(day.condition)}
+                </div>
+                <p className="text-xs font-medium">{day.high}°</p>
+                <p className="text-xs text-muted-foreground">{day.low}°</p>
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

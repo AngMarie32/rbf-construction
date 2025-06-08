@@ -5,15 +5,15 @@ import { ProjectCard } from '@/components/projects/ProjectCard';
 import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
 import { WeatherWidget } from '@/components/dashboard/WeatherWidget';
-import { DateFilter } from '@/components/dashboard/DateFilter';
-import { DollarSign, Calendar, TrendingUp, FileText, Calculator } from 'lucide-react';
+import { FinancialDateFilter } from '@/components/dashboard/FinancialDateFilter';
+import { DollarSign, Calendar, FileText, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Project } from '@/types';
 import { useNavigate } from 'react-router-dom';
-import { isWithinInterval, parseISO } from 'date-fns';
+import { isWithinInterval, parseISO, startOfYear, endOfYear, startOfMonth, endOfMonth } from 'date-fns';
 
 interface DatabaseProject {
   id: string;
@@ -35,9 +35,8 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [billingData, setBillingData] = useState<any>(null);
-  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-    from: undefined,
-    to: undefined
+  const [financialFilter, setFinancialFilter] = useState<{ type: 'year' | 'month' | 'custom'; value?: string }>({
+    type: 'custom'
   });
   const navigate = useNavigate();
 
@@ -48,7 +47,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchBillingData();
-  }, [dateRange]);
+  }, [financialFilter]);
 
   const fetchProjects = async () => {
     try {
@@ -96,17 +95,21 @@ export default function Dashboard() {
 
       let filteredData = data || [];
 
-      // Apply date filter if set
-      if (dateRange.from || dateRange.to) {
+      // Apply financial filter
+      if (financialFilter.type !== 'custom') {
         filteredData = data?.filter(billing => {
           const billingDate = parseISO(billing.created_at);
           
-          if (dateRange.from && dateRange.to) {
-            return isWithinInterval(billingDate, { start: dateRange.from, end: dateRange.to });
-          } else if (dateRange.from) {
-            return billingDate >= dateRange.from;
-          } else if (dateRange.to) {
-            return billingDate <= dateRange.to;
+          if (financialFilter.type === 'year') {
+            const year = parseInt(financialFilter.value || '');
+            const yearStart = startOfYear(new Date(year, 0, 1));
+            const yearEnd = endOfYear(new Date(year, 0, 1));
+            return isWithinInterval(billingDate, { start: yearStart, end: yearEnd });
+          } else if (financialFilter.type === 'month') {
+            const [year, month] = (financialFilter.value || '').split('-');
+            const monthStart = startOfMonth(new Date(parseInt(year), parseInt(month) - 1, 1));
+            const monthEnd = endOfMonth(new Date(parseInt(year), parseInt(month) - 1, 1));
+            return isWithinInterval(billingDate, { start: monthStart, end: monthEnd });
           }
           return true;
         }) || [];
@@ -126,11 +129,12 @@ export default function Dashboard() {
   };
 
   const totalContractValue = projects.reduce((sum, p) => sum + p.contractValue, 0);
-  const recentProjects = projects.slice(0, 3);
+  const openProjects = projects.filter(p => p.status !== 'completed');
+  const remainingContractBalance = openProjects.reduce((sum, p) => sum + p.contractValue, 0);
 
   if (loading) {
     return (
-      <Layout title="Dashboard" subtitle="Welcome back! Here's an overview of your construction projects.">
+      <Layout title="Company Dashboard">
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
         </div>
@@ -139,27 +143,10 @@ export default function Dashboard() {
   }
 
   return (
-    <Layout 
-      title="Dashboard" 
-      subtitle="Welcome back! Here's an overview of your construction projects."
-    >
+    <Layout title="Company Dashboard">
       <div className="space-y-6">
-        {/* Stats Grid - Removed total projects, active projects, and planning phase */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <StatCard
-            title="Total Contract Value"
-            value={totalContractValue > 0 ? `$${(totalContractValue / 1000000).toFixed(1)}M` : "$0"}
-            change={totalContractValue > 0 ? "+15% from last quarter" : "No contracts yet"}
-            changeType={totalContractValue > 0 ? "positive" : "neutral"}
-            icon={<DollarSign className="w-6 h-6" />}
-          />
-          <StatCard
-            title="Project Completion"
-            value={`${Math.round(projects.reduce((sum, p) => sum + p.completionPercentage, 0) / Math.max(projects.length, 1))}%`}
-            change="Across all active projects"
-            changeType="neutral"
-            icon={<TrendingUp className="w-6 h-6" />}
-          />
+        {/* Weather Widget */}
+        <div className="grid grid-cols-1 gap-6">
           <WeatherWidget />
         </div>
 
@@ -167,14 +154,44 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Financial Overview</CardTitle>
-            <DateFilter 
-              dateRange={dateRange}
-              onDateRangeChange={setDateRange}
+            <FinancialDateFilter 
+              currentFilter={financialFilter}
+              onFilterChange={setFinancialFilter}
             />
           </CardHeader>
           <CardContent>
             {billingData && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Contract Value</CardTitle>
+                    <DollarSign className="h-4 w-4 text-blue-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600">
+                      ${totalContractValue.toLocaleString()}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      All projects combined
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Remaining Contract Balance</CardTitle>
+                    <DollarSign className="h-4 w-4 text-purple-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-purple-600">
+                      ${remainingContractBalance.toLocaleString()}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Open projects only
+                    </p>
+                  </CardContent>
+                </Card>
+
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Billed</CardTitle>
@@ -185,7 +202,7 @@ export default function Dashboard() {
                       ${billingData.totalBilled.toLocaleString()}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {dateRange.from || dateRange.to ? 'Filtered period' : 'Total invoiced amount'}
+                      {financialFilter.type === 'custom' ? 'Total invoiced amount' : 'Filtered period'}
                     </p>
                   </CardContent>
                 </Card>
@@ -200,7 +217,7 @@ export default function Dashboard() {
                       ${billingData.totalReceived.toLocaleString()}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {dateRange.from || dateRange.to ? 'Filtered period' : 'Payments received'}
+                      {financialFilter.type === 'custom' ? 'Payments received' : 'Filtered period'}
                     </p>
                   </CardContent>
                 </Card>
@@ -215,7 +232,7 @@ export default function Dashboard() {
                       ${billingData.totalOutstanding.toLocaleString()}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {dateRange.from || dateRange.to ? 'Filtered period' : 'Amount pending payment'}
+                      {financialFilter.type === 'custom' ? 'Amount pending payment' : 'Filtered period'}
                     </p>
                   </CardContent>
                 </Card>
@@ -224,22 +241,22 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Projects */}
+        {/* Open Projects */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Recent Projects</CardTitle>
+            <CardTitle>Open Projects</CardTitle>
             <NewProjectDialog onProjectCreated={fetchProjects} />
           </CardHeader>
           <CardContent>
-            {recentProjects.length > 0 ? (
+            {openProjects.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {recentProjects.map((project) => (
+                {openProjects.slice(0, 6).map((project) => (
                   <ProjectCard key={project.id} project={project} />
                 ))}
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-gray-500 text-lg">No projects found. Create your first project to get started!</p>
+                <p className="text-gray-500 text-lg">No open projects found. Create your first project to get started!</p>
                 <div className="mt-4">
                   <NewProjectDialog onProjectCreated={fetchProjects} />
                 </div>
