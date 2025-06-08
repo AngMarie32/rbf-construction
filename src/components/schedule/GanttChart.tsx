@@ -152,13 +152,18 @@ export function GanttChart({
 
   const getTaskColor = (task: Task, projectColor: string) => {
     if (showCriticalPath && task.isCritical) {
-      return '#dc2626';
+      return '#dc2626'; // Red for critical path
+    }
+    // Replace teal with blue variants
+    if (projectColor === '#14b8a6' || projectColor === '#0d9488') {
+      return '#3b82f6'; // Blue instead of teal
     }
     return projectColor;
   };
 
   const handleMouseDown = useCallback((e: React.MouseEvent, taskId: string, type: 'move' | 'resize-start' | 'resize-end') => {
     e.preventDefault();
+    e.stopPropagation();
     const task = filteredTasks.find(t => t.id === taskId);
     if (!task) return;
 
@@ -209,9 +214,12 @@ export function GanttChart({
   }, [dragging, dragStart, timeData.days.length, filteredTasks, onTaskUpdate]);
 
   const handleMouseUp = useCallback(() => {
+    if (dragging) {
+      toast.success('Task updated successfully');
+    }
     setDragging(null);
     setDragStart(null);
-  }, []);
+  }, [dragging]);
 
   const handleTaskEdit = (task: Task) => {
     setEditingTask(task.id);
@@ -585,8 +593,8 @@ export function GanttChart({
       </div>
 
       {/* Task Rows */}
-      <ScrollArea className={containerHeight}>
-        <div className="relative"
+      <div className={containerHeight}>
+        <div className="relative h-full overflow-auto"
              onMouseMove={handleMouseMove}
              onMouseUp={handleMouseUp}
              onMouseLeave={handleMouseUp}>
@@ -620,7 +628,7 @@ export function GanttChart({
                           {timeData.days.map((day, index) => (
                             <div 
                               key={index} 
-                              className={`border-r border-border flex-shrink-0 h-16 ${isWeekend(day) ? 'bg-muted/30' : ''}`}
+                              className={`border-r border-border flex-shrink-0 ${isWeekend(day) ? 'bg-muted/30' : ''}`}
                               style={{ width: '40px' }}
                             />
                           ))}
@@ -734,23 +742,35 @@ export function GanttChart({
                                 ))}
                               </div>
                               
-                              {/* Task bar */}
+                              {/* Task bar with drag handles */}
                               <div 
-                                className="absolute top-2 h-10 rounded-lg shadow-sm border border-background hover:shadow-md transition-all duration-200 flex items-center justify-between px-3 cursor-pointer"
+                                className="absolute top-2 h-10 rounded-lg shadow-sm border border-background hover:shadow-md transition-all duration-200 flex items-center justify-between px-3 cursor-move select-none"
                                 style={{ 
                                   left: position.left,
                                   width: position.width,
                                   backgroundColor: taskColor,
                                   minWidth: '80px'
                                 }}
-                                onClick={() => handleTaskClick(task)}
+                                onMouseDown={(e) => handleMouseDown(e, task.id, 'move')}
                               >
-                                <span className="text-primary-foreground text-xs font-medium truncate flex-1 text-center">
+                                {/* Left resize handle */}
+                                <div
+                                  className="absolute left-0 top-0 h-full w-2 cursor-w-resize hover:bg-white/20 transition-colors"
+                                  onMouseDown={(e) => handleMouseDown(e, task.id, 'resize-start')}
+                                />
+                                
+                                <span className="text-primary-foreground text-xs font-medium truncate flex-1 text-center pointer-events-none">
                                   {task.title}
                                 </span>
-                                <span className="text-primary-foreground/90 text-xs font-medium">
+                                <span className="text-primary-foreground/90 text-xs font-medium pointer-events-none">
                                   {task.progress}%
                                 </span>
+                                
+                                {/* Right resize handle */}
+                                <div
+                                  className="absolute right-0 top-0 h-full w-2 cursor-e-resize hover:bg-white/20 transition-colors"
+                                  onMouseDown={(e) => handleMouseDown(e, task.id, 'resize-end')}
+                                />
                               </div>
                               
                               {/* Progress overlay */}
@@ -773,7 +793,7 @@ export function GanttChart({
               );
             })}
         </div>
-      </ScrollArea>
+      </div>
 
       {filteredTasks.length === 0 && (
         <div className="p-8 text-center text-muted-foreground">
