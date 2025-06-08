@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -129,7 +130,7 @@ export default function Dashboard() {
   };
 
   const totalContractValue = projects.reduce((sum, p) => sum + p.contractValue, 0);
-  const openProjects = projects.filter(p => p.status !== 'completed');
+  const openProjects = projects.filter(p => p.status !== 'Closed');
   const remainingContractBalance = openProjects.reduce((sum, p) => sum + p.contractValue, 0);
 
   if (loading) {
