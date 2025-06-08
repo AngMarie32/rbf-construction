@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -325,6 +324,16 @@ export default function BurnRateAnalysis() {
     }
   };
 
+  const getSelectedProjectNames = () => {
+    const selectedProjectsData = projects.filter(p => selectedProjects.includes(p.id));
+    if (selectedProjectsData.length === 0) return 'No projects selected';
+    if (selectedProjectsData.length === 1) return selectedProjectsData[0].name;
+    if (selectedProjectsData.length <= 3) {
+      return selectedProjectsData.map(p => p.name).join(', ');
+    }
+    return `${selectedProjectsData.slice(0, 2).map(p => p.name).join(', ')} and ${selectedProjectsData.length - 2} others`;
+  };
+
   const filteredCategoryBreakdown = categoryBreakdown.filter(cat => 
     costCategories === 'All' || cat.category === costCategories
   ).filter(cat =>
@@ -342,8 +351,22 @@ export default function BurnRateAnalysis() {
   }
 
   return (
-    <Layout title="Burn Analysis" subtitle="Monitor project spending and budget performance">
+    <Layout title="Burn Analysis">
       <div id="burn-analysis-content" className="space-y-6">
+        {/* Project Selection Header */}
+        {selectedProjects.length > 0 && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-gray-900">Analyzing: {getSelectedProjectNames()}</h3>
+                <p className="text-sm text-gray-600">
+                  {selectedProjects.length} project{selectedProjects.length > 1 ? 's' : ''} selected
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Filters */}
         <Card>
           <CardContent className="pt-6">

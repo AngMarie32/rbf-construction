@@ -8,7 +8,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 interface NewEquipmentDialogProps {
   onEquipmentCreated: () => void;
@@ -26,12 +25,12 @@ export function NewEquipmentDialog({ onEquipmentCreated, trigger }: NewEquipment
     value: '',
     status: 'Available' as 'Available' | 'In Use' | 'Maintenance',
     description: '',
+    image: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.hourlyRate) {
-      toast.error('Please fill in all required fields');
+    if (!formData.name) {
       return;
     }
 
@@ -42,16 +41,16 @@ export function NewEquipmentDialog({ onEquipmentCreated, trigger }: NewEquipment
         .insert({
           name: formData.name,
           category: formData.category,
-          hourly_rate: parseFloat(formData.hourlyRate),
+          hourly_rate: formData.hourlyRate ? parseFloat(formData.hourlyRate) : 0,
           year: formData.year ? parseInt(formData.year) : null,
           value: formData.value ? parseFloat(formData.value) : null,
           status: formData.status,
           description: formData.description,
+          image: formData.image || null,
         });
 
       if (error) throw error;
 
-      toast.success('Equipment added successfully');
       setOpen(false);
       setFormData({
         name: '',
@@ -61,11 +60,11 @@ export function NewEquipmentDialog({ onEquipmentCreated, trigger }: NewEquipment
         value: '',
         status: 'Available',
         description: '',
+        image: '',
       });
       onEquipmentCreated();
     } catch (error) {
       console.error('Error creating equipment:', error);
-      toast.error('Failed to add equipment');
     } finally {
       setLoading(false);
     }
@@ -118,7 +117,7 @@ export function NewEquipmentDialog({ onEquipmentCreated, trigger }: NewEquipment
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="hourlyRate">Hourly Rate ($) *</Label>
+              <Label htmlFor="hourlyRate">Hourly Rate ($)</Label>
               <Input
                 id="hourlyRate"
                 type="number"
@@ -126,7 +125,6 @@ export function NewEquipmentDialog({ onEquipmentCreated, trigger }: NewEquipment
                 onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
                 placeholder="0.00"
                 step="0.01"
-                required
               />
             </div>
 
@@ -166,6 +164,16 @@ export function NewEquipmentDialog({ onEquipmentCreated, trigger }: NewEquipment
                 <SelectItem value="Maintenance">Maintenance</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="image">Image URL</Label>
+            <Input
+              id="image"
+              value={formData.image}
+              onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+              placeholder="https://example.com/image.jpg"
+            />
           </div>
 
           <div className="space-y-2">

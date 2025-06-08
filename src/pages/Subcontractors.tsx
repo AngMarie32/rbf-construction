@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,9 +11,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Plus, Edit, Trash2, Phone, Mail, MoreHorizontal, Grid3X3, List, Search, Filter, Eye, Calendar, ArrowUpDown } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, Edit, Trash2, Phone, Mail, MoreHorizontal, Grid3X3, List, Search, Filter, Calendar, ArrowUpDown, CheckCircle, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 interface Subcontractor {
@@ -26,17 +27,11 @@ interface Subcontractor {
   state?: string;
   zipCode?: string;
   specialties?: string[];
-  status: 'Active' | 'Inactive' | 'Blacklisted';
   travelRadius?: number;
   insuranceExpiry?: Date;
   notes?: string;
+  w9OnFile?: boolean;
 }
-
-const STATUS_OPTIONS = [
-  { value: 'Active', label: 'Active', color: 'bg-green-500' },
-  { value: 'Inactive', label: 'Inactive', color: 'bg-gray-500' },
-  { value: 'Blacklisted', label: 'Blacklisted', color: 'bg-red-500' }
-];
 
 const SPECIALTY_OPTIONS = [
   'Electrical',
@@ -63,7 +58,6 @@ export default function Subcontractors() {
   const [editingSubcontractor, setEditingSubcontractor] = useState<Subcontractor | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [sortField, setSortField] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -73,14 +67,14 @@ export default function Subcontractors() {
     email: '',
     phone: '',
     specialty: '',
-    status: 'Active' as 'Active' | 'Inactive' | 'Blacklisted',
     travelRadius: '',
     insuranceExpiry: '',
     address: '',
     city: '',
     state: '',
     zipCode: '',
-    notes: ''
+    notes: '',
+    w9OnFile: false
   });
 
   useEffect(() => {
@@ -108,16 +102,15 @@ export default function Subcontractors() {
         state: sub.state,
         zipCode: sub.zip_code,
         specialties: sub.specialties || [],
-        status: sub.status as Subcontractor['status'],
         travelRadius: sub.travel_radius,
         insuranceExpiry: sub.insurance_expiry ? new Date(sub.insurance_expiry) : undefined,
-        notes: sub.notes
+        notes: sub.notes,
+        w9OnFile: sub.w9_on_file || false
       }));
 
       setSubcontractors(mappedSubcontractors);
     } catch (error) {
       console.error('Error fetching subcontractors:', error);
-      toast.error('Failed to load subcontractors');
     } finally {
       setLoading(false);
     }
@@ -125,7 +118,6 @@ export default function Subcontractors() {
 
   const saveSubcontractor = async () => {
     if (!newSubcontractor.company || !newSubcontractor.name) {
-      toast.error('Please enter company name and contact person');
       return;
     }
 
@@ -140,10 +132,10 @@ export default function Subcontractors() {
         state: newSubcontractor.state || null,
         zip_code: newSubcontractor.zipCode || null,
         specialties: newSubcontractor.specialty ? [newSubcontractor.specialty] : null,
-        status: newSubcontractor.status,
         travel_radius: newSubcontractor.travelRadius ? parseInt(newSubcontractor.travelRadius) : null,
         insurance_expiry: newSubcontractor.insuranceExpiry || null,
-        notes: newSubcontractor.notes || null
+        notes: newSubcontractor.notes || null,
+        w9_on_file: newSubcontractor.w9OnFile
       };
 
       if (editingSubcontractor) {
@@ -153,14 +145,12 @@ export default function Subcontractors() {
           .eq('id', editingSubcontractor.id);
 
         if (error) throw error;
-        toast.success('Subcontractor updated successfully');
       } else {
         const { error } = await supabase
           .from('subcontractors')
           .insert(subcontractorData);
 
         if (error) throw error;
-        toast.success('Subcontractor created successfully');
       }
 
       setDialogOpen(false);
@@ -169,7 +159,6 @@ export default function Subcontractors() {
       fetchSubcontractors();
     } catch (error) {
       console.error('Error saving subcontractor:', error);
-      toast.error('Failed to save subcontractor');
     }
   };
 
@@ -183,11 +172,9 @@ export default function Subcontractors() {
         .eq('id', id);
 
       if (error) throw error;
-      toast.success('Subcontractor deleted successfully');
       fetchSubcontractors();
     } catch (error) {
       console.error('Error deleting subcontractor:', error);
-      toast.error('Failed to delete subcontractor');
     }
   };
 
@@ -199,14 +186,14 @@ export default function Subcontractors() {
       email: subcontractor.email || '',
       phone: subcontractor.phone || '',
       specialty: (subcontractor.specialties && subcontractor.specialties[0]) || '',
-      status: subcontractor.status,
       travelRadius: subcontractor.travelRadius?.toString() || '',
       insuranceExpiry: subcontractor.insuranceExpiry?.toISOString().split('T')[0] || '',
       address: subcontractor.address || '',
       city: subcontractor.city || '',
       state: subcontractor.state || '',
       zipCode: subcontractor.zipCode || '',
-      notes: subcontractor.notes || ''
+      notes: subcontractor.notes || '',
+      w9OnFile: subcontractor.w9OnFile || false
     });
     setDialogOpen(true);
   };
@@ -218,19 +205,15 @@ export default function Subcontractors() {
       email: '',
       phone: '',
       specialty: '',
-      status: 'Active',
       travelRadius: '',
       insuranceExpiry: '',
       address: '',
       city: '',
       state: '',
       zipCode: '',
-      notes: ''
+      notes: '',
+      w9OnFile: false
     });
-  };
-
-  const getStatusColor = (status: string) => {
-    return STATUS_OPTIONS.find(s => s.value === status)?.color || 'bg-gray-500';
   };
 
   const getInsuranceStatus = (expiryDate?: Date) => {
@@ -258,8 +241,7 @@ export default function Subcontractors() {
     const matchesSearch = sub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          sub.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          sub.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'All Statuses' || sub.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   // Apply sorting
@@ -280,10 +262,6 @@ export default function Subcontractors() {
         case 'specialty':
           aValue = (a.specialties && a.specialties[0]) || '';
           bValue = (b.specialties && b.specialties[0]) || '';
-          break;
-        case 'status':
-          aValue = a.status;
-          bValue = b.status;
           break;
         case 'insurance':
           aValue = a.insuranceExpiry ? a.insuranceExpiry.getTime() : 0;
@@ -318,11 +296,10 @@ export default function Subcontractors() {
   };
 
   return (
-    <Layout title="Subcontractors" subtitle="Manage and track subcontractor information">
+    <Layout title="Subcontractors">
       <div className="space-y-6">
         {/* Header with Add Button */}
         <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold">Subcontractor Directory</h2>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => {
@@ -336,7 +313,6 @@ export default function Subcontractors() {
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingSubcontractor ? 'Edit Subcontractor' : 'Add New Subcontractor'}</DialogTitle>
-                <p className="text-sm text-gray-600">Enter the subcontractor details. Required fields are marked with an asterisk.</p>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -361,7 +337,7 @@ export default function Subcontractors() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="email">Email Address *</Label>
+                    <Label htmlFor="email">Email Address</Label>
                     <Input
                       id="email"
                       type="email"
@@ -371,7 +347,7 @@ export default function Subcontractors() {
                   </div>
 
                   <div>
-                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Label htmlFor="phone">Phone Number</Label>
                     <Input
                       id="phone"
                       value={newSubcontractor.phone}
@@ -382,7 +358,7 @@ export default function Subcontractors() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="specialty">Specialty *</Label>
+                    <Label htmlFor="specialty">Specialty</Label>
                     <Select value={newSubcontractor.specialty} onValueChange={(value) => setNewSubcontractor({ ...newSubcontractor, specialty: value })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a specialty" />
@@ -398,24 +374,6 @@ export default function Subcontractors() {
                   </div>
 
                   <div>
-                    <Label htmlFor="status">Status</Label>
-                    <Select value={newSubcontractor.status} onValueChange={(value: 'Active' | 'Inactive' | 'Blacklisted') => setNewSubcontractor({ ...newSubcontractor, status: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STATUS_OPTIONS.map((status) => (
-                          <SelectItem key={status.value} value={status.value}>
-                            {status.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
                     <Label htmlFor="travelRadius">Travel Radius (miles)</Label>
                     <Input
                       id="travelRadius"
@@ -423,9 +381,10 @@ export default function Subcontractors() {
                       value={newSubcontractor.travelRadius}
                       onChange={(e) => setNewSubcontractor({ ...newSubcontractor, travelRadius: e.target.value })}
                     />
-                    <p className="text-xs text-gray-500 mt-1">Maximum travel distance from base location</p>
                   </div>
+                </div>
 
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="insuranceExpiry">Insurance Expiry Date</Label>
                     <Input
@@ -434,6 +393,18 @@ export default function Subcontractors() {
                       value={newSubcontractor.insuranceExpiry}
                       onChange={(e) => setNewSubcontractor({ ...newSubcontractor, insuranceExpiry: e.target.value })}
                     />
+                  </div>
+
+                  <div className="flex items-center space-x-2 pt-6">
+                    <Checkbox
+                      id="w9OnFile"
+                      checked={newSubcontractor.w9OnFile}
+                      onCheckedChange={(checked) => setNewSubcontractor({ ...newSubcontractor, w9OnFile: checked as boolean })}
+                    />
+                    <Label htmlFor="w9OnFile" className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      W-9 on File
+                    </Label>
                   </div>
                 </div>
 
@@ -534,21 +505,6 @@ export default function Subcontractors() {
                 className="pl-10 w-80 pr-4 py-2"
               />
             </div>
-
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All Statuses">All Statuses</SelectItem>
-                {STATUS_OPTIONS.map((status) => (
-                  <SelectItem key={status.value} value={status.value}>
-                    {status.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </div>
 
@@ -592,17 +548,6 @@ export default function Subcontractors() {
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => handleSort('status')}
-                        className="font-semibold"
-                      >
-                        Status
-                        <ArrowUpDown className="w-3 h-3 ml-1" />
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
                         onClick={() => handleSort('travelRadius')}
                         className="font-semibold"
                       >
@@ -621,6 +566,7 @@ export default function Subcontractors() {
                         <ArrowUpDown className="w-3 h-3 ml-1" />
                       </Button>
                     </TableHead>
+                    <TableHead>W-9 Status</TableHead>
                     <TableHead className="w-20">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -653,11 +599,6 @@ export default function Subcontractors() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={cn("text-white", getStatusColor(subcontractor.status))}>
-                          {subcontractor.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
                         {subcontractor.travelRadius ? `${subcontractor.travelRadius} miles` : 'Not set'}
                       </TableCell>
                       <TableCell>
@@ -671,6 +612,19 @@ export default function Subcontractors() {
                         )}
                       </TableCell>
                       <TableCell>
+                        {subcontractor.w9OnFile ? (
+                          <div className="flex items-center text-green-600">
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            <span className="text-sm">On File</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center text-red-600">
+                            <FileText className="w-4 h-4 mr-1" />
+                            <span className="text-sm">Missing</span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm">
@@ -678,10 +632,6 @@ export default function Subcontractors() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Eye className="w-4 h-4 mr-2" />
-                              View
-                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => editSubcontractor(subcontractor)}>
                               <Edit className="w-4 h-4 mr-2" />
                               Edit
@@ -710,9 +660,11 @@ export default function Subcontractors() {
                           <CardTitle className="text-lg">{subcontractor.company}</CardTitle>
                           <p className="text-sm text-gray-600">{(subcontractor.specialties && subcontractor.specialties[0]) || 'N/A'}</p>
                         </div>
-                        <Badge className={cn("text-white text-xs", getStatusColor(subcontractor.status))}>
-                          {subcontractor.status}
-                        </Badge>
+                        {subcontractor.w9OnFile ? (
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                        ) : (
+                          <FileText className="w-5 h-5 text-red-600" />
+                        )}
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -733,9 +685,6 @@ export default function Subcontractors() {
                       )}
 
                       <div className="flex justify-end space-x-2">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="w-4 h-4" />
-                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => editSubcontractor(subcontractor)}>
                           <Edit className="w-4 h-4" />
                         </Button>
