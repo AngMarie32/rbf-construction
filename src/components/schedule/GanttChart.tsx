@@ -1,7 +1,6 @@
-
 import { useMemo, useState, useCallback, useRef } from 'react';
 import { format, differenceInDays, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek, isSameDay, isWeekend, addDays, isAfter, isBefore } from 'date-fns';
-import { AlertTriangle, Calendar, Link2, Target, Edit2, Save, X, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, Calendar, Link2, Target, Edit2, Save, X, Download, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -36,23 +35,37 @@ interface GanttChartProps {
   projects: Project[];
   selectedProjects: string[];
   onTaskUpdate: (taskId: string, updates: Partial<Task>) => void;
+  onTaskDelete?: (taskId: string) => void;
   dateRange: { from: Date; to: Date };
   showDependencies?: boolean;
   showCriticalPath?: boolean;
   showMilestones?: boolean;
   projectData?: Project;
+  compactMode?: boolean;
 }
+
+// Helper function to get current date in Eastern Time
+const getCurrentDateEST = () => {
+  const now = new Date();
+  // Convert to Eastern Time (UTC-5 or UTC-4 depending on daylight saving)
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const est = new Date(utc + (-5 * 3600000)); // EST is UTC-5
+  est.setHours(0, 0, 0, 0); // Reset to start of day
+  return est;
+};
 
 export function GanttChart({ 
   tasks, 
   projects, 
   selectedProjects, 
   onTaskUpdate, 
+  onTaskDelete,
   dateRange,
   showDependencies = false,
   showCriticalPath = false,
   showMilestones = false,
-  projectData
+  projectData,
+  compactMode = false
 }: GanttChartProps) {
   const [editingTask, setEditingTask] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{ title: string; progress: number }>({ title: '', progress: 0 });
@@ -89,14 +102,13 @@ export function GanttChart({
   };
 
   const getTaskStatus = (task: Task) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+    const today = getCurrentDateEST();
     
     const taskStart = new Date(task.startDate);
     taskStart.setHours(0, 0, 0, 0);
     
     const taskEnd = new Date(task.endDate);
-    taskEnd.setHours(23, 59, 59, 999); // End of day
+    taskEnd.setHours(23, 59, 59, 999);
     
     // If manually set to 100%, always completed
     if (task.progress === 100) return 'Completed';
@@ -109,25 +121,33 @@ export function GanttChart({
     
     // Check if task is currently active
     if (!isBefore(today, taskStart) && !isAfter(today, taskEnd)) {
-      // Calculate expected progress based on time elapsed
-      const totalDuration = differenceInDays(taskEnd, taskStart) + 1;
-      const daysElapsed = differenceInDays(today, taskStart) + 1;
-      const expectedProgress = Math.min(100, (daysElapsed / totalDuration) * 100);
-      
-      // Auto-update progress if task is in progress and no manual progress set
-      if (task.progress === 0 || task.status === 'Not Started') {
-        const calculatedProgress = Math.floor(expectedProgress);
-        onTaskUpdate(task.id, { 
-          progress: calculatedProgress,
-          status: 'In Progress'
-        });
-        return 'In Progress';
-      }
-      
       return 'In Progress';
     }
     
     return task.status || 'Not Started';
+  };
+
+  const calculateExpectedProgress = (task: Task) => {
+    const today = getCurrentDateEST();
+    
+    const taskStart = new Date(task.startDate);
+    taskStart.setHours(0, 0, 0, 0);
+    
+    const taskEnd = new Date(task.endDate);
+    taskEnd.setHours(23, 59, 59, 999);
+    
+    // If task hasn't started, return 0
+    if (isBefore(today, taskStart)) return 0;
+    
+    // If task is complete or overdue, don't auto-calculate
+    if (task.progress === 100 || isAfter(today, taskEnd)) return task.progress;
+    
+    // Calculate expected progress based on days elapsed
+    const totalDuration = differenceInDays(taskEnd, taskStart) + 1;
+    const daysElapsed = differenceInDays(today, taskStart) + 1;
+    const expectedProgress = Math.min(100, Math.max(0, (daysElapsed / totalDuration) * 100));
+    
+    return Math.floor(expectedProgress);
   };
 
   const getTaskColor = (task: Task, projectColor: string) => {
@@ -208,6 +228,25 @@ export function GanttChart({
     setEditValues({ title: '', progress: 0 });
   };
 
+  const handleDeleteTask = (taskId: string) => {
+    if (onTaskDelete) {
+      onTaskDelete(taskId);
+    }
+  };
+
+  const handleTaskClick = (task: Task) => {
+    const expectedProgress = calculateExpectedProgress(task);
+    const newStatus = getTaskStatus({ ...task, progress: expectedProgress });
+    
+    // Only update if there's a meaningful change
+    if (expectedProgress !== task.progress || newStatus !== task.status) {
+      onTaskUpdate(task.id, { 
+        progress: expectedProgress,
+        status: newStatus
+      });
+    }
+  };
+
   const scrollTimeline = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
       const scrollAmount = 300;
@@ -227,125 +266,121 @@ export function GanttChart({
     try {
       const pdf = new jsPDF('l', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
       
-      // Title
-      pdf.setFontSize(18);
+      // Title and Header
+      pdf.setFontSize(16);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(projectData?.name || 'Project Schedule', 20, 20);
+      pdf.text('PROJECT SCHEDULE REPORT', 20, 20);
       
-      let yOffset = 35;
+      let yOffset = 30;
       
-      // Project info
-      if (projectData?.client) {
-        pdf.setFontSize(11);
-        pdf.setFont('helvetica', 'normal');
-        pdf.text(`Client: ${projectData.client}`, 20, yOffset);
-        yOffset += 6;
-      }
-      
-      pdf.text(`Date Range: ${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}`, 20, yOffset);
-      yOffset += 12;
-
-      // Summary stats
-      const totalTasks = filteredTasks.length;
-      const completedTasks = filteredTasks.filter(t => getTaskStatus(t) === 'Completed').length;
-      const inProgressTasks = filteredTasks.filter(t => getTaskStatus(t) === 'In Progress').length;
-      const overdueTasks = filteredTasks.filter(t => getTaskStatus(t) === 'Overdue').length;
-      
+      // Project Information Section
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('Summary', 20, yOffset);
+      pdf.text('PROJECT INFORMATION', 20, yOffset);
       yOffset += 8;
       
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(`Total: ${totalTasks} | Completed: ${completedTasks} | In Progress: ${inProgressTasks} | Overdue: ${overdueTasks}`, 20, yOffset);
-      yOffset += 15;
+      
+      if (selectedProjects.length > 0) {
+        const selectedProjectNames = projects
+          .filter(p => selectedProjects.includes(p.id))
+          .map(p => p.name)
+          .join(', ');
+        pdf.text(`Projects: ${selectedProjectNames}`, 20, yOffset);
+      } else {
+        pdf.text('Projects: All Projects', 20, yOffset);
+      }
+      yOffset += 6;
+      
+      if (projectData?.client) {
+        pdf.text(`Client: ${projectData.client}`, 20, yOffset);
+        yOffset += 6;
+      }
+      
+      pdf.text(`Report Date: ${format(new Date(), 'MMM dd, yyyy')}`, 20, yOffset);
+      yOffset += 6;
+      pdf.text(`Schedule Period: ${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}`, 20, yOffset);
+      yOffset += 12;
 
-      // Enhanced Visual Timeline
+      // Summary Statistics
+      const totalTasks = filteredTasks.length;
+      const completedTasks = filteredTasks.filter(t => getTaskStatus(t) === 'Completed').length;
+      const inProgressTasks = filteredTasks.filter(t => getTaskStatus(t) === 'In Progress').length;
+      const overdueTasks = filteredTasks.filter(t => getTaskStatus(t) === 'Overdue').length;
+      const notStartedTasks = filteredTasks.filter(t => getTaskStatus(t) === 'Not Started').length;
+      
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('Timeline View', 20, yOffset);
-      yOffset += 10;
+      pdf.text('SUMMARY', 20, yOffset);
+      yOffset += 8;
+      
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Total Tasks: ${totalTasks}`, 20, yOffset);
+      pdf.text(`Completed: ${completedTasks}`, 70, yOffset);
+      pdf.text(`In Progress: ${inProgressTasks}`, 120, yOffset);
+      pdf.text(`Overdue: ${overdueTasks}`, 170, yOffset);
+      pdf.text(`Not Started: ${notStartedTasks}`, 220, yOffset);
+      yOffset += 15;
 
-      // Timeline header
-      const timelineStartX = 20;
-      const timelineWidth = pageWidth - 40;
-      const taskNameWidth = 80;
-      const chartStartX = timelineStartX + taskNameWidth;
-      const chartWidth = timelineWidth - taskNameWidth;
-      
-      // Draw timeline header
-      pdf.setFontSize(8);
+      // Task List Section
+      pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
-      
-      // Week markers
-      const totalDays = timeData.days.length;
-      timeData.weeks.forEach((week, index) => {
-        const weekStart = startOfWeek(week);
-        const weekDays = eachDayOfInterval({ start: weekStart, end: endOfWeek(week) })
-          .filter(day => day >= dateRange.from && day <= dateRange.to);
-        
-        if (weekDays.length > 0) {
-          const weekStartDay = differenceInDays(weekDays[0], dateRange.from);
-          const weekX = chartStartX + (weekStartDay / totalDays) * chartWidth;
-          
-          pdf.text(format(weekStart, 'MMM dd'), weekX, yOffset);
-          
-          // Draw week separator line
-          pdf.setDrawColor(200, 200, 200);
-          pdf.line(weekX, yOffset + 2, weekX, yOffset + (filteredTasks.length * 8) + 10);
-        }
-      });
-      
+      pdf.text('TASK DETAILS', 20, yOffset);
       yOffset += 8;
 
-      // Draw tasks
-      filteredTasks.forEach((task, index) => {
-        const taskY = yOffset + (index * 8);
+      // Table headers
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Task Name', 20, yOffset);
+      pdf.text('Start Date', 100, yOffset);
+      pdf.text('End Date', 140, yOffset);
+      pdf.text('Progress', 180, yOffset);
+      pdf.text('Status', 220, yOffset);
+      yOffset += 6;
+      
+      // Draw header line
+      pdf.setDrawColor(0, 0, 0);
+      pdf.line(20, yOffset, pageWidth - 20, yOffset);
+      yOffset += 4;
+
+      // Task rows
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      
+      filteredTasks.forEach((task) => {
+        if (yOffset > 180) { // Start new page if needed
+          pdf.addPage();
+          yOffset = 20;
+        }
+        
         const taskStatus = getTaskStatus(task);
+        const project = projects.find(p => p.id === task.projectId);
         
-        // Task name
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(8);
-        const taskName = task.title.length > 25 ? task.title.substring(0, 22) + '...' : task.title;
-        pdf.text(taskName, timelineStartX, taskY);
+        // Truncate long task names
+        const taskName = task.title.length > 35 ? task.title.substring(0, 32) + '...' : task.title;
         
-        // Task bar
-        const taskStartDay = Math.max(0, differenceInDays(task.startDate, dateRange.from));
-        const taskBarStartX = chartStartX + (taskStartDay / totalDays) * chartWidth;
-        const taskBarWidth = Math.max(3, (task.duration / totalDays) * chartWidth);
+        pdf.text(taskName, 20, yOffset);
+        pdf.text(format(task.startDate, 'MM/dd/yyyy'), 100, yOffset);
+        pdf.text(format(task.endDate, 'MM/dd/yyyy'), 140, yOffset);
+        pdf.text(`${task.progress}%`, 180, yOffset);
+        pdf.text(taskStatus, 220, yOffset);
         
-        // Set color based on status
-        if (taskStatus === 'Completed') {
-          pdf.setFillColor(34, 197, 94); // Green
-        } else if (taskStatus === 'In Progress') {
-          pdf.setFillColor(59, 130, 246); // Blue
-        } else if (taskStatus === 'Overdue') {
-          pdf.setFillColor(239, 68, 68); // Red
-        } else {
-          pdf.setFillColor(156, 163, 175); // Gray
+        // Add project name in smaller text
+        if (project) {
+          pdf.setFontSize(7);
+          pdf.setTextColor(100, 100, 100);
+          pdf.text(`[${project.name}]`, 20, yOffset + 3);
+          pdf.setTextColor(0, 0, 0);
+          pdf.setFontSize(8);
         }
         
-        // Draw task bar
-        pdf.rect(taskBarStartX, taskY - 3, taskBarWidth, 5, 'F');
-        
-        // Progress overlay
-        if (task.progress > 0 && task.progress < 100) {
-          pdf.setFillColor(34, 197, 94); // Green progress
-          pdf.rect(taskBarStartX, taskY - 3, (taskBarWidth * task.progress) / 100, 5, 'F');
-        }
-        
-        // Progress percentage
-        pdf.setFontSize(7);
-        pdf.setTextColor(100, 100, 100);
-        pdf.text(`${task.progress}%`, taskBarStartX + taskBarWidth + 2, taskY);
-        pdf.setTextColor(0, 0, 0);
+        yOffset += 8;
       });
       
-      pdf.save(`${projectData?.name || 'project'}-schedule-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-      toast.success('PDF exported successfully');
+      pdf.save(`project-schedule-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
     } catch (error) {
       console.error('Error exporting PDF:', error);
       toast.error('Failed to export PDF');
@@ -407,36 +442,34 @@ export function GanttChart({
     });
   };
 
+  const containerHeight = compactMode ? 'h-[300px]' : 'h-[500px]';
+
   return (
-    <div className="bg-background rounded-lg border relative overflow-hidden" id="gantt-chart-export">
+    <div className={`bg-background rounded-lg border relative overflow-hidden ${compactMode ? 'max-h-[400px]' : ''}`} id="gantt-chart-export">
       {/* Header */}
       <div className="p-4 border-b bg-gradient-to-r from-muted/50 to-muted/30">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Calendar className="w-5 h-5 text-primary" />
-              Project Timeline
+              {compactMode ? 'Schedule Overview' : 'Project Timeline'}
             </h3>
-            <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
-              {showCriticalPath && (
-                <div className="flex items-center gap-1">
-                  <AlertTriangle className="w-4 h-4 text-destructive" />
-                  Critical path highlighted in red
-                </div>
-              )}
-              {showDependencies && (
-                <div className="flex items-center gap-1">
-                  <Link2 className="w-4 h-4 text-purple-500" />
-                  Dependencies shown with purple arrows
-                </div>
-              )}
-              {showMilestones && (
-                <div className="flex items-center gap-1">
-                  <Target className="w-4 h-4 text-yellow-500" />
-                  Milestones marked with diamonds
-                </div>
-              )}
-            </div>
+            {!compactMode && (
+              <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
+                {showCriticalPath && (
+                  <div className="flex items-center gap-1">
+                    <AlertTriangle className="w-4 h-4 text-destructive" />
+                    Critical path highlighted in red
+                  </div>
+                )}
+                {showDependencies && (
+                  <div className="flex items-center gap-1">
+                    <Link2 className="w-4 h-4 text-purple-500" />
+                    Dependencies shown with purple arrows
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 border rounded-md">
@@ -457,17 +490,19 @@ export function GanttChart({
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
-            <Button variant="outline" size="sm" onClick={exportToPDF}>
-              <Download className="w-4 h-4 mr-2" />
-              Export PDF
-            </Button>
+            {!compactMode && (
+              <Button variant="outline" size="sm" onClick={exportToPDF}>
+                <Download className="w-4 h-4 mr-2" />
+                Export PDF
+              </Button>
+            )}
             <Badge variant="outline" className="text-xs">
               {format(dateRange.from, 'MMM dd')} - {format(dateRange.to, 'MMM dd, yyyy')}
             </Badge>
           </div>
         </div>
       </div>
-
+      
       {/* SVG for dependency lines */}
       {showDependencies && (
         <svg 
@@ -486,7 +521,8 @@ export function GanttChart({
           <div className="flex-1 overflow-hidden">
             <div 
               ref={scrollContainerRef}
-              className="overflow-x-auto scrollbar-thin scrollbar-track-gray-100 scrollbar-thumb-gray-400"
+              className="overflow-x-auto"
+              style={{ scrollbarWidth: 'thin' }}
             >
               <div className="flex min-w-max">
                 {timeData.weeks.map((week, index) => {
@@ -515,17 +551,17 @@ export function GanttChart({
         {/* Day Headers */}
         <div className="flex">
           <div className="w-80 p-2 border-r text-xs text-muted-foreground bg-background sticky left-0 z-30">
-            Use scroll or arrows to navigate timeline
+            Click tasks to update progress
           </div>
           <div className="flex-1 overflow-hidden">
-            <div className="overflow-x-auto scrollbar-thin scrollbar-track-gray-100 scrollbar-thumb-gray-400">
+            <div className="overflow-x-auto">
               <div 
                 ref={timelineRef}
                 className="flex min-w-max"
               >
                 {timeData.days.map((day, index) => {
                   const isWeekendDay = isWeekend(day);
-                  const isToday = isSameDay(day, new Date());
+                  const isToday = isSameDay(day, getCurrentDateEST());
                   
                   return (
                     <div 
@@ -549,7 +585,7 @@ export function GanttChart({
       </div>
 
       {/* Task Rows */}
-      <ScrollArea className="h-[400px]">
+      <ScrollArea className={containerHeight}>
         <div className="relative"
              onMouseMove={handleMouseMove}
              onMouseUp={handleMouseUp}
@@ -579,7 +615,7 @@ export function GanttChart({
                       </div>
                     </div>
                     <div className="flex-1 relative overflow-hidden">
-                      <div className="overflow-x-auto scrollbar-thin scrollbar-track-gray-100 scrollbar-thumb-gray-400">
+                      <div className="overflow-x-auto">
                         <div className="flex min-w-max">
                           {timeData.days.map((day, index) => (
                             <div 
@@ -625,8 +661,17 @@ export function GanttChart({
                                 <Input
                                   value={editValues.title}
                                   onChange={(e) => setEditValues(prev => ({ ...prev, title: e.target.value }))}
-                                  className="h-6 text-sm"
+                                  className="h-6 text-sm flex-1"
                                   autoFocus
+                                />
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={editValues.progress}
+                                  onChange={(e) => setEditValues(prev => ({ ...prev, progress: parseInt(e.target.value) || 0 }))}
+                                  className="h-6 text-sm w-16"
+                                  placeholder="%"
                                 />
                                 <Button size="sm" variant="ghost" onClick={() => handleSaveEdit(task.id)} className="h-6 w-6 p-0">
                                   <Save className="w-3 h-3" />
@@ -638,14 +683,26 @@ export function GanttChart({
                             ) : (
                               <div className="flex-1 flex items-center justify-between">
                                 <span className="font-medium text-sm">{task.title}</span>
-                                <Button 
-                                  size="sm" 
-                                  variant="ghost" 
-                                  onClick={() => handleTaskEdit(task)}
-                                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                  <Edit2 className="w-3 h-3" />
-                                </Button>
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    onClick={() => handleTaskEdit(task)}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </Button>
+                                  {onTaskDelete && (
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      onClick={() => handleDeleteTask(task.id)}
+                                      className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -660,20 +717,11 @@ export function GanttChart({
                                 {taskStatus}
                               </Badge>
                             </div>
-                            
-                            {showDependencies && hasDependencies && (
-                              <div className="flex items-center gap-1">
-                                <Link2 className="w-3 h-3 text-purple-500" />
-                                <span className="text-xs text-purple-600">
-                                  {task.dependencies.length} dependencies
-                                </span>
-                              </div>
-                            )}
                           </div>
                         </div>
                         
                         <div className="flex-1 relative h-16 group overflow-hidden">
-                          <div className="overflow-x-auto w-full h-full scrollbar-thin scrollbar-track-gray-100 scrollbar-thumb-gray-400">
+                          <div className="overflow-x-auto w-full h-full">
                             <div className="relative min-w-max h-full">
                               {/* Timeline background */}
                               <div className="flex h-full">
@@ -688,39 +736,21 @@ export function GanttChart({
                               
                               {/* Task bar */}
                               <div 
-                                className="absolute top-2 h-10 rounded-lg shadow-sm border border-background hover:shadow-md transition-all duration-200 flex items-center justify-between px-3 cursor-move"
+                                className="absolute top-2 h-10 rounded-lg shadow-sm border border-background hover:shadow-md transition-all duration-200 flex items-center justify-between px-3 cursor-pointer"
                                 style={{ 
                                   left: position.left,
                                   width: position.width,
                                   backgroundColor: taskColor,
                                   minWidth: '80px'
                                 }}
-                                onMouseDown={(e) => handleMouseDown(e, task.id, 'move')}
+                                onClick={() => handleTaskClick(task)}
                               >
-                                {/* Resize handle - start */}
-                                <div
-                                  className="absolute left-0 top-0 w-3 h-full cursor-w-resize bg-background/20 hover:bg-background/40 rounded-l-lg"
-                                  onMouseDown={(e) => {
-                                    e.stopPropagation();
-                                    handleMouseDown(e, task.id, 'resize-start');
-                                  }}
-                                />
-                                
                                 <span className="text-primary-foreground text-xs font-medium truncate flex-1 text-center">
                                   {task.title}
                                 </span>
                                 <span className="text-primary-foreground/90 text-xs font-medium">
                                   {task.progress}%
                                 </span>
-                                
-                                {/* Resize handle - end */}
-                                <div
-                                  className="absolute right-0 top-0 w-3 h-full cursor-e-resize bg-background/20 hover:bg-background/40 rounded-r-lg"
-                                  onMouseDown={(e) => {
-                                    e.stopPropagation();
-                                    handleMouseDown(e, task.id, 'resize-end');
-                                  }}
-                                />
                               </div>
                               
                               {/* Progress overlay */}

@@ -338,6 +338,30 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleTaskDelete = async (taskId: string) => {
+    try {
+      // If it's a real task from database, delete it
+      if (taskId.startsWith('phase-')) {
+        // Don't allow deletion of auto-generated phase tasks
+        toast.error('Cannot delete system-generated phase tasks');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      setTasks(prev => prev.filter(task => task.id !== taskId));
+      toast.success('Task deleted successfully');
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete task');
+    }
+  };
+
   const getStatusColor = (status: Project['status']) => {
     switch (status) {
       case 'Planning':
@@ -542,13 +566,22 @@ export default function ProjectDetail() {
                       </div>
                       <div className="text-center">
                         <div className="text-lg font-bold text-blue-600">
-                          {tasks.filter(t => t.progress > 0 && t.progress < 100).length}
+                          {tasks.filter(t => {
+                            const today = new Date();
+                            const taskStart = new Date(t.startDate);
+                            const taskEnd = new Date(t.endDate);
+                            return today >= taskStart && today <= taskEnd && t.progress < 100;
+                          }).length}
                         </div>
                         <div className="text-xs text-muted-foreground">In Progress</div>
                       </div>
                       <div className="text-center">
                         <div className="text-lg font-bold text-yellow-600">
-                          {tasks.filter(t => t.progress === 0).length}
+                          {tasks.filter(t => {
+                            const today = new Date();
+                            const taskStart = new Date(t.startDate);
+                            return today < taskStart;
+                          }).length}
                         </div>
                         <div className="text-xs text-muted-foreground">Not Started</div>
                       </div>
@@ -556,20 +589,22 @@ export default function ProjectDetail() {
                         <div className="text-lg font-bold text-red-600">
                           {tasks.filter(t => {
                             const today = new Date();
-                            return new Date(t.endDate) < today && t.progress < 100;
+                            const taskEnd = new Date(t.endDate);
+                            return today > taskEnd && t.progress < 100;
                           }).length}
                         </div>
                         <div className="text-xs text-muted-foreground">Overdue</div>
                       </div>
                     </div>
 
-                    {/* Condensed Gantt Chart */}
+                    {/* Compact Gantt Chart */}
                     <div className="border rounded-lg">
                       <GanttChart
                         tasks={tasks}
                         projects={scheduleProjects}
                         selectedProjects={[id]}
                         onTaskUpdate={handleTaskUpdate}
+                        onTaskDelete={handleTaskDelete}
                         dateRange={{
                           from: new Date(project.startDate),
                           to: new Date(project.dueDate)
@@ -578,7 +613,28 @@ export default function ProjectDetail() {
                         showCriticalPath={true}
                         showMilestones={true}
                         projectData={scheduleProjects[0]}
+                        compactMode={true}
                       />
+                    </div>
+
+                    {/* Task List for Details */}
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                      <h4 className="font-semibold text-sm">Task Details</h4>
+                      {tasks.map((task) => (
+                        <div key={task.id} className="flex items-center justify-between p-2 border rounded text-sm">
+                          <div>
+                            <span className="font-medium">{task.title}</span>
+                            <div className="text-xs text-muted-foreground">
+                              {format(task.startDate, 'MMM dd')} - {format(task.endDate, 'MMM dd')}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={task.progress === 100 ? 'default' : 'secondary'} className="text-xs">
+                              {task.progress}%
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ) : (
