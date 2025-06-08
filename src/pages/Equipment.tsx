@@ -21,7 +21,7 @@ import { NewEquipmentDialog } from '@/components/equipment/NewEquipmentDialog';
 import { MaintenanceDialog } from '@/components/equipment/MaintenanceDialog';
 import { AllMaintenanceView } from '@/components/equipment/AllMaintenanceView';
 import { EquipmentEstimator } from '@/components/equipment/EquipmentEstimator';
-import { Equipment } from '@/types';
+import type { Equipment } from '@/types';
 
 interface EstimatorItem {
   equipment: Equipment;
@@ -60,7 +60,15 @@ export default function Equipment() {
         .order('name');
 
       if (error) throw error;
-      setEquipment(data || []);
+      
+      // Cast the data to Equipment type to handle the type mismatch
+      const typedData = (data || []).map(item => ({
+        ...item,
+        category: item.category as Equipment['category'],
+        status: item.status as Equipment['status']
+      })) as Equipment[];
+      
+      setEquipment(typedData);
     } catch (error) {
       console.error('Error fetching equipment:', error);
     } finally {
@@ -329,7 +337,6 @@ export default function Equipment() {
             equipmentName={selectedEquipment.name}
             open={maintenanceDialogOpen}
             onOpenChange={setMaintenanceDialogOpen}
-            onMaintenanceLogged={onMaintenanceLogged}
           />
         )}
 

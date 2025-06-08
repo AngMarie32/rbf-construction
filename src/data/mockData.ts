@@ -180,31 +180,37 @@ export const mockEquipment: Equipment[] = [
     id: '1',
     name: 'CAT 320 Excavator',
     category: 'Heavy Machinery',
-    hourlyRate: 125,
+    hourly_rate: 125,
     year: 2021,
     value: 275000,
     status: 'In Use',
-    description: 'Heavy-duty excavator for large construction projects'
+    description: 'Heavy-duty excavator for large construction projects',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z'
   },
   {
     id: '2',
     name: 'Ford F-250 Truck',
     category: 'Vehicles',
-    hourlyRate: 35,
+    hourly_rate: 35,
     year: 2022,
     value: 65000,
     status: 'Available',
-    description: 'Heavy-duty pickup truck for transportation and light hauling'
+    description: 'Heavy-duty pickup truck for transportation and light hauling',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z'
   },
   {
     id: '3',
     name: 'Utility Trailer',
     category: 'Trailers',
-    hourlyRate: 15,
+    hourly_rate: 15,
     year: 2020,
     value: 12000,
     status: 'Available',
-    description: 'Multi-purpose utility trailer for equipment transport'
+    description: 'Multi-purpose utility trailer for equipment transport',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z'
   }
 ];
 
