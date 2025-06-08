@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,23 +6,24 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { 
   Download, 
-  Filter, 
   Search, 
   X, 
   TrendingUp, 
   TrendingDown, 
   AlertTriangle,
-  CheckCircle 
+  CheckCircle,
+  CalendarIcon
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { format, startOfYear, endOfYear, eachMonthOfInterval } from 'date-fns';
+import { format, startOfYear, endOfYear, eachMonthOfInterval, isWithinInterval, parseISO } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { exportToPDF, exportCSV } from '@/utils/pdfExport';
+import { cn } from '@/lib/utils';
 import { 
   Table, 
   TableBody, 
@@ -61,12 +63,16 @@ interface CategoryBreakdown {
 export default function BurnRateAnalysis() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
-  const [timePeriod, setTimePeriod] = useState('Q1 2025');
   const [costCategories, setCostCategories] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [burnData, setBurnData] = useState<BurnData[]>([]);
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([]);
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: undefined,
+    to: undefined
+  });
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [summaryStats, setSummaryStats] = useState({
     totalBudget: 0,
     actualSpend: 0,
@@ -84,7 +90,7 @@ export default function BurnRateAnalysis() {
     if (selectedProjects.length > 0) {
       fetchBurnAnalysisData();
     }
-  }, [selectedProjects, timePeriod]);
+  }, [selectedProjects, dateRange]);
 
   const fetchProjects = async () => {
     try {
@@ -100,10 +106,9 @@ export default function BurnRateAnalysis() {
       const activeProjects = (data || [])
         .filter(p => p.status === 'Open')
         .map(p => p.id);
-      setSelectedProjects(activeProjects.slice(0, 4)); // Limit to 4 for better performance
+      setSelectedProjects(activeProjects.slice(0, 4));
     } catch (error) {
       console.error('Error fetching projects:', error);
-      toast.error('Failed to load projects');
     } finally {
       setLoading(false);
     }
@@ -128,13 +133,6 @@ export default function BurnRateAnalysis() {
 
       if (changeError) throw changeError;
 
-      // Calculate burn rate data using real project data
-      const currentYear = new Date().getFullYear();
-      const months = eachMonthOfInterval({
-        start: startOfYear(new Date(currentYear, 0, 1)),
-        end: endOfYear(new Date(currentYear, 11, 31))
-      });
-
       const selectedProjectsData = projects.filter(p => selectedProjects.includes(p.id));
       const totalBudget = selectedProjectsData.reduce((sum, p) => sum + p.contract_value, 0);
 
@@ -143,13 +141,29 @@ export default function BurnRateAnalysis() {
 
       const adjustedBudget = totalBudget + totalChangeOrders;
 
+      // Filter billing data by date range if set
+      let filteredBillingData = billingData || [];
+      if (dateRange.from && dateRange.to) {
+        filteredBillingData = filteredBillingData.filter(billing => {
+          const billingDate = parseISO(billing.billing_period_end);
+          return isWithinInterval(billingDate, { start: dateRange.from!, end: dateRange.to! });
+        });
+      }
+
+      // Calculate burn rate data using real project data
+      const currentYear = new Date().getFullYear();
+      const months = eachMonthOfInterval({
+        start: startOfYear(new Date(currentYear, 0, 1)),
+        end: endOfYear(new Date(currentYear, 11, 31))
+      });
+
       const burnChartData = months.map((month, index) => {
         const monthStr = format(month, 'MMM');
         const monthlyPlanned = adjustedBudget / 12;
         const cumulativePlanned = monthlyPlanned * (index + 1);
         
         // Calculate actual spending based on real billing data
-        const cumulativeActual = (billingData || [])
+        const cumulativeActual = filteredBillingData
           .filter(b => {
             const billingMonth = new Date(b.billing_period_end);
             return billingMonth <= month;
@@ -160,7 +174,7 @@ export default function BurnRateAnalysis() {
           month: monthStr,
           plannedSpending: cumulativePlanned,
           actualSpending: cumulativeActual,
-          forecastedSpending: cumulativePlanned * 1.05, // 5% buffer
+          forecastedSpending: cumulativePlanned * 1.05,
           budgetThreshold: adjustedBudget
         };
       });
@@ -168,7 +182,7 @@ export default function BurnRateAnalysis() {
       setBurnData(burnChartData);
 
       // Calculate category breakdown based on real data
-      const totalActualSpend = (billingData || []).reduce((sum, b) => sum + (b.billed_amount || 0), 0);
+      const totalActualSpend = filteredBillingData.reduce((sum, b) => sum + (b.billed_amount || 0), 0);
       
       const categories: CategoryBreakdown[] = [
         {
@@ -242,12 +256,11 @@ export default function BurnRateAnalysis() {
         remainingBudget,
         monthlyBurnRate,
         budgetPercentage,
-        monthlyChange: 0 // Calculate from historical data if available
+        monthlyChange: 0
       });
 
     } catch (error) {
       console.error('Error fetching burn analysis data:', error);
-      toast.error('Failed to load burn analysis data');
     }
   };
 
@@ -280,9 +293,18 @@ export default function BurnRateAnalysis() {
 
   const clearFilters = () => {
     setSelectedProjects([]);
-    setTimePeriod('Q1 2025');
     setCostCategories('All');
     setSearchTerm('');
+    setDateRange({ from: undefined, to: undefined });
+  };
+
+  const handleDateRangeSelect = (range: { from: Date | undefined; to: Date | undefined } | undefined) => {
+    if (range) {
+      setDateRange(range);
+      if (range.from && range.to) {
+        setIsDatePickerOpen(false);
+      }
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -302,6 +324,12 @@ export default function BurnRateAnalysis() {
       default: return null;
     }
   };
+
+  const filteredCategoryBreakdown = categoryBreakdown.filter(cat => 
+    costCategories === 'All' || cat.category === costCategories
+  ).filter(cat =>
+    searchTerm === '' || cat.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -340,18 +368,54 @@ export default function BurnRateAnalysis() {
                   </SelectContent>
                 </Select>
 
-                <Select value={timePeriod} onValueChange={setTimePeriod}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Q1 2025">Q1 2025</SelectItem>
-                    <SelectItem value="Q2 2025">Q2 2025</SelectItem>
-                    <SelectItem value="Q3 2025">Q3 2025</SelectItem>
-                    <SelectItem value="Q4 2025">Q4 2025</SelectItem>
-                    <SelectItem value="2025">2025</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[240px] justify-start text-left font-normal",
+                        !dateRange.from && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateRange.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, "MMM dd, yyyy")} -{" "}
+                            {format(dateRange.to, "MMM dd, yyyy")}
+                          </>
+                        ) : (
+                          format(dateRange.from, "MMM dd, yyyy")
+                        )
+                      ) : (
+                        "All Time"
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={dateRange.from}
+                      selected={dateRange}
+                      onSelect={handleDateRangeSelect}
+                      numberOfMonths={2}
+                    />
+                    <div className="p-3 border-t">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setDateRange({ from: undefined, to: undefined });
+                          setIsDatePickerOpen(false);
+                        }}
+                        className="w-full"
+                      >
+                        Clear Filter
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
 
                 <Select value={costCategories} onValueChange={setCostCategories}>
                   <SelectTrigger className="w-[160px]">
@@ -383,10 +447,6 @@ export default function BurnRateAnalysis() {
                   <X className="w-4 h-4 mr-2" />
                   Clear All
                 </Button>
-                <Button variant="outline">
-                  <Filter className="w-4 h-4 mr-2" />
-                  Advanced Filters
-                </Button>
                 <Button variant="outline" onClick={handleExportCSV}>
                   <Download className="w-4 h-4 mr-2" />
                   Export
@@ -405,12 +465,12 @@ export default function BurnRateAnalysis() {
                   />
                 </Badge>
               )}
-              {timePeriod !== 'Q1 2025' && (
+              {dateRange.from && dateRange.to && (
                 <Badge variant="secondary" className="flex items-center gap-1">
-                  {timePeriod}
+                  {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd")}
                   <X 
                     className="w-3 h-3 cursor-pointer" 
-                    onClick={() => setTimePeriod('Q1 2025')}
+                    onClick={() => setDateRange({ from: undefined, to: undefined })}
                   />
                 </Badge>
               )}
@@ -573,10 +633,6 @@ export default function BurnRateAnalysis() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Cost Category Breakdown</CardTitle>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                <Filter className="w-4 h-4 mr-2" />
-                Filter
-              </Button>
               <Button variant="outline" size="sm" onClick={handleExportCSV}>
                 <Download className="w-4 h-4 mr-2" />
                 Export
@@ -597,7 +653,7 @@ export default function BurnRateAnalysis() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {categoryBreakdown.map((category) => (
+                {filteredCategoryBreakdown.map((category) => (
                   <TableRow key={category.category}>
                     <TableCell className="font-medium">{category.category}</TableCell>
                     <TableCell className="text-right">${category.plannedBudget.toLocaleString()}</TableCell>

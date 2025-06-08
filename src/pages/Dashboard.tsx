@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -36,7 +35,12 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [billingData, setBillingData] = useState<any>(null);
-  const [financialFilter, setFinancialFilter] = useState<{ type: 'year' | 'month' | 'custom'; value?: string }>({
+  const [financialFilter, setFinancialFilter] = useState<{ 
+    type: 'year' | 'month' | 'custom' | 'range'; 
+    value?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }>({
     type: 'custom'
   });
   const navigate = useNavigate();
@@ -78,7 +82,6 @@ export default function Dashboard() {
       setProjects(mappedProjects);
     } catch (error) {
       console.error('Error fetching projects:', error);
-      toast.error('Failed to load projects');
     } finally {
       setLoading(false);
     }
@@ -111,6 +114,8 @@ export default function Dashboard() {
             const monthStart = startOfMonth(new Date(parseInt(year), parseInt(month) - 1, 1));
             const monthEnd = endOfMonth(new Date(parseInt(year), parseInt(month) - 1, 1));
             return isWithinInterval(billingDate, { start: monthStart, end: monthEnd });
+          } else if (financialFilter.type === 'range' && financialFilter.startDate && financialFilter.endDate) {
+            return isWithinInterval(billingDate, { start: financialFilter.startDate, end: financialFilter.endDate });
           }
           return true;
         }) || [];
