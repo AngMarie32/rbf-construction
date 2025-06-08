@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -123,6 +124,15 @@ export default function BurnRateAnalysis() {
 
       if (billingError) throw billingError;
 
+      // Fetch expenses data for additional actual spending
+      const { data: expensesData, error: expensesError } = await supabase
+        .from('expenses')
+        .select('project_id, amount, date, status')
+        .in('project_id', selectedProjects)
+        .in('status', ['Approved', 'Paid']);
+
+      if (expensesError) throw expensesError;
+
       // Fetch change orders for contract adjustments
       const { data: changeOrders, error: changeError } = await supabase
         .from('change_orders')
@@ -142,10 +152,17 @@ export default function BurnRateAnalysis() {
 
       // Filter billing data by date range if set
       let filteredBillingData = billingData || [];
+      let filteredExpensesData = expensesData || [];
+      
       if (dateRange.from && dateRange.to) {
         filteredBillingData = filteredBillingData.filter(billing => {
           const billingDate = parseISO(billing.billing_period_end);
           return isWithinInterval(billingDate, { start: dateRange.from!, end: dateRange.to! });
+        });
+        
+        filteredExpensesData = filteredExpensesData.filter(expense => {
+          const expenseDate = parseISO(expense.date);
+          return isWithinInterval(expenseDate, { start: dateRange.from!, end: dateRange.to! });
         });
       }
 
@@ -161,13 +178,22 @@ export default function BurnRateAnalysis() {
         const monthlyPlanned = adjustedBudget / 12;
         const cumulativePlanned = monthlyPlanned * (index + 1);
         
-        // Calculate actual spending based on real billing data
-        const cumulativeActual = filteredBillingData
+        // Calculate actual spending from both billing and expenses
+        const billingSpend = filteredBillingData
           .filter(b => {
             const billingMonth = new Date(b.billing_period_end);
             return billingMonth <= month;
           })
           .reduce((sum, b) => sum + (b.billed_amount || 0), 0);
+          
+        const expensesSpend = filteredExpensesData
+          .filter(e => {
+            const expenseMonth = new Date(e.date);
+            return expenseMonth <= month;
+          })
+          .reduce((sum, e) => sum + (e.amount || 0), 0);
+          
+        const cumulativeActual = billingSpend + expensesSpend;
 
         return {
           month: monthStr,
@@ -180,9 +206,12 @@ export default function BurnRateAnalysis() {
 
       setBurnData(burnChartData);
 
-      // Calculate category breakdown based on real data
-      const totalActualSpend = filteredBillingData.reduce((sum, b) => sum + (b.billed_amount || 0), 0);
+      // Calculate total actual spend from both sources
+      const totalBillingSpend = filteredBillingData.reduce((sum, b) => sum + (b.billed_amount || 0), 0);
+      const totalExpensesSpend = filteredExpensesData.reduce((sum, e) => sum + (e.amount || 0), 0);
+      const totalActualSpend = totalBillingSpend + totalExpensesSpend;
       
+      // Calculate category breakdown based on real data
       const categories: CategoryBreakdown[] = [
         {
           category: 'Labor',

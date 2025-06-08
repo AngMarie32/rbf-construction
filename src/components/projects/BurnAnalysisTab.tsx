@@ -52,8 +52,32 @@ export function BurnAnalysisTab({ projectId }: BurnAnalysisTabProps) {
 
       if (billingError) throw billingError;
 
+      // Fetch expenses data for this project
+      const { data: expensesData, error: expensesError } = await supabase
+        .from('expenses')
+        .select('amount, date, status')
+        .eq('project_id', projectId)
+        .in('status', ['Approved', 'Paid']);
+
+      if (expensesError) throw expensesError;
+
+      // Fetch change orders for contract adjustments
+      const { data: changeOrders, error: changeError } = await supabase
+        .from('change_orders')
+        .select('amount, status')
+        .eq('project_id', projectId)
+        .eq('status', 'Approved');
+
+      if (changeError) throw changeError;
+
       const totalBudget = project?.contract_value || 0;
-      const totalActualSpend = (billingData || []).reduce((sum, b) => sum + (b.billed_amount || 0), 0);
+      const totalChangeOrders = (changeOrders || []).reduce((sum, co) => sum + (co.amount || 0), 0);
+      const adjustedBudget = totalBudget + totalChangeOrders;
+
+      // Calculate total actual spend from both billing and expenses
+      const totalBillingSpend = (billingData || []).reduce((sum, b) => sum + (b.billed_amount || 0), 0);
+      const totalExpensesSpend = (expensesData || []).reduce((sum, e) => sum + (e.amount || 0), 0);
+      const totalActualSpend = totalBillingSpend + totalExpensesSpend;
 
       // Generate monthly burn chart data
       const currentYear = new Date().getFullYear();
@@ -64,15 +88,25 @@ export function BurnAnalysisTab({ projectId }: BurnAnalysisTabProps) {
 
       const burnChartData = months.map((month, index) => {
         const monthStr = format(month, 'MMM');
-        const monthlyPlanned = totalBudget / 12;
+        const monthlyPlanned = adjustedBudget / 12;
         const cumulativePlanned = monthlyPlanned * (index + 1);
         
-        const cumulativeActual = (billingData || [])
+        // Calculate cumulative actual from both billing and expenses
+        const cumulativeBilling = (billingData || [])
           .filter(b => {
             const billingMonth = new Date(b.billing_period_end);
             return billingMonth <= month;
           })
           .reduce((sum, b) => sum + (b.billed_amount || 0), 0);
+
+        const cumulativeExpenses = (expensesData || [])
+          .filter(e => {
+            const expenseMonth = new Date(e.date);
+            return expenseMonth <= month;
+          })
+          .reduce((sum, e) => sum + (e.amount || 0), 0);
+
+        const cumulativeActual = cumulativeBilling + cumulativeExpenses;
 
         return {
           month: monthStr,
@@ -84,10 +118,10 @@ export function BurnAnalysisTab({ projectId }: BurnAnalysisTabProps) {
       setBurnData(burnChartData);
 
       setSummaryStats({
-        totalBudget,
+        totalBudget: adjustedBudget,
         actualSpend: totalActualSpend,
-        remainingBudget: totalBudget - totalActualSpend,
-        budgetPercentage: totalBudget > 0 ? (totalActualSpend / totalBudget) * 100 : 0
+        remainingBudget: adjustedBudget - totalActualSpend,
+        budgetPercentage: adjustedBudget > 0 ? (totalActualSpend / adjustedBudget) * 100 : 0
       });
 
     } catch (error) {

@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface NewEquipmentDialogProps {
   onEquipmentCreated: () => void;
@@ -31,6 +32,7 @@ export function NewEquipmentDialog({ onEquipmentCreated, trigger }: NewEquipment
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) {
+      toast.error('Equipment name is required');
       return;
     }
 
@@ -51,6 +53,7 @@ export function NewEquipmentDialog({ onEquipmentCreated, trigger }: NewEquipment
 
       if (error) throw error;
 
+      toast.success('Equipment added successfully');
       setOpen(false);
       setFormData({
         name: '',
@@ -65,6 +68,7 @@ export function NewEquipmentDialog({ onEquipmentCreated, trigger }: NewEquipment
       onEquipmentCreated();
     } catch (error) {
       console.error('Error creating equipment:', error);
+      toast.error('Failed to add equipment');
     } finally {
       setLoading(false);
     }
