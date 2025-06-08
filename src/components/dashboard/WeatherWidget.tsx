@@ -30,7 +30,7 @@ export function WeatherWidget() {
             
             // Using OpenWeatherMap API (free tier)
             // Note: In production, this API key should be stored securely
-            const API_KEY = 'demo'; // User should replace with their own key
+            const API_KEY = 'a51a1a71eceadfd5c75bb0e401b87a8b'; // User should replace with their own key
             const response = await fetch(
               `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=imperial`
             );
@@ -78,7 +78,7 @@ export function WeatherWidget() {
 
     fetchWeather();
     
-    // Refresh weather every 10 minutes
+    // Refresh weather every 60 minutes
     const interval = setInterval(fetchWeather, 600000);
     return () => clearInterval(interval);
   }, []);
