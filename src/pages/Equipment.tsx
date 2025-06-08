@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,20 +21,7 @@ import { NewEquipmentDialog } from '@/components/equipment/NewEquipmentDialog';
 import { MaintenanceDialog } from '@/components/equipment/MaintenanceDialog';
 import { AllMaintenanceView } from '@/components/equipment/AllMaintenanceView';
 import { EquipmentEstimator } from '@/components/equipment/EquipmentEstimator';
-
-interface Equipment {
-  id: string;
-  name: string;
-  category: string;
-  hourly_rate: number;
-  year?: number;
-  value?: number;
-  status: string;
-  image?: string;
-  description?: string;
-  created_at: string;
-  updated_at: string;
-}
+import { Equipment } from '@/types';
 
 interface EstimatorItem {
   equipment: Equipment;
@@ -160,6 +146,11 @@ export default function Equipment() {
 
   const handleExportEstimate = () => {
     // Export functionality already implemented in EquipmentEstimator
+  };
+
+  const onMaintenanceLogged = () => {
+    // Refresh equipment data when maintenance is logged
+    fetchEquipment();
   };
 
   if (loading) {
@@ -338,6 +329,7 @@ export default function Equipment() {
             equipmentName={selectedEquipment.name}
             open={maintenanceDialogOpen}
             onOpenChange={setMaintenanceDialogOpen}
+            onMaintenanceLogged={onMaintenanceLogged}
           />
         )}
 
@@ -348,16 +340,14 @@ export default function Equipment() {
         />
 
         {/* Equipment Estimator */}
-        {estimatorOpen && (
-          <EquipmentEstimator
-            selectedEquipment={selectedEstimatorEquipment}
-            onRemoveEquipment={handleRemoveFromEstimator}
-            onUpdateDuration={handleUpdateDuration}
-            onSaveEstimate={handleSaveEstimate}
-            onExportEstimate={handleExportEstimate}
-            onClose={() => setEstimatorOpen(false)}
-          />
-        )}
+        <EquipmentEstimator
+          selectedEquipment={selectedEstimatorEquipment}
+          onRemoveEquipment={handleRemoveFromEstimator}
+          onUpdateDuration={handleUpdateDuration}
+          onSaveEstimate={handleSaveEstimate}
+          onExportEstimate={handleExportEstimate}
+          onClose={() => setEstimatorOpen(false)}
+        />
       </div>
     </Layout>
   );

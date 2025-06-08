@@ -36,7 +36,7 @@ export function EquipmentEstimator({
 
   const calculateItemCost = (item: EstimatorItem) => {
     const hours = item.unit === 'hours' ? item.duration : item.duration * 8;
-    return hours * item.equipment.hourlyRate;
+    return hours * item.equipment.hourly_rate;
   };
 
   const totalCost = selectedEquipment.reduce((sum, item) => sum + calculateItemCost(item), 0);
@@ -79,7 +79,7 @@ export function EquipmentEstimator({
     // Create CSV content
     let csvContent = "Equipment Name,Category,Duration,Unit,Hourly Rate,Total Cost\n";
     selectedEquipment.forEach(item => {
-      csvContent += `"${item.equipment.name}","${item.equipment.category}",${item.duration},"${item.unit}",${item.equipment.hourlyRate},${calculateItemCost(item)}\n`;
+      csvContent += `"${item.equipment.name}","${item.equipment.category}",${item.duration},"${item.unit}",${item.equipment.hourly_rate},${calculateItemCost(item)}\n`;
     });
     csvContent += `\nTotal Cost:,,,,,${totalCost}`;
 
@@ -157,7 +157,7 @@ export function EquipmentEstimator({
                         {item.equipment.category}
                       </Badge>
                       <p className="text-xs text-gray-600 mb-2">
-                        ${item.equipment.hourlyRate}/hr
+                        ${item.equipment.hourly_rate}/hr
                       </p>
                       <div className="flex items-center space-x-1 mb-2">
                         <Input

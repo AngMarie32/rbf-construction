@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   email: string;
@@ -136,12 +137,14 @@ export interface Equipment {
   id: string;
   name: string;
   category: 'Heavy Machinery' | 'Vehicles' | 'Trailers' | 'Other';
-  hourlyRate: number;
-  year: number;
-  value: number;
+  hourly_rate: number;
+  year?: number;
+  value?: number;
   status: 'Available' | 'In Use' | 'Maintenance';
   image?: string;
-  description: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface MaintenanceLog {
