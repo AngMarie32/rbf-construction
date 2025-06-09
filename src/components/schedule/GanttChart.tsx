@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -81,7 +80,7 @@ export function GanttChart({
   };
 
   // Auto-update task status based on progress and dates
-  const getTaskStatus = (task: Task): string => {
+  const getTaskStatus = (task: Task): Task['status'] => {
     const today = new Date();
     today.setHours(23, 59, 59, 999);
     
@@ -103,9 +102,9 @@ export function GanttChart({
       return 'Not Started';
     }
 
-    // If task is past due date but not completed
+    // If task is past due date but not completed, put on hold
     if (isAfter(today, taskEnd) && calculatedProgress < 100) {
-      return 'Overdue';
+      return 'On Hold';
     }
 
     // If task is in progress
@@ -207,7 +206,7 @@ export function GanttChart({
     switch (status) {
       case 'Completed': return 'bg-green-500';
       case 'In Progress': return 'bg-blue-500';
-      case 'Overdue': return 'bg-red-500';
+      case 'On Hold': return 'bg-yellow-500';
       case 'Not Started': return 'bg-gray-400';
       default: return 'bg-gray-400';
     }
@@ -217,7 +216,7 @@ export function GanttChart({
     switch (status) {
       case 'Completed': return 'bg-green-500 text-white';
       case 'In Progress': return 'bg-blue-500 text-white';
-      case 'Overdue': return 'bg-red-500 text-white';
+      case 'On Hold': return 'bg-yellow-500 text-white';
       case 'Not Started': return 'bg-gray-500 text-white';
       default: return 'bg-gray-500 text-white';
     }
