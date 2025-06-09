@@ -519,8 +519,8 @@ export default function ProjectDetail() {
           </TabsContent>
 
           <TabsContent value="schedule" className="space-y-4">
-            <Card>
-              <CardHeader>
+            <Card className="h-[600px] flex flex-col">
+              <CardHeader className="flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <CardTitle>Project Schedule</CardTitle>
                   <div className="flex items-center gap-2">
@@ -536,11 +536,11 @@ export default function ProjectDetail() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-1 overflow-hidden p-0">
                 {tasks.length > 0 && scheduleProjects.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="h-full flex flex-col">
                     {/* Compact Schedule Summary */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-muted/30 rounded-lg">
+                    <div className="flex-shrink-0 grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-muted/30 border-b">
                       <div className="text-center">
                         <div className="text-lg font-bold text-green-600">
                           {tasks.filter(t => t.progress === 100).length}
@@ -580,8 +580,8 @@ export default function ProjectDetail() {
                       </div>
                     </div>
 
-                    {/* Compact Gantt Chart */}
-                    <div className="border rounded-lg">
+                    {/* Scrollable Gantt Chart */}
+                    <div className="flex-1 overflow-hidden">
                       <GanttChart
                         tasks={tasks}
                         onUpdateTask={handleTaskUpdate}
@@ -599,31 +599,13 @@ export default function ProjectDetail() {
                         compactMode={true}
                       />
                     </div>
-
-                    {/* Task List for Details */}
-                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                      <h4 className="font-semibold text-sm">Task Details</h4>
-                      {tasks.map((task) => (
-                        <div key={task.id} className="flex items-center justify-between p-2 border rounded text-sm">
-                          <div>
-                            <span className="font-medium">{task.title}</span>
-                            <div className="text-xs text-muted-foreground">
-                              {format(task.startDate, 'MMM dd')} - {format(task.endDate, 'MMM dd')}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={task.progress === 100 ? 'default' : 'secondary'} className="text-xs">
-                              {task.progress}%
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">Loading schedule data...</p>
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center py-8">
+                      <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">Loading schedule data...</p>
+                    </div>
                   </div>
                 )}
               </CardContent>
