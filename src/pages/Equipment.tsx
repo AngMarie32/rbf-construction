@@ -105,8 +105,6 @@ export default function Equipment() {
   };
 
   const handleDeleteEquipment = async (equipmentId: string) => {
-    if (!confirm('Are you sure you want to delete this equipment?')) return;
-
     try {
       const { error } = await supabase
         .from('equipment')
@@ -115,11 +113,9 @@ export default function Equipment() {
 
       if (error) throw error;
 
-      toast.success('Equipment deleted successfully');
       fetchEquipment();
     } catch (error) {
       console.error('Error deleting equipment:', error);
-      toast.error('Failed to delete equipment');
     }
   };
 
@@ -129,7 +125,6 @@ export default function Equipment() {
       const fileName = `${equipmentId}-${Date.now()}.${fileExt}`;
       
       // For now, we'll just show a toast. In a real app, you'd upload to Supabase Storage
-      toast.success('Image upload functionality will be implemented with Supabase Storage');
       
       // TODO: Implement actual file upload to Supabase Storage
       // const { data, error } = await supabase.storage
@@ -138,7 +133,6 @@ export default function Equipment() {
       
     } catch (error) {
       console.error('Error uploading image:', error);
-      toast.error('Failed to upload image');
     }
   };
 

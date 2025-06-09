@@ -13,7 +13,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { CalendarIcon, X, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 interface Project {
   id: string;
@@ -25,7 +24,6 @@ interface PaymentApp {
   id: string;
   application_number: number;
   period_end_date: string;
-  total_completed_and_stored: number;
   current_payment_due: number;
 }
 
@@ -85,8 +83,8 @@ export function ImprovedBillingDialog({
   const fetchPaymentApps = async () => {
     try {
       const { data, error } = await supabase
-        .from('payment_applications')
-        .select('id, application_number, period_end_date, total_completed_and_stored, current_payment_due')
+        .from('payment_applications_g702')
+        .select('id, application_number, period_to, current_payment_due')
         .eq('project_id', formData.project_id)
         .order('application_number');
 
@@ -95,8 +93,7 @@ export function ImprovedBillingDialog({
       const mappedData: PaymentApp[] = (data || []).map(item => ({
         id: item.id,
         application_number: item.application_number,
-        period_end_date: item.period_end_date,
-        total_completed_and_stored: item.total_completed_and_stored || 0,
+        period_end_date: item.period_to,
         current_payment_due: item.current_payment_due || 0
       }));
       
@@ -126,7 +123,6 @@ export function ImprovedBillingDialog({
 
     setShowPaymentApps(false);
     setSelectedPaymentApps([]);
-    toast.success('Payment application data imported successfully');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -162,12 +158,10 @@ export function ImprovedBillingDialog({
 
       if (error) throw error;
 
-      toast.success(billing?.id ? 'Billing record updated successfully' : 'Billing record created successfully');
       onSuccess();
       onOpenChange(false);
     } catch (error) {
       console.error('Error saving billing:', error);
-      toast.error('Failed to save billing record');
     } finally {
       setLoading(false);
     }
@@ -178,10 +172,10 @@ export function ImprovedBillingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl font-bold">
+            <DialogTitle className="text-2xl font-bold">
               {billing?.id ? 'Edit Billing Record' : 'Create New Billing Record'}
             </DialogTitle>
             <Button
@@ -195,16 +189,15 @@ export function ImprovedBillingDialog({
           </div>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-8">
           {!billing?.id && (
-            <Card className="bg-blue-50 border-blue-200">
-              <CardHeader className="pb-3">
+            <Card className="border-2 border-blue-200 bg-blue-50">
+              <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg text-blue-800">Import from Payment Applications</CardTitle>
+                  <CardTitle className="text-xl text-blue-800">Import from Payment Applications</CardTitle>
                   <Button 
                     type="button" 
                     variant="outline" 
-                    size="sm"
                     onClick={() => setShowPaymentApps(!showPaymentApps)}
                     disabled={!formData.project_id}
                   >
@@ -214,12 +207,12 @@ export function ImprovedBillingDialog({
               </CardHeader>
               {showPaymentApps && formData.project_id && (
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {paymentApps.length > 0 ? (
                       <>
-                        <div className="grid gap-3 max-h-60 overflow-y-auto">
+                        <div className="grid gap-4 max-h-80 overflow-y-auto">
                           {paymentApps.map((app) => (
-                            <div key={app.id} className="flex items-center space-x-3 p-3 border rounded-lg bg-white">
+                            <div key={app.id} className="flex items-center space-x-4 p-4 border-2 rounded-lg bg-white shadow-sm">
                               <Checkbox
                                 id={app.id}
                                 checked={selectedPaymentApps.includes(app.id)}
@@ -233,12 +226,12 @@ export function ImprovedBillingDialog({
                               />
                               <div className="flex-1">
                                 <div className="flex justify-between items-center">
-                                  <span className="font-medium">App #{app.application_number}</span>
-                                  <span className="text-lg font-bold text-green-600">
+                                  <span className="font-semibold text-lg">Application #{app.application_number}</span>
+                                  <span className="text-xl font-bold text-green-600">
                                     ${app.current_payment_due.toLocaleString()}
                                   </span>
                                 </div>
-                                <div className="text-sm text-gray-600">
+                                <div className="text-sm text-gray-600 mt-1">
                                   Period ending: {format(new Date(app.period_end_date), 'MMM dd, yyyy')}
                                 </div>
                               </div>
@@ -246,19 +239,19 @@ export function ImprovedBillingDialog({
                           ))}
                         </div>
                         {selectedPaymentApps.length > 0 && (
-                          <div className="flex justify-between items-center pt-4 border-t">
-                            <span className="text-lg font-semibold">
-                              Selected: {selectedPaymentApps.length} payment app(s)
+                          <div className="flex justify-between items-center pt-6 border-t border-blue-200">
+                            <span className="text-xl font-semibold text-blue-800">
+                              Selected: {selectedPaymentApps.length} payment application(s)
                             </span>
-                            <Button onClick={handleImportFromPaymentApps}>
-                              <Download className="w-4 h-4 mr-2" />
+                            <Button onClick={handleImportFromPaymentApps} size="lg" className="bg-blue-600 hover:bg-blue-700">
+                              <Download className="w-5 h-5 mr-2" />
                               Import Selected
                             </Button>
                           </div>
                         )}
                       </>
                     ) : (
-                      <p className="text-gray-500 text-center py-4">No payment applications found for this project.</p>
+                      <p className="text-gray-500 text-center py-8 text-lg">No payment applications found for this project.</p>
                     )}
                   </div>
                 </CardContent>
@@ -266,28 +259,28 @@ export function ImprovedBillingDialog({
             </Card>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Basic Information</CardTitle>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <Card className="border-2">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl">Basic Information</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   <div>
-                    <Label htmlFor="project" className="text-sm font-medium mb-2 block">Project *</Label>
+                    <Label htmlFor="project" className="text-base font-medium mb-3 block">Project *</Label>
                     <Select 
                       value={formData.project_id} 
                       onValueChange={(value) => setFormData({ ...formData, project_id: value })}
                       required
                     >
-                      <SelectTrigger className="h-10">
+                      <SelectTrigger className="h-12 text-base">
                         <SelectValue placeholder="Select a project" />
                       </SelectTrigger>
                       <SelectContent>
                         {projects.map((project) => (
                           <SelectItem key={project.id} value={project.id}>
-                            <div className="py-1">
-                              <div className="font-medium">{project.name}</div>
+                            <div className="py-2">
+                              <div className="font-medium text-base">{project.name}</div>
                               {project.client && (
                                 <div className="text-sm text-gray-500">{project.client}</div>
                               )}
@@ -299,12 +292,12 @@ export function ImprovedBillingDialog({
                   </div>
 
                   <div>
-                    <Label htmlFor="status" className="text-sm font-medium mb-2 block">Status</Label>
+                    <Label htmlFor="status" className="text-base font-medium mb-3 block">Status</Label>
                     <Select 
                       value={formData.status} 
                       onValueChange={(value) => setFormData({ ...formData, status: value })}
                     >
-                      <SelectTrigger className="h-10">
+                      <SelectTrigger className="h-12 text-base">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -317,25 +310,25 @@ export function ImprovedBillingDialog({
                   </div>
 
                   <div>
-                    <Label htmlFor="invoice_number" className="text-sm font-medium mb-2 block">Invoice Number</Label>
+                    <Label htmlFor="invoice_number" className="text-base font-medium mb-3 block">Invoice Number</Label>
                     <Input
                       id="invoice_number"
                       value={formData.invoice_number}
                       onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
                       placeholder="INV-001"
-                      className="h-10"
+                      className="h-12 text-base"
                     />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Financial Details</CardTitle>
+              <Card className="border-2">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl">Financial Details</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   <div>
-                    <Label htmlFor="billed_amount" className="text-sm font-medium mb-2 block">Billed Amount *</Label>
+                    <Label htmlFor="billed_amount" className="text-base font-medium mb-3 block">Billed Amount *</Label>
                     <Input
                       id="billed_amount"
                       type="number"
@@ -344,12 +337,12 @@ export function ImprovedBillingDialog({
                       value={formData.billed_amount}
                       onChange={(e) => setFormData({ ...formData, billed_amount: parseFloat(e.target.value) || 0 })}
                       required
-                      className="h-10 text-base"
+                      className="h-12 text-lg"
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="paid_amount" className="text-sm font-medium mb-2 block">Paid Amount</Label>
+                    <Label htmlFor="paid_amount" className="text-base font-medium mb-3 block">Paid Amount</Label>
                     <Input
                       id="paid_amount"
                       type="number"
@@ -357,14 +350,14 @@ export function ImprovedBillingDialog({
                       min="0"
                       value={formData.paid_amount}
                       onChange={(e) => setFormData({ ...formData, paid_amount: parseFloat(e.target.value) || 0 })}
-                      className="h-10 text-base"
+                      className="h-12 text-lg"
                     />
                   </div>
 
-                  <div className="p-4 bg-gray-50 rounded-lg border">
+                  <div className="p-6 bg-gray-50 rounded-lg border-2">
                     <div className="flex justify-between items-center">
-                      <span className="font-medium">Remaining Amount:</span>
-                      <span className={`font-bold text-lg ${remainingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      <span className="font-semibold text-lg">Remaining Amount:</span>
+                      <span className={`font-bold text-2xl ${remainingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
                         ${remainingAmount.toLocaleString()}
                       </span>
                     </div>
@@ -373,21 +366,21 @@ export function ImprovedBillingDialog({
               </Card>
             </div>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Date Information</CardTitle>
+            <Card className="border-2">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl">Date Information</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div>
-                    <Label className="text-sm font-medium mb-2 block">Billing Period Start *</Label>
+                    <Label className="text-base font-medium mb-3 block">Billing Period Start *</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full justify-start text-left font-normal h-10"
+                          className="w-full justify-start text-left font-normal h-12 text-base"
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          <CalendarIcon className="mr-3 h-5 w-5" />
                           {format(formData.billing_period_start, "MMM dd, yyyy")}
                         </Button>
                       </PopoverTrigger>
@@ -403,14 +396,14 @@ export function ImprovedBillingDialog({
                   </div>
 
                   <div>
-                    <Label className="text-sm font-medium mb-2 block">Billing Period End *</Label>
+                    <Label className="text-base font-medium mb-3 block">Billing Period End *</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full justify-start text-left font-normal h-10"
+                          className="w-full justify-start text-left font-normal h-12 text-base"
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          <CalendarIcon className="mr-3 h-5 w-5" />
                           {format(formData.billing_period_end, "MMM dd, yyyy")}
                         </Button>
                       </PopoverTrigger>
@@ -426,14 +419,14 @@ export function ImprovedBillingDialog({
                   </div>
 
                   <div>
-                    <Label className="text-sm font-medium mb-2 block">Invoice Date</Label>
+                    <Label className="text-base font-medium mb-3 block">Invoice Date</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full justify-start text-left font-normal h-10"
+                          className="w-full justify-start text-left font-normal h-12 text-base"
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          <CalendarIcon className="mr-3 h-5 w-5" />
                           {formData.invoice_date ? format(formData.invoice_date, "MMM dd, yyyy") : "Select date"}
                         </Button>
                       </PopoverTrigger>
@@ -449,14 +442,14 @@ export function ImprovedBillingDialog({
                   </div>
 
                   <div>
-                    <Label className="text-sm font-medium mb-2 block">Due Date</Label>
+                    <Label className="text-base font-medium mb-3 block">Due Date</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full justify-start text-left font-normal h-10"
+                          className="w-full justify-start text-left font-normal h-12 text-base"
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          <CalendarIcon className="mr-3 h-5 w-5" />
                           {formData.due_date ? format(formData.due_date, "MMM dd, yyyy") : "Select date"}
                         </Button>
                       </PopoverTrigger>
@@ -474,36 +467,36 @@ export function ImprovedBillingDialog({
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Additional Notes</CardTitle>
+            <Card className="border-2">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl">Additional Notes</CardTitle>
               </CardHeader>
               <CardContent>
                 <Textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   placeholder="Add any billing notes or special instructions..."
-                  rows={3}
-                  className="text-sm"
+                  rows={4}
+                  className="text-base"
                 />
               </CardContent>
             </Card>
 
             {selectedProject && (
-              <Card className="bg-blue-50 border-blue-200">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-blue-800">Project Summary</CardTitle>
+              <Card className="bg-blue-50 border-2 border-blue-200">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl text-blue-800">Project Summary</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-6">
                     <div>
-                      <span className="font-medium text-blue-700">Project:</span>
-                      <span className="ml-2">{selectedProject.name}</span>
+                      <span className="font-semibold text-blue-700 text-base">Project:</span>
+                      <span className="ml-3 text-base">{selectedProject.name}</span>
                     </div>
                     {selectedProject.client && (
                       <div>
-                        <span className="font-medium text-blue-700">Client:</span>
-                        <span className="ml-2">{selectedProject.client}</span>
+                        <span className="font-semibold text-blue-700 text-base">Client:</span>
+                        <span className="ml-3 text-base">{selectedProject.client}</span>
                       </div>
                     )}
                   </div>
@@ -511,11 +504,11 @@ export function ImprovedBillingDialog({
               </Card>
             )}
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <div className="flex justify-end gap-4 pt-6 border-t-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} size="lg">
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading || !formData.project_id}>
+              <Button type="submit" disabled={loading || !formData.project_id} size="lg">
                 {loading ? 'Saving...' : billing?.id ? 'Update Billing' : 'Create Billing'}
               </Button>
             </div>

@@ -49,7 +49,6 @@ export function NewEquipmentDialog({ open, onOpenChange, onEquipmentCreated }: N
 
       if (error) throw error;
 
-      toast.success('Equipment added successfully');
       onEquipmentCreated();
       onOpenChange(false);
       setFormData({
@@ -63,7 +62,6 @@ export function NewEquipmentDialog({ open, onOpenChange, onEquipmentCreated }: N
       });
     } catch (error) {
       console.error('Error creating equipment:', error);
-      toast.error('Failed to add equipment');
     } finally {
       setLoading(false);
     }

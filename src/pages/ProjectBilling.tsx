@@ -122,8 +122,6 @@ export default function ProjectBilling() {
   };
 
   const deleteBilling = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this billing record?')) return;
-
     try {
       const { error } = await supabase
         .from('project_billing')
@@ -132,11 +130,9 @@ export default function ProjectBilling() {
 
       if (error) throw error;
 
-      toast.success('Billing record deleted successfully');
       fetchBillings();
     } catch (error) {
       console.error('Error deleting billing record:', error);
-      toast.error('Failed to delete billing record');
     }
   };
 
@@ -159,11 +155,9 @@ export default function ProjectBilling() {
 
       if (error) throw error;
 
-      toast.success('Billing marked as paid');
       fetchBillings();
     } catch (error) {
       console.error('Error updating billing:', error);
-      toast.error('Failed to update billing');
     }
   };
 
@@ -309,11 +303,9 @@ export default function ProjectBilling() {
         }
       }
 
-      toast.success('Billing entries created from payment applications');
       fetchBillings();
     } catch (error) {
       console.error('Error creating billing from payment applications:', error);
-      toast.error('Failed to create billing entries');
     }
   };
 
