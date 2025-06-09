@@ -265,12 +265,22 @@ export default function ProjectSchedule() {
 
       const updatedTask = { ...task, ...updates };
       
+      // Prepare updates for database (convert Date objects to strings)
+      const dbUpdates: any = {
+        progress: updatedTask.progress,
+        status: updatedTask.status
+      };
+
+      if (updates.startDate) {
+        dbUpdates.start_date = updates.startDate.toISOString().split('T')[0];
+      }
+      if (updates.endDate) {
+        dbUpdates.end_date = updates.endDate.toISOString().split('T')[0];
+      }
+
       const { error } = await supabase
         .from('tasks')
-        .update({
-          progress: updatedTask.progress,
-          status: updatedTask.status
-        })
+        .update(dbUpdates)
         .eq('id', taskId);
 
       if (error) throw error;
@@ -283,6 +293,23 @@ export default function ProjectSchedule() {
     } catch (error) {
       console.error('Error updating task:', error);
       toast.error('Failed to update task');
+    }
+  };
+
+  const handleTaskDelete = async (taskId: string) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      setTasks(prevTasks => prevTasks.filter(t => t.id !== taskId));
+      toast.success('Task deleted successfully');
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete task');
     }
   };
 
@@ -524,9 +551,10 @@ export default function ProjectSchedule() {
             <div id="gantt-chart">
               <GanttChart
                 tasks={filteredTasks}
+                onUpdateTask={handleTaskUpdate}
+                onDeleteTask={handleTaskDelete}
                 projects={projects}
                 selectedProjects={selectedProjects}
-                onTaskUpdate={handleTaskUpdate}
                 dateRange={dateRange}
                 showDependencies={showDependencies}
                 showCriticalPath={showCriticalPath}

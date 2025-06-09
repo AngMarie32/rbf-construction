@@ -5,52 +5,70 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Calendar, Clock } from 'lucide-react';
 import { toast } from 'sonner';
-
-interface Task {
-  id: string;
-  title: string;
-  start_date: string;
-  end_date: string;
-  progress: number;
-  status: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold';
-  dependencies?: string[];
-}
+import { Task } from '@/types';
 
 interface GanttChartProps {
   tasks: Task[];
   onUpdateTask: (taskId: string, updates: Partial<Task>) => void;
   onDeleteTask: (taskId: string) => void;
+  projects?: Array<{ id: string; name: string; color: string; }>;
+  selectedProjects?: string[];
+  dateRange?: { from: Date; to: Date };
+  showDependencies?: boolean;
+  showCriticalPath?: boolean;
+  showMilestones?: boolean;
+  projectData?: any;
+  compactMode?: boolean;
 }
 
-export function GanttChart({ tasks, onUpdateTask, onDeleteTask }: GanttChartProps) {
+export function GanttChart({ 
+  tasks, 
+  onUpdateTask, 
+  onDeleteTask,
+  projects = [],
+  selectedProjects = [],
+  dateRange,
+  showDependencies = false,
+  showCriticalPath = false,
+  showMilestones = false,
+  projectData,
+  compactMode = false
+}: GanttChartProps) {
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
 
   // Calculate date range
-  const allDates = tasks.flatMap(task => [new Date(task.start_date), new Date(task.end_date)]);
+  const allDates = tasks.flatMap(task => [task.startDate, task.endDate]);
   const minDate = allDates.length > 0 ? new Date(Math.min(...allDates.map(d => d.getTime()))) : new Date();
   const maxDate = allDates.length > 0 ? new Date(Math.max(...allDates.map(d => d.getTime()))) : new Date();
   
   // Add padding to date range
-  const startDate = new Date(minDate);
-  startDate.setDate(startDate.getDate() - 7);
-  const endDate = new Date(maxDate);
-  endDate.setDate(endDate.getDate() + 7);
+  const startDate = dateRange?.from || (() => {
+    const start = new Date(minDate);
+    start.setDate(start.getDate() - 7);
+    return start;
+  })();
+  
+  const endDate = dateRange?.to || (() => {
+    const end = new Date(maxDate);
+    end.setDate(end.getDate() + 7);
+    return end;
+  })();
 
   const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
   const dayWidth = 30; // pixels per day
 
   const getTaskPosition = (task: Task) => {
-    const taskStart = new Date(task.start_date);
-    const taskEnd = new Date(task.end_date);
+    const taskStart = task.startDate;
+    const taskEnd = task.endDate;
     const left = Math.ceil((taskStart.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) * dayWidth;
     const width = Math.ceil((taskEnd.getTime() - taskStart.getTime()) / (1000 * 60 * 60 * 24)) * dayWidth;
     return { left, width };
   };
 
   const calculateProgressPercentage = (task: Task) => {
-    const taskStart = new Date(task.start_date);
-    const taskEnd = new Date(task.end_date);
+    const taskStart = task.startDate;
+    const taskEnd = task.endDate;
     const today = new Date();
     
     if (today < taskStart) return 0;
@@ -81,12 +99,13 @@ export function GanttChart({ tasks, onUpdateTask, onDeleteTask }: GanttChartProp
       case 'In Progress': return 'bg-blue-500';
       case 'Completed': return 'bg-green-500';
       case 'On Hold': return 'bg-yellow-500';
+      case 'Overdue': return 'bg-red-500';
       default: return 'bg-gray-400';
     }
   };
 
   const getCriticalPathColor = (task: Task) => {
-    const taskEnd = new Date(task.end_date);
+    const taskEnd = task.endDate;
     const today = new Date();
     const daysUntilDue = Math.ceil((taskEnd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     
@@ -112,8 +131,8 @@ export function GanttChart({ tasks, onUpdateTask, onDeleteTask }: GanttChartProp
     const task = tasks.find(t => t.id === draggedTask);
     if (!task) return;
     
-    const originalStart = new Date(task.start_date);
-    const originalEnd = new Date(task.end_date);
+    const originalStart = task.startDate;
+    const originalEnd = task.endDate;
     const duration = originalEnd.getTime() - originalStart.getTime();
     
     const newStart = new Date(startDate);
@@ -122,8 +141,8 @@ export function GanttChart({ tasks, onUpdateTask, onDeleteTask }: GanttChartProp
     const newEnd = new Date(newStart.getTime() + duration);
     
     onUpdateTask(draggedTask, {
-      start_date: newStart.toISOString().split('T')[0],
-      end_date: newEnd.toISOString().split('T')[0]
+      startDate: newStart,
+      endDate: newEnd
     });
   };
 
@@ -192,7 +211,7 @@ export function GanttChart({ tasks, onUpdateTask, onDeleteTask }: GanttChartProp
           >
             {tasks.map((task, index) => {
               const { left, width } = getTaskPosition(task);
-              const taskEnd = new Date(task.end_date);
+              const taskEnd = task.endDate;
               const today = new Date();
               const daysUntilDue = Math.ceil((taskEnd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               const isCritical = daysUntilDue <= 3 && task.status !== 'Completed';

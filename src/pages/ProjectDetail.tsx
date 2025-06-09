@@ -601,10 +601,10 @@ export default function ProjectDetail() {
                     <div className="border rounded-lg">
                       <GanttChart
                         tasks={tasks}
+                        onUpdateTask={handleTaskUpdate}
+                        onDeleteTask={handleTaskDelete}
                         projects={scheduleProjects}
                         selectedProjects={[id]}
-                        onTaskUpdate={handleTaskUpdate}
-                        onTaskDelete={handleTaskDelete}
                         dateRange={{
                           from: new Date(project.startDate),
                           to: new Date(project.dueDate)
