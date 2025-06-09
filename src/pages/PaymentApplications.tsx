@@ -19,7 +19,6 @@ export default function PaymentApplications() {
   const [paymentApps, setPaymentApps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [g702DialogOpen, setG702DialogOpen] = useState(false);
-  const [editingApplication, setEditingApplication] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -115,8 +114,8 @@ export default function PaymentApplications() {
     setG702DialogOpen(true);
   };
 
-  const handleViewApplication = (app: any) => {
-    setEditingApplication(app);
+  const handleViewApplication = (appId: string) => {
+    // For now, we'll open the G702 dialog in view mode
     setG702DialogOpen(true);
   };
 
@@ -150,7 +149,6 @@ export default function PaymentApplications() {
 
   const handleApplicationSaved = () => {
     fetchPaymentApplications();
-    setEditingApplication(null);
     toast.success('Payment application saved successfully');
   };
 
@@ -290,9 +288,9 @@ export default function PaymentApplications() {
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleViewApplication(app)}>
+                          <Button variant="outline" size="sm" onClick={() => handleViewApplication(app.id)}>
                             <FileText className="w-4 h-4 mr-1" />
-                            View/Edit
+                            View
                           </Button>
                           <Button variant="outline" size="sm" onClick={() => handleExportApplication(app)}>
                             <Download className="w-4 h-4 mr-1" />
@@ -368,7 +366,6 @@ export default function PaymentApplications() {
           onOpenChange={setG702DialogOpen}
           projectId={selectedProject}
           onSave={handleApplicationSaved}
-          editingApplication={editingApplication}
         />
       </div>
     </Layout>
