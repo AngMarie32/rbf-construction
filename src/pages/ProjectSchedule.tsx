@@ -37,19 +37,7 @@ import { format, addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMo
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
-interface Task {
-  id: string;
-  title: string;
-  startDate: Date;
-  endDate: Date;
-  progress: number;
-  status: string;
-  projectId: string;
-  dependencies: string[];
-  duration: number;
-  isCritical?: boolean;
-}
+import { Task } from '@/types';
 
 interface Project {
   id: string;
@@ -145,18 +133,28 @@ export default function ProjectSchedule() {
 
       if (error) throw error;
 
-      const tasksWithDates = (data || []).map(task => ({
-        id: task.id,
-        title: task.title,
-        startDate: new Date(task.start_date),
-        endDate: new Date(task.end_date),
-        progress: task.progress || 0,
-        status: task.status || 'Not Started',
-        projectId: task.project_id,
-        dependencies: task.dependencies || [],
-        duration: Math.ceil((new Date(task.end_date).getTime() - new Date(task.start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1,
-        isCritical: false
-      }));
+      const tasksWithDates = (data || []).map(task => {
+        const startDate = new Date(task.start_date);
+        const endDate = new Date(task.end_date);
+        
+        // Ensure status matches the Task type
+        let status: Task['status'] = 'Not Started';
+        const dbStatus = task.status;
+        if (dbStatus === 'Not Started' || dbStatus === 'In Progress' || dbStatus === 'Completed' || dbStatus === 'On Hold') {
+          status = dbStatus;
+        }
+
+        return {
+          id: task.id,
+          projectId: task.project_id,
+          title: task.title,
+          startDate,
+          endDate,
+          progress: task.progress || 0,
+          status,
+          dependencies: task.dependencies || []
+        };
+      });
 
       setTasks(tasksWithDates);
     } catch (error) {
@@ -342,7 +340,6 @@ export default function ProjectSchedule() {
           'Project': projects.find(p => p.id === task.projectId)?.name || '',
           'Start Date': format(task.startDate, 'yyyy-MM-dd'),
           'End Date': format(task.endDate, 'yyyy-MM-dd'),
-          'Duration': task.duration,
           'Progress': `${task.progress}%`,
           'Status': task.status
         }));

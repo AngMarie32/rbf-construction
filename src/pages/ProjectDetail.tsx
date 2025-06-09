@@ -9,7 +9,7 @@ import { Edit, BarChart3, Plus, FileText, DollarSign, Calendar } from 'lucide-re
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { Project as ProjectType } from '@/types';
+import { Project as ProjectType, Task } from '@/types';
 import { EditProjectDialog } from '@/components/projects/EditProjectDialog';
 import { GanttChart } from '@/components/schedule/GanttChart';
 
@@ -23,19 +23,6 @@ interface GanttProject {
   client?: string;
   contractValue?: number;
   status?: string;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  startDate: Date;
-  endDate: Date;
-  progress: number;
-  status: string;
-  projectId: string;
-  dependencies: string[];
-  duration: number;
-  isCritical?: boolean;
 }
 
 export default function ProjectDetail() {
@@ -166,30 +153,34 @@ export default function ProjectDetail() {
         fetchedTasks = realTasks.map(task => {
           const startDate = new Date(task.start_date);
           const endDate = new Date(task.end_date);
-          const calculatedDuration = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
           
-          // Calculate status based on dates and progress
+          // Calculate status based on dates and progress with proper typing
           const today = new Date();
-          let status = task.status || 'Not Started';
+          let status: Task['status'] = 'Not Started';
+          
           if (task.progress === 100) {
             status = 'Completed';
           } else if (today >= startDate && today <= endDate) {
             status = 'In Progress';
           } else if (today > endDate && task.progress < 100) {
-            status = 'Overdue';
+            status = 'On Hold'; // Using 'On Hold' instead of 'Overdue' since it's not in the type
+          } else {
+            // Use the database status if it matches our type, otherwise default
+            const dbStatus = task.status;
+            if (dbStatus === 'Not Started' || dbStatus === 'In Progress' || dbStatus === 'Completed' || dbStatus === 'On Hold') {
+              status = dbStatus;
+            }
           }
           
           return {
             id: task.id,
+            projectId: task.project_id,
             title: task.title,
             startDate,
             endDate,
             progress: task.progress || 0,
             status,
-            projectId: task.project_id,
-            dependencies: task.dependencies || [],
-            duration: calculatedDuration,
-            isCritical: false // Can be enhanced based on project logic
+            dependencies: task.dependencies || []
           };
         });
       } else {
@@ -200,29 +191,28 @@ export default function ProjectDetail() {
         
         // Create more realistic task progression
         const today = new Date();
-        const getTaskStatus = (startDate: Date, endDate: Date, progress: number) => {
+        const getTaskStatus = (startDate: Date, endDate: Date, progress: number): Task['status'] => {
           if (progress === 100) return 'Completed';
           if (today < startDate) return 'Not Started';
           if (today >= startDate && today <= endDate) return 'In Progress';
-          if (today > endDate && progress < 100) return 'Overdue';
+          if (today > endDate && progress < 100) return 'On Hold';
           return 'Not Started';
         };
         
         fetchedTasks = [
           {
             id: 'phase-1',
+            projectId: id,
             title: 'Project Initiation & Planning',
             startDate: projectStart,
             endDate: new Date(projectStart.getTime() + (projectDuration * 0.15 * 24 * 60 * 60 * 1000)),
             progress: Math.min(100, Math.max(0, project.completionPercentage + 20)),
             status: 'Completed',
-            projectId: id,
-            dependencies: [],
-            duration: Math.ceil(projectDuration * 0.15),
-            isCritical: true
+            dependencies: []
           },
           {
             id: 'phase-2',
+            projectId: id,
             title: 'Site Preparation & Foundation',
             startDate: new Date(projectStart.getTime() + (projectDuration * 0.15 * 24 * 60 * 60 * 1000)),
             endDate: new Date(projectStart.getTime() + (projectDuration * 0.4 * 24 * 60 * 60 * 1000)),
@@ -232,13 +222,11 @@ export default function ProjectDetail() {
               new Date(projectStart.getTime() + (projectDuration * 0.4 * 24 * 60 * 60 * 1000)),
               project.completionPercentage > 40 ? 100 : Math.max(0, (project.completionPercentage - 15) * 4)
             ),
-            projectId: id,
-            dependencies: ['phase-1'],
-            duration: Math.ceil(projectDuration * 0.25),
-            isCritical: true
+            dependencies: ['phase-1']
           },
           {
             id: 'phase-3',
+            projectId: id,
             title: 'Main Construction Phase',
             startDate: new Date(projectStart.getTime() + (projectDuration * 0.4 * 24 * 60 * 60 * 1000)),
             endDate: new Date(projectStart.getTime() + (projectDuration * 0.85 * 24 * 60 * 60 * 1000)),
@@ -248,13 +236,11 @@ export default function ProjectDetail() {
               new Date(projectStart.getTime() + (projectDuration * 0.85 * 24 * 60 * 60 * 1000)),
               project.completionPercentage > 40 ? Math.min(100, (project.completionPercentage - 40) * 2.22) : 0
             ),
-            projectId: id,
-            dependencies: ['phase-2'],
-            duration: Math.ceil(projectDuration * 0.45),
-            isCritical: false
+            dependencies: ['phase-2']
           },
           {
             id: 'phase-4',
+            projectId: id,
             title: 'Final Inspection & Handover',
             startDate: new Date(projectStart.getTime() + (projectDuration * 0.85 * 24 * 60 * 60 * 1000)),
             endDate: projectEnd,
@@ -264,10 +250,7 @@ export default function ProjectDetail() {
               projectEnd,
               project.completionPercentage > 85 ? Math.min(100, (project.completionPercentage - 85) * 6.67) : 0
             ),
-            projectId: id,
-            dependencies: ['phase-3'],
-            duration: Math.ceil(projectDuration * 0.15),
-            isCritical: true
+            dependencies: ['phase-3']
           }
         ];
       }
