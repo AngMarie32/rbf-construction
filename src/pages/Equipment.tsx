@@ -49,7 +49,6 @@ export default function Equipment() {
   const [estimatorOpen, setEstimatorOpen] = useState(false);
   const [selectedEstimatorEquipment, setSelectedEstimatorEquipment] = useState<EstimatorItem[]>([]);
   const [viewMode, setViewMode] = useState<'equipment' | 'maintenance' | 'estimator'>('equipment');
-  const [newEquipmentDialogOpen, setNewEquipmentDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchEquipment();
@@ -251,10 +250,7 @@ export default function Equipment() {
               </div>
               
               {viewMode === 'equipment' && (
-                <Button onClick={() => setNewEquipmentDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Equipment
-                </Button>
+                <NewEquipmentDialog onEquipmentCreated={fetchEquipment} />
               )}
             </div>
 
@@ -433,13 +429,6 @@ export default function Equipment() {
           />
         )}
       </div>
-
-      {/* New Equipment Dialog */}
-      <NewEquipmentDialog
-        open={newEquipmentDialogOpen}
-        onOpenChange={setNewEquipmentDialogOpen}
-        onEquipmentCreated={fetchEquipment}
-      />
 
       {/* Maintenance Dialog */}
       {selectedEquipment && (
