@@ -48,6 +48,13 @@ export function TaskEditDialog({ task, open, onOpenChange, onSave }: TaskEditDia
     onOpenChange(false);
   };
 
+  const handleStatusChange = (value: string) => {
+    const validStatuses = ['Not Started', 'In Progress', 'Completed', 'On Hold'] as const;
+    if (validStatuses.includes(value as any)) {
+      setFormData({ ...formData, status: value as Task['status'] });
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -67,7 +74,7 @@ export function TaskEditDialog({ task, open, onOpenChange, onSave }: TaskEditDia
 
           <div>
             <Label htmlFor="status">Status</Label>
-            <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+            <Select value={formData.status} onValueChange={handleStatusChange}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
