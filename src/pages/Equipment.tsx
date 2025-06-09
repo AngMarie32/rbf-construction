@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,6 +49,7 @@ export default function Equipment() {
   const [estimatorOpen, setEstimatorOpen] = useState(false);
   const [selectedEstimatorEquipment, setSelectedEstimatorEquipment] = useState<EstimatorItem[]>([]);
   const [viewMode, setViewMode] = useState<'equipment' | 'maintenance' | 'estimator'>('equipment');
+  const [newEquipmentDialogOpen, setNewEquipmentDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchEquipment();
@@ -257,7 +257,10 @@ export default function Equipment() {
               </div>
               
               {viewMode === 'equipment' && (
-                <NewEquipmentDialog onEquipmentCreated={fetchEquipment} />
+                <Button onClick={() => setNewEquipmentDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Equipment
+                </Button>
               )}
             </div>
 
@@ -436,6 +439,13 @@ export default function Equipment() {
           />
         )}
       </div>
+
+      {/* New Equipment Dialog */}
+      <NewEquipmentDialog
+        open={newEquipmentDialogOpen}
+        onOpenChange={setNewEquipmentDialogOpen}
+        onEquipmentCreated={fetchEquipment}
+      />
 
       {/* Maintenance Dialog */}
       {selectedEquipment && (
