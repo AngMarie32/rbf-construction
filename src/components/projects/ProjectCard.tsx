@@ -39,10 +39,16 @@ export function ProjectCard({ project, showDeleteButton = false, onDelete }: Pro
     }
   };
 
-  // Calculate financial metrics
+  // Calculate financial metrics properly
   const originalContract = project.contractValue || 0;
-  const billed = originalContract * (project.completionPercentage / 100);
-  const remaining = originalContract - billed;
+  const completionPercentage = project.completionPercentage || 0;
+  
+  // Calculate earned value based on completion percentage
+  const earnedValue = (originalContract * completionPercentage) / 100;
+  
+  // For display purposes, show earned as "billed" and remaining as contract minus earned
+  const billed = earnedValue;
+  const remaining = Math.max(0, originalContract - earnedValue);
 
   return (
     <Card 
@@ -81,7 +87,7 @@ export function ProjectCard({ project, showDeleteButton = false, onDelete }: Pro
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center text-gray-600">
               <DollarSign className="w-4 h-4 mr-1" />
-              <span>Original Contract:</span>
+              <span>Contract Value:</span>
             </div>
             <span className="font-semibold">${originalContract.toLocaleString()}</span>
           </div>
@@ -89,7 +95,7 @@ export function ProjectCard({ project, showDeleteButton = false, onDelete }: Pro
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center text-green-600">
               <CreditCard className="w-4 h-4 mr-1" />
-              <span>Billed:</span>
+              <span>Earned ({completionPercentage}%):</span>
             </div>
             <span className="font-semibold text-green-600">${billed.toLocaleString()}</span>
           </div>
@@ -113,9 +119,9 @@ export function ProjectCard({ project, showDeleteButton = false, onDelete }: Pro
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span>Progress</span>
-            <span>{project.completionPercentage}%</span>
+            <span>{completionPercentage}%</span>
           </div>
-          <Progress value={project.completionPercentage} className="h-2" />
+          <Progress value={completionPercentage} className="h-2" />
         </div>
 
         {showDeleteButton && (

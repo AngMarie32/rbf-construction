@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -79,12 +80,63 @@ export function GanttChart({
     return Math.max(timeBasedProgress, task.progress || 0);
   };
 
+  // Auto-update task status based on progress and dates
+  const getTaskStatus = (task: Task): string => {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    
+    const taskStart = new Date(task.startDate);
+    taskStart.setHours(0, 0, 0, 0);
+    
+    const taskEnd = new Date(task.endDate);
+    taskEnd.setHours(23, 59, 59, 999);
+
+    const calculatedProgress = calculateTaskProgress(task);
+
+    // If progress is 100%, mark as completed
+    if (calculatedProgress >= 100) {
+      return 'Completed';
+    }
+
+    // If task hasn't started yet
+    if (isBefore(today, taskStart)) {
+      return 'Not Started';
+    }
+
+    // If task is past due date but not completed
+    if (isAfter(today, taskEnd) && calculatedProgress < 100) {
+      return 'Overdue';
+    }
+
+    // If task is in progress
+    if (calculatedProgress > 0) {
+      return 'In Progress';
+    }
+
+    // Default to not started
+    return 'Not Started';
+  };
+
   const tasksWithCalculatedProgress = useMemo(() => {
-    return tasks.map(task => ({
-      ...task,
-      calculatedProgress: calculateTaskProgress(task)
-    }));
-  }, [tasks]);
+    return tasks.map(task => {
+      const calculatedProgress = calculateTaskProgress(task);
+      const autoStatus = getTaskStatus(task);
+      
+      // Update task status if it's different from calculated status
+      if (task.status !== autoStatus) {
+        onUpdateTask(task.id, { 
+          status: autoStatus,
+          progress: Math.round(calculatedProgress)
+        });
+      }
+
+      return {
+        ...task,
+        calculatedProgress,
+        status: autoStatus
+      };
+    });
+  }, [tasks, onUpdateTask]);
 
   // Date range calculations
   const totalDays = differenceInDays(dateRange.to, dateRange.from) + 1;
@@ -151,13 +203,11 @@ export function GanttChart({
     };
   }, [isResizing, tasks, onUpdateTask, dateRange.from, dayWidth]);
 
-  const getStatusColor = (task: Task) => {
-    const progress = calculateTaskProgress(task);
-    
-    switch (task.status) {
+  const getStatusColor = (status: string) => {
+    switch (status) {
       case 'Completed': return 'bg-green-500';
       case 'In Progress': return 'bg-blue-500';
-      case 'On Hold': return 'bg-yellow-500';
+      case 'Overdue': return 'bg-red-500';
       case 'Not Started': return 'bg-gray-400';
       default: return 'bg-gray-400';
     }
@@ -167,7 +217,7 @@ export function GanttChart({
     switch (status) {
       case 'Completed': return 'bg-green-500 text-white';
       case 'In Progress': return 'bg-blue-500 text-white';
-      case 'On Hold': return 'bg-yellow-500 text-white';
+      case 'Overdue': return 'bg-red-500 text-white';
       case 'Not Started': return 'bg-gray-500 text-white';
       default: return 'bg-gray-500 text-white';
     }
@@ -235,7 +285,7 @@ export function GanttChart({
         {/* Timeline Area */}
         <div className="flex-1 relative h-full">
           <div
-            className={`absolute top-2 h-8 rounded ${getStatusColor(task)} cursor-pointer group transition-all duration-200 hover:shadow-lg`}
+            className={`absolute top-2 h-8 rounded ${getStatusColor(task.status)} cursor-pointer group transition-all duration-200 hover:shadow-lg`}
             style={{
               left: position.left,
               width: position.width,

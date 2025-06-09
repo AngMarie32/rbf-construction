@@ -10,9 +10,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CalendarIcon, X, Download } from 'lucide-react';
+import { CalendarIcon, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface Project {
   id: string;
@@ -109,20 +110,23 @@ export function ImprovedBillingDialog({
     const selectedApps = paymentApps.filter(app => selectedPaymentApps.includes(app.id));
     const totalAmount = selectedApps.reduce((sum, app) => sum + app.current_payment_due, 0);
     
-    const dates = selectedApps.map(app => new Date(app.period_to));
-    const startDate = new Date(Math.min(...dates.map(d => d.getTime())));
-    const endDate = new Date(Math.max(...dates.map(d => d.getTime())));
+    // Use the payment app period end date as both start and end for simplicity
+    const latestPeriodEnd = selectedApps.reduce((latest, app) => {
+      const appDate = new Date(app.period_to);
+      return appDate > latest ? appDate : latest;
+    }, new Date(selectedApps[0].period_to));
 
     setFormData({
       ...formData,
       billed_amount: totalAmount,
-      billing_period_start: startDate,
-      billing_period_end: endDate,
+      billing_period_start: latestPeriodEnd,
+      billing_period_end: latestPeriodEnd,
       notes: `Imported from Payment Applications: ${selectedApps.map(app => app.application_number).join(', ')}`
     });
 
     setShowPaymentApps(false);
     setSelectedPaymentApps([]);
+    toast.success('Payment applications imported successfully');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -158,10 +162,12 @@ export function ImprovedBillingDialog({
 
       if (error) throw error;
 
+      toast.success(billing?.id ? 'Billing record updated successfully' : 'Billing record created successfully');
       onSuccess();
       onOpenChange(false);
     } catch (error) {
       console.error('Error saving billing:', error);
+      toast.error('Failed to save billing record');
     } finally {
       setLoading(false);
     }
@@ -174,19 +180,9 @@ export function ImprovedBillingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl font-bold">
-              {billing?.id ? 'Edit Billing Record' : 'Create New Billing Record'}
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-              className="h-8 w-8 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle className="text-xl font-bold">
+            {billing?.id ? 'Edit Billing Record' : 'Create New Billing Record'}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -315,7 +311,7 @@ export function ImprovedBillingDialog({
                       id="invoice_number"
                       value={formData.invoice_number}
                       onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
-                      placeholder="INV-001"
+                      placeholder="Enter invoice number"
                     />
                   </div>
                 </CardContent>
