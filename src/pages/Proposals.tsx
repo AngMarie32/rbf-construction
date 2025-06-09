@@ -1,6 +1,8 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
+import { ProposalViewModal } from '@/components/proposals/ProposalViewModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +31,7 @@ export default function Proposals() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [viewingProposal, setViewingProposal] = useState<Proposal | null>(null);
 
   useEffect(() => {
     fetchProposals();
@@ -84,8 +87,6 @@ export default function Proposals() {
   };
 
   const deleteProposal = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this proposal?')) return;
-
     try {
       const { error } = await supabase
         .from('proposals')
@@ -100,18 +101,6 @@ export default function Proposals() {
       console.error('Error deleting proposal:', error);
       toast.error('Failed to delete proposal');
     }
-  };
-
-  const viewProposal = (proposal: Proposal) => {
-    const details = `
-Project: ${proposal.projectName}
-Client: ${proposal.client}
-Amount: $${proposal.amount.toLocaleString()}
-Status: ${proposal.status}
-Created: ${proposal.createdAt.toLocaleDateString()}
-Scope: ${proposal.scope || 'No scope defined'}
-    `;
-    alert(details);
   };
 
   const downloadProposalPDF = (proposal: Proposal) => {
@@ -156,9 +145,6 @@ This proposal is valid for 30 days from the date above.
   };
 
   const totalValue = proposals.reduce((sum, proposal) => sum + proposal.amount, 0);
-  const approvedValue = proposals
-    .filter(p => p.status === 'Approved')
-    .reduce((sum, proposal) => sum + proposal.amount, 0);
 
   if (loading) {
     return (
@@ -290,7 +276,7 @@ This proposal is valid for 30 days from the date above.
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={() => viewProposal(proposal)}
+                              onClick={() => setViewingProposal(proposal)}
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
@@ -323,6 +309,15 @@ This proposal is valid for 30 days from the date above.
             )}
           </CardContent>
         </Card>
+
+        {/* Proposal View Modal */}
+        {viewingProposal && (
+          <ProposalViewModal
+            proposal={viewingProposal}
+            open={!!viewingProposal}
+            onOpenChange={(open) => !open && setViewingProposal(null)}
+          />
+        )}
       </div>
     </Layout>
   );

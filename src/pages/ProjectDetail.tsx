@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Edit, BarChart3, Plus, FileText, DollarSign, Calendar } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Edit, BarChart3, Plus, FileText, DollarSign, Calendar, Download, Eye, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -25,6 +26,26 @@ interface GanttProject {
   status?: string;
 }
 
+interface Document {
+  id: string;
+  name: string;
+  category: string;
+  description?: string;
+  createdAt: Date;
+  fileSize?: number;
+  tags?: string[];
+}
+
+interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  category: string;
+  vendor?: string;
+  date: Date;
+  status: string;
+}
+
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -36,6 +57,8 @@ export default function ProjectDetail() {
   const [paymentApps, setPaymentApps] = useState([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [scheduleProjects, setScheduleProjects] = useState<GanttProject[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
 
   useEffect(() => {
     fetchProject();
@@ -130,6 +153,44 @@ export default function ProjectDetail() {
         .order('application_number', { ascending: false });
 
       setPaymentApps(payments || []);
+
+      // Fetch documents for this project
+      const { data: docs } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('project_id', id)
+        .order('created_at', { ascending: false });
+
+      const mappedDocuments = (docs || []).map(doc => ({
+        id: doc.id,
+        name: doc.name,
+        category: doc.category || 'General',
+        description: doc.description,
+        createdAt: new Date(doc.created_at),
+        fileSize: doc.file_size,
+        tags: doc.tags || []
+      }));
+
+      setDocuments(mappedDocuments);
+
+      // Fetch expenses for this project
+      const { data: expenseData } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('project_id', id)
+        .order('date', { ascending: false });
+
+      const mappedExpenses = (expenseData || []).map(expense => ({
+        id: expense.id,
+        description: expense.description,
+        amount: expense.amount,
+        category: expense.category,
+        vendor: expense.vendor,
+        date: new Date(expense.date),
+        status: expense.status
+      }));
+
+      setExpenses(mappedExpenses);
     } catch (error) {
       console.error('Error fetching project data:', error);
     }
@@ -362,6 +423,40 @@ export default function ProjectDetail() {
     navigate(`/burn-analysis?project=${id}`);
   };
 
+  const deleteDocument = async (docId: string) => {
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .delete()
+        .eq('id', docId);
+
+      if (error) throw error;
+      
+      setDocuments(prev => prev.filter(doc => doc.id !== docId));
+      toast.success('Document deleted successfully');
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      toast.error('Failed to delete document');
+    }
+  };
+
+  const deleteExpense = async (expenseId: string) => {
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', expenseId);
+
+      if (error) throw error;
+      
+      setExpenses(prev => prev.filter(exp => exp.id !== expenseId));
+      toast.success('Expense deleted successfully');
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      toast.error('Failed to delete expense');
+    }
+  };
+
   if (loading) {
     return (
       <Layout title="Project Details" subtitle="Loading project details...">
@@ -473,6 +568,8 @@ export default function ProjectDetail() {
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
             <TabsTrigger value="sov">Schedule of Values</TabsTrigger>
             <TabsTrigger value="payments">Payment Apps</TabsTrigger>
@@ -606,6 +703,175 @@ export default function ProjectDetail() {
                       <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-500">Loading schedule data...</p>
                     </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="documents" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Project Documents</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => navigate('/documents')}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Upload Document
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/documents')}>
+                    View All
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {documents.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Size</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead className="w-[100px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {documents.map((doc) => (
+                        <TableRow key={doc.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{doc.name}</div>
+                              {doc.description && (
+                                <div className="text-sm text-gray-500">{doc.description}</div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{doc.category}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {doc.fileSize ? `${(doc.fileSize / 1024).toFixed(1)} KB` : 'Unknown'}
+                          </TableCell>
+                          <TableCell>
+                            {format(doc.createdAt, 'MMM dd, yyyy')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="sm">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm">
+                                <Download className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => deleteDocument(doc.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">No documents found for this project.</p>
+                    <Button className="mt-4" onClick={() => navigate('/documents')}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Upload First Document
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="expenses" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Project Expenses</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => navigate('/expenses')}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Expense
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/expenses')}>
+                    View All
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {expenses.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="w-[100px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {expenses.map((expense) => (
+                        <TableRow key={expense.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{expense.description}</div>
+                              {expense.vendor && (
+                                <div className="text-sm text-gray-500">{expense.vendor}</div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{expense.category}</Badge>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            ${expense.amount.toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            {format(expense.date, 'MMM dd, yyyy')}
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={expense.status === 'Approved' ? 'default' : 'secondary'}
+                            >
+                              {expense.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="sm">
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => deleteExpense(expense.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-8">
+                    <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">No expenses found for this project.</p>
+                    <Button className="mt-4" onClick={() => navigate('/expenses')}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add First Expense
+                    </Button>
                   </div>
                 )}
               </CardContent>
