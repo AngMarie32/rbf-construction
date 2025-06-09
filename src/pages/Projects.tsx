@@ -1,5 +1,4 @@
 
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,7 +58,6 @@ export default function Projects() {
 
       if (error) throw error;
       
-      // Map database fields to TypeScript interface
       const typedData = (data || []).map(item => ({
         id: item.id,
         name: item.name,
@@ -205,4 +203,3 @@ export default function Projects() {
     </Layout>
   );
 }
-

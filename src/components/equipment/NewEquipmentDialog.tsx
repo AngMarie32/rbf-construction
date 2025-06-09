@@ -1,27 +1,25 @@
 
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface NewEquipmentDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   onEquipmentCreated: () => void;
 }
 
-export function NewEquipmentDialog({ open, onOpenChange, onEquipmentCreated }: NewEquipmentDialogProps) {
+export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogProps) {
+  const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     category: '',
     hourly_rate: '',
     status: 'Available',
-    location: '',
-    notes: '',
     description: '',
     year: '',
     value: ''
@@ -51,14 +49,12 @@ export function NewEquipmentDialog({ open, onOpenChange, onEquipmentCreated }: N
       if (error) throw error;
 
       onEquipmentCreated();
-      onOpenChange(false);
+      setOpen(false);
       setFormData({
         name: '',
         category: '',
         hourly_rate: '',
         status: 'Available',
-        location: '',
-        notes: '',
         description: '',
         year: '',
         value: ''
@@ -71,7 +67,13 @@ export function NewEquipmentDialog({ open, onOpenChange, onEquipmentCreated }: N
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <Plus className="w-4 h-4 mr-2" />
+          Add Equipment
+        </Button>
+      </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Add New Equipment</DialogTitle>
@@ -178,7 +180,7 @@ export function NewEquipmentDialog({ open, onOpenChange, onEquipmentCreated }: N
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>

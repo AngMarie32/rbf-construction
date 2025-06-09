@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -7,7 +6,7 @@ import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
 import { WeatherWidget } from '@/components/dashboard/WeatherWidget';
 import { FinancialDateFilter } from '@/components/dashboard/FinancialDateFilter';
-import { DollarSign, Calendar, FileText, Calculator, Trash2 } from 'lucide-react';
+import { DollarSign, Calendar, FileText, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -271,20 +270,12 @@ export default function Dashboard() {
             {openProjects.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {openProjects.slice(0, 6).map((project) => (
-                  <div key={project.id} className="relative">
-                    <ProjectCard project={project} />
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="absolute -top-2 -right-2 h-8 w-8 p-0 rounded-full z-10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteProject(project.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <ProjectCard 
+                    key={project.id} 
+                    project={project} 
+                    showDeleteButton={true}
+                    onDelete={handleDeleteProject}
+                  />
                 ))}
               </div>
             ) : (
