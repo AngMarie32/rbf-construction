@@ -1,168 +1,147 @@
 
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
-import { format, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import { Task } from '@/types';
 
 interface TaskEditDialogProps {
-  task: Task | null;
+  task: Task;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (taskId: string, updates: Partial<Task>) => void;
 }
 
 export function TaskEditDialog({ task, open, onOpenChange, onSave }: TaskEditDialogProps) {
-  const [startDate, setStartDate] = useState<Date>(task?.startDate || new Date());
-  const [duration, setDuration] = useState<number>(
-    task ? Math.ceil((task.endDate.getTime() - task.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1 : 1
-  );
-  const [endDate, setEndDate] = useState<Date>(task?.endDate || new Date());
-  const [useDuration, setUseDuration] = useState(true);
+  const [formData, setFormData] = useState({
+    title: task.title,
+    status: task.status,
+    progress: task.progress || 0,
+    startDate: new Date(task.startDate),
+    endDate: new Date(task.endDate)
+  });
 
-  React.useEffect(() => {
-    if (task) {
-      setStartDate(task.startDate);
-      setEndDate(task.endDate);
-      const calculatedDuration = Math.ceil((task.endDate.getTime() - task.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-      setDuration(calculatedDuration);
-    }
+  useEffect(() => {
+    setFormData({
+      title: task.title,
+      status: task.status,
+      progress: task.progress || 0,
+      startDate: new Date(task.startDate),
+      endDate: new Date(task.endDate)
+    });
   }, [task]);
 
   const handleSave = () => {
-    if (!task) return;
-
-    const finalEndDate = useDuration 
-      ? addDays(startDate, duration - 1)
-      : endDate;
-
     onSave(task.id, {
-      startDate,
-      endDate: finalEndDate
+      title: formData.title,
+      status: formData.status,
+      progress: formData.progress,
+      startDate: formData.startDate,
+      endDate: formData.endDate
     });
     onOpenChange(false);
   };
 
-  const handleDurationChange = (newDuration: number) => {
-    setDuration(newDuration);
-    if (useDuration) {
-      setEndDate(addDays(startDate, newDuration - 1));
-    }
-  };
-
-  const handleStartDateChange = (newStartDate: Date) => {
-    setStartDate(newStartDate);
-    if (useDuration) {
-      setEndDate(addDays(newStartDate, duration - 1));
-    }
-  };
-
-  if (!task) return null;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Task: {task.title}</DialogTitle>
+          <DialogTitle>Edit Task</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">
           <div>
-            <Label>Start Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(startDate, "PPP")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={startDate}
-                  onSelect={(date) => date && handleStartDateChange(date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <Label htmlFor="title">Task Title</Label>
+            <Input
+              id="title"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            />
           </div>
 
-          <div className="flex items-center space-x-2">
-            <input
-              type="radio"
-              id="use-duration"
-              checked={useDuration}
-              onChange={() => setUseDuration(true)}
-            />
-            <Label htmlFor="use-duration">Use Duration</Label>
-            <input
-              type="radio"
-              id="use-end-date"
-              checked={!useDuration}
-              onChange={() => setUseDuration(false)}
-            />
-            <Label htmlFor="use-end-date">Set End Date</Label>
+          <div>
+            <Label htmlFor="status">Status</Label>
+            <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Not Started">Not Started</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Completed">Completed</SelectItem>
+                <SelectItem value="On Hold">On Hold</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {useDuration ? (
+          <div>
+            <Label htmlFor="progress">Progress (%)</Label>
+            <Input
+              id="progress"
+              type="number"
+              min="0"
+              max="100"
+              value={formData.progress}
+              onChange={(e) => setFormData({ ...formData, progress: parseInt(e.target.value) || 0 })}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Duration (Days)</Label>
-              <Input
-                type="number"
-                min="1"
-                value={duration}
-                onChange={(e) => handleDurationChange(parseInt(e.target.value) || 1)}
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                End date: {format(addDays(startDate, duration - 1), 'PPP')}
-              </p>
-            </div>
-          ) : (
-            <div>
-              <Label>End Date</Label>
+              <Label>Start Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                  >
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(endDate, "PPP")}
+                    {format(formData.startDate, "MMM dd, yyyy")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
                   <Calendar
                     mode="single"
-                    selected={endDate}
-                    onSelect={(date) => date && setEndDate(date)}
+                    selected={formData.startDate}
+                    onSelect={(date) => date && setFormData({ ...formData, startDate: date })}
                     initialFocus
-                    disabled={(date) => date < startDate}
                   />
                 </PopoverContent>
               </Popover>
             </div>
-          )}
-        </div>
 
-        <div className="flex gap-2 mt-6">
-          <Button onClick={handleSave} className="flex-1">
-            Save Changes
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => onOpenChange(false)}
-            className="flex-1"
-          >
-            Cancel
-          </Button>
+            <div>
+              <Label>End Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(formData.endDate, "MMM dd, yyyy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={formData.endDate}
+                    onSelect={(date) => date && setFormData({ ...formData, endDate: date })}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave}>
+              Save Changes
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

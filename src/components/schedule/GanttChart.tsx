@@ -294,7 +294,7 @@ export function GanttChart({
   };
 
   return (
-    <Card className="w-full">
+    <Card className="w-full" data-testid="gantt-chart">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center justify-between">
           <span>Project Timeline</span>
