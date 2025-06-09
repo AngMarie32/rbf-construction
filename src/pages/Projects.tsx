@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,9 +58,22 @@ export default function Projects() {
 
       if (error) throw error;
       
+      // Map database fields to TypeScript interface
       const typedData = (data || []).map(item => ({
-        ...item,
-        status: item.status as Project['status']
+        id: item.id,
+        name: item.name,
+        type: item.type,
+        contractValue: item.contract_value || 0,
+        status: item.status as Project['status'],
+        startDate: item.start_date ? new Date(item.start_date) : new Date(),
+        dueDate: item.due_date ? new Date(item.due_date) : new Date(),
+        completionPercentage: item.completion_percentage || 0,
+        address: item.address || '',
+        projectCode: item.project_code || '',
+        client: item.client || '',
+        description: item.description || '',
+        createdAt: new Date(item.created_at),
+        updatedAt: new Date(item.updated_at)
       })) as Project[];
       
       setProjects(typedData);
@@ -166,20 +180,12 @@ export default function Projects() {
         {/* Projects Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProjects.map((project) => (
-            <div key={project.id} className="relative">
-              <ProjectCard project={project} />
-              <Button
-                variant="destructive"
-                size="sm"
-                className="absolute -top-2 -right-2 h-8 w-8 p-0 rounded-full z-10"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteProject(project.id);
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+            <ProjectCard 
+              key={project.id} 
+              project={project} 
+              showDeleteButton={true}
+              onDelete={handleDeleteProject}
+            />
           ))}
 
           {filteredProjects.length === 0 && (
