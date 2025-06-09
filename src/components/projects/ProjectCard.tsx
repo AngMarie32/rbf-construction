@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Calendar, DollarSign, MapPin, Trash2 } from 'lucide-react';
+import { Calendar, DollarSign, MapPin, Trash2, TrendingUp, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 import { Project } from '@/types';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +39,11 @@ export function ProjectCard({ project, showDeleteButton = false, onDelete }: Pro
     }
   };
 
+  // Calculate financial metrics
+  const originalContract = project.contractValue || 0;
+  const billed = originalContract * (project.completionPercentage / 100);
+  const remaining = originalContract - billed;
+
   return (
     <Card 
       className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
@@ -71,11 +76,31 @@ export function ProjectCard({ project, showDeleteButton = false, onDelete }: Pro
           </div>
         )}
         
-        <div className="flex items-center text-sm text-gray-600">
-          <DollarSign className="w-4 h-4 mr-2 text-green-600" />
-          <span className="font-semibold text-green-600">
-            ${project.contractValue.toLocaleString()}
-          </span>
+        {/* Financial Information */}
+        <div className="space-y-2 bg-gray-50 p-3 rounded-lg">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center text-gray-600">
+              <DollarSign className="w-4 h-4 mr-1" />
+              <span>Original Contract:</span>
+            </div>
+            <span className="font-semibold">${originalContract.toLocaleString()}</span>
+          </div>
+          
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center text-green-600">
+              <CreditCard className="w-4 h-4 mr-1" />
+              <span>Billed:</span>
+            </div>
+            <span className="font-semibold text-green-600">${billed.toLocaleString()}</span>
+          </div>
+          
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center text-blue-600">
+              <TrendingUp className="w-4 h-4 mr-1" />
+              <span>Remaining:</span>
+            </div>
+            <span className="font-semibold text-blue-600">${remaining.toLocaleString()}</span>
+          </div>
         </div>
         
         <div className="flex items-center text-sm text-gray-600">

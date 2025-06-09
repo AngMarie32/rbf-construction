@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -51,13 +50,13 @@ export function GanttChart({
   // Calculate proper completion percentages based on current date
   const calculateTaskProgress = (task: Task): number => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize to start of day
+    today.setHours(23, 59, 59, 999); // Set to end of today
     
     const taskStart = new Date(task.startDate);
     taskStart.setHours(0, 0, 0, 0);
     
     const taskEnd = new Date(task.endDate);
-    taskEnd.setHours(0, 0, 0, 0);
+    taskEnd.setHours(23, 59, 59, 999);
 
     // If task hasn't started yet, progress should be 0%
     if (isBefore(today, taskStart)) {
@@ -69,9 +68,11 @@ export function GanttChart({
       return task.progress || 100;
     }
 
-    // If task is in progress, calculate based on time elapsed vs stored progress
+    // If task is in progress, calculate based on complete days elapsed
     const totalDuration = differenceInDays(taskEnd, taskStart) + 1;
-    const daysElapsed = differenceInDays(today, taskStart) + 1;
+    const daysElapsed = differenceInDays(today, taskStart);
+    
+    // Only count complete days - if we're still on the start day, show 0%
     const timeBasedProgress = Math.min((daysElapsed / totalDuration) * 100, 100);
     
     // Use the higher of time-based progress or stored progress
@@ -151,13 +152,25 @@ export function GanttChart({
   }, [isResizing, tasks, onUpdateTask, dateRange.from, dayWidth]);
 
   const getStatusColor = (task: Task) => {
-    const today = new Date();
     const progress = calculateTaskProgress(task);
     
-    if (progress === 100) return 'bg-green-500';
-    if (isBefore(today, task.startDate)) return 'bg-gray-400';
-    if (isAfter(today, task.endDate) && progress < 100) return 'bg-red-500';
-    return 'bg-blue-500';
+    switch (task.status) {
+      case 'Completed': return 'bg-green-500';
+      case 'In Progress': return 'bg-blue-500';
+      case 'On Hold': return 'bg-yellow-500';
+      case 'Not Started': return 'bg-gray-400';
+      default: return 'bg-gray-400';
+    }
+  };
+
+  const getStatusBadgeColor = (status: string) => {
+    switch (status) {
+      case 'Completed': return 'bg-green-500 text-white';
+      case 'In Progress': return 'bg-blue-500 text-white';
+      case 'On Hold': return 'bg-yellow-500 text-white';
+      case 'Not Started': return 'bg-gray-500 text-white';
+      default: return 'bg-gray-500 text-white';
+    }
   };
 
   const renderDateHeaders = () => {
@@ -193,12 +206,7 @@ export function GanttChart({
               <span>{Math.round(progress)}%</span>
               <Badge 
                 variant="outline" 
-                className="text-xs px-1 py-0"
-                style={{ 
-                  backgroundColor: project?.color + '20',
-                  borderColor: project?.color,
-                  color: project?.color
-                }}
+                className={`text-xs px-1 py-0 ${getStatusBadgeColor(task.status)}`}
               >
                 {task.status}
               </Badge>

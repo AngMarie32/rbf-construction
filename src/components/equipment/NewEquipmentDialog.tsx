@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface NewEquipmentDialogProps {
   onEquipmentCreated: () => void;
@@ -22,32 +23,66 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
     status: 'Available',
     description: '',
     year: '',
-    value: ''
+    value: '',
+    image: ''
   });
 
   const [loading, setLoading] = useState(false);
 
+  const handleImageUpload = async (file: File) => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      
+      // For now, we'll just show a toast. In a real app, you'd upload to Supabase Storage
+      toast.success('Image upload functionality will be implemented with Supabase Storage');
+      
+      // TODO: Implement actual file upload to Supabase Storage
+      // const { data, error } = await supabase.storage
+      //   .from('equipment-images')
+      //   .upload(fileName, file);
+      
+      // For now, just set a placeholder URL
+      setFormData(prev => ({ ...prev, image: `placeholder-${fileName}` }));
+      
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error('Failed to upload image');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.name.trim()) {
+      toast.error('Equipment name is required');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const equipmentData = {
-        name: formData.name,
+        name: formData.name.trim(),
         category: formData.category || 'Other',
         hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : 0,
         status: formData.status,
-        description: formData.description || null,
+        description: formData.description.trim() || null,
         year: formData.year ? parseInt(formData.year) : null,
-        value: formData.value ? parseFloat(formData.value) : null
+        value: formData.value ? parseFloat(formData.value) : null,
+        image: formData.image || null
       };
 
       const { error } = await supabase
         .from('equipment')
         .insert(equipmentData);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
 
+      toast.success('Equipment added successfully');
       onEquipmentCreated();
       setOpen(false);
       setFormData({
@@ -57,10 +92,12 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
         status: 'Available',
         description: '',
         year: '',
-        value: ''
+        value: '',
+        image: ''
       });
     } catch (error) {
       console.error('Error creating equipment:', error);
+      toast.error('Failed to add equipment. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -74,7 +111,7 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
           Add Equipment
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Equipment</DialogTitle>
         </DialogHeader>
@@ -86,6 +123,7 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
               id="name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Enter equipment name"
               required
             />
           </div>
@@ -100,6 +138,9 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="Heavy Machinery">Heavy Machinery</SelectItem>
+                <SelectItem value="Vehicles">Vehicles</SelectItem>
+                <SelectItem value="Trailers">Trailers</SelectItem>
                 <SelectItem value="Excavators">Excavators</SelectItem>
                 <SelectItem value="Bulldozers">Bulldozers</SelectItem>
                 <SelectItem value="Cranes">Cranes</SelectItem>
@@ -179,8 +220,33 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
             </Select>
           </div>
 
+          {/* Image Upload */}
+          <div>
+            <Label>Equipment Image</Label>
+            <div className="flex items-center gap-2">
+              <label className="cursor-pointer flex-1">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImageUpload(file);
+                  }}
+                />
+                <Button type="button" variant="outline" className="w-full">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Image
+                </Button>
+              </label>
+            </div>
+            {formData.image && (
+              <p className="text-sm text-green-600 mt-1">Image uploaded successfully</p>
+            )}
+          </div>
+
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
