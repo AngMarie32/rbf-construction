@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,7 +72,6 @@ export default function Projects() {
         address: item.address || '',
         projectCode: item.project_code || '',
         client: item.client || '',
-        description: item.description || '',
         createdAt: new Date(item.created_at),
         updatedAt: new Date(item.updated_at)
       })) as Project[];
@@ -205,3 +205,4 @@ export default function Projects() {
     </Layout>
   );
 }
+
