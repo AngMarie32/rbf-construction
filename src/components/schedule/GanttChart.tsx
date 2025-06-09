@@ -325,11 +325,12 @@ export function GanttChart({
       {editingTask && (
         <TaskEditDialog
           task={editingTask}
-          onSave={(updates) => {
-            onUpdateTask(editingTask.id, updates);
+          open={!!editingTask}
+          onOpenChange={(open) => !open && setEditingTask(null)}
+          onSave={(taskId, updates) => {
+            onUpdateTask(taskId, updates);
             setEditingTask(null);
           }}
-          onCancel={() => setEditingTask(null)}
         />
       )}
     </Card>
