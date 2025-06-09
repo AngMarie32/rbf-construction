@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -111,8 +112,6 @@ export default function ChangeOrders() {
   };
 
   const deleteChangeOrder = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this change order?')) return;
-
     try {
       const { error } = await supabase
         .from('change_orders')

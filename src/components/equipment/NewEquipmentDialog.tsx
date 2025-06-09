@@ -1,71 +1,66 @@
 
-import { useState, ReactNode } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface NewEquipmentDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onEquipmentCreated: () => void;
-  trigger?: ReactNode;
 }
 
-export function NewEquipmentDialog({ onEquipmentCreated, trigger }: NewEquipmentDialogProps) {
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+export function NewEquipmentDialog({ open, onOpenChange, onEquipmentCreated }: NewEquipmentDialogProps) {
   const [formData, setFormData] = useState({
     name: '',
-    category: 'Other' as 'Heavy Machinery' | 'Vehicles' | 'Trailers' | 'Other',
-    hourlyRate: '',
-    year: '',
-    value: '',
-    status: 'Available' as 'Available' | 'In Use' | 'Maintenance',
-    description: '',
-    image: '',
+    category: '',
+    hourly_rate: '',
+    status: 'Available',
+    location: '',
+    notes: '',
+    image: null as File | null
   });
+
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name) {
-      toast.error('Equipment name is required');
-      return;
-    }
-
     setLoading(true);
+
     try {
+      const equipmentData = {
+        name: formData.name,
+        category: formData.category,
+        hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : 0,
+        status: formData.status,
+        location: formData.location || null,
+        notes: formData.notes || null,
+        image_url: null // We'll handle image upload separately if needed
+      };
+
       const { error } = await supabase
         .from('equipment')
-        .insert({
-          name: formData.name,
-          category: formData.category,
-          hourly_rate: formData.hourlyRate ? parseFloat(formData.hourlyRate) : 0,
-          year: formData.year ? parseInt(formData.year) : null,
-          value: formData.value ? parseFloat(formData.value) : null,
-          status: formData.status,
-          description: formData.description,
-          image: formData.image || null,
-        });
+        .insert(equipmentData);
 
       if (error) throw error;
 
       toast.success('Equipment added successfully');
-      setOpen(false);
+      onEquipmentCreated();
+      onOpenChange(false);
       setFormData({
         name: '',
-        category: 'Other',
-        hourlyRate: '',
-        year: '',
-        value: '',
+        category: '',
+        hourly_rate: '',
         status: 'Available',
-        description: '',
-        image: '',
+        location: '',
+        notes: '',
+        image: null
       });
-      onEquipmentCreated();
     } catch (error) {
       console.error('Error creating equipment:', error);
       toast.error('Failed to add equipment');
@@ -74,91 +69,72 @@ export function NewEquipmentDialog({ onEquipmentCreated, trigger }: NewEquipment
     }
   };
 
-  const defaultTrigger = (
-    <Button>
-      <Plus className="w-4 h-4 mr-2" />
-      Add Equipment
-    </Button>
-  );
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setFormData({ ...formData, image: file });
+    }
+  };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || defaultTrigger}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Add New Equipment</DialogTitle>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Equipment Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g. Excavator CAT 320"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select value={formData.category} onValueChange={(value: typeof formData.category) => setFormData({ ...formData, category: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Heavy Machinery">Heavy Machinery</SelectItem>
-                  <SelectItem value="Vehicles">Vehicles</SelectItem>
-                  <SelectItem value="Trailers">Trailers</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div>
+            <Label htmlFor="name">Equipment Name *</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="hourlyRate">Hourly Rate ($)</Label>
-              <Input
-                id="hourlyRate"
-                type="number"
-                value={formData.hourlyRate}
-                onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
-                placeholder="0.00"
-                step="0.01"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="year">Year</Label>
-              <Input
-                id="year"
-                type="number"
-                value={formData.year}
-                onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                placeholder="2024"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="value">Value ($)</Label>
-              <Input
-                id="value"
-                type="number"
-                value={formData.value}
-                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                placeholder="0.00"
-                step="0.01"
-              />
-            </div>
+          <div>
+            <Label htmlFor="category">Category *</Label>
+            <Select 
+              value={formData.category} 
+              onValueChange={(value) => setFormData({ ...formData, category: value })}
+              required
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Excavators">Excavators</SelectItem>
+                <SelectItem value="Bulldozers">Bulldozers</SelectItem>
+                <SelectItem value="Cranes">Cranes</SelectItem>
+                <SelectItem value="Trucks">Trucks</SelectItem>
+                <SelectItem value="Generators">Generators</SelectItem>
+                <SelectItem value="Compactors">Compactors</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="space-y-2">
+          <div>
+            <Label htmlFor="hourly_rate">Hourly Rate ($)</Label>
+            <Input
+              id="hourly_rate"
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.hourly_rate}
+              onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
+              placeholder="0.00"
+            />
+          </div>
+
+          <div>
             <Label htmlFor="status">Status</Label>
-            <Select value={formData.status} onValueChange={(value: typeof formData.status) => setFormData({ ...formData, status: value })}>
+            <Select 
+              value={formData.status} 
+              onValueChange={(value) => setFormData({ ...formData, status: value })}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -166,33 +142,45 @@ export function NewEquipmentDialog({ onEquipmentCreated, trigger }: NewEquipment
                 <SelectItem value="Available">Available</SelectItem>
                 <SelectItem value="In Use">In Use</SelectItem>
                 <SelectItem value="Maintenance">Maintenance</SelectItem>
+                <SelectItem value="Out of Service">Out of Service</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="image">Image URL</Label>
+          <div>
+            <Label htmlFor="location">Location</Label>
             <Input
-              id="image"
-              value={formData.image}
-              onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-              placeholder="https://example.com/image.jpg"
+              id="location"
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              placeholder="Current location"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+          <div>
+            <Label htmlFor="image">Equipment Image</Label>
+            <Input
+              id="image"
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="cursor-pointer"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="notes">Notes</Label>
             <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Equipment details, specifications, etc."
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              placeholder="Additional notes about this equipment"
               rows={3}
             />
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
