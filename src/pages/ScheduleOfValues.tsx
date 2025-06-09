@@ -3,6 +3,7 @@ import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Search, Plus, FileText, DollarSign, TrendingUp, Calendar, Eye, Download, Settings, Edit, Trash2 } from 'lucide-react';
@@ -91,7 +92,7 @@ export default function ScheduleOfValues() {
 
       if (sovError) throw sovError;
 
-      // Then, fetch payment applications for this project
+      // Then, fetch payment applications for this project to get updated values
       const { data: paymentData, error: paymentError } = await supabase
         .from('payment_applications_g702')
         .select('*')
@@ -107,14 +108,27 @@ export default function ScheduleOfValues() {
 
       // Update SOV items with latest payment application data
       const updatedItems = sovData?.map(item => {
-        // Find the latest payment application
+        // Find the latest payment application that includes this item
         const latestPayment = paymentData?.[0]; // Most recent due to ordering
+        
+        // Calculate new values based on payment application data
+        let totalCompleted = item.total_completed_and_stored || 0;
+        let percentComplete = item.percent_complete || 0;
+        
+        if (latestPayment) {
+          // Use the completed value from the latest payment application
+          totalCompleted = latestPayment.total_completed_and_stored || totalCompleted;
+          
+          // Recalculate percent complete based on scheduled value
+          if (item.scheduled_value > 0) {
+            percentComplete = Math.round((totalCompleted / item.scheduled_value) * 100);
+          }
+        }
 
         return {
           ...item,
-          total_completed_and_stored: latestPayment?.total_completed_and_stored || item.total_completed_and_stored || 0,
-          percent_complete: item.scheduled_value ? 
-            Math.round(((latestPayment?.total_completed_and_stored || item.total_completed_and_stored || 0) / item.scheduled_value) * 100) : 0
+          total_completed_and_stored: totalCompleted,
+          percent_complete: Math.min(percentComplete, 100) // Cap at 100%
         };
       }) || [];
 
@@ -240,8 +254,6 @@ export default function ScheduleOfValues() {
   };
 
   const deleteSOVItem = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this SOV item?')) return;
-
     try {
       const { error } = await supabase
         .from('sov_items')
