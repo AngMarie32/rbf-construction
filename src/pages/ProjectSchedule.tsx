@@ -43,6 +43,9 @@ interface Project {
   id: string;
   name: string;
   color: string;
+  client?: string;
+  contractValue?: number;
+  status?: string;
 }
 
 const PROJECT_COLORS = [
@@ -89,6 +92,24 @@ export default function ProjectSchedule() {
   // For template integration with QuickPlanner
   const [templateTasks, setTemplateTasks] = useState<any[]>([]);
 
+  // Create project data for PDF export
+  const projectData = {
+    name: selectedProjects.length === 1 
+      ? projects.find(p => p.id === selectedProjects[0])?.name || 'Multiple Projects'
+      : 'Multiple Projects',
+    client: selectedProjects.length === 1 
+      ? projects.find(p => p.id === selectedProjects[0])?.client || 'Various Clients'
+      : 'Various Clients',
+    status: selectedProjects.length === 1 
+      ? projects.find(p => p.id === selectedProjects[0])?.status || 'Active'
+      : 'Active',
+    contractValue: selectedProjects.length === 1 
+      ? projects.find(p => p.id === selectedProjects[0])?.contractValue
+      : undefined,
+    taskCount: filteredTasks.length,
+    dateRange: `${format(dateRange.from, 'PPP')} - ${format(dateRange.to, 'PPP')}`
+  };
+
   useEffect(() => {
     fetchProjects();
     fetchTasks();
@@ -106,14 +127,18 @@ export default function ProjectSchedule() {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name')
+        .select('id, name, client, contract_value, status')
         .order('name');
 
       if (error) throw error;
 
       const projectsWithColors = (data || []).map((project, index) => ({
-        ...project,
-        color: PROJECT_COLORS[index % PROJECT_COLORS.length]
+        id: project.id,
+        name: project.name,
+        color: PROJECT_COLORS[index % PROJECT_COLORS.length],
+        client: project.client,
+        contractValue: project.contract_value,
+        status: project.status
       }));
 
       setProjects(projectsWithColors);
