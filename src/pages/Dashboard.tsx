@@ -11,7 +11,6 @@ import { DollarSign, Calendar, FileText, Calculator, Trash2 } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { Project } from '@/types';
 import { useNavigate } from 'react-router-dom';
 import { isWithinInterval, parseISO, startOfYear, endOfYear, startOfMonth, endOfMonth } from 'date-fns';
@@ -100,7 +99,6 @@ export default function Dashboard() {
 
       let filteredData = data || [];
 
-      // Apply financial filter
       if (financialFilter.type !== 'custom') {
         filteredData = data?.filter(billing => {
           const billingDate = parseISO(billing.created_at);
@@ -148,11 +146,9 @@ export default function Dashboard() {
 
       if (error) throw error;
 
-      toast.success('Project deleted successfully');
       fetchProjects();
     } catch (error) {
       console.error('Error deleting project:', error);
-      toast.error('Failed to delete project');
     }
   };
 
@@ -275,12 +271,12 @@ export default function Dashboard() {
             {openProjects.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {openProjects.slice(0, 6).map((project) => (
-                  <div key={project.id} className="relative group">
+                  <div key={project.id} className="relative">
                     <ProjectCard project={project} />
                     <Button
                       variant="destructive"
                       size="sm"
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
+                      className="absolute -top-2 -right-2 h-8 w-8 p-0 rounded-full z-10"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteProject(project.id);

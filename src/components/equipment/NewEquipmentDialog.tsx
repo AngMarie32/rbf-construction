@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 interface NewEquipmentDialogProps {
   open: boolean;
@@ -23,7 +22,9 @@ export function NewEquipmentDialog({ open, onOpenChange, onEquipmentCreated }: N
     status: 'Available',
     location: '',
     notes: '',
-    image: null as File | null
+    description: '',
+    year: '',
+    value: ''
   });
 
   const [loading, setLoading] = useState(false);
@@ -35,12 +36,12 @@ export function NewEquipmentDialog({ open, onOpenChange, onEquipmentCreated }: N
     try {
       const equipmentData = {
         name: formData.name,
-        category: formData.category,
+        category: formData.category || 'Other',
         hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : 0,
         status: formData.status,
-        location: formData.location || null,
-        notes: formData.notes || null,
-        image_url: null // We'll handle image upload separately if needed
+        description: formData.description || null,
+        year: formData.year ? parseInt(formData.year) : null,
+        value: formData.value ? parseFloat(formData.value) : null
       };
 
       const { error } = await supabase
@@ -58,19 +59,14 @@ export function NewEquipmentDialog({ open, onOpenChange, onEquipmentCreated }: N
         status: 'Available',
         location: '',
         notes: '',
-        image: null
+        description: '',
+        year: '',
+        value: ''
       });
     } catch (error) {
       console.error('Error creating equipment:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setFormData({ ...formData, image: file });
     }
   };
 
@@ -93,11 +89,10 @@ export function NewEquipmentDialog({ open, onOpenChange, onEquipmentCreated }: N
           </div>
 
           <div>
-            <Label htmlFor="category">Category *</Label>
+            <Label htmlFor="category">Category</Label>
             <Select 
               value={formData.category} 
               onValueChange={(value) => setFormData({ ...formData, category: value })}
-              required
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select category" />
@@ -115,6 +110,17 @@ export function NewEquipmentDialog({ open, onOpenChange, onEquipmentCreated }: N
           </div>
 
           <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Equipment description"
+              rows={3}
+            />
+          </div>
+
+          <div>
             <Label htmlFor="hourly_rate">Hourly Rate ($)</Label>
             <Input
               id="hourly_rate"
@@ -123,6 +129,32 @@ export function NewEquipmentDialog({ open, onOpenChange, onEquipmentCreated }: N
               min="0"
               value={formData.hourly_rate}
               onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
+              placeholder="0.00"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="year">Year</Label>
+            <Input
+              id="year"
+              type="number"
+              min="1900"
+              max="2030"
+              value={formData.year}
+              onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+              placeholder="2020"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="value">Equipment Value ($)</Label>
+            <Input
+              id="value"
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.value}
+              onChange={(e) => setFormData({ ...formData, value: e.target.value })}
               placeholder="0.00"
             />
           </div>
@@ -143,38 +175,6 @@ export function NewEquipmentDialog({ open, onOpenChange, onEquipmentCreated }: N
                 <SelectItem value="Out of Service">Out of Service</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="location">Location</Label>
-            <Input
-              id="location"
-              value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              placeholder="Current location"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="image">Equipment Image</Label>
-            <Input
-              id="image"
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              className="cursor-pointer"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Additional notes about this equipment"
-              rows={3}
-            />
           </div>
 
           <div className="flex justify-end gap-3 pt-4">

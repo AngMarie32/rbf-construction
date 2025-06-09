@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plus, 
@@ -24,10 +24,8 @@ import {
   Trash2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { NewBillingDialog } from '@/components/billing/NewBillingDialog';
-import { EditBillingDialog } from '@/components/billing/EditBillingDialog';
+import { ImprovedBillingDialog } from '@/components/billing/ImprovedBillingDialog';
 
 interface ProjectBilling {
   id: string;
@@ -57,6 +55,7 @@ export default function ProjectBilling() {
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [projects, setProjects] = useState<any[]>([]);
   const [editingBilling, setEditingBilling] = useState<any>(null);
+  const [newBillingDialogOpen, setNewBillingDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -101,7 +100,6 @@ export default function ProjectBilling() {
       setBillings(mappedBillings);
     } catch (error) {
       console.error('Error fetching billings:', error);
-      toast.error('Failed to load billing data');
     } finally {
       setLoading(false);
     }
@@ -111,7 +109,7 @@ export default function ProjectBilling() {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name')
+        .select('id, name, client')
         .order('name');
 
       if (error) throw error;
@@ -259,13 +257,10 @@ export default function ProjectBilling() {
     a.click();
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
-    
-    toast.success('Billing data exported successfully');
   };
 
   const createBillingFromPayApp = async () => {
     try {
-      // Fetch the latest payment applications
       const { data: payApps, error } = await supabase
         .from('payment_applications_g702')
         .select('*')
@@ -274,7 +269,6 @@ export default function ProjectBilling() {
 
       if (error) throw error;
 
-      // For each payment app that doesn't have a corresponding billing entry
       for (const payApp of payApps || []) {
         const { data: existingBilling } = await supabase
           .from('project_billing')
@@ -317,7 +311,10 @@ export default function ProjectBilling() {
         {/* Header with Actions */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center space-x-4">
-            <NewBillingDialog onBillingCreated={fetchBillings} />
+            <Button onClick={() => setNewBillingDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add New Billing
+            </Button>
             <Button onClick={createBillingFromPayApp} variant="outline">
               Auto-Create from Pay Apps
             </Button>
@@ -328,7 +325,7 @@ export default function ProjectBilling() {
           </div>
         </div>
 
-        {/* Summary Cards - Updated to remove collection rate */}
+        {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -521,11 +518,21 @@ export default function ProjectBilling() {
           </CardContent>
         </Card>
 
-        <EditBillingDialog
-          billing={editingBilling}
+        {/* New Billing Dialog */}
+        <ImprovedBillingDialog
+          open={newBillingDialogOpen}
+          onOpenChange={setNewBillingDialogOpen}
+          projects={projects}
+          onSuccess={fetchBillings}
+        />
+
+        {/* Edit Billing Dialog */}
+        <ImprovedBillingDialog
           open={editDialogOpen}
           onOpenChange={setEditDialogOpen}
-          onBillingUpdated={fetchBillings}
+          billing={editingBilling}
+          projects={projects}
+          onSuccess={fetchBillings}
         />
       </div>
     </Layout>
