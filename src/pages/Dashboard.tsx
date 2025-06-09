@@ -6,7 +6,7 @@ import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
 import { WeatherWidget } from '@/components/dashboard/WeatherWidget';
 import { FinancialDateFilter } from '@/components/dashboard/FinancialDateFilter';
-import { DollarSign, Calendar, FileText, Calculator } from 'lucide-react';
+import { DollarSign, Calendar, FileText, Calculator, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +14,17 @@ import { toast } from 'sonner';
 import { Project } from '@/types';
 import { useNavigate } from 'react-router-dom';
 import { isWithinInterval, parseISO, startOfYear, endOfYear, startOfMonth, endOfMonth } from 'date-fns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface DatabaseProject {
   id: string;
@@ -138,6 +149,23 @@ export default function Dashboard() {
   const openProjects = projects.filter(p => p.status !== 'Closed');
   const remainingContractBalance = openProjects.reduce((sum, p) => sum + p.contractValue, 0);
 
+  const handleDeleteProject = async (projectId: string) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
+
+      if (error) throw error;
+
+      toast.success('Project deleted successfully');
+      fetchProjects();
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast.error('Failed to delete project');
+    }
+  };
+
   if (loading) {
     return (
       <Layout title="Company Dashboard">
@@ -257,7 +285,34 @@ export default function Dashboard() {
             {openProjects.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {openProjects.slice(0, 6).map((project) => (
-                  <ProjectCard key={project.id} project={project} />
+                  <div key={project.id} className="relative group">
+                    <ProjectCard project={project} />
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Project</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{project.name}"? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteProject(project.id)}>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 ))}
               </div>
             ) : (

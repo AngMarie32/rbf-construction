@@ -136,13 +136,13 @@ export function EquipmentEstimator({
             <p className="text-gray-500">Add equipment using the Add button</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {sortedEquipment.map((item) => (
               <Card key={item.equipment.id} className="relative">
-                <CardContent className="p-3">
-                  <div className="flex items-start justify-between">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
+                      <div className="flex items-center justify-between mb-2">
                         <h4 className="font-medium text-sm">{item.equipment.name}</h4>
                         <Button
                           variant="ghost"
@@ -153,25 +153,29 @@ export function EquipmentEstimator({
                           <X className="w-3 h-3" />
                         </Button>
                       </div>
-                      <Badge variant="secondary" className="text-xs mb-2">
-                        {item.equipment.category}
-                      </Badge>
-                      <p className="text-xs text-gray-600 mb-2">
-                        ${item.equipment.hourly_rate}/hr
-                      </p>
-                      <div className="flex items-center space-x-1 mb-2">
+                      
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge variant="secondary" className="text-xs">
+                          {item.equipment.category}
+                        </Badge>
+                        <span className="text-xs text-gray-600">
+                          ${item.equipment.hourly_rate}/hr
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2 mb-3">
                         <Input
                           type="number"
                           value={item.duration}
                           onChange={(e) => onUpdateDuration(item.equipment.id, parseInt(e.target.value) || 0, item.unit)}
-                          className="w-16 h-6 text-xs"
+                          className="w-20 h-8 text-sm"
                           min="1"
                         />
                         <Select 
                           value={item.unit} 
                           onValueChange={(value: 'hours' | 'days') => onUpdateDuration(item.equipment.id, item.duration, value)}
                         >
-                          <SelectTrigger className="w-16 h-6 text-xs">
+                          <SelectTrigger className="w-20 h-8 text-sm">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -180,7 +184,8 @@ export function EquipmentEstimator({
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="text-right">
+                      
+                      <div className="text-right border-t pt-2">
                         <span className="text-sm font-semibold text-blue-600">
                           ${calculateItemCost(item).toLocaleString()}
                         </span>

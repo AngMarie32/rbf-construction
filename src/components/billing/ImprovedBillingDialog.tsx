@@ -113,43 +113,43 @@ export function ImprovedBillingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
+          <DialogTitle className="flex items-center justify-between text-xl">
             {billing?.id ? 'Edit Billing Record' : 'Create New Billing Record'}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => onOpenChange(false)}
-              className="h-6 w-6 p-0"
+              className="h-8 w-8 p-0"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </Button>
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column - Basic Information */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Basic Information</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <div>
-                  <Label htmlFor="project">Project *</Label>
+                  <Label htmlFor="project" className="text-base font-medium">Project *</Label>
                   <Select 
                     value={formData.project_id} 
                     onValueChange={(value) => setFormData({ ...formData, project_id: value })}
                     required
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-12 mt-2">
                       <SelectValue placeholder="Select a project" />
                     </SelectTrigger>
                     <SelectContent>
                       {projects.map((project) => (
                         <SelectItem key={project.id} value={project.id}>
-                          <div>
+                          <div className="py-2">
                             <div className="font-medium">{project.name}</div>
                             {project.client && (
                               <div className="text-sm text-gray-500">{project.client}</div>
@@ -162,12 +162,12 @@ export function ImprovedBillingDialog({
                 </div>
 
                 <div>
-                  <Label htmlFor="status">Status</Label>
+                  <Label htmlFor="status" className="text-base font-medium">Status</Label>
                   <Select 
                     value={formData.status} 
                     onValueChange={(value) => setFormData({ ...formData, status: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-12 mt-2">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -180,12 +180,13 @@ export function ImprovedBillingDialog({
                 </div>
 
                 <div>
-                  <Label htmlFor="invoice_number">Invoice Number</Label>
+                  <Label htmlFor="invoice_number" className="text-base font-medium">Invoice Number</Label>
                   <Input
                     id="invoice_number"
                     value={formData.invoice_number}
                     onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
                     placeholder="INV-001"
+                    className="h-12 mt-2"
                   />
                 </div>
               </CardContent>
@@ -196,9 +197,9 @@ export function ImprovedBillingDialog({
               <CardHeader>
                 <CardTitle className="text-lg">Financial Details</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <div>
-                  <Label htmlFor="billed_amount">Billed Amount *</Label>
+                  <Label htmlFor="billed_amount" className="text-base font-medium">Billed Amount *</Label>
                   <Input
                     id="billed_amount"
                     type="number"
@@ -207,11 +208,12 @@ export function ImprovedBillingDialog({
                     value={formData.billed_amount}
                     onChange={(e) => setFormData({ ...formData, billed_amount: parseFloat(e.target.value) || 0 })}
                     required
+                    className="h-12 mt-2"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="paid_amount">Paid Amount</Label>
+                  <Label htmlFor="paid_amount" className="text-base font-medium">Paid Amount</Label>
                   <Input
                     id="paid_amount"
                     type="number"
@@ -219,13 +221,14 @@ export function ImprovedBillingDialog({
                     min="0"
                     value={formData.paid_amount}
                     onChange={(e) => setFormData({ ...formData, paid_amount: parseFloat(e.target.value) || 0 })}
+                    className="h-12 mt-2"
                   />
                 </div>
 
-                <div className="p-3 bg-gray-50 rounded-lg">
+                <div className="p-4 bg-gray-50 rounded-lg border">
                   <div className="flex justify-between items-center">
-                    <span className="font-medium">Remaining Amount:</span>
-                    <span className={`font-bold ${remainingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    <span className="font-medium text-base">Remaining Amount:</span>
+                    <span className={`font-bold text-xl ${remainingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
                       ${remainingAmount.toLocaleString()}
                     </span>
                   </div>
@@ -240,14 +243,14 @@ export function ImprovedBillingDialog({
               <CardTitle className="text-lg">Date Information</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div>
-                  <Label>Billing Period Start *</Label>
+                  <Label className="text-base font-medium">Billing Period Start *</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className="w-full justify-start text-left font-normal"
+                        className="w-full justify-start text-left font-normal h-12 mt-2"
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {format(formData.billing_period_start, "MMM dd, yyyy")}
@@ -265,12 +268,12 @@ export function ImprovedBillingDialog({
                 </div>
 
                 <div>
-                  <Label>Billing Period End *</Label>
+                  <Label className="text-base font-medium">Billing Period End *</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className="w-full justify-start text-left font-normal"
+                        className="w-full justify-start text-left font-normal h-12 mt-2"
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {format(formData.billing_period_end, "MMM dd, yyyy")}
@@ -288,12 +291,12 @@ export function ImprovedBillingDialog({
                 </div>
 
                 <div>
-                  <Label>Invoice Date</Label>
+                  <Label className="text-base font-medium">Invoice Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className="w-full justify-start text-left font-normal"
+                        className="w-full justify-start text-left font-normal h-12 mt-2"
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {formData.invoice_date ? format(formData.invoice_date, "MMM dd, yyyy") : "Select date"}
@@ -311,12 +314,12 @@ export function ImprovedBillingDialog({
                 </div>
 
                 <div>
-                  <Label>Due Date</Label>
+                  <Label className="text-base font-medium">Due Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className="w-full justify-start text-left font-normal"
+                        className="w-full justify-start text-left font-normal h-12 mt-2"
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {formData.due_date ? format(formData.due_date, "MMM dd, yyyy") : "Select date"}
@@ -347,6 +350,7 @@ export function ImprovedBillingDialog({
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 placeholder="Add any billing notes or special instructions..."
                 rows={4}
+                className="text-base"
               />
             </CardContent>
           </Card>
@@ -374,11 +378,11 @@ export function ImprovedBillingDialog({
             </Card>
           )}
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex justify-end gap-4 pt-6 border-t">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="px-8 py-3">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !formData.project_id}>
+            <Button type="submit" disabled={loading || !formData.project_id} className="px-8 py-3">
               {loading ? 'Saving...' : billing?.id ? 'Update Billing' : 'Create Billing'}
             </Button>
           </div>
