@@ -77,6 +77,7 @@ export default function Equipment() {
       setEquipment(typedData);
     } catch (error) {
       console.error('Error fetching equipment:', error);
+      toast.error('Failed to fetch equipment');
     } finally {
       setLoading(false);
     }
@@ -124,6 +125,7 @@ export default function Equipment() {
       const fileName = `${equipmentId}-${Date.now()}.${fileExt}`;
       
       // For now, we'll just show a toast. In a real app, you'd upload to Supabase Storage
+      toast.success('Image upload functionality will be implemented with Supabase Storage');
       
       // TODO: Implement actual file upload to Supabase Storage
       // const { data, error } = await supabase.storage
@@ -132,6 +134,7 @@ export default function Equipment() {
       
     } catch (error) {
       console.error('Error uploading image:', error);
+      toast.error('Failed to upload image');
     }
   };
 

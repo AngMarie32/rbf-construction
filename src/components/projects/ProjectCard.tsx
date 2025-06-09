@@ -41,7 +41,7 @@ export function ProjectCard({ project, showDeleteButton = false, onDelete }: Pro
 
   return (
     <Card 
-      className="cursor-pointer hover:shadow-lg transition-shadow duration-200 h-full"
+      className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
       onClick={handleCardClick}
     >
       <CardHeader className="pb-3">
