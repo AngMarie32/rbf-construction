@@ -15,6 +15,7 @@ import { SOVReportDialog } from '@/components/schedule/SOVReportDialog';
 import { G702Dialog } from '@/components/forms/G702Dialog';
 import { Table, TableHeader, TableRow, TableBody, TableCell, TableHead } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function ScheduleOfValues() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -29,6 +30,8 @@ export default function ScheduleOfValues() {
   const [g702DialogOpen, setG702DialogOpen] = useState(false);
   const [projectData, setProjectData] = useState<any>(null);
   const [viewMode, setViewMode] = useState('all');
+  const [itemDetailsOpen, setItemDetailsOpen] = useState(false);
+  const [selectedItemDetails, setSelectedItemDetails] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -136,8 +139,6 @@ export default function ScheduleOfValues() {
   };
 
   const handleDeleteItem = async (item: any) => {
-    if (!confirm('Are you sure you want to delete this SOV item?')) return;
-
     try {
       const { error } = await supabase
         .from('sov_items')
@@ -217,30 +218,8 @@ export default function ScheduleOfValues() {
   };
 
   const viewSOVItem = (item: any) => {
-    const details = `
-Item: ${item.item_number} - ${item.description}
-Category: ${item.category}
-Scheduled Value: $${item.scheduled_value.toLocaleString()}
-Previous Applications: $${(item.previous_applications || 0).toLocaleString()}
-This Period: $${(item.this_period || 0).toLocaleString()}
-Materials Stored: $${(item.materials_stored || 0).toLocaleString()}
-Total Completed: $${(item.total_completed_and_stored || 0).toLocaleString()}
-Percent Complete: ${item.percent_complete || 0}%
-Retainage: ${item.retainage_percentage || 10}%
-    `;
-    alert(details);
-  };
-
-  const editSOVItem = (item: any) => {
-    const newDescription = prompt('Edit description:', item.description);
-    const newValue = prompt('Edit scheduled value:', item.scheduled_value.toString());
-    
-    if (newDescription !== null && newValue !== null) {
-      updateSOVItem(item.id, {
-        description: newDescription,
-        scheduled_value: parseFloat(newValue) || item.scheduled_value
-      });
-    }
+    setSelectedItemDetails(item);
+    setItemDetailsOpen(true);
   };
 
   const updateSOVItem = async (id: string, updates: any) => {
@@ -673,6 +652,85 @@ Retainage: ${item.retainage_percentage || 10}%
               projectId={selectedProject}
               onSave={() => {}}
             />
+
+            {/* SOV Item Details Modal - Replacing the popup */}
+            <Dialog open={itemDetailsOpen} onOpenChange={setItemDetailsOpen}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>SOV Item Details</DialogTitle>
+                </DialogHeader>
+                {selectedItemDetails && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-500">Item Number</Label>
+                        <div className="text-lg font-semibold">{selectedItemDetails.item_number}</div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-500">Category</Label>
+                        <div className="text-lg">{selectedItemDetails.category}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-500">Description</Label>
+                      <div className="text-lg">{selectedItemDetails.description}</div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-500">Scheduled Value</Label>
+                        <div className="text-lg font-semibold text-blue-600">
+                          ${selectedItemDetails.scheduled_value.toLocaleString()}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-500">Total Completed</Label>
+                        <div className="text-lg font-semibold text-green-600">
+                          ${(selectedItemDetails.total_completed_and_stored || 0).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-500">Previous Applications</Label>
+                        <div className="text-lg">${(selectedItemDetails.previous_applications || 0).toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-500">This Period</Label>
+                        <div className="text-lg">${(selectedItemDetails.this_period || 0).toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-500">Materials Stored</Label>
+                        <div className="text-lg">${(selectedItemDetails.materials_stored || 0).toLocaleString()}</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-500">Percent Complete</Label>
+                        <div className="flex items-center gap-2">
+                          <Progress value={selectedItemDetails.percent_complete || 0} className="w-24" />
+                          <span className="text-lg font-semibold">{selectedItemDetails.percent_complete || 0}%</span>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-500">Retainage</Label>
+                        <div className="text-lg">{selectedItemDetails.retainage_percentage || 10}%</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button variant="outline" onClick={() => setItemDetailsOpen(false)}>
+                    Close
+                  </Button>
+                  <Button onClick={() => {
+                    setItemDetailsOpen(false);
+                    handleEditItem(selectedItemDetails);
+                  }}>
+                    Edit Item
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </>
         )}
       </div>
