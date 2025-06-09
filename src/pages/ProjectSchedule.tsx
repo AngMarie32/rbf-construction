@@ -328,7 +328,13 @@ export default function ProjectSchedule() {
   const handleExport = async () => {
     try {
       if (activeTab === 'gantt') {
-        await exportToPDF('gantt-chart', `project-schedule-gantt-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+        const { exportGanttToPDF } = await import('@/utils/ganttPdfExport');
+        await exportGanttToPDF(
+          filteredTasks, 
+          projects, 
+          projectData,
+          `project-schedule-gantt-${format(new Date(), 'yyyy-MM-dd')}.pdf`
+        );
       } else if (activeTab === 'calendar') {
         await exportToPDF('schedule-calendar', `project-schedule-calendar-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
       } else if (activeTab === 'critical-path') {
@@ -348,7 +354,6 @@ export default function ProjectSchedule() {
       toast.success('Export completed successfully');
     } catch (error) {
       console.error('Export error:', error);
-      toast.error('Failed to export. Please try again.');
     }
   };
 
