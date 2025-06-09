@@ -114,11 +114,6 @@ export function GanttChart({
     setIsResizing({ taskId: task.id, side });
   };
 
-  const handleTaskSave = (taskId: string, updates: Partial<Task>) => {
-    onUpdateTask(taskId, updates);
-    setEditingTask(null);
-  };
-
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing || !ganttRef.current) return;
@@ -157,6 +152,8 @@ export function GanttChart({
   }, [isResizing, tasks, onUpdateTask, dateRange.from, dayWidth]);
 
   const getStatusColor = (task: Task) => {
+    const progress = calculateTaskProgress(task);
+    
     switch (task.status) {
       case 'Completed': return 'bg-green-500';
       case 'In Progress': return 'bg-blue-500';
@@ -338,7 +335,10 @@ export function GanttChart({
           task={editingTask}
           open={!!editingTask}
           onOpenChange={(open) => !open && setEditingTask(null)}
-          onSave={handleTaskSave}
+          onSave={(taskId, updates) => {
+            onUpdateTask(taskId, updates);
+            setEditingTask(null);
+          }}
         />
       )}
     </Card>
