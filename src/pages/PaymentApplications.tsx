@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Plus, Download, DollarSign, Trash2 } from 'lucide-react';
+import { FileText, Plus, Download, DollarSign, Trash2, Building2, CreditCard, Calendar, CheckCircle } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -166,22 +166,54 @@ export default function PaymentApplications() {
   const latestApplication = paymentApps[0];
 
   return (
-    <Layout title="Payment Applications" subtitle="Manage G702/G703 payment applications">
-      <div className="space-y-6">
+    <Layout title="Payment Applications" subtitle="Streamline billing with professional G702/G703 forms">
+      <div className="space-y-8">
+        {/* Hero Section */}
+        <div className="bg-gradient-to-r from-success/10 via-primary/5 to-success/10 rounded-xl p-8 border border-success/20">
+          <div className="max-w-4xl">
+            <h1 className="text-3xl font-bold text-primary mb-4">Payment Application Management</h1>
+            <p className="text-lg text-muted-foreground mb-6">
+              Create professional G702/G703 payment applications, streamline billing processes, and maintain accurate payment records for all your projects.
+            </p>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-success" />
+                <span>G702/G703 Forms</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-primary" />
+                <span>Payment Tracking</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-accent" />
+                <span>Professional Billing</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Project Selection */}
-        <Card>
+        <Card className="border-2 border-dashed border-success/20 bg-success/5">
           <CardHeader>
-            <CardTitle>Select Project</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-success" />
+              Project Selection
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger className="w-full max-w-md">
+              <SelectTrigger className="w-full max-w-md bg-background">
                 <SelectValue placeholder="Choose a project to view payment applications" />
               </SelectTrigger>
               <SelectContent>
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
-                    {project.name} ({project.status})
+                    <div className="flex items-center justify-between w-full">
+                      <span>{project.name}</span>
+                      <Badge variant="outline" className="ml-2">
+                        {project.status}
+                      </Badge>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -193,46 +225,38 @@ export default function PaymentApplications() {
           <>
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
-                  <FileText className="h-4 w-4 text-blue-600" />
+                  <CardTitle className="text-sm font-medium text-blue-700">Total Applications</CardTitle>
+                  <FileText className="h-5 w-5 text-blue-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">
-                    {paymentApps.length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Payment applications submitted
-                  </p>
+                  <div className="text-2xl font-bold text-blue-800">{paymentApps.length}</div>
+                  <p className="text-xs text-blue-600 mt-1">Payment applications submitted</p>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Requested</CardTitle>
-                  <DollarSign className="h-4 w-4 text-green-600" />
+                  <CardTitle className="text-sm font-medium text-green-700">Total Requested</CardTitle>
+                  <DollarSign className="h-5 w-5 text-green-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    ${totalApplicationValue.toLocaleString()}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Cumulative payment requests
-                  </p>
+                  <div className="text-2xl font-bold text-green-800">${totalApplicationValue.toLocaleString()}</div>
+                  <p className="text-xs text-green-600 mt-1">Cumulative payment requests</p>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Latest Application</CardTitle>
-                  <FileText className="h-4 w-4 text-orange-600" />
+                  <CardTitle className="text-sm font-medium text-orange-700">Latest Application</CardTitle>
+                  <Calendar className="h-5 w-5 text-orange-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">
+                  <div className="text-2xl font-bold text-orange-800">
                     #{latestApplication?.application_number || 'N/A'}
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-orange-600 mt-1">
                     {latestApplication ? format(new Date(latestApplication.period_to), 'MMM dd, yyyy') : 'No applications'}
                   </p>
                 </CardContent>
@@ -241,9 +265,12 @@ export default function PaymentApplications() {
 
             {/* Controls */}
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Payment Applications</h3>
-              <div className="flex gap-2">
-                <Button onClick={handleNewApplication}>
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-primary" />
+                Payment Applications
+              </h3>
+              <div className="flex gap-3">
+                <Button onClick={handleNewApplication} className="bg-success hover:bg-success/90">
                   <Plus className="w-4 h-4 mr-2" />
                   New Application
                 </Button>
@@ -260,34 +287,37 @@ export default function PaymentApplications() {
                 {paymentApps.length > 0 ? (
                   <div className="space-y-4">
                     {paymentApps.map((app) => (
-                      <div key={app.id} className="flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50">
-                        <div>
-                          <div className="flex items-center gap-3">
-                            <h4 className="font-semibold">Application #{app.application_number}</h4>
-                            <Badge variant="outline">
+                      <div key={app.id} className="flex justify-between items-center p-6 border rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <Badge variant="outline" className="font-mono text-base px-3 py-1">
+                              Application #{app.application_number}
+                            </Badge>
+                            <Badge className="bg-success text-white flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
                               Period Ending: {format(new Date(app.period_to), 'MMM dd, yyyy')}
                             </Badge>
                           </div>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-sm text-gray-600">
-                            <div>
-                              <span className="text-gray-500">Contract Sum:</span>
-                              <div className="font-medium">${(app.contract_sum_to_date || 0).toLocaleString()}</div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-3 text-sm">
+                            <div className="space-y-1">
+                              <span className="text-muted-foreground text-xs uppercase tracking-wide">Contract Sum</span>
+                              <div className="font-semibold text-base">${(app.contract_sum_to_date || 0).toLocaleString()}</div>
                             </div>
-                            <div>
-                              <span className="text-gray-500">Work Completed:</span>
-                              <div className="font-medium">${(app.total_completed_and_stored || 0).toLocaleString()}</div>
+                            <div className="space-y-1">
+                              <span className="text-muted-foreground text-xs uppercase tracking-wide">Work Completed</span>
+                              <div className="font-semibold text-base text-green-600">${(app.total_completed_and_stored || 0).toLocaleString()}</div>
                             </div>
-                            <div>
-                              <span className="text-gray-500">Less Retainage:</span>
-                              <div className="font-medium">${(app.total_retainage || 0).toLocaleString()}</div>
+                            <div className="space-y-1">
+                              <span className="text-muted-foreground text-xs uppercase tracking-wide">Less Retainage</span>
+                              <div className="font-semibold text-base text-orange-600">${(app.total_retainage || 0).toLocaleString()}</div>
                             </div>
-                            <div>
-                              <span className="text-gray-500">Payment Due:</span>
-                              <div className="font-medium text-green-600">${(app.current_payment_due || 0).toLocaleString()}</div>
+                            <div className="space-y-1">
+                              <span className="text-muted-foreground text-xs uppercase tracking-wide">Payment Due</span>
+                              <div className="font-semibold text-lg text-primary">${(app.current_payment_due || 0).toLocaleString()}</div>
                             </div>
                           </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 ml-6">
                           <Button variant="outline" size="sm" onClick={() => handleViewApplication(app.id)}>
                             <FileText className="w-4 h-4 mr-1" />
                             View
@@ -298,7 +328,7 @@ export default function PaymentApplications() {
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                              <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
                                 <Trash2 className="w-4 h-4 mr-1" />
                                 Delete
                               </Button>
@@ -326,10 +356,13 @@ export default function PaymentApplications() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500 text-lg">No payment applications found for this project.</p>
-                    <p className="text-gray-400 mt-2">Create your first payment application to get started.</p>
-                    <Button className="mt-4" onClick={handleCreateFirstApplication}>
+                  <div className="text-center py-16">
+                    <CreditCard className="w-20 h-20 text-gray-300 mx-auto mb-6" />
+                    <h3 className="text-xl font-semibold text-gray-900 mb-3">No Payment Applications Found</h3>
+                    <p className="text-gray-500 mb-8 max-w-md mx-auto">
+                      Create your first payment application to start billing for completed work and maintain professional payment records.
+                    </p>
+                    <Button onClick={handleCreateFirstApplication} className="bg-success hover:bg-success/90">
                       <Plus className="w-4 h-4 mr-2" />
                       Create First Application
                     </Button>
@@ -341,17 +374,17 @@ export default function PaymentApplications() {
         )}
 
         {!selectedProject && (
-          <Card>
+          <Card className="border-2 border-dashed border-gray-200">
             <CardContent className="text-center py-16">
-              <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Payment Applications (G702/G703)</h3>
-              <p className="text-gray-500 mb-6">
-                Select a project above to view and manage payment applications.
+              <Building2 className="w-20 h-20 text-gray-300 mx-auto mb-6" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Payment Applications (G702/G703)</h3>
+              <p className="text-gray-500 mb-8 max-w-md mx-auto">
+                Select a project above to create and manage professional payment applications using industry-standard G702/G703 forms.
               </p>
               {projects.length === 0 && (
-                <div className="mt-4">
-                  <p className="text-gray-400 mb-4">No projects found. Create a project first.</p>
-                  <Button onClick={() => navigate('/projects')}>
+                <div className="mt-6">
+                  <p className="text-gray-400 mb-4">No projects found. Create a project first to get started.</p>
+                  <Button onClick={() => navigate('/projects')} variant="outline">
                     Go to Projects
                   </Button>
                 </div>

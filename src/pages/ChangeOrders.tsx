@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, FileText, DollarSign, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
+import { Search, Plus, FileText, DollarSign, Calendar, Eye, Edit, Trash2, Building2, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -150,6 +149,16 @@ export default function ChangeOrders() {
     }
   };
 
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Draft': return <FileText className="w-4 h-4" />;
+      case 'Submitted': return <Clock className="w-4 h-4" />;
+      case 'Approved': return <CheckCircle className="w-4 h-4" />;
+      case 'Rejected': return <XCircle className="w-4 h-4" />;
+      default: return <AlertCircle className="w-4 h-4" />;
+    }
+  };
+
   if (loading) {
     return (
       <Layout title="Change Orders" subtitle="Manage project change orders">
@@ -161,22 +170,54 @@ export default function ChangeOrders() {
   }
 
   return (
-    <Layout title="Change Orders" subtitle="Manage project change orders">
-      <div className="space-y-6">
+    <Layout title="Change Orders" subtitle="Track and manage project modifications efficiently">
+      <div className="space-y-8">
+        {/* Hero Section */}
+        <div className="bg-gradient-to-r from-accent/10 via-primary/5 to-accent/10 rounded-xl p-8 border border-accent/20">
+          <div className="max-w-4xl">
+            <h1 className="text-3xl font-bold text-primary mb-4">Change Order Management</h1>
+            <p className="text-lg text-muted-foreground mb-6">
+              Streamline project modifications, track approval workflows, and maintain accurate financial records for all change orders.
+            </p>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-accent" />
+                <span>Document Control</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-success" />
+                <span>Financial Tracking</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-primary" />
+                <span>Approval Workflow</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Project Selection */}
-        <Card>
+        <Card className="border-2 border-dashed border-accent/20 bg-accent/5">
           <CardHeader>
-            <CardTitle>Select Project</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-accent" />
+              Project Selection
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger className="w-full max-w-md">
+              <SelectTrigger className="w-full max-w-md bg-background">
                 <SelectValue placeholder="Choose a project to view change orders" />
               </SelectTrigger>
               <SelectContent>
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
-                    {project.name} ({project.status})
+                    <div className="flex items-center justify-between w-full">
+                      <span>{project.name}</span>
+                      <Badge variant="outline" className="ml-2">
+                        {project.status}
+                      </Badge>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -188,63 +229,49 @@ export default function ChangeOrders() {
           <>
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card>
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Change Orders</CardTitle>
-                  <FileText className="h-4 w-4 text-blue-600" />
+                  <CardTitle className="text-sm font-medium text-blue-700">Total Change Orders</CardTitle>
+                  <FileText className="h-5 w-5 text-blue-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">
-                    {changeOrders.length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    All change orders
-                  </p>
+                  <div className="text-2xl font-bold text-blue-800">{changeOrders.length}</div>
+                  <p className="text-xs text-blue-600 mt-1">All change orders</p>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
-                  <DollarSign className="h-4 w-4 text-green-600" />
+                  <CardTitle className="text-sm font-medium text-green-700">Total Amount</CardTitle>
+                  <DollarSign className="h-5 w-5 text-green-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    ${totalAmount.toLocaleString()}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    All change orders
-                  </p>
+                  <div className="text-2xl font-bold text-green-800">${totalAmount.toLocaleString()}</div>
+                  <p className="text-xs text-green-600 mt-1">All change orders</p>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Approved Amount</CardTitle>
-                  <DollarSign className="h-4 w-4 text-orange-600" />
+                  <CardTitle className="text-sm font-medium text-orange-700">Approved Amount</CardTitle>
+                  <CheckCircle className="h-5 w-5 text-orange-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">
-                    ${approvedAmount.toLocaleString()}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Approved change orders
-                  </p>
+                  <div className="text-2xl font-bold text-orange-800">${approvedAmount.toLocaleString()}</div>
+                  <p className="text-xs text-orange-600 mt-1">Approved change orders</p>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending</CardTitle>
-                  <FileText className="h-4 w-4 text-red-600" />
+                  <CardTitle className="text-sm font-medium text-red-700">Pending</CardTitle>
+                  <Clock className="h-5 w-5 text-red-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-red-600">
+                  <div className="text-2xl font-bold text-red-800">
                     {changeOrders.filter(co => co.status === 'Submitted').length}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Awaiting approval
-                  </p>
+                  <p className="text-xs text-red-600 mt-1">Awaiting approval</p>
                 </CardContent>
               </Card>
             </div>
@@ -262,7 +289,7 @@ export default function ChangeOrders() {
                   />
                 </div>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -274,7 +301,7 @@ export default function ChangeOrders() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleCreateNew}>
+              <Button onClick={handleCreateNew} className="bg-accent hover:bg-accent/90">
                 <Plus className="w-4 h-4 mr-2" />
                 New Change Order
               </Button>
@@ -283,17 +310,23 @@ export default function ChangeOrders() {
             {/* Change Orders List */}
             <Card>
               <CardHeader>
-                <CardTitle>Change Orders</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Change Orders
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {filteredChangeOrders.length > 0 ? (
                   <div className="space-y-4">
                     {filteredChangeOrders.map((co) => (
-                      <div key={co.id} className="flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50">
+                      <div key={co.id} className="flex justify-between items-center p-6 border rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h4 className="font-semibold">CO #{co.number}</h4>
-                            <Badge className={`${getStatusColor(co.status)} text-white`}>
+                          <div className="flex items-center gap-3 mb-3">
+                            <Badge variant="outline" className="font-mono text-sm px-3 py-1">
+                              CO #{co.number}
+                            </Badge>
+                            <Badge className={`${getStatusColor(co.status)} text-white flex items-center gap-1`}>
+                              {getStatusIcon(co.status)}
                               {co.status}
                             </Badge>
                             <div className="flex items-center text-sm text-gray-500">
@@ -301,28 +334,22 @@ export default function ChangeOrders() {
                               {format(new Date(co.date), 'MMM dd, yyyy')}
                             </div>
                           </div>
-                          <p className="text-gray-600 mb-2">{co.description}</p>
-                          <div className="flex items-center gap-4 text-sm">
-                            <span className="text-gray-500">Amount:</span>
-                            <span className={`font-medium ${co.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {co.amount >= 0 ? '+' : ''}${co.amount.toLocaleString()}
-                            </span>
+                          <p className="text-gray-600 mb-3 text-base">{co.description}</p>
+                          <div className="flex items-center gap-6 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500">Amount:</span>
+                              <span className={`font-semibold text-lg ${co.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {co.amount >= 0 ? '+' : ''}${co.amount.toLocaleString()}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => viewChangeOrder(co)}
-                          >
+                        <div className="flex gap-2 ml-4">
+                          <Button variant="outline" size="sm" onClick={() => viewChangeOrder(co)}>
                             <Eye className="w-4 h-4 mr-1" />
                             View
                           </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => editChangeOrder(co)}
-                          >
+                          <Button variant="outline" size="sm" onClick={() => editChangeOrder(co)}>
                             <Edit className="w-4 h-4 mr-1" />
                             Edit
                           </Button>
@@ -330,7 +357,7 @@ export default function ChangeOrders() {
                             variant="outline" 
                             size="sm"
                             onClick={() => deleteChangeOrder(co.id)}
-                            className="text-red-600 hover:text-red-800"
+                            className="text-red-600 hover:text-red-800 hover:bg-red-50"
                           >
                             <Trash2 className="w-4 h-4 mr-1" />
                             Delete
@@ -340,16 +367,20 @@ export default function ChangeOrders() {
                     ))}
                   </div>
                 ) : changeOrders.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500 text-lg">No change orders found for this project.</p>
-                    <p className="text-gray-400 mt-2">Create your first change order to get started.</p>
-                    <Button className="mt-4" onClick={handleCreateNew}>
+                  <div className="text-center py-16">
+                    <FileText className="w-20 h-20 text-gray-300 mx-auto mb-6" />
+                    <h3 className="text-xl font-semibold text-gray-900 mb-3">No Change Orders Found</h3>
+                    <p className="text-gray-500 mb-8 max-w-md mx-auto">
+                      Create your first change order to track project modifications and manage approval workflows.
+                    </p>
+                    <Button onClick={handleCreateNew} className="bg-accent hover:bg-accent/90">
                       <Plus className="w-4 h-4 mr-2" />
                       Create First Change Order
                     </Button>
                   </div>
                 ) : (
                   <div className="text-center py-8">
+                    <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500">No change orders match your search criteria.</p>
                   </div>
                 )}
@@ -359,17 +390,17 @@ export default function ChangeOrders() {
         )}
 
         {!selectedProject && (
-          <Card>
+          <Card className="border-2 border-dashed border-gray-200">
             <CardContent className="text-center py-16">
-              <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Change Orders</h3>
-              <p className="text-gray-500 mb-6">
-                Select a project above to view and manage change orders.
+              <Building2 className="w-20 h-20 text-gray-300 mx-auto mb-6" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Change Order Management</h3>
+              <p className="text-gray-500 mb-8 max-w-md mx-auto">
+                Select a project above to view and manage change orders, track modifications, and monitor approval status.
               </p>
               {projects.length === 0 && (
-                <div className="mt-4">
-                  <p className="text-gray-400 mb-4">No projects found. Create a project first.</p>
-                  <Button onClick={() => navigate('/projects')}>
+                <div className="mt-6">
+                  <p className="text-gray-400 mb-4">No projects found. Create a project first to get started.</p>
+                  <Button onClick={() => navigate('/projects')} variant="outline">
                     Go to Projects
                   </Button>
                 </div>
