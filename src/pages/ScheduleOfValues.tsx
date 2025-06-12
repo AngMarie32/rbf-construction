@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -98,30 +97,6 @@ export default function ScheduleOfValues() {
   return (
     <Layout title="Schedule of Values" subtitle="Manage project schedule of values and track completion">
       <div className="space-y-8">
-        {/* Hero Section */}
-        <div className="bg-gradient-to-r from-primary/10 via-accent/5 to-primary/10 rounded-xl p-8 border border-primary/20">
-          <div className="max-w-4xl">
-            <h1 className="text-3xl font-bold text-primary mb-4">Schedule of Values Management</h1>
-            <p className="text-lg text-muted-foreground mb-6">
-              Track project progress, monitor work completion, and manage billing schedules with precision and clarity.
-            </p>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-primary" />
-                <span>Project Tracking</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Calculator className="w-4 h-4 text-accent" />
-                <span>Value Analysis</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-success" />
-                <span>Progress Monitoring</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Project Selection */}
         <Card className="border-2 border-dashed border-primary/20 bg-primary/5">
           <CardHeader>

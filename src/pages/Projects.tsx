@@ -105,12 +105,43 @@ export default function Projects() {
 
   const handleDeleteProject = async (projectId: string) => {
     try {
-      const { error } = await supabase
+      // First delete related records to avoid foreign key constraints
+      const { error: expensesError } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('project_id', projectId);
+
+      if (expensesError) throw expensesError;
+
+      // Delete other related records
+      const { error: billingError } = await supabase
+        .from('project_billing')
+        .delete()
+        .eq('project_id', projectId);
+
+      if (billingError) throw billingError;
+
+      const { error: sovError } = await supabase
+        .from('sov_items')
+        .delete()
+        .eq('project_id', projectId);
+
+      if (sovError) throw sovError;
+
+      const { error: tasksError } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('project_id', projectId);
+
+      if (tasksError) throw tasksError;
+
+      // Finally delete the project
+      const { error: projectError } = await supabase
         .from('projects')
         .delete()
         .eq('id', projectId);
 
-      if (error) throw error;
+      if (projectError) throw projectError;
 
       fetchProjects();
     } catch (error) {

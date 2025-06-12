@@ -3,10 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Calendar, DollarSign, MapPin, Trash2, TrendingUp, CreditCard } from 'lucide-react';
-import { format } from 'date-fns';
+import { Calendar, DollarSign, MapPin, Trash2, TrendingUp, CreditCard, Clock } from 'lucide-react';
+import { format, differenceInDays } from 'date-fns';
 import { Project } from '@/types';
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProjectCardProps {
   project: Project;
@@ -16,6 +18,27 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project, showDeleteButton = false, onDelete }: ProjectCardProps) {
   const navigate = useNavigate();
+  const [paymentsReceived, setPaymentsReceived] = useState(0);
+
+  useEffect(() => {
+    fetchPaymentsReceived();
+  }, [project.id]);
+
+  const fetchPaymentsReceived = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('project_billing')
+        .select('paid_amount')
+        .eq('project_id', project.id);
+
+      if (error) throw error;
+
+      const totalPaid = data?.reduce((sum, bill) => sum + (bill.paid_amount || 0), 0) || 0;
+      setPaymentsReceived(totalPaid);
+    } catch (error) {
+      console.error('Error fetching payments received:', error);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -32,23 +55,20 @@ export function ProjectCard({ project, showDeleteButton = false, onDelete }: Pro
     navigate(`/projects/${project.id}`);
   };
 
-  const handleDeleteClick = (e: React.MouseEvent) => {
+  const handleDeleteClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onDelete) {
+    if (onDelete && window.confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
       onDelete(project.id);
     }
   };
 
-  // Calculate financial metrics properly
+  // Calculate financial metrics
   const originalContract = project.contractValue || 0;
   const completionPercentage = project.completionPercentage || 0;
+  const remaining = Math.max(0, originalContract - paymentsReceived);
   
-  // Calculate earned value based on completion percentage
-  const earnedValue = (originalContract * completionPercentage) / 100;
-  
-  // For display purposes, show earned as "billed" and remaining as contract minus earned
-  const billed = earnedValue;
-  const remaining = Math.max(0, originalContract - earnedValue);
+  // Calculate days since project started
+  const daysSinceStart = differenceInDays(new Date(), project.startDate);
 
   return (
     <Card 
@@ -95,9 +115,9 @@ export function ProjectCard({ project, showDeleteButton = false, onDelete }: Pro
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center text-green-600">
               <CreditCard className="w-4 h-4 mr-1" />
-              <span>Earned ({completionPercentage}%):</span>
+              <span>Payments Received:</span>
             </div>
-            <span className="font-semibold text-green-600">${billed.toLocaleString()}</span>
+            <span className="font-semibold text-green-600">${paymentsReceived.toLocaleString()}</span>
           </div>
           
           <div className="flex items-center justify-between text-sm">
@@ -109,11 +129,17 @@ export function ProjectCard({ project, showDeleteButton = false, onDelete }: Pro
           </div>
         </div>
         
-        <div className="flex items-center text-sm text-gray-600">
-          <Calendar className="w-4 h-4 mr-2" />
-          <span>
-            {format(project.startDate, 'MMM dd')} - {format(project.dueDate, 'MMM dd, yyyy')}
-          </span>
+        <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex items-center">
+            <Calendar className="w-4 h-4 mr-2" />
+            <span>
+              {format(project.startDate, 'MMM dd')} - {format(project.dueDate, 'MMM dd, yyyy')}
+            </span>
+          </div>
+          <div className="flex items-center">
+            <Clock className="w-4 h-4 mr-1" />
+            <span>{daysSinceStart} days</span>
+          </div>
         </div>
         
         <div className="space-y-2">
