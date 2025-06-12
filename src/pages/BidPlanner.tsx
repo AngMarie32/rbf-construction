@@ -32,6 +32,7 @@ export default function BidPlanner() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [templateLibraryOpen, setTemplateLibraryOpen] = useState(false);
   const [activeView, setActiveView] = useState<'overview' | 'create' | 'templates'>('overview');
 
   useEffect(() => {
@@ -79,9 +80,15 @@ export default function BidPlanner() {
     }
   };
 
+  const handleTemplateSelected = (templateId: string) => {
+    toast.success('Template selected');
+    // Handle template selection logic here
+  };
+
   const totalBidValue = bidItems.reduce((sum, item) => sum + (item.total || 0), 0);
   const itemCount = bidItems.length;
   const categories = [...new Set(bidItems.map(item => item.category))].length;
+  const selectedProjectData = projects.find(p => p.id === selectedProject);
 
   if (loading) {
     return (
@@ -108,7 +115,19 @@ export default function BidPlanner() {
       case 'templates':
         return (
           <Layout title="Bid Templates" subtitle="Manage bid templates and presets">
-            <TemplateLibrary onBack={() => setActiveView('overview')} />
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <Button variant="outline" onClick={() => setActiveView('overview')}>
+                  Back to Bid Planner
+                </Button>
+                <h1 className="text-2xl font-bold">Template Library</h1>
+              </div>
+              <TemplateLibrary 
+                open={true}
+                onOpenChange={(open) => !open && setActiveView('overview')}
+                onTemplateSelected={handleTemplateSelected}
+              />
+            </div>
           </Layout>
         );
     }
@@ -254,9 +273,10 @@ export default function BidPlanner() {
             {/* Current Bid Overview */}
             {itemCount > 0 && (
               <BidOverview 
-                projectId={selectedProject} 
-                bidItems={bidItems}
-                onEdit={() => setActiveView('create')}
+                totalEstimate={totalBidValue}
+                itemCount={itemCount}
+                categoryCount={categories}
+                projectName={selectedProjectData?.name}
               />
             )}
           </>
