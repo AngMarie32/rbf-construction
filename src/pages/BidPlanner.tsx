@@ -16,12 +16,15 @@ import {
   Building2,
   DollarSign,
   BarChart3,
-  Layers
+  Layers,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BidCreationView } from '@/components/bid-planner/BidCreationView';
 import { BidOverview } from '@/components/bid-planner/BidOverview';
+import { BidAnalysis } from '@/components/bid-planner/BidAnalysis';
 import { TemplateLibrary } from '@/components/bid-planner/TemplateLibrary';
 import { CreateBidDialog } from '@/components/bid-planner/CreateBidDialog';
 
@@ -33,7 +36,7 @@ export default function BidPlanner() {
   const [searchTerm, setSearchTerm] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [templateLibraryOpen, setTemplateLibraryOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'overview' | 'create' | 'templates'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'create' | 'templates' | 'analysis'>('overview');
 
   useEffect(() => {
     fetchProjects();
@@ -85,6 +88,23 @@ export default function BidPlanner() {
     // Handle template selection logic here
   };
 
+  const handleDeleteBidItem = async (itemId: string) => {
+    try {
+      const { error } = await supabase
+        .from('bid_items')
+        .delete()
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      toast.success('Bid item deleted successfully');
+      fetchBidItems();
+    } catch (error) {
+      console.error('Error deleting bid item:', error);
+      toast.error('Failed to delete bid item');
+    }
+  };
+
   const totalBidValue = bidItems.reduce((sum, item) => sum + (item.total || 0), 0);
   const itemCount = bidItems.length;
   const categories = [...new Set(bidItems.map(item => item.category))].length;
@@ -128,6 +148,15 @@ export default function BidPlanner() {
                 onTemplateSelected={handleTemplateSelected}
               />
             </div>
+          </Layout>
+        );
+      case 'analysis':
+        return (
+          <Layout title="Bid Analysis" subtitle="Analyze bid components and optimize pricing">
+            <BidAnalysis 
+              projectId={selectedProject}
+              onBack={() => setActiveView('overview')}
+            />
           </Layout>
         );
     }
@@ -252,7 +281,7 @@ export default function BidPlanner() {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveView('analysis')}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <TrendingUp className="w-6 h-6 text-success" />
@@ -263,12 +292,65 @@ export default function BidPlanner() {
                   <p className="text-sm text-gray-600 mb-4">
                     Analyze your bid components, compare costs, and optimize pricing strategies.
                   </p>
-                  <Button variant="outline" className="w-full" disabled>
-                    Coming Soon
+                  <Button variant="outline" className="w-full" onClick={() => setActiveView('analysis')} disabled={itemCount === 0}>
+                    {itemCount === 0 ? 'Create Items First' : 'Analyze Bid'}
                   </Button>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Current Bid Items */}
+            {itemCount > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Current Bid Items
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {bidItems.slice(0, 5).map((item) => (
+                      <div key={item.id} className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className="text-xs">{item.category}</Badge>
+                            <span className="font-medium">{item.description}</span>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Qty: {item.quantity} {item.unit} × ${item.unit_cost.toLocaleString()} = ${(item.total || 0).toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              // Navigate to edit - you can implement this
+                              toast.info('Edit functionality coming soon');
+                            }}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteBidItem(item.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {bidItems.length > 5 && (
+                      <div className="text-center py-2 text-sm text-muted-foreground">
+                        And {bidItems.length - 5} more items...
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Current Bid Overview */}
             {itemCount > 0 && (

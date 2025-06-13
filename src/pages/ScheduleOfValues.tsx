@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,11 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Search, Plus, FileText, DollarSign, Calculator, Building2, TrendingUp, BarChart3, Target } from 'lucide-react';
+import { Search, Plus, FileText, DollarSign, Calculator, Building2, TrendingUp, BarChart3, Target, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { CreateSOVDialog } from '@/components/schedule/CreateSOVDialog';
+import { EditSOVItemDialog } from '@/components/schedule/EditSOVItemDialog';
 
 export default function ScheduleOfValues() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -19,6 +21,8 @@ export default function ScheduleOfValues() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedSOVItem, setSelectedSOVItem] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -72,6 +76,28 @@ export default function ScheduleOfValues() {
       return;
     }
     setCreateDialogOpen(true);
+  };
+
+  const handleEdit = (item: any) => {
+    setSelectedSOVItem(item);
+    setEditDialogOpen(true);
+  };
+
+  const handleDelete = async (itemId: string) => {
+    try {
+      const { error } = await supabase
+        .from('sov_items')
+        .delete()
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      toast.success('SOV item deleted successfully');
+      fetchSOVItems();
+    } catch (error) {
+      console.error('Error deleting SOV item:', error);
+      toast.error('Failed to delete SOV item');
+    }
   };
 
   const filteredItems = sovItems.filter(item =>
@@ -271,6 +297,22 @@ export default function ScheduleOfValues() {
                               </div>
                             </div>
                           </div>
+                          <div className="flex gap-2 ml-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(item)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDelete(item.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="space-y-2">
                           <div className="flex justify-between text-xs text-muted-foreground">
@@ -333,6 +375,13 @@ export default function ScheduleOfValues() {
           open={createDialogOpen}
           onOpenChange={setCreateDialogOpen}
           projectId={selectedProject}
+          onSave={fetchSOVItems}
+        />
+
+        <EditSOVItemDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          sovItem={selectedSOVItem}
           onSave={fetchSOVItems}
         />
       </div>
