@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +26,7 @@ export default function ScheduleOfValues() {
   const [sovItems, setSovItems] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('');
+  const [selectedProjectData, setSelectedProjectData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -39,8 +41,10 @@ export default function ScheduleOfValues() {
   useEffect(() => {
     if (selectedProject) {
       fetchSOVItems();
+      fetchSelectedProjectData();
     } else {
       setSovItems([]);
+      setSelectedProjectData(null);
     }
   }, [selectedProject]);
 
@@ -58,6 +62,22 @@ export default function ScheduleOfValues() {
       toast.error('Failed to load projects');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSelectedProjectData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', selectedProject)
+        .single();
+
+      if (error) throw error;
+      setSelectedProjectData(data);
+    } catch (error) {
+      console.error('Error fetching project data:', error);
+      toast.error('Failed to load project data');
     }
   };
 
@@ -295,8 +315,10 @@ export default function ScheduleOfValues() {
       <SOVReportDialog
         open={reportDialogOpen}
         onOpenChange={setReportDialogOpen}
+        projectData={selectedProjectData}
         sovItems={sovItems}
       />
     </Layout>
   );
 }
+
