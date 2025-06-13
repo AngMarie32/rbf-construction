@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -27,18 +28,25 @@ interface Project {
   project_manager?: string;
   location?: string;
   contract_type?: string;
+  contract_value: number;
+  due_date: string;
 }
 
 interface Task {
   id: string;
+  title: string;
   name: string;
   start: Date;
   end: Date;
+  startDate: Date;
+  endDate: Date;
   progress: number;
   dependencies?: string[];
   type: 'task' | 'milestone' | 'project';
   project?: string;
+  projectId: string;
   isDisabled?: boolean;
+  status: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold';
 }
 
 export default function ProjectDetail() {
@@ -70,7 +78,16 @@ export default function ProjectDetail() {
         .single();
 
       if (error) throw error;
-      setProject(data);
+      
+      // Map database fields to expected interface
+      const mappedProject: Project = {
+        ...data,
+        end_date: data.due_date || data.end_date,
+        budget: data.contract_value || 0,
+        spent: data.contract_value * (data.completion_percentage / 100) || 0
+      };
+      
+      setProject(mappedProject);
     } catch (error) {
       console.error('Error fetching project:', error);
       toast.error('Failed to load project details');
@@ -89,14 +106,19 @@ export default function ProjectDetail() {
       
       const formattedTasks: Task[] = (data || []).map(task => ({
         id: task.id,
-        name: task.name,
+        title: task.title,
+        name: task.title,
         start: new Date(task.start_date),
         end: new Date(task.end_date),
+        startDate: new Date(task.start_date),
+        endDate: new Date(task.end_date),
         progress: task.progress || 0,
         dependencies: task.dependencies || [],
-        type: task.type as 'task' | 'milestone' | 'project' || 'task',
+        type: 'task' as const,
         project: task.project_id,
-        isDisabled: false
+        projectId: task.project_id,
+        isDisabled: false,
+        status: (task.status as 'Not Started' | 'In Progress' | 'Completed' | 'On Hold') || 'Not Started'
       }));
 
       setTasks(formattedTasks);
@@ -287,7 +309,7 @@ export default function ProjectDetail() {
                 onShowCriticalPathChange={setShowCriticalPath}
                 showMilestones={showMilestones}
                 onShowMilestonesChange={setShowMilestones}
-                tasks={tasks}
+                tasks={getFilteredTasks()}
                 projects={[project]}
                 projectData={project}
               />

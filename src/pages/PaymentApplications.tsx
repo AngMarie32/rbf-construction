@@ -23,10 +23,9 @@ interface PaymentApplication {
   original_contract_sum: number;
   net_change_by_change_orders: number;
   contract_sum_to_date: number;
-  total_completed_and_stored_to_date?: number;
-  retainage?: number;
+  total_completed_and_stored?: number;
+  total_retainage?: number;
   current_payment_due: number;
-  status?: string;
   created_at: string;
   architect_date?: string;
   architect_signature?: string;
@@ -72,9 +71,8 @@ export default function PaymentApplications() {
       // Ensure all applications have required fields with defaults
       const processedData = (data || []).map(app => ({
         ...app,
-        total_completed_and_stored_to_date: app.total_completed_and_stored_to_date || 0,
-        retainage: app.retainage || 0,
-        status: app.status || 'Draft'
+        total_completed_and_stored: app.total_completed_and_stored || 0,
+        total_retainage: app.total_retainage || 0
       }));
       
       setApplications(processedData);
@@ -115,8 +113,7 @@ export default function PaymentApplications() {
   const filteredApplications = applications.filter(app => {
     const matchesSearch = app.projects?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          app.application_number.toString().includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   const getStatusColor = (status: string) => {
@@ -174,21 +171,6 @@ export default function PaymentApplications() {
                   />
                 </div>
               </div>
-              <div className="w-48">
-                <Label htmlFor="status-filter">Filter by Status</Label>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All statuses" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="Draft">Draft</SelectItem>
-                    <SelectItem value="Submitted">Submitted</SelectItem>
-                    <SelectItem value="Approved">Approved</SelectItem>
-                    <SelectItem value="Rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -203,7 +185,6 @@ export default function PaymentApplications() {
                   <TableHead>Project</TableHead>
                   <TableHead>Period To</TableHead>
                   <TableHead>Payment Due</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="w-[150px]">Actions</TableHead>
                 </TableRow>
@@ -221,11 +202,6 @@ export default function PaymentApplications() {
                     <TableCell>{format(new Date(app.period_to), 'MMM dd, yyyy')}</TableCell>
                     <TableCell className="font-medium">
                       ${app.current_payment_due?.toLocaleString() || '0'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={`${getStatusColor(app.status || 'Draft')} text-white`}>
-                        {app.status || 'Draft'}
-                      </Badge>
                     </TableCell>
                     <TableCell>{format(new Date(app.created_at), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>
@@ -257,30 +233,21 @@ export default function PaymentApplications() {
       </div>
 
       {/* Create Application Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create New Payment Application</DialogTitle>
-          </DialogHeader>
-          <G702Dialog onComplete={handleApplicationUpdated} />
-        </DialogContent>
-      </Dialog>
+      <G702Dialog 
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        projectId=""
+        onSave={handleApplicationUpdated}
+      />
 
       {/* Edit Application Dialog */}
       {selectedApplication && (
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                Edit Payment Application #{selectedApplication.application_number}
-              </DialogTitle>
-            </DialogHeader>
-            <G702Dialog 
-              application={selectedApplication}
-              onComplete={handleApplicationUpdated}
-            />
-          </DialogContent>
-        </Dialog>
+        <G702Dialog 
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          projectId={selectedApplication.project_id}
+          onSave={handleApplicationUpdated}
+        />
       )}
     </Layout>
   );
