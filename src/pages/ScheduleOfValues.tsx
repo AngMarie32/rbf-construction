@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -281,7 +282,7 @@ export default function ScheduleOfValues() {
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         projectId={selectedProject}
-        onSuccess={fetchSOVItems}
+        onSave={fetchSOVItems}
       />
 
       <EditSOVItemDialog
@@ -294,7 +295,6 @@ export default function ScheduleOfValues() {
       <SOVReportDialog
         open={reportDialogOpen}
         onOpenChange={setReportDialogOpen}
-        projectId={selectedProject}
         sovItems={sovItems}
       />
     </Layout>
