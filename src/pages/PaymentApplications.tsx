@@ -167,7 +167,7 @@ export default function PaymentApplications() {
   const latestApplication = paymentApps[0];
 
   return (
-    <Layout title="Payment Applications" subtitle="Streamline billing with professional G702/G703 forms">
+    <Layout title="Payment Applications" subtitle="Streamline billing with G702/G703 forms">
       <div className="space-y-8">
         {/* Project Selection */}
         <Card className="border-2 border-dashed border-success/20 bg-success/5">
@@ -356,7 +356,7 @@ export default function PaymentApplications() {
               <Building2 className="w-20 h-20 text-gray-300 mx-auto mb-6" />
               <h3 className="text-xl font-semibold text-gray-900 mb-3">Payment Applications (G702/G703)</h3>
               <p className="text-gray-500 mb-8 max-w-md mx-auto">
-                Select a project above to create and manage professional payment applications using industry-standard G702/G703 forms.
+                Select a project above to create and manage payment applications using industry-standard G702/G703 forms.
               </p>
               {projects.length === 0 && (
                 <div className="mt-6">

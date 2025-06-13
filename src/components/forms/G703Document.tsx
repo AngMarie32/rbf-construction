@@ -76,7 +76,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
             {sovItems.map((item, index) => {
               const totalContract = (item.scheduledValue || 0) + (item.changeOrders || 0);
               const totalCompleted = (item.previousApplications || 0) + (item.thisPeriod || 0) + (item.materialsStored || 0);
-              const percentComplete = totalContract > 0 ? (totalCompleted / totalContract) * 100 : 0;
+              const percentComplete = totalContract > 0 ? (totalCompleted / totalContract) : 0;
               const balanceToFinish = totalContract - totalCompleted;
               const retainage = totalCompleted * (formData.retainagePercentage / 100);
               
@@ -91,7 +91,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
                   <td className="border-r border-b border-black p-1 text-right">${(item.thisPeriod || 0).toLocaleString()}</td>
                   <td className="border-r border-b border-black p-1 text-right">${(item.materialsStored || 0).toLocaleString()}</td>
                   <td className="border-r border-b border-black p-1 text-right">${totalCompleted.toLocaleString()}</td>
-                  <td className="border-r border-b border-black p-1 text-right">{percentComplete.toFixed(1)}%</td>
+                  <td className="border-r border-b border-black p-1 text-right">{percentComplete.toFixed(3)}</td>
                   <td className="border-r border-b border-black p-1 text-right">${balanceToFinish.toLocaleString()}</td>
                   <td className="border-b border-black p-1 text-right">${retainage.toLocaleString()}</td>
                 </tr>
@@ -113,7 +113,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               </td>
               <td className="border-r border-b border-black p-1 text-right">${totals.totalCompleted.toLocaleString()}</td>
               <td className="border-r border-b border-black p-1 text-right">
-                {totals.totalContract > 0 ? ((totals.totalCompleted / totals.totalContract) * 100).toFixed(1) : 0}%
+                {totals.totalContract > 0 ? (totals.totalCompleted / totals.totalContract).toFixed(3) : '0.000'}
               </td>
               <td className="border-r border-b border-black p-1 text-right">${totals.balanceToFinish.toLocaleString()}</td>
               <td className="border-b border-black p-1 text-right">

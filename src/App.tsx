@@ -1,5 +1,5 @@
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
@@ -47,6 +47,8 @@ function App() {
               <Route path="/projects/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
               <Route path="/bid-planner" element={<ProtectedRoute><BidPlanner /></ProtectedRoute>} />
               <Route path="/payment-applications" element={<ProtectedRoute><PaymentApplications /></ProtectedRoute>} />
+              {/* Redirect old payment-apps route to payment-applications */}
+              <Route path="/payment-apps" element={<Navigate to="/payment-applications" replace />} />
               <Route path="/sov" element={<ProtectedRoute><ScheduleOfValues /></ProtectedRoute>} />
               <Route path="/schedule" element={<ProtectedRoute><ProjectSchedule /></ProtectedRoute>} />
               <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />

@@ -1,3 +1,4 @@
+
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -250,7 +251,7 @@ export const generateProposalPDF = (proposalData: any) => {
   pdf.save(`proposal-${proposalData.projectName.replace(/\s+/g, '-').toLowerCase()}.pdf`);
 };
 
-export const generateProfessionalBidReport =  async (data: any) => {
+export const generateBidReport = async (data: any) => {
   const pdf = new jsPDF();
   
   // Header with company info
