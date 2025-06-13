@@ -154,6 +154,16 @@ export default function ProjectDetail() {
     setShowFilters(false);
   };
 
+  const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {
+    setTasks(prev => prev.map(task => 
+      task.id === taskId ? { ...task, ...updates } : task
+    ));
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    setTasks(prev => prev.filter(task => task.id !== taskId));
+  };
+
   if (loading) {
     return (
       <Layout title="Project Details" subtitle="Loading project information...">
@@ -195,6 +205,25 @@ export default function ProjectDetail() {
       default:
         return 'bg-gray-500';
     }
+  };
+
+  // Create projects array for GanttChart
+  const projects = project ? [{
+    id: project.id,
+    name: project.name,
+    color: '#3b82f6',
+    client: project.client,
+    contractValue: project.contract_value,
+    status: project.status
+  }] : [];
+
+  // Create date range for GanttChart
+  const ganttDateRange = dateRange && dateRange.from && dateRange.to ? {
+    from: dateRange.from,
+    to: dateRange.to
+  } : {
+    from: new Date(),
+    to: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
   };
 
   return (
@@ -341,12 +370,16 @@ export default function ProjectDetail() {
                   <div className="w-full overflow-auto">
                     <GanttChart
                       tasks={getFilteredTasks()}
-                      viewMode="Day"
-                      onDateChange={() => {}}
-                      onProgressChange={() => {}}
-                      onTasksChange={() => {}}
-                      listCellWidth=""
-                      columnWidth={60}
+                      onUpdateTask={handleUpdateTask}
+                      onDeleteTask={handleDeleteTask}
+                      projects={projects}
+                      selectedProjects={[project.id]}
+                      dateRange={ganttDateRange}
+                      showDependencies={showDependencies}
+                      showCriticalPath={showCriticalPath}
+                      showMilestones={showMilestones}
+                      projectData={project}
+                      compactMode={false}
                     />
                   </div>
                 ) : (
