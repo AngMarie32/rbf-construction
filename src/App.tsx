@@ -27,7 +27,8 @@ import BidPackages from '@/pages/BidPackages';
 import Analytics from '@/pages/Analytics';
 import BurnRateAnalysis from '@/pages/BurnRateAnalysis';
 import Settings from '@/pages/Settings';
-import NotFound from '@/pages/NotFound';
+import NotFoun
+from '@/pages/NotFound';
 
 import './App.css';
 
@@ -59,9 +60,11 @@ function App() {
               <Route path="/proposals" element={<ProtectedRoute><Proposals /></ProtectedRoute>} />
               <Route path="/change-orders" element={<ProtectedRoute><ChangeOrders /></ProtectedRoute>} />
               <Route path="/billing" element={<ProtectedRoute><ProjectBilling /></ProtectedRoute>} />
+              <Route path="/project-billing" element={<ProtectedRoute><ProjectBilling /></ProtectedRoute>} />
               <Route path="/bid-packages" element={<ProtectedRoute><BidPackages /></ProtectedRoute>} />
               <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
               <Route path="/burn-rate" element={<ProtectedRoute><BurnRateAnalysis /></ProtectedRoute>} />
+              <Route path="/burn-analysis" element={<ProtectedRoute><BurnRateAnalysis /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

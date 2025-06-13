@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -170,7 +171,7 @@ export default function BidPlanner() {
     toast.info('Edit functionality will be implemented soon');
   };
 
-  const handleProfessionalExport = async () => {
+  const handleExportReport = async () => {
     try {
       // Fetch company settings for the export
       const { data: companyData } = await supabase
@@ -189,6 +190,7 @@ export default function BidPlanner() {
         companyAddress: companyData?.company_address || '',
         companyPhone: companyData?.company_phone || '',
         companyEmail: companyData?.company_email || '',
+        logoUrl: companyData?.logo_url || '',
         bidItems: bidItems,
         totalAmount: totalBidValue
       };
@@ -355,9 +357,9 @@ export default function BidPlanner() {
                         <Plus className="w-4 h-4 mr-2" />
                         Add More Items
                       </Button>
-                      <Button variant="outline" onClick={() => handleProfessionalExport()}>
+                      <Button variant="outline" onClick={handleExportReport}>
                         <Download className="w-4 h-4 mr-2" />
-                        Export Professional Report
+                        Export Report
                       </Button>
                     </div>
                   </div>
@@ -419,9 +421,9 @@ export default function BidPlanner() {
           <Card className="border-2 border-dashed border-gray-200">
             <CardContent className="text-center py-16">
               <Calculator className="w-20 h-20 text-gray-300 mx-auto mb-6" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Professional Bid Planning</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Bid Planning</h3>
               <p className="text-gray-500 mb-8 max-w-md mx-auto">
-                Select a project above to start creating detailed construction bids with accurate cost estimates and professional formatting.
+                Select a project above to start creating detailed construction bids with accurate cost estimates and formatting.
               </p>
               {projects.length === 0 && (
                 <div className="mt-6">

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Bell, Settings, User, LogOut, UserCircle, HelpCircle, X, Trash2 } from 'lucide-react';
@@ -43,29 +42,7 @@ export function Header() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    { 
-      id: '1', 
-      message: 'Project "Downtown Office Complex" is 5 days behind schedule', 
-      type: 'warning', 
-      time: '2 hours ago',
-      read: false
-    },
-    { 
-      id: '2', 
-      message: 'Equipment maintenance due for CAT 320 Excavator', 
-      type: 'info', 
-      time: '4 hours ago',
-      read: false
-    },
-    { 
-      id: '3', 
-      message: 'New invoice #INV-2024-001 has been paid', 
-      type: 'success', 
-      time: '1 day ago',
-      read: true
-    }
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     projectUpdates: true,
