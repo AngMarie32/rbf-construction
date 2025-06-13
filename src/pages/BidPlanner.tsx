@@ -194,10 +194,10 @@ export default function BidPlanner() {
       };
 
       // Import the export function dynamically to avoid issues
-      const { generateProfessionalBidReport } = await import('@/utils/pdfExport');
-      await generateProfessionalBidReport(exportData);
+      const { generateBidReport } = await import('@/utils/pdfExport');
+      await generateBidReport(exportData);
       
-      toast.success('Professional bid report exported successfully');
+      toast.success('Bid report exported successfully');
     } catch (error) {
       console.error('Error exporting bid report:', error);
       toast.error('Failed to export bid report');
