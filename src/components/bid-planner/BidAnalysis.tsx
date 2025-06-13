@@ -70,20 +70,23 @@ export function BidAnalysis({ projectId, onBack }: BidAnalysisProps) {
   }
 
   // Calculate analysis metrics
-  const totalBidValue = bidItems.reduce((sum, item) => sum + (item.total || 0), 0);
+  const totalBidValue = bidItems.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
   const categoryBreakdown = bidItems.reduce((acc, item) => {
-    acc[item.category] = (acc[item.category] || 0) + (item.total || 0);
+    const category = item.category || 'Uncategorized';
+    const amount = Number(item.total) || 0;
+    acc[category] = (acc[category] || 0) + amount;
     return acc;
   }, {} as Record<string, number>);
 
-  const highestCategory = Object.entries(categoryBreakdown).sort(([,a], [,b]) => b - a)[0];
+  const categoryEntries = Object.entries(categoryBreakdown).sort(([,a], [,b]) => Number(b) - Number(a));
+  const highestCategory = categoryEntries[0];
   const averageItemCost = totalBidValue / bidItems.length || 0;
   const profitMargin = 0.15; // 15%
   const overhead = 0.10; // 10%
   const directCosts = totalBidValue * 0.75;
 
   // Risk assessment
-  const highCostItems = bidItems.filter(item => (item.total || 0) > averageItemCost * 2);
+  const highCostItems = bidItems.filter(item => (Number(item.total) || 0) > averageItemCost * 2);
   const riskScore = highCostItems.length > 5 ? 'High' : highCostItems.length > 2 ? 'Medium' : 'Low';
 
   return (
@@ -157,23 +160,21 @@ export function BidAnalysis({ projectId, onBack }: BidAnalysisProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {Object.entries(categoryBreakdown)
-              .sort(([,a], [,b]) => b - a)
-              .map(([category, amount]) => {
-                const percentage = (amount / totalBidValue) * 100;
-                return (
-                  <div key={category} className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">{category}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">{percentage.toFixed(1)}%</span>
-                        <span className="font-semibold">${amount.toLocaleString()}</span>
-                      </div>
+            {categoryEntries.map(([category, amount]) => {
+              const percentage = totalBidValue > 0 ? (Number(amount) / totalBidValue) * 100 : 0;
+              return (
+                <div key={category} className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">{category}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">{percentage.toFixed(1)}%</span>
+                      <span className="font-semibold">${Number(amount).toLocaleString()}</span>
                     </div>
-                    <Progress value={percentage} className="h-2" />
                   </div>
-                );
-              })}
+                  <Progress value={percentage} className="h-2" />
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -242,9 +243,9 @@ export function BidAnalysis({ projectId, onBack }: BidAnalysisProps) {
                         <div className="text-xs text-muted-foreground">{item.category}</div>
                       </div>
                       <div className="text-right">
-                        <div className="font-semibold">${(item.total || 0).toLocaleString()}</div>
+                        <div className="font-semibold">${(Number(item.total) || 0).toLocaleString()}</div>
                         <div className="text-xs text-muted-foreground">
-                          {((item.total || 0) / totalBidValue * 100).toFixed(1)}% of bid
+                          {totalBidValue > 0 ? ((Number(item.total) || 0) / totalBidValue * 100).toFixed(1) : '0'}% of bid
                         </div>
                       </div>
                     </div>
@@ -272,7 +273,7 @@ export function BidAnalysis({ projectId, onBack }: BidAnalysisProps) {
                 <div>
                   <div className="font-medium">Largest Category: {highestCategory[0]}</div>
                   <div className="text-sm text-muted-foreground">
-                    Consider breaking down this ${highestCategory[1].toLocaleString()} category into more detailed line items for better cost control.
+                    Consider breaking down this ${Number(highestCategory[1]).toLocaleString()} category into more detailed line items for better cost control.
                   </div>
                 </div>
               </div>
