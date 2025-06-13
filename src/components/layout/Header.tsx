@@ -43,6 +43,10 @@ export function Header() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [companyInfo, setCompanyInfo] = useState({
+    company_name: 'BuildPro Construction',
+    logo_url: ''
+  });
 
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     projectUpdates: true,
@@ -66,7 +70,26 @@ export function Header() {
         email: user.email || ''
       }));
     }
+    fetchCompanyInfo();
   }, [user]);
+
+  const fetchCompanyInfo = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('company_name, logo_url')
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setCompanyInfo(data);
+      }
+    } catch (error) {
+      console.error('Error fetching company info:', error);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -126,7 +149,21 @@ export function Header() {
   return (
     <>
       <header className="border-b border-gray-200 bg-white px-6 py-4">
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-between">
+          {/* Left side - Company Logo */}
+          <div className="flex items-center gap-3">
+            {companyInfo.logo_url && (
+              <img 
+                src={companyInfo.logo_url} 
+                alt={`${companyInfo.company_name} logo`}
+                className="h-8 w-auto object-contain"
+              />
+            )}
+            <span className="text-lg font-semibold text-gray-900">
+              {companyInfo.company_name}
+            </span>
+          </div>
+
           {/* Right side actions */}
           <div className="flex items-center space-x-4">
             {/* Notifications */}

@@ -6,13 +6,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Edit, BarChart3, Plus, FileText, DollarSign, Calendar, Download, Eye, Trash2 } from 'lucide-react';
+import { Edit, BarChart3, Plus, FileText, DollarSign, Calendar, Download, Eye, Trash2, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Project as ProjectType, Task } from '@/types';
 import { EditProjectDialog } from '@/components/projects/EditProjectDialog';
 import { GanttChart } from '@/components/schedule/GanttChart';
+import { ScheduleDateFilter } from '@/components/schedule/ScheduleDateFilter';
+import { DateRange } from 'react-day-picker';
 
 interface Project extends ProjectType {}
 
@@ -59,6 +61,13 @@ export default function ProjectDetail() {
   const [scheduleProjects, setScheduleProjects] = useState<GanttProject[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  
+  // Schedule filter states
+  const [scheduleView, setScheduleView] = useState<'overview' | 'detailed'>('overview');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [showDependencies, setShowDependencies] = useState(true);
+  const [showCriticalPath, setShowCriticalPath] = useState(false);
+  const [showMilestones, setShowMilestones] = useState(true);
 
   useEffect(() => {
     fetchProject();
@@ -457,6 +466,10 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleBackToDetails = () => {
+    setScheduleView('overview');
+  };
+
   if (loading) {
     return (
       <Layout title="Project Details" subtitle="Loading project details...">
@@ -480,22 +493,46 @@ export default function ProjectDetail() {
   return (
     <Layout title={project?.name || 'Project Details'} subtitle={`${project?.type} • ${project?.status}`}>
       <div className="space-y-6">
-        {/* Project Header */}
+        {/* Project Header - Improved Layout */}
         <Card>
           <CardHeader>
             <div className="flex justify-between items-start">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <Badge className={`${getStatusColor(project.status)} text-white`}>
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  <Badge className={`${getStatusColor(project.status)} text-white px-3 py-1`}>
                     {project.status}
                   </Badge>
-                  <span className="text-sm text-gray-500">#{project.projectCode || 'No Code'}</span>
+                  <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    #{project.projectCode || 'No Code'}
+                  </span>
                 </div>
-                <CardTitle className="text-2xl">{project.name}</CardTitle>
-                <p className="text-gray-600 mt-1">{project.type}</p>
-                {project.description && (
-                  <p className="text-gray-600 mt-2">{project.description}</p>
-                )}
+                <CardTitle className="text-3xl mb-2">{project.name}</CardTitle>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Project Type</p>
+                    <p className="text-lg">{project.type}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Client</p>
+                    <p className="text-lg">{project.client || 'Not specified'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Address</p>
+                    <p className="text-lg">{project.address || 'Not specified'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Progress</p>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-primary h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${project.completionPercentage}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-sm font-medium">{project.completionPercentage}%</span>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={handleViewBurnAnalysis}>
@@ -616,6 +653,23 @@ export default function ProjectDetail() {
           </TabsContent>
 
           <TabsContent value="schedule" className="space-y-4">
+            {scheduleView === 'detailed' && (
+              <ScheduleDateFilter
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+                onBack={handleBackToDetails}
+                showDependencies={showDependencies}
+                onShowDependenciesChange={setShowDependencies}
+                showCriticalPath={showCriticalPath}
+                onShowCriticalPathChange={setShowCriticalPath}
+                showMilestones={showMilestones}
+                onShowMilestonesChange={setShowMilestones}
+                tasks={tasks}
+                projects={scheduleProjects}
+                projectData={scheduleProjects[0]}
+              />
+            )}
+
             <Card className="h-[600px] flex flex-col">
               <CardHeader className="flex-shrink-0">
                 <div className="flex items-center justify-between">
@@ -630,10 +684,20 @@ export default function ProjectDetail() {
                     >
                       {project.completionPercentage}% Complete
                     </Badge>
+                    {scheduleView === 'overview' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setScheduleView('detailed')}
+                      >
+                        <Calendar className="w-4 h-4 mr-2" />
+                        Detailed View
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="flex-1 overflow-hidden p-0">
+              <CardContent className="flex-1 overflow-hidden p-0" id="gantt-chart">
                 {tasks.length > 0 && scheduleProjects.length > 0 ? (
                   <div className="h-full flex flex-col">
                     {/* Compact Schedule Summary */}
@@ -685,15 +749,15 @@ export default function ProjectDetail() {
                         onDeleteTask={handleTaskDelete}
                         projects={scheduleProjects}
                         selectedProjects={[id]}
-                        dateRange={{
+                        dateRange={dateRange || {
                           from: new Date(project.startDate),
                           to: new Date(project.dueDate)
                         }}
-                        showDependencies={true}
-                        showCriticalPath={true}
-                        showMilestones={true}
+                        showDependencies={showDependencies}
+                        showCriticalPath={showCriticalPath}
+                        showMilestones={showMilestones}
                         projectData={scheduleProjects[0]}
-                        compactMode={true}
+                        compactMode={scheduleView === 'overview'}
                       />
                     </div>
                   </div>
