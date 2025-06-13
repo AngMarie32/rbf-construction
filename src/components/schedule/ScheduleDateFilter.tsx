@@ -3,15 +3,17 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Filter, ArrowLeft, Download } from 'lucide-react';
-import { DatePickerWithRange } from '@/components/ui/date-picker';
+import { Calendar, ArrowLeft, Download, CalendarIcon } from 'lucide-react';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { DateRange } from 'react-day-picker';
-import { addDays, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
+import { addDays, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, format } from 'date-fns';
 import { exportGanttToPDF } from '@/utils/ganttPdfExport';
 import { Task } from '@/types';
+import { cn } from '@/lib/utils';
 
 interface ScheduleDateFilterProps {
   dateRange: DateRange | undefined;
@@ -26,6 +28,56 @@ interface ScheduleDateFilterProps {
   tasks: Task[];
   projects: any[];
   projectData: any;
+}
+
+function DatePickerWithRange({
+  date,
+  onDateChange,
+}: {
+  date: DateRange | undefined;
+  onDateChange: (range: DateRange | undefined) => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            id="date"
+            variant="outline"
+            className={cn(
+              "w-[300px] justify-start text-left font-normal",
+              !date && "text-muted-foreground"
+            )}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {date?.from ? (
+              date.to ? (
+                <>
+                  {format(date.from, "LLL dd, y")} -{" "}
+                  {format(date.to, "LLL dd, y")}
+                </>
+              ) : (
+                format(date.from, "LLL dd, y")
+              )
+            ) : (
+              <span>Pick a date range</span>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <CalendarComponent
+            initialFocus
+            mode="range"
+            defaultMonth={date?.from}
+            selected={date}
+            onSelect={onDateChange}
+            numberOfMonths={2}
+            className="p-3 pointer-events-auto"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
 }
 
 export function ScheduleDateFilter({ 

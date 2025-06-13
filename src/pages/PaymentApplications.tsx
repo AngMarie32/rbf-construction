@@ -8,8 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Eye, Edit, Download, Search, Filter } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Plus, Eye, Edit, Download, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -23,11 +23,16 @@ interface PaymentApplication {
   original_contract_sum: number;
   net_change_by_change_orders: number;
   contract_sum_to_date: number;
-  total_completed_and_stored_to_date: number;
-  retainage: number;
+  total_completed_and_stored_to_date?: number;
+  retainage?: number;
   current_payment_due: number;
-  status: string;
+  status?: string;
   created_at: string;
+  architect_date?: string;
+  architect_signature?: string;
+  balance_to_finish?: number;
+  contractor_address?: string;
+  contractor_date?: string;
   projects?: {
     name: string;
     client: string;
@@ -42,6 +47,7 @@ export default function PaymentApplications() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedApplication, setSelectedApplication] = useState<PaymentApplication | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchApplications();
@@ -62,7 +68,16 @@ export default function PaymentApplications() {
         .order('application_number', { ascending: false });
 
       if (error) throw error;
-      setApplications(data || []);
+      
+      // Ensure all applications have required fields with defaults
+      const processedData = (data || []).map(app => ({
+        ...app,
+        total_completed_and_stored_to_date: app.total_completed_and_stored_to_date || 0,
+        retainage: app.retainage || 0,
+        status: app.status || 'Draft'
+      }));
+      
+      setApplications(processedData);
     } catch (error) {
       console.error('Error fetching applications:', error);
       toast.error('Failed to load payment applications');
@@ -93,6 +108,7 @@ export default function PaymentApplications() {
   const handleApplicationUpdated = () => {
     fetchApplications();
     setEditDialogOpen(false);
+    setCreateDialogOpen(false);
     setSelectedApplication(null);
   };
 
@@ -137,7 +153,10 @@ export default function PaymentApplications() {
                 <Eye className="w-5 h-5" />
                 Payment Applications
               </CardTitle>
-              <G702Dialog onApplicationCreated={handleApplicationUpdated} />
+              <Button onClick={() => setCreateDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                New Application
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -204,8 +223,8 @@ export default function PaymentApplications() {
                       ${app.current_payment_due?.toLocaleString() || '0'}
                     </TableCell>
                     <TableCell>
-                      <Badge className={`${getStatusColor(app.status)} text-white`}>
-                        {app.status}
+                      <Badge className={`${getStatusColor(app.status || 'Draft')} text-white`}>
+                        {app.status || 'Draft'}
                       </Badge>
                     </TableCell>
                     <TableCell>{format(new Date(app.created_at), 'MMM dd, yyyy')}</TableCell>
@@ -237,6 +256,16 @@ export default function PaymentApplications() {
         </Card>
       </div>
 
+      {/* Create Application Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Payment Application</DialogTitle>
+          </DialogHeader>
+          <G702Dialog onComplete={handleApplicationUpdated} />
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Application Dialog */}
       {selectedApplication && (
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -247,9 +276,8 @@ export default function PaymentApplications() {
               </DialogTitle>
             </DialogHeader>
             <G702Dialog 
-              existingApplication={selectedApplication}
-              onApplicationCreated={handleApplicationUpdated}
-              mode="edit"
+              application={selectedApplication}
+              onComplete={handleApplicationUpdated}
             />
           </DialogContent>
         </Dialog>
