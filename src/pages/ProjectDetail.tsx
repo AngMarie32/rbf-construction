@@ -41,7 +41,7 @@ interface Task {
   startDate: Date;
   endDate: Date;
   progress: number;
-  dependencies?: string[];
+  dependencies: string[];
   type: 'task' | 'milestone' | 'project';
   project?: string;
   projectId: string;
@@ -82,7 +82,7 @@ export default function ProjectDetail() {
       // Map database fields to expected interface
       const mappedProject: Project = {
         ...data,
-        end_date: data.due_date || data.end_date,
+        end_date: data.due_date || data.due_date,
         budget: data.contract_value || 0,
         spent: data.contract_value * (data.completion_percentage / 100) || 0
       };
@@ -222,18 +222,19 @@ export default function ProjectDetail() {
             {/* Project Header */}
             <Card>
               <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div className="space-y-2">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                  <div className="space-y-3">
                     <div className="flex items-center gap-3">
                       <h1 className="text-2xl font-bold">{project.name}</h1>
                       <Badge className={`${getStatusColor(project.status)} text-white`}>
                         {project.status.replace('_', ' ').toUpperCase()}
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                      <div><strong>Client:</strong> {project.client}</div>
-                      <div><strong>Manager:</strong> {project.project_manager || 'Not assigned'}</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+                      <div><strong>Client:</strong> {project.client || 'Not specified'}</div>
+                      <div><strong>Project Manager:</strong> {project.project_manager || 'Not assigned'}</div>
                       <div><strong>Location:</strong> {project.location || 'Not specified'}</div>
+                      <div><strong>Contract Type:</strong> {project.contract_type || 'Standard'}</div>
                     </div>
                   </div>
                 </div>
@@ -246,7 +247,7 @@ export default function ProjectDetail() {
                       Timeline
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm"><strong>Start:</strong> {format(new Date(project.start_date), 'MMM dd, yyyy')}</p>
+                      <p className="text-sm"><strong>Start:</strong> {project.start_date ? format(new Date(project.start_date), 'MMM dd, yyyy') : 'Not set'}</p>
                       <p className="text-sm"><strong>End:</strong> {format(new Date(project.end_date), 'MMM dd, yyyy')}</p>
                       <p className="text-sm"><strong>Days Left:</strong> {daysRemaining > 0 ? daysRemaining : 'Overdue'}</p>
                     </div>
@@ -281,8 +282,8 @@ export default function ProjectDetail() {
                       Details
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm"><strong>Type:</strong> {project.contract_type || 'Standard'}</p>
                       <p className="text-sm"><strong>Tasks:</strong> {tasks.length}</p>
+                      <p className="text-sm"><strong>Contract Value:</strong> ${project.contract_value.toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
