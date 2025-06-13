@@ -1,56 +1,80 @@
 
-interface Notification {
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+export interface Notification {
   id: string;
+  type: 'info' | 'success' | 'warning' | 'error';
   title: string;
   message: string;
-  type: 'info' | 'warning' | 'error' | 'success';
   timestamp: Date;
-  dismissed: boolean;
+  read: boolean;
 }
 
-class NotificationStore {
-  private notifications: Notification[] = [];
-  private deletedNotifications: Set<string> = new Set();
-
-  constructor() {
-    // Load dismissed notifications from localStorage
-    const dismissed = localStorage.getItem('dismissed_notifications');
-    if (dismissed) {
-      this.deletedNotifications = new Set(JSON.parse(dismissed));
-    }
-  }
-
-  addNotification(notification: Omit<Notification, 'id' | 'timestamp' | 'dismissed'>) {
-    const newNotification: Notification = {
-      ...notification,
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: new Date(),
-      dismissed: false
-    };
-
-    // Don't add if already dismissed
-    if (this.deletedNotifications.has(newNotification.id)) {
-      return;
-    }
-
-    this.notifications.push(newNotification);
-  }
-
-  getNotifications(): Notification[] {
-    return this.notifications.filter(n => !this.deletedNotifications.has(n.id));
-  }
-
-  dismissNotification(id: string) {
-    this.deletedNotifications.add(id);
-    localStorage.setItem('dismissed_notifications', JSON.stringify([...this.deletedNotifications]));
-    this.notifications = this.notifications.filter(n => n.id !== id);
-  }
-
-  clearAll() {
-    this.notifications.forEach(n => this.deletedNotifications.add(n.id));
-    localStorage.setItem('dismissed_notifications', JSON.stringify([...this.deletedNotifications]));
-    this.notifications = [];
-  }
+interface NotificationStore {
+  notifications: Notification[];
+  deletedNotificationIds: string[];
+  addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
+  markAsRead: (id: string) => void;
+  deleteNotification: (id: string) => void;
+  clearAll: () => void;
+  getUnreadCount: () => number;
 }
 
-export const notificationStore = new NotificationStore();
+export const useNotificationStore = create<NotificationStore>()(
+  persist(
+    (set, get) => ({
+      notifications: [],
+      deletedNotificationIds: [],
+      
+      addNotification: (notification) => {
+        const newNotification: Notification = {
+          ...notification,
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          timestamp: new Date(),
+          read: false,
+        };
+        
+        // Don't add notification if it was previously deleted
+        const { deletedNotificationIds } = get();
+        if (deletedNotificationIds.includes(newNotification.id)) {
+          return;
+        }
+        
+        set((state) => ({
+          notifications: [newNotification, ...state.notifications].slice(0, 50), // Keep only latest 50
+        }));
+      },
+      
+      markAsRead: (id) =>
+        set((state) => ({
+          notifications: state.notifications.map((n) =>
+            n.id === id ? { ...n, read: true } : n
+          ),
+        })),
+      
+      deleteNotification: (id) =>
+        set((state) => ({
+          notifications: state.notifications.filter((n) => n.id !== id),
+          deletedNotificationIds: [...state.deletedNotificationIds, id],
+        })),
+      
+      clearAll: () =>
+        set((state) => ({
+          notifications: [],
+          deletedNotificationIds: [
+            ...state.deletedNotificationIds,
+            ...state.notifications.map(n => n.id)
+          ],
+        })),
+      
+      getUnreadCount: () => {
+        const { notifications } = get();
+        return notifications.filter((n) => !n.read).length;
+      },
+    }),
+    {
+      name: 'notification-store',
+    }
+  )
+);

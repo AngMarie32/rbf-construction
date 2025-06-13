@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +17,8 @@ import {
   BarChart3,
   Layers,
   Edit,
-  Trash2
+  Trash2,
+  Download
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -162,6 +162,48 @@ export default function BidPlanner() {
     }
   }
 
+  const handleContinueBidding = () => {
+    setActiveView('create');
+  };
+
+  const handleEditBidItem = (item: any) => {
+    toast.info('Edit functionality will be implemented soon');
+  };
+
+  const handleProfessionalExport = async () => {
+    try {
+      // Fetch company settings for the export
+      const { data: companyData } = await supabase
+        .from('company_settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+
+      const selectedProjectData = projects.find(p => p.id === selectedProject);
+      
+      const exportData = {
+        projectName: selectedProjectData?.name || 'Unnamed Project',
+        client: selectedProjectData?.client || 'N/A',
+        date: new Date().toLocaleDateString(),
+        companyName: companyData?.company_name || 'BuildPro Construction',
+        companyAddress: companyData?.company_address || '',
+        companyPhone: companyData?.company_phone || '',
+        companyEmail: companyData?.company_email || '',
+        bidItems: bidItems,
+        totalAmount: totalBidValue
+      };
+
+      // Import the export function dynamically to avoid issues
+      const { generateProfessionalBidReport } = await import('@/utils/pdfExport');
+      await generateProfessionalBidReport(exportData);
+      
+      toast.success('Professional bid report exported successfully');
+    } catch (error) {
+      console.error('Error exporting bid report:', error);
+      toast.error('Failed to export bid report');
+    }
+  };
+
   return (
     <Layout title="Bid Planner" subtitle="Create and manage construction bids">
       <div className="space-y-8">
@@ -303,10 +345,22 @@ export default function BidPlanner() {
             {itemCount > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Current Bid Items
-                  </CardTitle>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      Current Bid Items
+                    </CardTitle>
+                    <div className="flex gap-2">
+                      <Button onClick={handleContinueBidding}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add More Items
+                      </Button>
+                      <Button variant="outline" onClick={() => handleProfessionalExport()}>
+                        <Download className="w-4 h-4 mr-2" />
+                        Export Professional Report
+                      </Button>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -325,10 +379,7 @@ export default function BidPlanner() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              // Navigate to edit - you can implement this
-                              toast.info('Edit functionality coming soon');
-                            }}
+                            onClick={() => handleEditBidItem(item)}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>

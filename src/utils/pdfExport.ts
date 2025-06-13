@@ -249,3 +249,124 @@ export const generateProposalPDF = (proposalData: any) => {
   
   pdf.save(`proposal-${proposalData.projectName.replace(/\s+/g, '-').toLowerCase()}.pdf`);
 };
+
+export const generateProfessionalBidReport =  async (data: any) => {
+  const pdf = new jsPDF();
+  
+  // Header with company info
+  pdf.setFontSize(20);
+  pdf.text(data.companyName, 20, 30);
+  
+  if (data.companyAddress) {
+    pdf.setFontSize(10);
+    pdf.text(data.companyAddress, 20, 40);
+  }
+  
+  if (data.companyPhone || data.companyEmail) {
+    pdf.setFontSize(10);
+    const contactInfo = [data.companyPhone, data.companyEmail].filter(Boolean).join(' | ');
+    pdf.text(contactInfo, 20, 48);
+  }
+  
+  // Title
+  pdf.setFontSize(16);
+  pdf.text('BID ESTIMATE', 20, 65);
+  
+  // Project information
+  pdf.setFontSize(12);
+  pdf.text(`Project: ${data.projectName}`, 20, 80);
+  pdf.text(`Client: ${data.client}`, 20, 90);
+  pdf.text(`Date: ${data.date}`, 20, 100);
+  
+  // Line separator
+  pdf.line(20, 110, 190, 110);
+  
+  let yPosition = 125;
+  
+  // Group by category
+  const categorizedItems = data.bidItems.reduce((acc: any, item: any) => {
+    const category = item.category || 'Uncategorized';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(item);
+    return acc;
+  }, {});
+  
+  Object.entries(categorizedItems).forEach(([category, items]: [string, any]) => {
+    // Category header
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(category, 20, yPosition);
+    yPosition += 10;
+    
+    // Category total
+    const categoryTotal = (items as any[]).reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Category Total: $${categoryTotal.toLocaleString()}`, 150, yPosition - 5);
+    
+    // Items
+    pdf.setFontSize(9);
+    (items as any[]).forEach((item) => {
+      const line = `• ${item.description} - ${item.quantity} ${item.unit} × $${Number(item.unit_cost || 0).toLocaleString()} = $${Number(item.total || 0).toLocaleString()}`;
+      
+      // Handle text wrapping
+      const splitText = pdf.splitTextToSize(line, 160);
+      pdf.text(splitText, 25, yPosition);
+      yPosition += splitText.length * 5;
+      
+      if (yPosition > 270) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+    });
+    
+    yPosition += 8;
+  });
+  
+  // Summary section
+  if (yPosition > 230) {
+    pdf.addPage();
+    yPosition = 20;
+  }
+  
+  pdf.line(20, yPosition, 190, yPosition);
+  yPosition += 15;
+  
+  pdf.setFontSize(16);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('BID SUMMARY', 20, yPosition);
+  yPosition += 15;
+  
+  pdf.setFontSize(12);
+  pdf.setFont('helvetica', 'normal');
+  
+  const subtotal = data.totalAmount;
+  const profitMargin = subtotal * 0.15; // 15%
+  const overhead = subtotal * 0.10; // 10%
+  const total = subtotal + profitMargin + overhead;
+  
+  pdf.text(`Subtotal (Direct Costs): $${subtotal.toLocaleString()}`, 20, yPosition);
+  yPosition += 8;
+  pdf.text(`Overhead (10%): $${overhead.toLocaleString()}`, 20, yPosition);
+  yPosition += 8;
+  pdf.text(`Profit Margin (15%): $${profitMargin.toLocaleString()}`, 20, yPosition);
+  yPosition += 12;
+  
+  // Total line
+  pdf.line(20, yPosition - 2, 100, yPosition - 2);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text(`TOTAL BID AMOUNT: $${total.toLocaleString()}`, 20, yPosition + 5);
+  
+  // Footer
+  const pageCount = pdf.internal.pages.length - 1;
+  for (let i = 1; i <= pageCount; i++) {
+    pdf.setPage(i);
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Page ${i} of ${pageCount}`, 180, 285);
+    pdf.text(`Generated on ${data.date}`, 20, 285);
+  }
+  
+  const filename = `bid-estimate-${data.projectName.replace(/\s+/g, '-').toLowerCase()}.pdf`;
+  pdf.save(filename);
+};

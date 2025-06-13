@@ -131,43 +131,60 @@ export function ImprovedBillingDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    
+    if (!formData.project_id) {
+      toast.error('Please select a project');
+      return;
+    }
 
+    if (!formData.billed_amount || formData.billed_amount <= 0) {
+      toast.error('Please enter a valid billed amount');
+      return;
+    }
+
+    setLoading(true);
     try {
       const billingData = {
         project_id: formData.project_id,
         billing_period_start: formData.billing_period_start.toISOString().split('T')[0],
         billing_period_end: formData.billing_period_end.toISOString().split('T')[0],
-        billed_amount: formData.billed_amount,
-        paid_amount: formData.paid_amount,
+        billed_amount: Number(formData.billed_amount),
+        paid_amount: Number(formData.paid_amount) || 0,
         status: formData.status,
         invoice_number: formData.invoice_number || null,
         invoice_date: formData.invoice_date ? formData.invoice_date.toISOString().split('T')[0] : null,
         due_date: formData.due_date ? formData.due_date.toISOString().split('T')[0] : null,
         notes: formData.notes || null,
-        remaining_amount: formData.billed_amount - formData.paid_amount
+        remaining_amount: Number(formData.billed_amount) - Number(formData.paid_amount || 0)
       };
+
+      console.log('Submitting billing data:', billingData);
 
       let error;
       if (billing?.id) {
-        ({ error } = await supabase
+        const { error: updateError } = await supabase
           .from('project_billing')
           .update(billingData)
-          .eq('id', billing.id));
+          .eq('id', billing.id);
+        error = updateError;
       } else {
-        ({ error } = await supabase
+        const { error: insertError } = await supabase
           .from('project_billing')
-          .insert(billingData));
+          .insert([billingData]);
+        error = insertError;
       }
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       toast.success(billing?.id ? 'Billing record updated successfully' : 'Billing record created successfully');
       onSuccess();
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving billing:', error);
-      toast.error('Failed to save billing record');
+      toast.error(`Failed to save billing record: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
