@@ -27,8 +27,7 @@ import BidPackages from '@/pages/BidPackages';
 import Analytics from '@/pages/Analytics';
 import BurnRateAnalysis from '@/pages/BurnRateAnalysis';
 import Settings from '@/pages/Settings';
-import NotFoun
-from '@/pages/NotFound';
+import NotFound from '@/pages/NotFound';
 
 import './App.css';
 
