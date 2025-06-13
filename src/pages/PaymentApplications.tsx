@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -168,30 +169,6 @@ export default function PaymentApplications() {
   return (
     <Layout title="Payment Applications" subtitle="Streamline billing with professional G702/G703 forms">
       <div className="space-y-8">
-        {/* Hero Section */}
-        <div className="bg-gradient-to-r from-success/10 via-primary/5 to-success/10 rounded-xl p-8 border border-success/20">
-          <div className="max-w-4xl">
-            <h1 className="text-3xl font-bold text-primary mb-4">Payment Application Management</h1>
-            <p className="text-lg text-muted-foreground mb-6">
-              Create professional G702/G703 payment applications, streamline billing processes, and maintain accurate payment records for all your projects.
-            </p>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-success" />
-                <span>G702/G703 Forms</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-primary" />
-                <span>Payment Tracking</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-accent" />
-                <span>Professional Billing</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Project Selection */}
         <Card className="border-2 border-dashed border-success/20 bg-success/5">
           <CardHeader>

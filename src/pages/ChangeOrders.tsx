@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -172,30 +173,6 @@ export default function ChangeOrders() {
   return (
     <Layout title="Change Orders" subtitle="Track and manage project modifications efficiently">
       <div className="space-y-8">
-        {/* Hero Section */}
-        <div className="bg-gradient-to-r from-accent/10 via-primary/5 to-accent/10 rounded-xl p-8 border border-accent/20">
-          <div className="max-w-4xl">
-            <h1 className="text-3xl font-bold text-primary mb-4">Change Order Management</h1>
-            <p className="text-lg text-muted-foreground mb-6">
-              Streamline project modifications, track approval workflows, and maintain accurate financial records for all change orders.
-            </p>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-accent" />
-                <span>Document Control</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-success" />
-                <span>Financial Tracking</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-primary" />
-                <span>Approval Workflow</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Project Selection */}
         <Card className="border-2 border-dashed border-accent/20 bg-accent/5">
           <CardHeader>
