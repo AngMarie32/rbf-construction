@@ -368,27 +368,45 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
         </div>
       )}
 
-      {/* G702 Document View */}
-      {activeDocument === 'g702' && calculatedTotals && (
-        <div id="g702-document">
-          <G702Document
-            project={project}
-            formData={formData}
-            totals={calculatedTotals}
-          />
+      {/* G702 and G703 Documents: Always in DOM but hide inactive */}
+      <div className="relative">
+        {/* G702 Document */}
+        <div
+          id="g702-document"
+          aria-hidden={activeDocument !== 'g702'}
+          className={
+            activeDocument === 'g702'
+              ? ''
+              : 'sr-only'
+          }
+          style={activeDocument === 'g702' ? {} : { position: 'absolute', left: 0, top: 0 }}
+        >
+          {calculatedTotals && (
+            <G702Document
+              project={project}
+              formData={formData}
+              totals={calculatedTotals}
+            />
+          )}
         </div>
-      )}
-
-      {/* G703 Document View */}
-      {activeDocument === 'g703' && (
-        <div id="g703-document">
+        {/* G703 Document */}
+        <div
+          id="g703-document"
+          aria-hidden={activeDocument !== 'g703'}
+          className={
+            activeDocument === 'g703'
+              ? ''
+              : 'sr-only'
+          }
+          style={activeDocument === 'g703' ? {} : { position: 'absolute', left: 0, top: 0 }}
+        >
           <G703Document
             project={project}
             formData={formData}
             sovItems={sovItems}
           />
         </div>
-      )}
+      </div>
 
       {/* Save Button */}
       <div className="flex gap-4 justify-end print:hidden">
