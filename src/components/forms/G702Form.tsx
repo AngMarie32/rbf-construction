@@ -62,6 +62,8 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
     contractorName: '',
     contractorAddress: '',
     contractorTitle: '',
+    contractorSignatory: '',
+    contractorSignature: null,
     originalContractSum: 0,
     netChangeOrders: 0,
     retainagePercentage: 5,

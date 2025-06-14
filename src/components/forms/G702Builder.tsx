@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,8 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Upload, X } from 'lucide-react';
 
 interface G702BuilderProps {
   projectId: string;
@@ -95,6 +96,22 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
       toast.error('Failed to update item');
     }
   }, [sovItems, setSovItems]);
+
+  const handleSignatureUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setFormData({ ...formData, contractorSignature: result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeSignature = () => {
+    setFormData({ ...formData, contractorSignature: null });
+  };
 
   const calculateTotals = () => {
     const totalScheduledValue = sovItems.reduce((sum, item) => sum + (item.scheduledValue || 0), 0);
@@ -201,6 +218,7 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
         </CardContent>
       </Card>
 
+      {/* Application Settings */}
       <Card>
         <CardHeader>
           <CardTitle>Application Settings</CardTitle>
@@ -270,6 +288,84 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
                 />
                 <Label htmlFor="contractor">Contractor</Label>
               </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Contractor Signature Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Contractor Certification</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="contractorSignatory">Signatory Name</Label>
+              <Input
+                id="contractorSignatory"
+                value={formData.contractorSignatory || ''}
+                onChange={(e) => setFormData({ ...formData, contractorSignatory: e.target.value })}
+                placeholder="e.g., Brett A. Jory, V.P."
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="contractorTitle">Title</Label>
+              <Input
+                id="contractorTitle"
+                value={formData.contractorTitle || ''}
+                onChange={(e) => setFormData({ ...formData, contractorTitle: e.target.value })}
+                placeholder="e.g., Vice President"
+              />
+            </div>
+
+            <div>
+              <Label>Digital Signature (Optional)</Label>
+              <div className="mt-2">
+                {formData.contractorSignature ? (
+                  <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Signature Preview:</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={removeSignature}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Remove
+                      </Button>
+                    </div>
+                    <img 
+                      src={formData.contractorSignature} 
+                      alt="Contractor Signature" 
+                      className="max-h-20 border border-gray-300 bg-white rounded"
+                    />
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600 mb-2">Upload signature image</p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleSignatureUpload}
+                      className="hidden"
+                      id="signature-upload"
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() => document.getElementById('signature-upload')?.click()}
+                    >
+                      Choose File
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Supported formats: PNG, JPG, GIF. Max size: 2MB
+              </p>
             </div>
           </div>
         </CardContent>
