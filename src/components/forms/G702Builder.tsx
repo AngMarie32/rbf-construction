@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -392,38 +393,42 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
             </Button>
           </div>
 
-          {changeOrders.length > 0 && (
-            <div className="mb-4">
-              <Label className="text-sm font-medium mb-2 block">Available Change Orders:</Label>
-              <div className="space-y-2">
-                {changeOrders.map((co) => (
-                  <div key={co.id} className="flex items-center justify-between p-2 border rounded">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                          id={`co-${co.id}`}
-                          checked={selectedChangeOrders.includes(co.id)}
-                          onCheckedChange={() => handleToggleChangeOrderSelection(co.id)}
-                      />
-                      <label htmlFor={`co-${co.id}`} className="cursor-pointer">
-                        <span className="font-medium">CO-{co.number}: </span>
-                        <span className="text-sm">{co.description}</span>
-                        <span className="ml-2 text-green-600">${co.amount.toLocaleString()}</span>
-                      </label>
+          <div className="mb-4">
+            <Label className="text-sm font-medium mb-2 block">Available Change Orders:</Label>
+            {changeOrders.length > 0 ? (
+              <>
+                <div className="space-y-2">
+                  {changeOrders.map((co) => (
+                    <div key={co.id} className="flex items-center justify-between p-2 border rounded">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                            id={`co-${co.id}`}
+                            checked={selectedChangeOrders.includes(co.id)}
+                            onCheckedChange={() => handleToggleChangeOrderSelection(co.id)}
+                        />
+                        <label htmlFor={`co-${co.id}`} className="cursor-pointer">
+                          <span className="font-medium">CO-{co.number}: </span>
+                          <span className="text-sm">{co.description}</span>
+                          <span className="ml-2 text-green-600">${co.amount.toLocaleString()}</span>
+                        </label>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-              <Button 
-                size="sm" 
-                onClick={addSelectedChangeOrdersToSOV}
-                className="flex items-center gap-1 mt-2"
-                disabled={selectedChangeOrders.length === 0}
-              >
-                <Plus className="w-3 h-3" />
-                Add Selected to SOV
-              </Button>
-            </div>
-          )}
+                  ))}
+                </div>
+                <Button 
+                  size="sm" 
+                  onClick={addSelectedChangeOrdersToSOV}
+                  className="flex items-center gap-1 mt-2"
+                  disabled={selectedChangeOrders.length === 0}
+                >
+                  <Plus className="w-3 h-3" />
+                  Add Selected to SOV
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500">No approved change orders available for this project.</p>
+            )}
+          </div>
         </CardContent>
       </Card>
 
