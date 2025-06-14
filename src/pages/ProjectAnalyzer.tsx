@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -93,7 +92,16 @@ export default function ProjectAnalyzer() {
     setAnalyzingPlan(planId);
     
     try {
-      // Simulate AI analysis - this would be replaced with actual AI integration
+      // TODO: Replace this mock with a real API call to your AI analysis service.
+      // Example:
+      // const response = await fetch('/api/your-analyze-endpoint', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ planUrl: plan.url, planName: plan.name }),
+      // });
+      // const { analysis } = await response.json();
+
+      // Simulate AI analysis (remove when using real AI)
       await new Promise(resolve => setTimeout(resolve, 3000));
       
       const mockAnalysis = `
@@ -195,10 +203,9 @@ To integrate with a custom AI analysis system, you would need to provide the API
 
   return (
     <Layout title="Project Plan Analyzer" subtitle="AI-powered construction plan analysis and scope estimation">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
-        
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-screen">
         {/* Left Panel - Plan Upload & Controls */}
-        <div className="space-y-4">
+        <div className="space-y-4 flex flex-col h-full">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -326,8 +333,8 @@ To integrate with a custom AI analysis system, you would need to provide the API
         </div>
 
         {/* Right Panel - Analysis Results & Chat */}
-        <div className="lg:col-span-2 flex flex-col">
-          <Card className="flex-1 flex flex-col">
+        <div className="lg:col-span-2 flex flex-col min-h-screen">
+          <Card className="flex-1 flex flex-col min-h-screen">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Brain className="w-5 h-5" />
