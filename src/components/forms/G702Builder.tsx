@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { PenTool, Type, X, Upload, Plus, Download } from 'lucide-react';
+import { PenTool, Type, X, Upload, Plus, Download, Trash2 } from 'lucide-react';
 
 interface G702BuilderProps {
   projectId: string;
@@ -29,6 +29,8 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
   const [isDrawing, setIsDrawing] = useState(false);
   const [signatureType, setSignatureType] = useState<'draw' | 'type'>('type');
   const [typedSignature, setTypedSignature] = useState('');
+  const [selectedChangeOrders, setSelectedChangeOrders] = useState<string[]>([]);
+  const [newSOVItem, setNewSOVItem] = useState<null | { itemNumber: string, description: string, scheduledValue: number, category: string }>(null);
 
   useEffect(() => {
     fetchPreviousPayments();
@@ -117,39 +119,51 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
     }
   };
 
-  const addChangeOrderToSOV = (changeOrderId: string) => {
-    const changeOrder = changeOrders.find(co => co.id === changeOrderId);
-    if (!changeOrder) return;
-
-    // Find the SOV item to add the change order to, or create a new one
-    const updatedItems = [...sovItems];
-    const existingItemIndex = updatedItems.findIndex(item => 
-      item.description.toLowerCase().includes(changeOrder.description.toLowerCase().substring(0, 20))
+  const handleToggleChangeOrderSelection = (id: string) => {
+    setSelectedChangeOrders(prev => 
+        prev.includes(id) ? prev.filter(coId => coId !== id) : [...prev, id]
     );
+  };
 
-    if (existingItemIndex >= 0) {
-      // Add to existing item
-      updatedItems[existingItemIndex].changeOrders += changeOrder.amount;
-    } else {
-      // Create new SOV item for change order
-      const newItem = {
-        id: `co-${changeOrder.id}`,
-        itemNumber: `CO-${changeOrder.number}`,
-        description: `Change Order ${changeOrder.number}: ${changeOrder.description}`,
-        scheduledValue: 0,
-        changeOrders: changeOrder.amount,
-        previousApplications: 0,
-        thisPeriod: 0,
-        materialsStored: 0,
-        totalCompletedAndStored: 0,
-        percentComplete: 0,
-        category: 'Change Orders'
-      };
-      updatedItems.push(newItem);
+  const addSelectedChangeOrdersToSOV = () => {
+    const changeOrdersToAdd = changeOrders.filter(co => selectedChangeOrders.includes(co.id));
+    if (changeOrdersToAdd.length === 0) {
+        toast.info("No change orders selected.");
+        return;
+    }
+
+    let updatedItems = [...sovItems];
+    let addedCount = 0;
+
+    for (const changeOrder of changeOrdersToAdd) {
+        const existingItemIndex = updatedItems.findIndex(item => 
+          item.description.toLowerCase().includes(changeOrder.description.toLowerCase().substring(0, 20))
+        );
+
+        if (existingItemIndex >= 0) {
+            updatedItems[existingItemIndex].changeOrders = (updatedItems[existingItemIndex].changeOrders || 0) + changeOrder.amount;
+        } else {
+            const newItem = {
+                id: `co-${changeOrder.id}`,
+                itemNumber: `CO-${changeOrder.number}`,
+                description: `Change Order ${changeOrder.number}: ${changeOrder.description}`,
+                scheduledValue: 0,
+                changeOrders: changeOrder.amount,
+                previousApplications: 0,
+                thisPeriod: 0,
+                materialsStored: 0,
+                totalCompletedAndStored: 0,
+                percentComplete: 0,
+                category: 'Change Orders'
+            };
+            updatedItems.push(newItem);
+        }
+        addedCount++;
     }
 
     setSovItems(updatedItems);
-    toast.success(`Change Order ${changeOrder.number} added to SOV`);
+    toast.success(`${addedCount} Change Order(s) added to SOV`);
+    setSelectedChangeOrders([]);
   };
 
   const updateSOVItemThisPeriod = useCallback(async (id: string, value: number) => {
@@ -181,6 +195,73 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
       }
     }
   }, [sovItems, setSovItems]);
+
+  const handleDeleteSOVItem = async (itemId: string) => {
+    if (!window.confirm("Are you sure you want to delete this item? This action cannot be undone.")) {
+        return;
+    }
+
+    try {
+        const { error } = await supabase.from('sov_items').delete().eq('id', itemId);
+        if (error) throw error;
+
+        setSovItems(sovItems.filter(item => item.id !== itemId));
+        toast.success("SOV item deleted.");
+    } catch (error) {
+        toast.error("Failed to delete SOV item.");
+        console.error(error);
+    }
+  };
+
+  const handleAddNewItem = () => {
+      const nextItemNumber = sovItems.length > 0 ? String(Math.max(...sovItems.map(i => Number(i.itemNumber)).filter(Number.isFinite)) + 1) : "1";
+      setNewSOVItem({ itemNumber: nextItemNumber, description: '', scheduledValue: 0, category: 'General' });
+  };
+
+  const handleCancelNewItem = () => {
+      setNewSOVItem(null);
+  };
+
+  const handleSaveNewItem = async () => {
+    if (!newSOVItem || !newSOVItem.description || newSOVItem.scheduledValue <= 0) {
+        toast.error("Please fill all fields for the new item.");
+        return;
+    }
+    try {
+        setLoading(true);
+        const { data, error } = await supabase.from('sov_items').insert({
+            project_id: projectId,
+            item_number: newSOVItem.itemNumber,
+            description: newSOVItem.description,
+            scheduled_value: newSOVItem.scheduledValue,
+            category: newSOVItem.category
+        }).select().single();
+
+        if (error) throw error;
+        
+        const mappedItem = {
+            id: data.id,
+            itemNumber: data.item_number,
+            description: data.description,
+            scheduledValue: data.scheduled_value,
+            changeOrders: 0,
+            previousApplications: 0,
+            thisPeriod: 0,
+            materialsStored: 0,
+            totalCompletedAndStored: 0,
+            percentComplete: 0,
+            category: data.category
+        };
+        setSovItems([...sovItems, mappedItem]);
+        setNewSOVItem(null);
+        toast.success("New SOV item added.");
+    } catch (error) {
+        toast.error("Failed to save new item.");
+        console.error(error);
+    } finally {
+        setLoading(false);
+    }
+  };
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -317,22 +398,30 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
               <div className="space-y-2">
                 {changeOrders.map((co) => (
                   <div key={co.id} className="flex items-center justify-between p-2 border rounded">
-                    <div>
-                      <span className="font-medium">CO-{co.number}: </span>
-                      <span className="text-sm">{co.description}</span>
-                      <span className="ml-2 text-green-600">${co.amount.toLocaleString()}</span>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                          id={`co-${co.id}`}
+                          checked={selectedChangeOrders.includes(co.id)}
+                          onCheckedChange={() => handleToggleChangeOrderSelection(co.id)}
+                      />
+                      <label htmlFor={`co-${co.id}`} className="cursor-pointer">
+                        <span className="font-medium">CO-{co.number}: </span>
+                        <span className="text-sm">{co.description}</span>
+                        <span className="ml-2 text-green-600">${co.amount.toLocaleString()}</span>
+                      </label>
                     </div>
-                    <Button 
-                      size="sm" 
-                      onClick={() => addChangeOrderToSOV(co.id)}
-                      className="flex items-center gap-1"
-                    >
-                      <Plus className="w-3 h-3" />
-                      Add to SOV
-                    </Button>
                   </div>
                 ))}
               </div>
+              <Button 
+                size="sm" 
+                onClick={addSelectedChangeOrdersToSOV}
+                className="flex items-center gap-1 mt-2"
+                disabled={selectedChangeOrders.length === 0}
+              >
+                <Plus className="w-3 h-3" />
+                Add Selected to SOV
+              </Button>
             </div>
           )}
         </CardContent>
@@ -362,7 +451,7 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="grid grid-cols-8 gap-4 text-sm font-medium border-b pb-2">
+            <div className="grid grid-cols-9 gap-4 text-sm font-medium border-b pb-2">
               <div>Item & Description</div>
               <div>Scheduled Value</div>
               <div>Change Orders</div>
@@ -371,6 +460,7 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
               <div>Total Completed</div>
               <div>% Complete</div>
               <div>Balance to Finish</div>
+              <div>Actions</div>
             </div>
 
             <div className="max-h-96 overflow-y-auto space-y-2">
@@ -381,8 +471,8 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
                 const balanceToFinish = totalContract - totalCompleted;
                 
                 return (
-                  <div key={item.id} className="grid grid-cols-8 gap-2 items-center text-sm border-b pb-2">
-                    <div className="font-medium">
+                  <div key={item.id} className="grid grid-cols-9 gap-2 items-center text-sm border-b pb-2">
+                    <div className="font-medium col-span-1">
                       <div>{item.itemNumber}</div>
                       <div className="text-xs text-gray-600 truncate">{item.description}</div>
                     </div>
@@ -402,12 +492,56 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
                     <div>${totalCompleted.toLocaleString()}</div>
                     <div>{percentComplete.toFixed(1)}%</div>
                     <div>${balanceToFinish.toLocaleString()}</div>
+                    <div>
+                      {!item.id.startsWith('co-') && (
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteSOVItem(item.id)} className="text-red-500 hover:text-red-700">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
+              {newSOVItem && (
+                  <div className="grid grid-cols-9 gap-2 items-center text-sm border-b-2 border-blue-200 py-2">
+                      <div className="col-span-1">
+                          <Input
+                              value={newSOVItem.itemNumber}
+                              onChange={(e) => setNewSOVItem({ ...newSOVItem, itemNumber: e.target.value })}
+                              placeholder="Item #"
+                              className="h-8"
+                          />
+                          <Input
+                              value={newSOVItem.description}
+                              onChange={(e) => setNewSOVItem({ ...newSOVItem, description: e.target.value })}
+                              placeholder="Description"
+                              className="h-8 mt-1"
+                          />
+                      </div>
+                      <div>
+                          <Input
+                              type="number"
+                              value={newSOVItem.scheduledValue}
+                              onChange={(e) => setNewSOVItem({ ...newSOVItem, scheduledValue: Number(e.target.value) || 0 })}
+                              placeholder="Value"
+                              className="h-8"
+                          />
+                      </div>
+                      <div>$0.00</div>
+                      <div>${(newSOVItem.scheduledValue || 0).toLocaleString()}</div>
+                      <div>$0.00</div>
+                      <div>$0.00</div>
+                      <div>0.0%</div>
+                      <div>${(newSOVItem.scheduledValue || 0).toLocaleString()}</div>
+                      <div className="flex gap-1">
+                          <Button onClick={handleSaveNewItem} size="sm" className="h-8" disabled={loading}>{loading ? 'Saving...' : 'Save'}</Button>
+                          <Button onClick={handleCancelNewItem} variant="ghost" size="sm" className="h-8">Cancel</Button>
+                      </div>
+                  </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-8 gap-2 items-center text-sm font-bold border-t pt-2 bg-gray-50">
+            <div className="grid grid-cols-9 gap-2 items-center text-sm font-bold border-t pt-2 bg-gray-50">
               <div>TOTALS</div>
               <div>${totals.totalScheduledValue.toLocaleString()}</div>
               <div>${totals.totalChangeOrders.toLocaleString()}</div>
@@ -416,6 +550,7 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
               <div>${totals.totalCompleted.toLocaleString()}</div>
               <div>{totals.totalContract > 0 ? ((totals.totalCompleted / totals.totalContract) * 100).toFixed(1) : 0}%</div>
               <div>${totals.balanceToFinish.toLocaleString()}</div>
+              <div></div>
             </div>
           </div>
         </CardContent>
