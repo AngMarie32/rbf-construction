@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { PenTool, Type, X } from 'lucide-react';
+import { PenTool, Type, X, Upload, Plus, Download } from 'lucide-react';
 
 interface G702BuilderProps {
   projectId: string;
@@ -24,6 +24,7 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
   const [loading, setLoading] = useState(false);
   const [applications, setApplications] = useState<any[]>([]);
   const [selectedApplication, setSelectedApplication] = useState<string>('current');
+  const [changeOrders, setChangeOrders] = useState<any[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [signatureType, setSignatureType] = useState<'draw' | 'type'>('type');
@@ -32,6 +33,7 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
   useEffect(() => {
     fetchPreviousPayments();
     fetchApplications();
+    fetchChangeOrders();
   }, [projectId]);
 
   const fetchApplications = async () => {
@@ -46,6 +48,22 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
       setApplications(data || []);
     } catch (error) {
       console.error('Error fetching applications:', error);
+    }
+  };
+
+  const fetchChangeOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('change_orders')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('status', 'Approved')
+        .order('number');
+
+      if (error) throw error;
+      setChangeOrders(data || []);
+    } catch (error) {
+      console.error('Error fetching change orders:', error);
     }
   };
 
@@ -67,6 +85,73 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
     }
   };
 
+  const importSOVItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sov_items')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('item_number');
+
+      if (error) throw error;
+
+      const mappedItems = (data || []).map(item => ({
+        id: item.id,
+        itemNumber: item.item_number,
+        description: item.description,
+        scheduledValue: item.scheduled_value,
+        changeOrders: item.change_orders || 0,
+        previousApplications: item.previous_applications || 0,
+        thisPeriod: item.this_period || 0,
+        materialsStored: item.materials_stored || 0,
+        totalCompletedAndStored: item.total_completed_and_stored || 0,
+        percentComplete: item.percent_complete || 0,
+        category: item.category
+      }));
+
+      setSovItems(mappedItems);
+      toast.success('Schedule of Values imported successfully');
+    } catch (error) {
+      console.error('Error importing SOV items:', error);
+      toast.error('Failed to import Schedule of Values');
+    }
+  };
+
+  const addChangeOrderToSOV = (changeOrderId: string) => {
+    const changeOrder = changeOrders.find(co => co.id === changeOrderId);
+    if (!changeOrder) return;
+
+    // Find the SOV item to add the change order to, or create a new one
+    const updatedItems = [...sovItems];
+    const existingItemIndex = updatedItems.findIndex(item => 
+      item.description.toLowerCase().includes(changeOrder.description.toLowerCase().substring(0, 20))
+    );
+
+    if (existingItemIndex >= 0) {
+      // Add to existing item
+      updatedItems[existingItemIndex].changeOrders += changeOrder.amount;
+    } else {
+      // Create new SOV item for change order
+      const newItem = {
+        id: `co-${changeOrder.id}`,
+        itemNumber: `CO-${changeOrder.number}`,
+        description: `Change Order ${changeOrder.number}: ${changeOrder.description}`,
+        scheduledValue: 0,
+        changeOrders: changeOrder.amount,
+        previousApplications: 0,
+        thisPeriod: 0,
+        materialsStored: 0,
+        totalCompletedAndStored: 0,
+        percentComplete: 0,
+        category: 'Change Orders'
+      };
+      updatedItems.push(newItem);
+    }
+
+    setSovItems(updatedItems);
+    toast.success(`Change Order ${changeOrder.number} added to SOV`);
+  };
+
   const updateSOVItemThisPeriod = useCallback(async (id: string, value: number) => {
     // Update local state immediately for better UX
     const updatedItems = sovItems.map(item => 
@@ -76,29 +161,24 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
     );
     setSovItems(updatedItems);
 
-    // Debounced database update
-    try {
-      const { error } = await supabase
-        .from('sov_items')
-        .update({
-          this_period: value
-        })
-        .eq('id', id);
+    // Only update database for real SOV items (not change order items)
+    if (!id.startsWith('co-')) {
+      try {
+        const { error } = await supabase
+          .from('sov_items')
+          .update({
+            this_period: value
+          })
+          .eq('id', id);
 
-      if (error) {
+        if (error) {
+          console.error('Error updating SOV item:', error);
+          toast.error('Failed to update item');
+        }
+      } catch (error) {
         console.error('Error updating SOV item:', error);
-        // Revert local state on error
-        const revertedItems = sovItems.map(item => 
-          item.id === id 
-            ? { ...item, thisPeriod: item.thisPeriod }
-            : item
-        );
-        setSovItems(revertedItems);
         toast.error('Failed to update item');
       }
-    } catch (error) {
-      console.error('Error updating SOV item:', error);
-      toast.error('Failed to update item');
     }
   }, [sovItems, setSovItems]);
 
@@ -218,6 +298,46 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
 
   return (
     <div className="space-y-6">
+      {/* SOV Import and Change Orders */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Schedule of Values & Change Orders</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 mb-4">
+            <Button onClick={importSOVItems} className="flex items-center gap-2">
+              <Download className="w-4 h-4" />
+              Import Schedule of Values
+            </Button>
+          </div>
+
+          {changeOrders.length > 0 && (
+            <div className="mb-4">
+              <Label className="text-sm font-medium mb-2 block">Available Change Orders:</Label>
+              <div className="space-y-2">
+                {changeOrders.map((co) => (
+                  <div key={co.id} className="flex items-center justify-between p-2 border rounded">
+                    <div>
+                      <span className="font-medium">CO-{co.number}: </span>
+                      <span className="text-sm">{co.description}</span>
+                      <span className="ml-2 text-green-600">${co.amount.toLocaleString()}</span>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      onClick={() => addChangeOrderToSOV(co.id)}
+                      className="flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Add to SOV
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -383,22 +503,23 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="contractorSignatory">Signatory Name</Label>
-              <Input
-                id="contractorSignatory"
-                value={formData.contractorSignatory || ''}
-                onChange={(e) => setFormData({ ...formData, contractorSignatory: e.target.value })}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="contractorTitle">Title</Label>
-              <Input
-                id="contractorTitle"
-                value={formData.contractorTitle || ''}
-                onChange={(e) => setFormData({ ...formData, contractorTitle: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="contractorSignatory">Signatory Name</Label>
+                <Input
+                  id="contractorSignatory"
+                  value={formData.contractorSignatory || ''}
+                  onChange={(e) => setFormData({ ...formData, contractorSignatory: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="contractorTitle">Title</Label>
+                <Input
+                  id="contractorTitle"
+                  value={formData.contractorTitle || ''}
+                  onChange={(e) => setFormData({ ...formData, contractorTitle: e.target.value })}
+                />
+              </div>
             </div>
 
             <div>

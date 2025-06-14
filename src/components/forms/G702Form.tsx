@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -116,7 +117,10 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
           contractorAddress: data.contractor_address || '',
           projectNumber: data.project_number || '',
           originalContractSum: data.original_contract_sum || 0,
-          netChangeOrders: data.net_change_by_change_orders || 0
+          netChangeOrders: data.net_change_by_change_orders || 0,
+          contractorSignatory: data.contractor_signatory || '',
+          contractorTitle: data.contractor_title || '',
+          contractorSignature: data.contractor_signature || null
         }));
       }
     } catch (error) {
@@ -267,6 +271,9 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
         period_to: formData.periodTo,
         contractor_name: formData.contractorName,
         contractor_address: formData.contractorAddress,
+        contractor_signatory: formData.contractorSignatory,
+        contractor_title: formData.contractorTitle,
+        contractor_signature: formData.contractorSignature,
         project_name: project.name,
         project_number: formData.projectNumber || project.projectCode,
         original_contract_sum: calculatedTotals.originalContractSum,
