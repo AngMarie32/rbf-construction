@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +14,7 @@ import { G703Document } from './G703Document';
 
 interface G702FormProps {
   projectId: string;
+  applicationId?: string;
   onSave?: () => void;
 }
 
@@ -45,7 +45,7 @@ interface Project {
   projectCode: string;
 }
 
-export function G702Form({ projectId, onSave }: G702FormProps) {
+export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
   const [project, setProject] = useState<Project | null>(null);
   const [sovItems, setSovItems] = useState<SOVItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,9 +78,13 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
     if (projectId) {
       fetchProjectData();
       fetchSOVItems();
-      fetchLastApplicationNumber();
+      if (applicationId) {
+        fetchExistingApplication();
+      } else {
+        fetchLastApplicationNumber();
+      }
     }
-  }, [projectId]);
+  }, [projectId, applicationId]);
 
   // Recalculate totals whenever SOV items or form data changes
   useEffect(() => {
@@ -88,6 +92,36 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
       calculateTotals().then(setCalculatedTotals);
     }
   }, [sovItems, formData.applicationNumber, formData.retainagePercentage]);
+
+  const fetchExistingApplication = async () => {
+    if (!applicationId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('payment_applications_g702')
+        .select('*')
+        .eq('id', applicationId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setFormData(prev => ({
+          ...prev,
+          applicationNumber: data.application_number,
+          periodTo: data.period_to,
+          contractorName: data.contractor_name || '',
+          contractorAddress: data.contractor_address || '',
+          projectNumber: data.project_number || '',
+          originalContractSum: data.original_contract_sum || 0,
+          netChangeOrders: data.net_change_by_change_orders || 0
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching existing application:', error);
+      toast.error('Failed to load existing application');
+    }
+  };
 
   const fetchLastApplicationNumber = async () => {
     try {
@@ -225,50 +259,64 @@ export function G702Form({ projectId, onSave }: G702FormProps) {
     try {
       setLoading(true);
 
-      // Update SOV items with this period amounts
-      for (const item of sovItems) {
-        if (item.thisPeriod > 0 || item.materialsStored > 0) {
-          const newTotalCompleted = item.previousApplications + item.thisPeriod + item.materialsStored;
-          const totalContract = item.scheduledValue + item.changeOrders;
-          const newPercentComplete = totalContract > 0 ? (newTotalCompleted / totalContract) * 100 : 0;
-          
-          await supabase
-            .from('sov_items')
-            .update({
-              previous_applications: item.previousApplications + item.thisPeriod,
-              this_period: 0,
-              percent_complete: Math.min(newPercentComplete, 100)
-            })
-            .eq('id', item.id);
+      const applicationData = {
+        project_id: projectId,
+        application_number: formData.applicationNumber,
+        period_to: formData.periodTo,
+        contractor_name: formData.contractorName,
+        contractor_address: formData.contractorAddress,
+        project_name: project.name,
+        project_number: formData.projectNumber || project.projectCode,
+        original_contract_sum: calculatedTotals.originalContractSum,
+        net_change_by_change_orders: calculatedTotals.netChangeOrders,
+        contract_sum_to_date: calculatedTotals.contractSumToDate,
+        total_completed_and_stored: calculatedTotals.totalCompletedAndStored,
+        retainage_completed_work: calculatedTotals.totalRetainage * 0.9,
+        retainage_stored_materials: calculatedTotals.totalRetainage * 0.1,
+        total_retainage: calculatedTotals.totalRetainage,
+        total_earned_less_retainage: calculatedTotals.totalEarnedLessRetainage,
+        less_previous_certificates: calculatedTotals.lessPreviousPayments,
+        current_payment_due: calculatedTotals.currentPaymentDue,
+        balance_to_finish: calculatedTotals.balanceToFinish
+      };
+
+      let error;
+      if (applicationId) {
+        // Update existing application
+        const { error: updateError } = await supabase
+          .from('payment_applications_g702')
+          .update(applicationData)
+          .eq('id', applicationId);
+        error = updateError;
+      } else {
+        // Create new application
+        const { error: insertError } = await supabase
+          .from('payment_applications_g702')
+          .insert(applicationData);
+        error = insertError;
+
+        // Update SOV items with this period amounts for new applications only
+        for (const item of sovItems) {
+          if (item.thisPeriod > 0 || item.materialsStored > 0) {
+            const newTotalCompleted = item.previousApplications + item.thisPeriod + item.materialsStored;
+            const totalContract = item.scheduledValue + item.changeOrders;
+            const newPercentComplete = totalContract > 0 ? (newTotalCompleted / totalContract) * 100 : 0;
+            
+            await supabase
+              .from('sov_items')
+              .update({
+                previous_applications: item.previousApplications + item.thisPeriod,
+                this_period: 0,
+                percent_complete: Math.min(newPercentComplete, 100)
+              })
+              .eq('id', item.id);
+          }
         }
       }
 
-      const { error } = await supabase
-        .from('payment_applications_g702')
-        .insert({
-          project_id: projectId,
-          application_number: formData.applicationNumber,
-          period_to: formData.periodTo,
-          contractor_name: formData.contractorName,
-          contractor_address: formData.contractorAddress,
-          project_name: project.name,
-          project_number: formData.projectNumber || project.projectCode,
-          original_contract_sum: calculatedTotals.originalContractSum,
-          net_change_by_change_orders: calculatedTotals.netChangeOrders,
-          contract_sum_to_date: calculatedTotals.contractSumToDate,
-          total_completed_and_stored: calculatedTotals.totalCompletedAndStored,
-          retainage_completed_work: calculatedTotals.totalRetainage * 0.9,
-          retainage_stored_materials: calculatedTotals.totalRetainage * 0.1,
-          total_retainage: calculatedTotals.totalRetainage,
-          total_earned_less_retainage: calculatedTotals.totalEarnedLessRetainage,
-          less_previous_certificates: calculatedTotals.lessPreviousPayments,
-          current_payment_due: calculatedTotals.currentPaymentDue,
-          balance_to_finish: calculatedTotals.balanceToFinish
-        });
-
       if (error) throw error;
 
-      toast.success('Payment Application saved successfully');
+      toast.success(applicationId ? 'Payment Application updated successfully' : 'Payment Application saved successfully');
       onSave?.();
     } catch (error) {
       console.error('Error saving payment application:', error);

@@ -11,10 +11,11 @@ interface G702DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
+  applicationId?: string;
   onSave?: () => void;
 }
 
-export function G702Dialog({ open, onOpenChange, projectId, onSave }: G702DialogProps) {
+export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSave }: G702DialogProps) {
   const [loading, setLoading] = useState(false);
 
   const handleExportPDF = async () => {
@@ -103,7 +104,9 @@ export function G702Dialog({ open, onOpenChange, projectId, onSave }: G702Dialog
       <DialogContent className="max-w-[98vw] max-h-[98vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex justify-between items-center">
-            <DialogTitle>G702/G703 - Application and Certificate for Payment</DialogTitle>
+            <DialogTitle>
+              {applicationId ? 'Edit G702/G703 Application' : 'G702/G703 - Application and Certificate for Payment'}
+            </DialogTitle>
             <div className="flex gap-2">
               <Button variant="outline" onClick={handlePrint}>
                 <Printer className="w-4 h-4 mr-2" />
@@ -117,7 +120,11 @@ export function G702Dialog({ open, onOpenChange, projectId, onSave }: G702Dialog
           </div>
         </DialogHeader>
         <div>
-          <G702Form projectId={projectId} onSave={handleSave} />
+          <G702Form 
+            projectId={projectId} 
+            applicationId={applicationId}
+            onSave={handleSave} 
+          />
         </div>
       </DialogContent>
     </Dialog>
