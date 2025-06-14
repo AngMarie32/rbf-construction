@@ -232,26 +232,26 @@ export default function ProjectAnalyzer() {
 
   return (
     <Layout title="Project Plan Analyzer" subtitle="AI-powered construction plan analysis and scope estimation">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full font-playfair">
         {/* Left Panel - Plan Upload & Controls */}
         <div className="space-y-4 flex flex-col h-full">
-          <Card>
+          <Card className="bg-white/95 shadow-lg border-2 border-primary/10 rounded-2xl">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 font-playfair text-2xl text-primary">
                 <Brain className="w-5 h-5" />
                 Plan Analysis Setup
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-2 block">Select Project</label>
+                <label className="text-sm font-semibold mb-2 block">Select Project</label>
                 <Select value={selectedProject} onValueChange={setSelectedProject}>
-                  <SelectTrigger>
+                  <SelectTrigger className="rounded-lg border-primary/40 shadow-sm font-playfair">
                     <SelectValue placeholder="Choose a project" />
                   </SelectTrigger>
                   <SelectContent>
                     {projects.map((project: any) => (
-                      <SelectItem key={project.id} value={project.id}>
+                      <SelectItem key={project.id} value={project.id} className="font-playfair">
                         {project.name}
                       </SelectItem>
                     ))}
@@ -260,8 +260,8 @@ export default function ProjectAnalyzer() {
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block">Upload Construction Plans</label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                <label className="text-sm font-semibold mb-2 block">Upload Construction Plans</label>
+                <div className="border-2 border-dashed border-primary bg-blue-50/40 rounded-xl p-4 text-center transition-all duration-150 hover:border-primary hover:bg-blue-100 group">
                   <input
                     type="file"
                     multiple
@@ -270,10 +270,10 @@ export default function ProjectAnalyzer() {
                     id="plan-upload"
                     accept=".pdf,.jpg,.jpeg,.png,.tiff,.xls,.xlsx"
                   />
-                  <label htmlFor="plan-upload" className="cursor-pointer">
-                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">
-                      Upload construction plans, blueprints, or drawings
+                  <label htmlFor="plan-upload" className="cursor-pointer flex flex-col items-center">
+                    <Upload className="w-10 h-10 text-primary/70 mx-auto mb-2 group-hover:scale-105 transition-transform" />
+                    <p className="text-sm text-gray-700 font-playfair">
+                      Drag and drop or click to upload plans
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       PDF, Images (JPG, PNG, TIFF), Excel files
@@ -284,13 +284,13 @@ export default function ProjectAnalyzer() {
 
               {uploadedPlans.length > 0 && (
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Uploaded Plans</label>
+                  <label className="text-sm font-semibold mb-2 block">Uploaded Plans</label>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {uploadedPlans.map((plan) => (
-                      <div key={plan.id} className="p-3 bg-gray-50 rounded border">
+                      <div key={plan.id} className="p-3 bg-secondary/65 rounded-lg border flex flex-col gap-1 shadow hover:shadow-lg transition-all">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-gray-500" />
+                            <FileText className="w-4 h-4 text-primary" />
                             <span className="text-sm font-medium truncate">{plan.name}</span>
                           </div>
                           <Button
@@ -308,7 +308,7 @@ export default function ProjectAnalyzer() {
                             size="sm"
                             onClick={() => analyzePlan(plan.id)}
                             disabled={analyzingPlan === plan.id}
-                            className="text-xs"
+                            className="text-xs px-3"
                           >
                             {analyzingPlan === plan.id ? (
                               <>
@@ -323,7 +323,7 @@ export default function ProjectAnalyzer() {
                             )}
                           </Button>
                           {plan.analysis && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary px-2">
                               Analyzed
                             </Badge>
                           )}
@@ -336,9 +336,9 @@ export default function ProjectAnalyzer() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="shadow-md bg-white/95 border border-primary/10 rounded-2xl">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 font-playfair text-xl text-primary">
                 <MessageSquare className="w-5 h-5" />
                 Quick Analysis Questions
               </CardTitle>
@@ -350,7 +350,7 @@ export default function ProjectAnalyzer() {
                     key={index}
                     variant="outline"
                     size="sm"
-                    className="w-full text-left justify-start h-auto p-3"
+                    className="w-full text-left justify-start h-auto p-3 border-primary/20 font-playfair hover:bg-primary/10"
                     onClick={() => setInputMessage(question)}
                   >
                     {question}
@@ -363,13 +363,13 @@ export default function ProjectAnalyzer() {
 
         {/* Right Panel - Analysis Results & Chat */}
         <div className="lg:col-span-2 flex flex-col h-full">
-          <Card className="flex-1 flex flex-col h-full">
+          <Card className="flex-1 flex flex-col h-full bg-white/95 shadow-xl border-2 border-primary/10 rounded-2xl">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 font-playfair text-2xl text-primary">
                 <Brain className="w-5 h-5" />
                 Plan Analysis & AI Assistant
                 {selectedProject && (
-                  <Badge variant="outline" className="ml-2">
+                  <Badge variant="outline" className="ml-2 bg-primary/10 text-primary border-primary px-2">
                     Project Selected
                   </Badge>
                 )}
@@ -379,8 +379,8 @@ export default function ProjectAnalyzer() {
             <CardContent className="flex-1 flex flex-col">
               {/* Analysis Results */}
               {uploadedPlans.some(plan => plan.analysis) && (
-                <div className="mb-4 p-4 bg-blue-50 rounded-lg border">
-                  <h3 className="font-semibold text-blue-900 mb-2">Latest Analysis Results</h3>
+                <div className="mb-4 p-4 bg-blue-50/80 rounded-lg border border-primary/20 shadow font-playfair animate-fade-in">
+                  <h3 className="font-semibold text-blue-900 mb-2 text-lg font-playfair">Latest Analysis Results</h3>
                   {uploadedPlans.filter(plan => plan.analysis).map(plan => (
                     <div key={plan.id} className="mb-3">
                       <div className="text-sm text-blue-800 whitespace-pre-line">
@@ -396,11 +396,11 @@ export default function ProjectAnalyzer() {
                 {messages.length === 0 ? (
                   <div className="text-center text-gray-500 py-8">
                     <Brain className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-lg font-medium">Construction Plan Analyzer</p>
+                    <p className="text-lg font-medium font-playfair">Construction Plan Analyzer</p>
                     <p className="text-sm">
                       Upload your construction plans and ask questions about scope, measurements, and analysis.
                     </p>
-                    <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg font-playfair">
                       <p className="text-sm text-blue-800">
                         <strong>Supported formats:</strong> PDF blueprints, CAD drawings, images (JPG, PNG, TIFF), and Excel spreadsheets.
                       </p>
@@ -408,40 +408,38 @@ export default function ProjectAnalyzer() {
                   </div>
                 ) : (
                   messages.map((message) => (
-                    <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] p-3 rounded-lg ${
-                        message.role === 'user' 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-white border shadow-sm'
-                      }`}>
+                    <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
+                      <div
+                        className={`max-w-[80%] p-3 rounded-2xl shadow font-playfair ${
+                          message.role === 'user' 
+                            ? 'bg-primary text-primary-foreground rounded-br-md'
+                            : 'bg-secondary/90 border border-primary/20 text-gray-800 rounded-bl-md'
+                        }`}
+                      >
                         <p className="text-sm whitespace-pre-line">{message.content}</p>
-                        <p className="text-xs opacity-70 mt-1">
-                          {message.timestamp.toLocaleTimeString()}
-                        </p>
+                        <p className="text-xs opacity-70 mt-1">{message.timestamp.toLocaleTimeString()}</p>
                       </div>
                     </div>
                   ))
                 )}
                 
                 {loading && (
-                  <div className="flex justify-start">
-                    <div className="bg-white border shadow-sm p-3 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                        <span className="text-sm text-gray-500">Analyzing plans and generating response...</span>
-                      </div>
+                  <div className="flex justify-start animate-fade-in">
+                    <div className="bg-white border shadow-sm p-3 rounded-xl flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                      <span className="text-sm text-gray-500">Analyzing plans and generating response...</span>
                     </div>
                   </div>
                 )}
               </div>
 
               {/* Input Area */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-2 border-t border-primary/10">
                 <Textarea
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   placeholder="Ask about scope of work, measurements, or analysis of your uploaded plans..."
-                  className="flex-1 min-h-[60px] resize-none"
+                  className="flex-1 min-h-[60px] resize-none rounded-xl font-playfair bg-white/90 border-primary/20"
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -452,7 +450,7 @@ export default function ProjectAnalyzer() {
                 <Button 
                   onClick={handleSendMessage}
                   disabled={!inputMessage.trim() || loading}
-                  className="self-end"
+                  className="self-end px-5 py-2 rounded-xl bg-primary text-white font-playfair shadow hover:bg-primary/90 transition"
                 >
                   <MessageSquare className="w-4 h-4" />
                 </Button>
