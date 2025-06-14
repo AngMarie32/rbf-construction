@@ -9,162 +9,212 @@ interface G702DocumentProps {
 
 export function G702Document({ project, formData, totals }: G702DocumentProps) {
   return (
-    <div className="bg-white p-8 max-w-4xl mx-auto text-black print:shadow-none">
+    <div className="bg-white p-6 mx-auto text-black print:shadow-none" style={{ width: '11in', minHeight: '8.5in' }}>
       {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold mb-2">APPLICATION AND CERTIFICATE FOR PAYMENT</h1>
-        <p className="text-lg">AIA DOCUMENT G702</p>
+      <div className="text-center mb-6 border-b-2 border-black pb-4">
+        <h1 className="text-xl font-bold mb-2">APPLICATION AND CERTIFICATE FOR PAYMENT</h1>
       </div>
 
-      {/* Project Information */}
-      <div className="grid grid-cols-2 gap-8 mb-8">
+      {/* Top Section - TO/FROM/PROJECT */}
+      <div className="grid grid-cols-2 gap-8 mb-6">
         <div>
-          <h3 className="font-bold mb-4">TO OWNER:</h3>
-          <p>{project.client}</p>
-          <p>{project.address}</p>
+          <div className="mb-4">
+            <span className="font-bold">TO:</span>
+            <div className="ml-8">
+              <p>{project.client}</p>
+              <p>{project.address}</p>
+            </div>
+          </div>
+          <div>
+            <span className="font-bold">FROM:</span>
+            <div className="ml-8">
+              <p>{formData.contractorName}</p>
+              <p>{formData.contractorAddress}</p>
+            </div>
+          </div>
         </div>
         <div>
-          <h3 className="font-bold mb-4">PROJECT:</h3>
-          <p>{project.name}</p>
-          <p>Project No: {formData.projectNumber || project.projectCode}</p>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="font-bold">APPLICATION NO:</div>
+              <div className="text-center text-lg font-bold border-b border-black">{formData.applicationNumber}</div>
+            </div>
+            <div>
+              <div className="font-bold">Distribution to:</div>
+              <div className="space-y-1">
+                <label className="flex items-center text-xs">
+                  <input type="checkbox" checked={formData.distributionTo?.owner} readOnly className="mr-2" />
+                  OWNER
+                </label>
+                <label className="flex items-center text-xs">
+                  <input type="checkbox" checked={formData.distributionTo?.architect} readOnly className="mr-2" />
+                  ARCHITECT
+                </label>
+                <label className="flex items-center text-xs">
+                  <input type="checkbox" checked={formData.distributionTo?.contractor} readOnly className="mr-2" />
+                  CONTRACTOR
+                </label>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4">
+            <div className="font-bold">PERIOD TO:</div>
+            <div className="border-b border-black">{new Date(formData.periodTo).toLocaleDateString()}</div>
+          </div>
+          <div className="mt-2">
+            <div className="font-bold">PROJECT NAME:</div>
+            <div className="border-b border-black">{project.name}</div>
+          </div>
+          <div className="mt-2">
+            <div className="font-bold">SACHSE PROJ NO:</div>
+            <div className="border-b border-black">{formData.projectNumber || project.projectCode}</div>
+          </div>
         </div>
       </div>
 
-      {/* Application Details */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      {/* Contractor's Application Section */}
+      <div className="grid grid-cols-2 gap-8 mb-6">
         <div>
-          <label className="font-bold">Application Number:</label>
-          <p className="border-b border-black">{formData.applicationNumber}</p>
+          <h3 className="font-bold mb-4">CONTRACTOR'S APPLICATION FOR PAYMENT</h3>
+          <p className="text-sm mb-2">Application is made for payment, as shown below, in connection with the Contract.</p>
+          <p className="text-sm">Continuation Sheet is enclosed.</p>
         </div>
         <div>
-          <label className="font-bold">Period to:</label>
-          <p className="border-b border-black">{new Date(formData.periodTo).toLocaleDateString()}</p>
-        </div>
-        <div>
-          <label className="font-bold">Architect's Project No:</label>
-          <p className="border-b border-black">{formData.architectProjectNo}</p>
+          <p className="text-sm">The undersigned Contractor certifies that to the best of the Contractor's knowledge, information and belief the Work covered by this Application for Payment has been completed in accordance with the Contract Documents.</p>
+          <div className="mt-4">
+            <p className="font-bold">CONTRACTOR: {formData.contractorName?.toUpperCase()}</p>
+          </div>
         </div>
       </div>
 
       {/* Payment Summary Table */}
-      <div className="mb-8">
-        <table className="w-full border-collapse border border-black">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-black p-2 text-left">DESCRIPTION</th>
-              <th className="border border-black p-2 text-right">AMOUNT</th>
-            </tr>
-          </thead>
+      <div className="mb-6">
+        <table className="w-full border-collapse border border-black text-sm">
           <tbody>
             <tr>
-              <td className="border border-black p-2">1. ORIGINAL CONTRACT SUM</td>
-              <td className="border border-black p-2 text-right">${totals.originalContractSum.toLocaleString()}</td>
+              <td className="border border-black p-2 w-2/3">1. ORIGINAL CONTRACT SUM</td>
+              <td className="border border-black p-2 text-right">$</td>
+              <td className="border border-black p-2 text-right w-32">{totals.originalContractSum.toLocaleString()}</td>
             </tr>
             <tr>
-              <td className="border border-black p-2">2. Net change by Change Orders</td>
-              <td className="border border-black p-2 text-right">${totals.netChangeOrders.toLocaleString()}</td>
+              <td className="border border-black p-2">2. NET CHANGE BY CHANGE ORDERS</td>
+              <td className="border border-black p-2 text-right">$</td>
+              <td className="border border-black p-2 text-right">{totals.netChangeOrders.toLocaleString()}</td>
             </tr>
             <tr>
-              <td className="border border-black p-2 font-bold">3. CONTRACT SUM TO DATE (Line 1 ± 2)</td>
-              <td className="border border-black p-2 text-right font-bold">${totals.contractSumToDate.toLocaleString()}</td>
+              <td className="border border-black p-2 font-bold">3. CONTRACT SUM TO DATE</td>
+              <td className="border border-black p-2 text-right">$</td>
+              <td className="border border-black p-2 text-right font-bold">{totals.contractSumToDate.toLocaleString()}</td>
             </tr>
             <tr>
               <td className="border border-black p-2">4. TOTAL COMPLETED & STORED TO DATE</td>
-              <td className="border border-black p-2 text-right">${totals.totalCompletedAndStored.toLocaleString()}</td>
+              <td className="border border-black p-2 text-right">$</td>
+              <td className="border border-black p-2 text-right">{totals.totalCompletedAndStored.toLocaleString()}</td>
             </tr>
             <tr>
               <td className="border border-black p-2">5. RETAINAGE:</td>
-              <td className="border border-black p-2 text-right"></td>
+              <td className="border border-black p-2"></td>
+              <td className="border border-black p-2"></td>
             </tr>
             <tr>
               <td className="border border-black p-2 pl-8">a. {formData.retainagePercentage}% of Completed Work</td>
-              <td className="border border-black p-2 text-right">${(totals.totalRetainage * 0.9).toLocaleString()}</td>
+              <td className="border border-black p-2 text-right">$</td>
+              <td className="border border-black p-2 text-right">{(totals.totalRetainage * 0.9).toLocaleString()}</td>
             </tr>
             <tr>
               <td className="border border-black p-2 pl-8">b. {formData.retainagePercentage}% of Stored Material</td>
-              <td className="border border-black p-2 text-right">${(totals.totalRetainage * 0.1).toLocaleString()}</td>
+              <td className="border border-black p-2 text-right">$</td>
+              <td className="border border-black p-2 text-right">{(totals.totalRetainage * 0.1).toLocaleString()}</td>
             </tr>
             <tr>
-              <td className="border border-black p-2 pl-8">Total Retainage (Lines 5a + 5b)</td>
-              <td className="border border-black p-2 text-right">${totals.totalRetainage.toLocaleString()}</td>
+              <td className="border border-black p-2 pl-8">TOTAL RETAINED</td>
+              <td className="border border-black p-2 text-right">$</td>
+              <td className="border border-black p-2 text-right">{totals.totalRetainage.toLocaleString()}</td>
             </tr>
             <tr>
-              <td className="border border-black p-2 font-bold">6. TOTAL EARNED LESS RETAINAGE (Line 4 - Line 5 Total)</td>
-              <td className="border border-black p-2 text-right font-bold">${totals.totalEarnedLessRetainage.toLocaleString()}</td>
+              <td className="border border-black p-2 font-bold">6. TOTAL EARNED LESS RETAINAGE</td>
+              <td className="border border-black p-2 text-right">$</td>
+              <td className="border border-black p-2 text-right font-bold">{totals.totalEarnedLessRetainage.toLocaleString()}</td>
             </tr>
             <tr>
               <td className="border border-black p-2">7. LESS PREVIOUS CERTIFICATES FOR PAYMENT</td>
-              <td className="border border-black p-2 text-right">${totals.lessPreviousPayments.toLocaleString()}</td>
+              <td className="border border-black p-2 text-right">$</td>
+              <td className="border border-black p-2 text-right">{totals.lessPreviousPayments.toLocaleString()}</td>
             </tr>
             <tr>
               <td className="border border-black p-2 font-bold text-lg">8. CURRENT PAYMENT DUE</td>
-              <td className="border border-black p-2 text-right font-bold text-lg">${totals.currentPaymentDue.toLocaleString()}</td>
+              <td className="border border-black p-2 text-right">$</td>
+              <td className="border border-black p-2 text-right font-bold text-lg">{totals.currentPaymentDue.toLocaleString()}</td>
             </tr>
             <tr>
-              <td className="border border-black p-2">9. BALANCE TO FINISH, PLUS RETAINAGE</td>
-              <td className="border border-black p-2 text-right">${totals.balanceToFinish.toLocaleString()}</td>
+              <td className="border border-black p-2">9. BALANCE TO FINISH, INCLUDING RETAINAGE</td>
+              <td className="border border-black p-2 text-right">$</td>
+              <td className="border border-black p-2 text-right">{totals.balanceToFinish.toLocaleString()}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       {/* Change Order Summary */}
-      <div className="mb-8">
-        <h3 className="font-bold mb-4">CHANGE ORDER SUMMARY</h3>
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label className="font-bold">Total changes approved in previous months by Owner:</label>
-            <p className="border-b border-black">${totals.netChangeOrders.toLocaleString()}</p>
-          </div>
-          <div>
-            <label className="font-bold">Total approved this Month:</label>
-            <p className="border-b border-black">$0.00</p>
-          </div>
-          <div>
-            <label className="font-bold">TOTALS:</label>
-            <p className="border-b border-black">${totals.netChangeOrders.toLocaleString()}</p>
-          </div>
-        </div>
+      <div className="mb-6">
+        <table className="w-full border-collapse border border-black text-sm">
+          <thead>
+            <tr>
+              <th className="border border-black p-2 text-left bg-gray-100" colSpan={4}>CHANGE ORDER SUMMARY</th>
+            </tr>
+            <tr>
+              <th className="border border-black p-2 text-center bg-gray-100">Total changes approved in previous months by Owner</th>
+              <th className="border border-black p-2 text-center bg-gray-100">ADDITIONS</th>
+              <th className="border border-black p-2 text-center bg-gray-100">DEDUCTIONS</th>
+              <th className="border border-black p-2 text-center bg-gray-100">Total approved this Month</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border border-black p-2 text-center">${totals.netChangeOrders.toLocaleString()}</td>
+              <td className="border border-black p-2 text-center">$0.00</td>
+              <td className="border border-black p-2 text-center">$0.00</td>
+              <td className="border border-black p-2 text-center">$0.00</td>
+            </tr>
+            <tr>
+              <td className="border border-black p-2 font-bold">TOTALS</td>
+              <td className="border border-black p-2 text-center font-bold">${totals.netChangeOrders.toLocaleString()}</td>
+              <td className="border border-black p-2 text-center font-bold">$0.00</td>
+              <td className="border border-black p-2 text-center font-bold">$0.00</td>
+            </tr>
+            <tr>
+              <td className="border border-black p-2" colSpan={2}>NET CHANGES by Change Order</td>
+              <td className="border border-black p-2 text-center font-bold" colSpan={2}>${totals.netChangeOrders.toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
-      {/* Distribution */}
-      <div className="mb-8">
-        <h3 className="font-bold mb-4">DISTRIBUTION TO:</h3>
-        <div className="flex gap-8">
-          <label className="flex items-center">
-            <input type="checkbox" checked={formData.distributionTo?.owner} readOnly className="mr-2" />
-            Owner
-          </label>
-          <label className="flex items-center">
-            <input type="checkbox" checked={formData.distributionTo?.architect} readOnly className="mr-2" />
-            Architect
-          </label>
-          <label className="flex items-center">
-            <input type="checkbox" checked={formData.distributionTo?.contractor} readOnly className="mr-2" />
-            Contractor
-          </label>
+      {/* Signature Section */}
+      <div className="grid grid-cols-2 gap-8 mb-6">
+        <div>
+          <div className="mb-8">
+            <p className="mb-4">By: ___________________________________ Date: {new Date().toLocaleDateString()}</p>
+            <p className="text-sm">Brett A. Jory, V.P.</p>
+          </div>
         </div>
-      </div>
-
-      {/* Contractor Section */}
-      <div className="mb-8">
-        <div className="grid grid-cols-2 gap-8">
-          <div>
-            <h3 className="font-bold mb-4">CONTRACTOR:</h3>
-            <p>{formData.contractorName}</p>
-            <p>{formData.contractorAddress}</p>
-            <div className="mt-8">
-              <p className="border-b border-black mb-2">BY: _________________________</p>
-              <p>Date: {new Date().toLocaleDateString()}</p>
-            </div>
+        <div className="border-l-2 border-black pl-4">
+          <h3 className="font-bold mb-4">ARCHITECT'S CERTIFICATE FOR PAYMENT</h3>
+          <p className="text-xs mb-4">In accordance with the Contract Documents, based on on-site observations and the data comprising the application, the Architect certifies to the Owner that to the best of the Architect's knowledge, information and belief the Work has progressed as indicated, the quality of the Work is in accordance with the Contract Documents, and the Contractor is entitled to payment of the AMOUNT CERTIFIED.</p>
+          
+          <div className="mb-4">
+            <span className="font-bold">AMOUNT CERTIFIED:</span>
+            <span className="ml-4 border-b border-black px-2">$ {totals.currentPaymentDue.toLocaleString()}</span>
           </div>
-          <div>
-            <h3 className="font-bold mb-4">ARCHITECT:</h3>
-            <div className="mt-8">
-              <p className="border-b border-black mb-2">BY: _________________________</p>
-              <p>Date: _______________</p>
-            </div>
+          
+          <p className="text-xs mb-4 italic">(Attach explanation if amount certified differs from the amount applied. Initial all figures on this Application and on the Continuation Sheet that are changed to conform with the amount certified.)</p>
+          
+          <div className="mb-4">
+            <p className="font-bold">ARCHITECT:</p>
+            <p className="mb-4">By: ___________________________________ Date: _______________</p>
           </div>
+          
+          <p className="text-xs">This Certificate is not negotiable. The AMOUNT CERTIFIED is payable only to the Contractor named herein. Issuance, payment and acceptance of payment are without prejudice to any rights of the Owner or Contractor under this Contract.</p>
         </div>
       </div>
     </div>
