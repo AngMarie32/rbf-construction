@@ -71,8 +71,19 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
     // Export G702 first
     const g702Element = document.getElementById('g702-document');
     if (g702Element) {
-      const originalDisplay = g702Element.style.display;
+      // Store original styles
+      const originalG702ClassName = g702Element.className;
+      const originalG702Style = { ...g702Element.style };
+      
+      // Temporarily make visible for export
+      g702Element.className = g702Element.className.replace('sr-only', '');
+      g702Element.style.position = 'static';
+      g702Element.style.left = 'auto';
+      g702Element.style.top = 'auto';
       g702Element.style.display = 'block';
+      g702Element.style.visibility = 'visible';
+      
+      console.log('G702 element dimensions:', g702Element.scrollWidth, g702Element.scrollHeight);
 
       const g702Canvas = await html2canvas(g702Element, {
         scale: 2.5,
@@ -85,7 +96,9 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
         windowHeight: 900
       });
 
-      g702Element.style.display = originalDisplay;
+      // Restore original styles
+      g702Element.className = originalG702ClassName;
+      Object.assign(g702Element.style, originalG702Style);
 
       const g702ImgData = g702Canvas.toDataURL('image/png');
       const ratio = Math.min(pdfWidth / (g702Canvas.width * 0.264583), pdfHeight / (g702Canvas.height * 0.264583));
@@ -102,8 +115,19 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
     // Export G703
     const g703Element = document.getElementById('g703-document');
     if (g703Element) {
-      const originalDisplay = g703Element.style.display;
+      // Store original styles
+      const originalG703ClassName = g703Element.className;
+      const originalG703Style = { ...g703Element.style };
+      
+      // Temporarily make visible for export
+      g703Element.className = g703Element.className.replace('sr-only', '');
+      g703Element.style.position = 'static';
+      g703Element.style.left = 'auto';
+      g703Element.style.top = 'auto';
       g703Element.style.display = 'block';
+      g703Element.style.visibility = 'visible';
+      
+      console.log('G703 element dimensions:', g703Element.scrollWidth, g703Element.scrollHeight);
 
       const g703Canvas = await html2canvas(g703Element, {
         scale: 2.5,
@@ -116,7 +140,9 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
         windowHeight: 900
       });
 
-      g703Element.style.display = originalDisplay;
+      // Restore original styles
+      g703Element.className = originalG703ClassName;
+      Object.assign(g703Element.style, originalG703Style);
 
       const g703ImgData = g703Canvas.toDataURL('image/png');
       const ratio = Math.min(pdfWidth / (g703Canvas.width * 0.264583), pdfHeight / (g703Canvas.height * 0.264583));
