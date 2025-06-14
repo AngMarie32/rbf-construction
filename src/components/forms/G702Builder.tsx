@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,9 +6,10 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Upload, X } from 'lucide-react';
+import { PenTool, Type, X } from 'lucide-react';
 
 interface G702BuilderProps {
   projectId: string;
@@ -23,6 +24,10 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
   const [loading, setLoading] = useState(false);
   const [applications, setApplications] = useState<any[]>([]);
   const [selectedApplication, setSelectedApplication] = useState<string>('current');
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [signatureType, setSignatureType] = useState<'draw' | 'type'>('type');
+  const [typedSignature, setTypedSignature] = useState('');
 
   useEffect(() => {
     fetchPreviousPayments();
@@ -97,21 +102,99 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
     }
   }, [sovItems, setSovItems]);
 
-  const handleSignatureUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setFormData({ ...formData, contractorSignature: result });
-      };
-      reader.readAsDataURL(file);
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    setIsDrawing(true);
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.beginPath();
+      ctx.moveTo(x, y);
     }
   };
 
-  const removeSignature = () => {
-    setFormData({ ...formData, contractorSignature: null });
+  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
   };
+
+  const stopDrawing = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const dataURL = canvas.toDataURL();
+      setFormData({ ...formData, contractorSignature: dataURL });
+    }
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        setFormData({ ...formData, contractorSignature: null });
+      }
+    }
+  };
+
+  const generateTypedSignature = () => {
+    if (!typedSignature.trim()) return;
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 100;
+    const ctx = canvas.getContext('2d');
+    
+    if (ctx) {
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.font = '32px "Brush Script MT", cursive';
+      ctx.fillStyle = 'black';
+      ctx.textAlign = 'center';
+      ctx.fillText(typedSignature, canvas.width / 2, canvas.height / 2 + 10);
+      
+      const dataURL = canvas.toDataURL();
+      setFormData({ ...formData, contractorSignature: dataURL });
+    }
+  };
+
+  useEffect(() => {
+    if (signatureType === 'type' && typedSignature) {
+      generateTypedSignature();
+    }
+  }, [typedSignature, signatureType]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas && signatureType === 'draw') {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+      }
+    }
+  }, [signatureType]);
 
   const calculateTotals = () => {
     const totalScheduledValue = sovItems.reduce((sum, item) => sum + (item.scheduledValue || 0), 0);
@@ -306,7 +389,6 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
                 id="contractorSignatory"
                 value={formData.contractorSignatory || ''}
                 onChange={(e) => setFormData({ ...formData, contractorSignatory: e.target.value })}
-                placeholder="e.g., Brett A. Jory, V.P."
               />
             </div>
             
@@ -316,56 +398,89 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
                 id="contractorTitle"
                 value={formData.contractorTitle || ''}
                 onChange={(e) => setFormData({ ...formData, contractorTitle: e.target.value })}
-                placeholder="e.g., Vice President"
               />
             </div>
 
             <div>
-              <Label>Digital Signature (Optional)</Label>
-              <div className="mt-2">
-                {formData.contractorSignature ? (
-                  <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">Signature Preview:</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={removeSignature}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <X className="w-4 h-4 mr-1" />
-                        Remove
-                      </Button>
+              <Label>Signature</Label>
+              <Tabs value={signatureType} onValueChange={(value) => setSignatureType(value as 'draw' | 'type')}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="type" className="flex items-center gap-2">
+                    <Type className="w-4 h-4" />
+                    Type Signature
+                  </TabsTrigger>
+                  <TabsTrigger value="draw" className="flex items-center gap-2">
+                    <PenTool className="w-4 h-4" />
+                    Draw Signature
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="type" className="mt-4">
+                  <div className="space-y-3">
+                    <Input
+                      placeholder="Type your signature here"
+                      value={typedSignature}
+                      onChange={(e) => setTypedSignature(e.target.value)}
+                      className="text-2xl font-script"
+                      style={{ fontFamily: '"Brush Script MT", cursive' }}
+                    />
+                    {formData.contractorSignature && (
+                      <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Signature Preview:</span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setFormData({ ...formData, contractorSignature: null });
+                              setTypedSignature('');
+                            }}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Clear
+                          </Button>
+                        </div>
+                        <img 
+                          src={formData.contractorSignature} 
+                          alt="Typed Signature" 
+                          className="max-h-20 border border-gray-300 bg-white rounded"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="draw" className="mt-4">
+                  <div className="space-y-3">
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                      <canvas
+                        ref={canvasRef}
+                        width={400}
+                        height={150}
+                        className="border border-gray-300 bg-white rounded cursor-crosshair w-full"
+                        onMouseDown={startDrawing}
+                        onMouseMove={draw}
+                        onMouseUp={stopDrawing}
+                        onMouseLeave={stopDrawing}
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={clearCanvas}
+                        >
+                          <X className="w-4 h-4 mr-1" />
+                          Clear
+                        </Button>
+                      </div>
                     </div>
-                    <img 
-                      src={formData.contractorSignature} 
-                      alt="Contractor Signature" 
-                      className="max-h-20 border border-gray-300 bg-white rounded"
-                    />
+                    <p className="text-xs text-gray-500">
+                      Click and drag to draw your signature
+                    </p>
                   </div>
-                ) : (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600 mb-2">Upload signature image</p>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleSignatureUpload}
-                      className="hidden"
-                      id="signature-upload"
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={() => document.getElementById('signature-upload')?.click()}
-                    >
-                      Choose File
-                    </Button>
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Supported formats: PNG, JPG, GIF. Max size: 2MB
-              </p>
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
         </CardContent>
