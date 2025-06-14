@@ -173,24 +173,45 @@ export default function ProjectAnalyzer() {
     setInputMessage('');
     setLoading(true);
 
-    // Simulate AI response with context about uploaded plans
-    setTimeout(() => {
-      const planContext = uploadedPlans.length > 0 
-        ? `Based on the ${uploadedPlans.length} plan(s) you've uploaded, ` 
-        : '';
-      
-      const assistantMessage: ChatMessage = {
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-plan-analysis', {
+        body: {
+          message: inputMessage,
+          uploadedPlans: uploadedPlans,
+          selectedProject: selectedProject
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.success && data.response) {
+        const assistantMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: data.response,
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, assistantMessage]);
+      } else {
+        throw new Error(data.error || 'Failed to get AI response');
+      }
+    } catch (error) {
+      console.error('Error sending message to AI:', error);
+      const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `${planContext}I can help analyze your construction plans for scope of work and measurements. ${inputMessage.includes('measure') ? 'For accurate measurements, I would need to process the uploaded plans through our AI analysis system.' : 'Feel free to ask about specific aspects like materials, labor estimates, or project timeline.'} 
-
-To integrate with a custom AI analysis system, you would need to provide the API endpoint details.`,
+        content: 'I apologize, but I encountered an error processing your request. Please ensure your API key is properly configured and try again.',
         timestamp: new Date()
       };
       
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages(prev => [...prev, errorMessage]);
+      toast.error('Failed to send message to AI assistant');
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   const quickQuestions = [
