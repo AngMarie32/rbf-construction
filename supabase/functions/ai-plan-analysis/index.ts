@@ -1,6 +1,7 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import pdf from 'npm:pdf-parse';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -9,14 +10,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Function to extract text from PDF using a simple approach
+// Function to extract text from PDF using pdf-parse
 async function extractPdfText(pdfUrl: string): Promise<string> {
   try {
-    // For now, we'll return a placeholder indicating PDF processing
-    return `[PDF Document: ${pdfUrl}] - PDF content analysis capability is being processed. Please describe the key details from your PDF including measurements, areas, and specifications for accurate analysis.`;
+    const response = await fetch(pdfUrl);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch PDF from URL: ${response.statusText}`);
+    }
+    const pdfBuffer = await response.arrayBuffer();
+    const data = await pdf(pdfBuffer);
+    // Limit text to avoid excessive token usage, but still be useful
+    return data.text.substring(0, 8000); 
   } catch (error) {
     console.error('Error processing PDF:', error);
-    return `[PDF Processing Error] - Unable to extract text from PDF. Please provide key measurements and details manually.`;
+    return `[PDF Processing Error] - Could not extract text from PDF. The document might be an image-based PDF or corrupted. Please provide key measurements and details manually. Error: ${error.message}`;
   }
 }
 
@@ -32,35 +39,26 @@ serve(async (req) => {
     // Build context from uploaded plans with enhanced PDF handling
     let planContext = '';
     if (uploadedPlans && uploadedPlans.length > 0) {
-      planContext = `\n\nUploaded Plans Context:\n`;
+      planContext = `\n\n--- Uploaded Plans Context ---\n`;
       
-      for (let i = 0; i < uploadedPlans.length; i++) {
-        const plan = uploadedPlans[i];
-        planContext += `Plan ${i + 1}: ${plan.name} (${plan.type})\n`;
+      for (const plan of uploadedPlans) {
+        planContext += `Plan Name: ${plan.name} (Type: ${plan.type})\n`;
         
-        // Enhanced PDF handling
-        if (plan.type === 'application/pdf') {
-          planContext += `PDF Document: This is a construction plan/blueprint in PDF format.\n`;
-          planContext += `Note: For accurate analysis, please provide specific measurements, areas, and details from the PDF.\n`;
+        // PDF handling
+        if (plan.type === 'application/pdf' && plan.url) {
+          planContext += `\n[Analyzing PDF Content for ${plan.name}]\n`;
+          const pdfText = await extractPdfText(plan.url);
+          planContext += pdfText ? `${pdfText}\n\n` : '[No text could be extracted from this PDF.]\n\n';
         }
         
         if (plan.analysis) {
           planContext += `Previous Analysis: ${plan.analysis}\n\n`;
         }
       }
-      
-      // Add specific instructions for PDF analysis
-      const pdfPlans = uploadedPlans.filter(plan => plan.type === 'application/pdf');
-      if (pdfPlans.length > 0) {
-        planContext += `\nPDF Analysis Instructions:\n`;
-        planContext += `- I can see you have ${pdfPlans.length} PDF document(s) uploaded\n`;
-        planContext += `- To provide accurate FRP calculations or material estimates, I need specific details\n`;
-        planContext += `- Please provide measurements, areas, and specifications from your plans\n`;
-        planContext += `- I can help calculate quantities once I have the dimensional information\n\n`;
-      }
+      planContext += `--- End of Uploaded Plans Context ---\n\n`;
     }
 
-    const systemPrompt = `You are Albus, an expert construction AI assistant specializing in plan analysis, scope of work estimation, and construction project management. You help construction professionals analyze blueprints, calculate measurements, estimate materials and labor, and provide expert construction advice.
+    const systemPrompt = `You are Albus, an expert construction AI assistant specializing in plan analysis, scope of work estimation, and project management. You help construction professionals analyze blueprints, calculate measurements, estimate materials and labor, and provide expert construction advice.
 
 Key capabilities:
 - Construction plan analysis and interpretation
@@ -72,11 +70,10 @@ Key capabilities:
 - Project risk assessment
 
 IMPORTANT PDF HANDLING:
-- When users upload PDF plans, acknowledge that you can see the document
-- Explain that for accurate material calculations (like FRP quantities), you need specific measurements
-- Guide users to provide key dimensions, areas, and specifications from their plans
-- Offer to calculate quantities once dimensional information is provided
-- Be helpful in explaining what specific information you need
+- You can now directly read the content of uploaded PDF documents. The content will be provided below under "Uploaded Plans Context".
+- When you find text content from a PDF, analyze it thoroughly for measurements, specifications, and scope of work.
+- If a PDF's content is empty or indicates an error, it might be a scanned image with no machine-readable text. In that case, inform the user and ask for manual input of key details.
+- Use the extracted information to provide accurate calculations and analysis.
 
 Be precise, professional, and provide actionable insights. When analyzing plans, focus on:
 - Scope of work identification
@@ -87,10 +84,10 @@ Be precise, professional, and provide actionable insights. When analyzing plans,
 - Cost implications
 
 For FRP (Fiber Reinforced Polymer) calculations specifically:
-- Request total area where FRP will be applied (in square feet or square meters)
-- Ask for FRP thickness or type being used
-- Inquire about overlap requirements or installation details
-- Provide calculations with appropriate buffer percentages
+- Look for the total area where FRP will be applied (in square feet or square meters) in the provided text.
+- Identify the FRP thickness or type being used.
+- Check for overlap requirements or installation details.
+- Provide calculations with appropriate buffer percentages if mentioned, or suggest a standard buffer (e.g., 10-15%) if not specified.
 
 ${planContext}`;
 

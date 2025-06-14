@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -73,12 +72,29 @@ export default function ProjectAnalyzer() {
         continue;
       }
 
+      // --- Upload to Supabase Storage ---
+      const filePath = `public/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('plan_documents')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        toast.error(`Failed to upload ${file.name}: ${uploadError.message}`);
+        continue;
+      }
+      
+      // --- Get public URL ---
+      const { data: urlData } = supabase.storage
+        .from('plan_documents')
+        .getPublicUrl(uploadData.path);
+
       const planId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
       const newPlan: UploadedPlan = {
         id: planId,
         name: file.name,
         type: file.type,
-        size: file.size
+        size: file.size,
+        url: urlData.publicUrl,
       };
 
       setUploadedPlans(prev => [...prev, newPlan]);
@@ -127,7 +143,26 @@ export default function ProjectAnalyzer() {
     }
   };
 
-  const removePlan = (planId: string) => {
+  const removePlan = async (planId: string) => {
+    const planToRemove = uploadedPlans.find(p => p.id === planId);
+    if (!planToRemove) return;
+
+    // Also remove from storage if it has a URL
+    if (planToRemove.url) {
+      try {
+        const path = new URL(planToRemove.url).pathname.split('/plan_documents/')[1];
+        if (path) {
+          const { error } = await supabase.storage.from('plan_documents').remove([path]);
+          if (error) {
+            console.error('Failed to remove file from storage:', error.message);
+            toast.error('Could not remove file from storage.');
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing URL for file removal:', error);
+      }
+    }
+
     setUploadedPlans(prev => prev.filter(p => p.id !== planId));
     toast.success('Plan removed');
   };
