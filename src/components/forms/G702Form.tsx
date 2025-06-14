@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -118,8 +117,6 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
           projectNumber: data.project_number || '',
           originalContractSum: data.original_contract_sum || 0,
           netChangeOrders: data.net_change_by_change_orders || 0,
-          contractorSignatory: data.contractor_signatory || '',
-          contractorTitle: data.contractor_title || '',
           contractorSignature: data.contractor_signature || null
         }));
       }
