@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, MessageSquare, Brain, FileText, BarChart3, TrendingUp, X, Download } from 'lucide-react';
+import { Upload, MessageSquare, Brain, FileText, BarChart3, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -92,63 +93,35 @@ export default function ProjectAnalyzer() {
     setAnalyzingPlan(planId);
     
     try {
-      // TODO: Replace this mock with a real API call to your AI analysis service.
-      // Example:
-      // const response = await fetch('/api/your-analyze-endpoint', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ planUrl: plan.url, planName: plan.name }),
-      // });
-      // const { analysis } = await response.json();
+      const analysisMessage = `Please analyze the uploaded construction plan: ${plan.name}. Provide a detailed analysis including scope of work, estimated measurements, material requirements, labor considerations, and any potential challenges or recommendations.`;
 
-      // Simulate AI analysis (remove when using real AI)
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      const mockAnalysis = `
-## Plan Analysis: ${plan.name}
+      const { data, error } = await supabase.functions.invoke('ai-plan-analysis', {
+        body: {
+          message: analysisMessage,
+          uploadedPlans: [plan],
+          selectedProject: selectedProject
+        }
+      });
 
-### Scope of Work Identified:
-- **Foundation Work**: Concrete footings and slab-on-grade construction
-- **Framing**: Wood frame construction with engineered lumber
-- **Roofing**: Asphalt shingle roofing system
-- **Electrical**: Standard residential electrical installation
-- **Plumbing**: Basic residential plumbing systems
-- **HVAC**: Central air conditioning and heating system
+      if (error) {
+        throw error;
+      }
 
-### Estimated Measurements:
-- **Total Square Footage**: ~2,450 sq ft
-- **Foundation Area**: ~2,600 sq ft
-- **Roof Area**: ~2,800 sq ft
-- **Linear Feet of Framing**: ~380 LF
-- **Number of Electrical Outlets**: ~45
-- **Plumbing Fixtures**: 8 fixtures
-
-### Key Considerations:
-- Site preparation and grading required
-- Potential for underground utilities coordination
-- Building permit requirements for electrical and plumbing
-- Material delivery and staging areas needed
-
-### Recommended Next Steps:
-1. Conduct detailed site survey
-2. Obtain soil analysis for foundation design
-3. Coordinate with utility companies
-4. Prepare detailed material takeoffs
-5. Develop construction schedule
-      `;
-
-      setUploadedPlans(prev => 
-        prev.map(p => 
-          p.id === planId 
-            ? { ...p, analysis: mockAnalysis }
-            : p
-        )
-      );
-
-      toast.success('Plan analysis completed');
+      if (data.success && data.response) {
+        setUploadedPlans(prev => 
+          prev.map(p => 
+            p.id === planId 
+              ? { ...p, analysis: data.response }
+              : p
+          )
+        );
+        toast.success('Plan analysis completed');
+      } else {
+        throw new Error(data.error || 'Failed to analyze plan');
+      }
     } catch (error) {
       console.error('Error analyzing plan:', error);
-      toast.error('Failed to analyze plan');
+      toast.error('Failed to analyze plan. Please ensure your API key is configured correctly.');
     } finally {
       setAnalyzingPlan(null);
     }
@@ -203,7 +176,7 @@ export default function ProjectAnalyzer() {
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'I apologize, but I encountered an error processing your request. Please ensure your API key is properly configured and try again.',
+        content: 'I apologize, but I encountered an error processing your request. Please ensure your OpenAI API key is properly configured and try again.',
         timestamp: new Date()
       };
       
@@ -224,7 +197,7 @@ export default function ProjectAnalyzer() {
 
   return (
     <Layout title="Project Plan Analyzer" subtitle="AI-powered construction plan analysis and scope estimation">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-screen">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
         {/* Left Panel - Plan Upload & Controls */}
         <div className="space-y-4 flex flex-col h-full">
           <Card>
@@ -354,8 +327,8 @@ export default function ProjectAnalyzer() {
         </div>
 
         {/* Right Panel - Analysis Results & Chat */}
-        <div className="lg:col-span-2 flex flex-col min-h-screen">
-          <Card className="flex-1 flex flex-col min-h-screen">
+        <div className="lg:col-span-2 flex flex-col h-full">
+          <Card className="flex-1 flex flex-col h-full">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Brain className="w-5 h-5" />
