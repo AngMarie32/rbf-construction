@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -7,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { Calendar, DollarSign, Clock, Users, FileText, TrendingUp, ArrowLeft } from 'lucide-react';
+import { Calendar, DollarSign, Clock, Users, FileText, TrendingUp, ArrowLeft, Brain, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format, differenceInDays, isWithinInterval } from 'date-fns';
@@ -164,6 +163,10 @@ export default function ProjectDetail() {
     setTasks(prev => prev.filter(task => task.id !== taskId));
   };
 
+  const handleOpenCustomGPT = () => {
+    window.open('https://chatgpt.com/g/g-67ddca712ff48191a3343111439ac448-albus', '_blank');
+  };
+
   if (loading) {
     return (
       <Layout title="Project Details" subtitle="Loading project information...">
@@ -238,12 +241,13 @@ export default function ProjectDetail() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="budget">Budget</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="team">Team</TabsTrigger>
+            <TabsTrigger value="analysis">Analysis</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
@@ -447,6 +451,85 @@ export default function ProjectDetail() {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-500">Team management will be displayed here.</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="analysis">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Brain className="w-5 h-5" />
+                    Project Analysis
+                  </CardTitle>
+                  <Button variant="outline" onClick={handleBackToOverview}>
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Back to Details
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="text-center py-8">
+                  <Brain className="w-16 h-16 text-blue-500 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">AI-Powered Project Analysis</h3>
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    Get intelligent insights about your project using our custom AI assistant, Albus. 
+                    Analyze plans, scope of work, measurements, and get expert construction advice.
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <Button 
+                      onClick={handleOpenCustomGPT}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg"
+                    >
+                      <Brain className="w-5 h-5 mr-2" />
+                      Open Albus AI Assistant
+                      <ExternalLink className="w-4 h-4 ml-2" />
+                    </Button>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 max-w-2xl mx-auto">
+                      <div className="p-4 bg-blue-50 rounded-lg border">
+                        <h4 className="font-medium text-blue-900 mb-2">Plan Analysis</h4>
+                        <p className="text-sm text-blue-700">Upload construction plans and get detailed scope analysis</p>
+                      </div>
+                      <div className="p-4 bg-green-50 rounded-lg border">
+                        <h4 className="font-medium text-green-900 mb-2">Measurements</h4>
+                        <p className="text-sm text-green-700">Extract precise measurements and quantities from drawings</p>
+                      </div>
+                      <div className="p-4 bg-purple-50 rounded-lg border">
+                        <h4 className="font-medium text-purple-900 mb-2">Cost Estimation</h4>
+                        <p className="text-sm text-purple-700">Get intelligent cost estimates based on project scope</p>
+                      </div>
+                      <div className="p-4 bg-orange-50 rounded-lg border">
+                        <h4 className="font-medium text-orange-900 mb-2">Expert Advice</h4>
+                        <p className="text-sm text-orange-700">Receive construction best practices and recommendations</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-6">
+                  <h4 className="font-medium mb-3">Quick Actions</h4>
+                  <div className="space-y-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => navigate('/project-analyzer')}
+                      className="w-full justify-start"
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      Go to Project Analyzer Tool
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleOpenCustomGPT}
+                      className="w-full justify-start"
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Chat with Albus AI
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
