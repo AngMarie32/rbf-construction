@@ -80,10 +80,10 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
         <table className="w-full border-collapse text-xs">
           <thead>
             {/* Row 1: Grouping Header */}
-            <tr className="bg-gray-100 text-center font-bold text-xs">
-              <th className="p-1 border-r border-b border-black" colSpan={5}></th>
-              <th className="p-1 border-r border-b border-black" colSpan={4}>WORK COMPLETED</th>
-              <th className="p-1 border-b border-black" colSpan={3}></th>
+            <tr className="text-center font-bold text-xs">
+              <th className="p-1" colSpan={5}></th>
+              <th className="p-1" colSpan={3}>WORK COMPLETED</th>
+              <th className="p-1" colSpan={4}></th>
             </tr>
             {/* Row 2: Column letters A through L */}
             <tr className="bg-gray-100 text-center font-bold">
