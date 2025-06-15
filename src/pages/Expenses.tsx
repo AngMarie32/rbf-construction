@@ -25,6 +25,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   Search, 
   Plus, 
@@ -37,7 +44,8 @@ import {
   Eye,
   Trash2,
   Clock,
-  Check
+  Check,
+  MoreHorizontal
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -394,8 +402,8 @@ export default function Expenses() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2 flex-wrap">
-                        {/* Approval Actions */}
+                      <div className="flex gap-2">
+                        {/* Approval Actions - Only show if can approve */}
                         {canApprove(expense.status) && (
                           <Button 
                             size="sm"
@@ -412,7 +420,7 @@ export default function Expenses() {
                           </Button>
                         )}
                         
-                        {/* Reject Button */}
+                        {/* Reject Button - Only show if can reject */}
                         {canReject(expense.status) && (
                           <Button 
                             size="sm"
@@ -424,64 +432,57 @@ export default function Expenses() {
                           </Button>
                         )}
 
-                        {/* Secondary Actions */}
-                        <div className="flex gap-1">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleAttachReceipt(expense)}
-                            className="text-gray-600 hover:text-gray-800"
-                          >
-                            <Paperclip className="w-4 h-4" />
-                          </Button>
-
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleEditExpense(expense)}
-                            className="text-gray-600 hover:text-gray-800"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleViewExpense(expense)}
-                            className="text-gray-600 hover:text-gray-800"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Expense</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this expense? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => deleteExpense(expense.id)}
-                                  className="bg-red-600 hover:bg-red-700"
+                        {/* Nested Actions Menu */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewExpense(expense)}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditExpense(expense)}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleAttachReceipt(expense)}>
+                              <Paperclip className="w-4 h-4 mr-2" />
+                              Attach Receipt
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem 
+                                  className="text-red-600 focus:text-red-600"
+                                  onSelect={(e) => e.preventDefault()}
                                 >
+                                  <Trash2 className="w-4 h-4 mr-2" />
                                   Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Expense</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this expense? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => deleteExpense(expense.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </TableCell>
                   </TableRow>
