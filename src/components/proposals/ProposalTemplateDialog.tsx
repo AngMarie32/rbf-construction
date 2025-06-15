@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, Plus, Trash2, Edit } from 'lucide-react';
+import { FileText, Plus, Trash2, Edit, Import } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Template {
@@ -46,48 +46,55 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
   }, [open]);
 
   const fetchTemplates = async () => {
-    // For now, we'll use mock data since the proposal_templates table doesn't exist yet
-    // This would normally fetch from supabase once the table is created
-    const mockTemplates: Template[] = [
-      {
-        id: '1',
-        name: 'Kitchen Remodel',
-        description: 'Standard kitchen renovation template',
-        projectType: 'Residential',
-        createdAt: new Date('2024-01-15'),
-        items: [
-          { description: 'Cabinet installation', quantity: 1, unit: 'set', unitPrice: 5000, total: 5000 },
-          { description: 'Countertop installation', quantity: 25, unit: 'sq ft', unitPrice: 75, total: 1875 },
-          { description: 'Appliance installation', quantity: 1, unit: 'set', unitPrice: 2500, total: 2500 }
-        ]
-      },
-      {
-        id: '2',
-        name: 'Bathroom Renovation',
-        description: 'Complete bathroom renovation template',
-        projectType: 'Residential',
-        createdAt: new Date('2024-02-01'),
-        items: [
-          { description: 'Tile installation', quantity: 100, unit: 'sq ft', unitPrice: 15, total: 1500 },
-          { description: 'Fixture installation', quantity: 1, unit: 'set', unitPrice: 1800, total: 1800 },
-          { description: 'Plumbing work', quantity: 1, unit: 'job', unitPrice: 1200, total: 1200 }
-        ]
-      },
-      {
-        id: '3',
-        name: 'Deck Construction',
-        description: 'Outdoor deck building template',
-        projectType: 'Commercial',
-        createdAt: new Date('2024-01-20'),
-        items: [
-          { description: 'Framing', quantity: 1, unit: 'job', unitPrice: 2000, total: 2000 },
-          { description: 'Decking material', quantity: 400, unit: 'sq ft', unitPrice: 8, total: 3200 },
-          { description: 'Railing installation', quantity: 80, unit: 'linear ft', unitPrice: 25, total: 2000 }
-        ]
-      }
-    ];
-    
-    setTemplates(mockTemplates);
+    setLoading(true);
+    try {
+      // Mock data - replace with actual API call when backend is ready
+      const mockTemplates: Template[] = [
+        {
+          id: '1',
+          name: 'Kitchen Remodel',
+          description: 'Standard kitchen renovation template',
+          projectType: 'Residential',
+          createdAt: new Date('2024-01-15'),
+          items: [
+            { description: 'Cabinet installation', quantity: 1, unit: 'set', unitPrice: 5000, total: 5000 },
+            { description: 'Countertop installation', quantity: 25, unit: 'sq ft', unitPrice: 75, total: 1875 },
+            { description: 'Appliance installation', quantity: 1, unit: 'set', unitPrice: 2500, total: 2500 }
+          ]
+        },
+        {
+          id: '2',
+          name: 'Bathroom Renovation',
+          description: 'Complete bathroom renovation template',
+          projectType: 'Residential',
+          createdAt: new Date('2024-02-01'),
+          items: [
+            { description: 'Tile installation', quantity: 100, unit: 'sq ft', unitPrice: 15, total: 1500 },
+            { description: 'Fixture installation', quantity: 1, unit: 'set', unitPrice: 1800, total: 1800 },
+            { description: 'Plumbing work', quantity: 1, unit: 'job', unitPrice: 1200, total: 1200 }
+          ]
+        },
+        {
+          id: '3',
+          name: 'Office Build-out',
+          description: 'Commercial office space template',
+          projectType: 'Commercial',
+          createdAt: new Date('2024-01-20'),
+          items: [
+            { description: 'Framing', quantity: 1, unit: 'job', unitPrice: 2000, total: 2000 },
+            { description: 'Drywall installation', quantity: 800, unit: 'sq ft', unitPrice: 3, total: 2400 },
+            { description: 'Electrical work', quantity: 1, unit: 'job', unitPrice: 3500, total: 3500 }
+          ]
+        }
+      ];
+      
+      setTemplates(mockTemplates);
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+      toast.error('Failed to load templates');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSort = (field: 'name' | 'projectType' | 'createdAt') => {
@@ -105,20 +112,20 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
 
     switch (sortField) {
       case 'name':
-        aValue = a.name;
-        bValue = b.name;
+        aValue = a.name.toLowerCase();
+        bValue = b.name.toLowerCase();
         break;
       case 'projectType':
-        aValue = a.projectType || '';
-        bValue = b.projectType || '';
+        aValue = (a.projectType || '').toLowerCase();
+        bValue = (b.projectType || '').toLowerCase();
         break;
       case 'createdAt':
-        aValue = a.createdAt || new Date();
-        bValue = b.createdAt || new Date();
+        aValue = a.createdAt || new Date(0);
+        bValue = b.createdAt || new Date(0);
         break;
       default:
-        aValue = a.name;
-        bValue = b.name;
+        aValue = a.name.toLowerCase();
+        bValue = b.name.toLowerCase();
     }
 
     if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
@@ -127,28 +134,25 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
   });
 
   const createTemplate = async () => {
-    if (!newTemplate.name) {
+    if (!newTemplate.name.trim()) {
       toast.error('Please enter a template name');
       return;
     }
 
     setLoading(true);
     try {
-      // For now, we'll just add to the mock data
-      // This would normally save to supabase once the table is created
       const newTemplateWithId: Template = {
         id: Date.now().toString(),
         name: newTemplate.name,
         description: newTemplate.description,
         projectType: newTemplate.projectType,
         createdAt: new Date(),
-        items: []
+        items: newTemplate.items
       };
 
       setTemplates(prev => [...prev, newTemplateWithId]);
       toast.success('Template created successfully');
-      setNewTemplate({ name: '', description: '', projectType: '', items: [] });
-      setShowCreateForm(false);
+      resetForm();
     } catch (error) {
       console.error('Error creating template:', error);
       toast.error('Failed to create template');
@@ -158,29 +162,26 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
   };
 
   const updateTemplate = async () => {
-    if (!editingTemplate || !newTemplate.name) {
+    if (!editingTemplate || !newTemplate.name.trim()) {
       toast.error('Please enter a template name');
       return;
     }
 
     setLoading(true);
     try {
-      // For now, we'll just update the mock data
-      // This would normally update in supabase once the table is created
       setTemplates(prev => prev.map(template => 
         template.id === editingTemplate.id 
           ? { 
               ...template, 
               name: newTemplate.name, 
               description: newTemplate.description,
-              projectType: newTemplate.projectType
+              projectType: newTemplate.projectType,
+              items: newTemplate.items
             }
           : template
       ));
       toast.success('Template updated successfully');
-      setNewTemplate({ name: '', description: '', projectType: '', items: [] });
-      setEditingTemplate(null);
-      setShowCreateForm(false);
+      resetForm();
     } catch (error) {
       console.error('Error updating template:', error);
       toast.error('Failed to update template');
@@ -196,8 +197,6 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
 
     setLoading(true);
     try {
-      // For now, we'll just remove from the mock data
-      // This would normally delete from supabase once the table is created
       setTemplates(prev => prev.filter(template => template.id !== templateId));
       toast.success('Template deleted successfully');
     } catch (error) {
@@ -211,6 +210,7 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
   const selectTemplate = (template: Template) => {
     onTemplateSelect(template);
     onOpenChange(false);
+    toast.success(`Template "${template.name}" selected`);
   };
 
   const startEdit = (template: Template) => {
@@ -219,20 +219,30 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
       name: template.name,
       description: template.description,
       projectType: template.projectType || '',
-      items: template.items
+      items: template.items || []
     });
     setShowCreateForm(true);
   };
 
-  const cancelEdit = () => {
+  const resetForm = () => {
     setEditingTemplate(null);
     setNewTemplate({ name: '', description: '', projectType: '', items: [] });
     setShowCreateForm(false);
   };
 
+  const importFromBidPlanner = () => {
+    // TODO: Implement bid planner integration
+    toast.info('Bid planner import feature coming soon!');
+  };
+
+  const getSortIcon = (field: string) => {
+    if (sortField !== field) return '';
+    return sortDirection === 'asc' ? ' ↑' : ' ↓';
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Proposal Templates</DialogTitle>
         </DialogHeader>
@@ -241,69 +251,83 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
           {!showCreateForm ? (
             <>
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium">Manage Templates</h3>
-                <Button variant="outline" onClick={() => setShowCreateForm(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Template
-                </Button>
+                <h3 className="text-lg font-medium">Template Library</h3>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={importFromBidPlanner}>
+                    <Import className="w-4 h-4 mr-2" />
+                    Import from Bid Planner
+                  </Button>
+                  <Button onClick={() => setShowCreateForm(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Template
+                  </Button>
+                </div>
               </div>
 
-              {templates.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No templates found. Create your first template to get started!</p>
+              {loading ? (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : templates.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg mb-2">No templates found</p>
+                  <p className="text-sm">Create your first template or import from bid planner to get started!</p>
                 </div>
               ) : (
-                <div className="border rounded-lg">
+                <div className="border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead 
-                          className="cursor-pointer hover:bg-gray-50"
+                          className="cursor-pointer hover:bg-gray-50 select-none"
                           onClick={() => handleSort('name')}
                         >
-                          Template Name {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+                          Template Name{getSortIcon('name')}
                         </TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead 
-                          className="cursor-pointer hover:bg-gray-50"
+                          className="cursor-pointer hover:bg-gray-50 select-none"
                           onClick={() => handleSort('projectType')}
                         >
-                          Project Type {sortField === 'projectType' && (sortDirection === 'asc' ? '↑' : '↓')}
+                          Project Type{getSortIcon('projectType')}
                         </TableHead>
                         <TableHead>Items</TableHead>
                         <TableHead 
-                          className="cursor-pointer hover:bg-gray-50"
+                          className="cursor-pointer hover:bg-gray-50 select-none"
                           onClick={() => handleSort('createdAt')}
                         >
-                          Created {sortField === 'createdAt' && (sortDirection === 'asc' ? '↑' : '↓')}
+                          Created{getSortIcon('createdAt')}
                         </TableHead>
-                        <TableHead className="w-[120px]">Actions</TableHead>
+                        <TableHead className="w-[140px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {sortedTemplates.map((template) => (
-                        <TableRow key={template.id} className="cursor-pointer hover:bg-gray-50">
-                          <TableCell 
-                            className="font-medium"
-                            onClick={() => selectTemplate(template)}
-                          >
+                        <TableRow 
+                          key={template.id} 
+                          className="cursor-pointer hover:bg-gray-50"
+                          onClick={() => selectTemplate(template)}
+                        >
+                          <TableCell className="font-medium">
                             {template.name}
                           </TableCell>
-                          <TableCell onClick={() => selectTemplate(template)}>
-                            {template.description}
+                          <TableCell className="max-w-xs truncate">
+                            {template.description || 'No description'}
                           </TableCell>
-                          <TableCell onClick={() => selectTemplate(template)}>
-                            {template.projectType || 'N/A'}
+                          <TableCell>
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {template.projectType || 'General'}
+                            </span>
                           </TableCell>
-                          <TableCell onClick={() => selectTemplate(template)}>
+                          <TableCell>
                             {template.items?.length || 0} items
                           </TableCell>
-                          <TableCell onClick={() => selectTemplate(template)}>
+                          <TableCell>
                             {template.createdAt?.toLocaleDateString() || 'N/A'}
                           </TableCell>
                           <TableCell>
-                            <div className="flex gap-2">
+                            <div className="flex gap-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -311,6 +335,7 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
                                   e.stopPropagation();
                                   startEdit(template);
                                 }}
+                                title="Edit template"
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
@@ -321,7 +346,8 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
                                   e.stopPropagation();
                                   deleteTemplate(template.id);
                                 }}
-                                className="text-red-600 hover:text-red-800"
+                                className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                                title="Delete template"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -340,23 +366,25 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
                 <CardTitle>{editingTemplate ? 'Edit Template' : 'Create New Template'}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="templateName">Template Name</Label>
-                  <Input
-                    id="templateName"
-                    value={newTemplate.name}
-                    onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
-                    placeholder="e.g., Kitchen Remodel, Bathroom Renovation"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="projectType">Project Type</Label>
-                  <Input
-                    id="projectType"
-                    value={newTemplate.projectType}
-                    onChange={(e) => setNewTemplate({ ...newTemplate, projectType: e.target.value })}
-                    placeholder="e.g., Residential, Commercial"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="templateName">Template Name *</Label>
+                    <Input
+                      id="templateName"
+                      value={newTemplate.name}
+                      onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
+                      placeholder="e.g., Kitchen Remodel, Office Build-out"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="projectType">Project Type</Label>
+                    <Input
+                      id="projectType"
+                      value={newTemplate.projectType}
+                      onChange={(e) => setNewTemplate({ ...newTemplate, projectType: e.target.value })}
+                      placeholder="e.g., Residential, Commercial, Industrial"
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="templateDescription">Description</Label>
@@ -364,18 +392,18 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
                     id="templateDescription"
                     value={newTemplate.description}
                     onChange={(e) => setNewTemplate({ ...newTemplate, description: e.target.value })}
-                    placeholder="Brief description of this template..."
+                    placeholder="Brief description of this template and when to use it..."
                     rows={3}
                   />
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex space-x-2 pt-4">
                   <Button 
                     onClick={editingTemplate ? updateTemplate : createTemplate} 
-                    disabled={loading}
+                    disabled={loading || !newTemplate.name.trim()}
                   >
                     {loading ? (editingTemplate ? 'Updating...' : 'Creating...') : (editingTemplate ? 'Update Template' : 'Create Template')}
                   </Button>
-                  <Button variant="outline" onClick={cancelEdit}>
+                  <Button variant="outline" onClick={resetForm}>
                     Cancel
                   </Button>
                 </div>
