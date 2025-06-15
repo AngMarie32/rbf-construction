@@ -108,9 +108,9 @@ export function ChangeOrderSOVDialog({
         materials_stored: 0,
         work_completed_from_previous: 0,
         materials_presently_stored: 0,
-        total_completed_and_stored: 0,
         percent_complete: 0,
         retainage_percentage: 10
+        // Remove total_completed_and_stored since it's a generated column
       }));
 
       const { data: newSovItems, error: insertError } = await supabase
