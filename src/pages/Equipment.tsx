@@ -1,10 +1,8 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { 
   Plus, 
-  Calendar,
   AlertTriangle,
   Grid3X3,
   List
@@ -14,7 +12,7 @@ import { EquipmentFilters } from '@/components/equipment/EquipmentFilters';
 import { BulkOperationsToolbar } from '@/components/equipment/BulkOperationsToolbar';
 import { NewEquipmentDialog } from '@/components/equipment/NewEquipmentDialog';
 import { MaintenanceDialog } from '@/components/equipment/MaintenanceDialog';
-import { AllMaintenanceView } from '@/components/equipment/AllMaintenanceView';
+import { MaintenanceView } from '@/components/equipment/MaintenanceView';
 import { EquipmentEstimator } from '@/components/equipment/EquipmentEstimator';
 import { EditEquipmentDialog } from '@/components/equipment/EditEquipmentDialog';
 import { useEquipment } from '@/hooks/useEquipment';
@@ -53,6 +51,7 @@ export default function Equipment() {
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
   const [allMaintenanceOpen, setAllMaintenanceOpen] = useState(false);
   const [estimatorOpen, setEstimatorOpen] = useState(false);
+  const [maintenanceViewOpen, setMaintenanceViewOpen] = useState(false);
   
   const [selectedEstimatorEquipment, setSelectedEstimatorEquipment] = useState<EstimatorItem[]>([]);
   const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([]);
@@ -178,6 +177,15 @@ export default function Equipment() {
     );
   }
 
+  if (maintenanceViewOpen) {
+    return (
+      <MaintenanceView
+        open={maintenanceViewOpen}
+        onOpenChange={setMaintenanceViewOpen}
+      />
+    );
+  }
+
   return (
     <Layout title="Equipment" subtitle="Manage equipment and maintenance">
       <div className="flex">
@@ -188,10 +196,9 @@ export default function Equipment() {
               <div className="flex gap-2">
                 <Button 
                   variant="outline"
-                  onClick={() => setAllMaintenanceOpen(true)}
+                  onClick={() => setMaintenanceViewOpen(true)}
                 >
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Maintenance Calendar
+                  Maintenance
                 </Button>
                 <Button 
                   variant="outline"
@@ -304,11 +311,6 @@ export default function Equipment() {
           onEquipmentUpdated={fetchEquipment}
         />
       )}
-
-      <AllMaintenanceView
-        open={allMaintenanceOpen}
-        onOpenChange={setAllMaintenanceOpen}
-      />
     </Layout>
   );
 }

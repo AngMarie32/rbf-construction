@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Plus, Wrench, Check, Clock } from 'lucide-react';
+import { Calendar, Plus, Wrench, Check, Clock, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -134,6 +133,27 @@ export function MaintenanceDialog({ open, onOpenChange, equipmentId, equipmentNa
     } catch (error) {
       console.error('Error marking maintenance as completed:', error);
       toast.error('Failed to update maintenance status');
+    }
+  };
+
+  const deleteMaintenanceRecord = async (recordId: string) => {
+    if (!confirm('Are you sure you want to delete this maintenance record?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('maintenance_logs')
+        .delete()
+        .eq('id', recordId);
+
+      if (error) throw error;
+
+      toast.success('Maintenance record deleted successfully');
+      fetchMaintenanceRecords();
+    } catch (error) {
+      console.error('Error deleting maintenance record:', error);
+      toast.error('Failed to delete maintenance record');
     }
   };
 
@@ -299,6 +319,7 @@ export function MaintenanceDialog({ open, onOpenChange, equipmentId, equipmentNa
                           <TableHead>Description</TableHead>
                           <TableHead>Cost</TableHead>
                           <TableHead>Next Due</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -318,6 +339,16 @@ export function MaintenanceDialog({ open, onOpenChange, equipmentId, equipmentNa
                             <TableCell>${record.cost.toLocaleString()}</TableCell>
                             <TableCell>
                               {record.nextDue ? format(record.nextDue, 'MMM dd, yyyy') : 'N/A'}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => deleteMaintenanceRecord(record.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -365,14 +396,24 @@ export function MaintenanceDialog({ open, onOpenChange, equipmentId, equipmentNa
                               )}
                             </TableCell>
                             <TableCell>
-                              <Button
-                                size="sm"
-                                onClick={() => markAsCompleted(record.id)}
-                                className="bg-green-600 hover:bg-green-700"
-                              >
-                                <Check className="w-4 h-4 mr-1" />
-                                Mark Done
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => markAsCompleted(record.id)}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <Check className="w-4 h-4 mr-1" />
+                                  Mark Done
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => deleteMaintenanceRecord(record.id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
