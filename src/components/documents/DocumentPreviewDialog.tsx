@@ -57,13 +57,13 @@ export function DocumentPreviewDialog({
     const content = `Document: ${document.name}\nDescription: ${document.description || 'No description'}\nCategory: ${document.category}\nCreated: ${format(document.createdAt, 'yyyy-MM-dd HH:mm:ss')}`;
     const blob = new Blob([content], { type: 'text/plain' });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = window.document.createElement('a');
     a.href = url;
     a.download = `${document.name}.txt`;
-    document.body.appendChild(a);
+    window.document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+    window.document.body.removeChild(a);
     onDownload(document);
   };
 
