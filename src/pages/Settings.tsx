@@ -23,6 +23,7 @@ const Settings = () => {
   const [loading, setLoading] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [existingId, setExistingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -35,13 +36,14 @@ const Settings = () => {
         .from('company_settings')
         .select('*')
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
         throw error;
       }
 
       if (data) {
+        setExistingId(data.id);
         setCompanySettings({
           company_name: data.company_name || '',
           company_address: data.company_address || '',
@@ -108,15 +110,34 @@ const Settings = () => {
       }
 
       const settingsToSave = {
-        ...companySettings,
+        company_name: companySettings.company_name,
+        company_address: companySettings.company_address,
+        company_phone: companySettings.company_phone,
+        company_email: companySettings.company_email,
         logo_url: logoUrl,
       };
 
-      const { error } = await supabase
-        .from('company_settings')
-        .upsert(settingsToSave);
+      let result;
+      if (existingId) {
+        // Update existing record
+        result = await supabase
+          .from('company_settings')
+          .update(settingsToSave)
+          .eq('id', existingId);
+      } else {
+        // Insert new record
+        result = await supabase
+          .from('company_settings')
+          .insert([settingsToSave])
+          .select()
+          .single();
+        
+        if (result.data) {
+          setExistingId(result.data.id);
+        }
+      }
 
-      if (error) throw error;
+      if (result.error) throw result.error;
 
       setCompanySettings(prev => ({ ...prev, logo_url: logoUrl }));
       setLogoFile(null);
@@ -125,6 +146,9 @@ const Settings = () => {
         title: "Success",
         description: "Company settings saved successfully",
       });
+
+      // Refresh the data to ensure consistency
+      fetchCompanySettings();
     } catch (error) {
       console.error('Error saving company settings:', error);
       toast({
