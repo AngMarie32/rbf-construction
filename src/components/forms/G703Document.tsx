@@ -89,7 +89,8 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               <th className="border-r border-b border-black p-1 w-20">F</th>
               <th className="border-r border-b border-black p-1 w-20">G</th>
               <th className="border-r border-b border-black p-1 w-20">H</th>
-              <th className="border-r border-b border-black p-1 w-24" colSpan={2}>I</th>
+              <th className="border-r border-b border-black p-1 w-20">I</th>
+              <th className="border-r border-b border-black p-1 w-16">I</th>
               <th className="border-r border-b border-black p-1 w-20">J</th>
               <th className="border-b border-black p-1 w-20">K</th>
             </tr>
@@ -113,13 +114,16 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               <th className="border-r border-b border-black p-1 font-bold" colSpan={3}>
                 <div className="border-b border-black pb-1 mb-1">WORK COMPLETED</div>
                 <div className="grid grid-cols-3 gap-0 text-xs font-normal">
-                  <div className="border-r border-black pr-1 align-bottom">FROM<br />PREVIOUS<br />APPLICATION</div>
-                  <div className="border-r border-black px-1 align-bottom">THIS PERIOD</div>
-                  <div className="align-bottom">MATERIALS<br />PRESENTLY<br />STORED</div>
+                  <div className="border-r border-black pr-1 align-bottom"><strong>FROM<br />PREVIOUS<br />APPLICATION</strong></div>
+                  <div className="border-r border-black px-1 align-bottom"><strong>THIS PERIOD</strong></div>
+                  <div className="align-bottom"><strong>MATERIALS<br />PRESENTLY<br />STORED</strong></div>
                 </div>
               </th>
-              <th className="border-r border-b border-black p-1 h-16" colSpan={2}>
-                <div className="text-xs align-bottom flex justify-center items-end h-full pb-1">TOTAL COMPLETED<br />AND STORED TO<br />DATE</div>
+              <th className="border-r border-b border-black p-1 h-16 align-bottom">
+                <div className="text-xs">TOTAL<br />COMPLETED<br />AND STORED TO<br />DATE</div>
+              </th>
+              <th className="border-r border-b border-black p-1 h-16 align-bottom">
+                <div className="text-xs">%<br />COMPLETE</div>
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
                 <div className="text-xs">BALANCE TO<br />FINISH</div>
