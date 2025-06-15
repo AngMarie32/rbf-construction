@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { PenTool, Type, X, Upload, Plus, Download, Trash2 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { useToast, toast as toastCustom } from "@/hooks/use-toast";
 
 interface G702BuilderProps {
   projectId: string;
@@ -32,6 +33,11 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
   const [typedSignature, setTypedSignature] = useState('');
   const [selectedChangeOrders, setSelectedChangeOrders] = useState<string[]>([]);
   const [newSOVItem, setNewSOVItem] = useState<null | { itemNumber: string, description: string, scheduledValue: number, category: string }>(null);
+
+  // State for undo functionality
+  const [undoStack, setUndoStack] = useState<any[]>([]);
+  const [lastDeletedSOV, setLastDeletedSOV] = useState<any | null>(null);
+  const [highlightedRowId, setHighlightedRowId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPreviousPayments();
@@ -197,26 +203,95 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
     }
   }, [sovItems, setSovItems]);
 
-  const handleDeleteSOVItem = async (itemId: string) => {
-    if (!window.confirm("Are you sure you want to delete this item? This action cannot be undone.")) {
-        return;
+  // Inline Editing logic for custom items
+  const handleInlineEdit = async (itemId: string, field: string, value: any) => {
+    const item = sovItems.find(i => i.id === itemId);
+    if (!item) return;
+    // Validate: don't allow negative
+    if ((field === "scheduledValue" && value < 0) || (field === "description" && value.trim() === '')) {
+      toast.error("Value invalid.");
+      return;
     }
+    // Update state
+    const updatedItems = sovItems.map(i =>
+      i.id === itemId ? { ...i, [field]: value } : i
+    );
+    setSovItems(updatedItems);
 
-    try {
-        const { error } = await supabase.from('sov_items').delete().eq('id', itemId);
+    // Only persist to DB for custom items (not change order or imported)
+    if (!item.id.startsWith('co-')) {
+      try {
+        setLoading(true);
+        const update: any = {};
+        if (field === "scheduledValue") update.scheduled_value = value;
+        if (field === "description") update.description = value;
+        const { error } = await supabase
+          .from('sov_items')
+          .update(update)
+          .eq('id', itemId);
         if (error) throw error;
-
-        setSovItems(sovItems.filter(item => item.id !== itemId));
-        toast.success("SOV item deleted.");
-    } catch (error) {
-        toast.error("Failed to delete SOV item.");
-        console.error(error);
+        toast.success("SOV updated");
+      } catch (error) {
+        toast.error("Failed to update SOV item");
+      } finally {
+        setLoading(false);
+      }
     }
+  };
+
+  // Undo logic
+  const handleDeleteSOVItemWithUndo = async (itemId: string) => {
+    const target = sovItems.find(i => i.id === itemId);
+    if (!target) return;
+    setLastDeletedSOV(target);
+    setUndoStack([...undoStack, target]);
+    setSovItems(sovItems.filter(item => item.id !== itemId));
+    setHighlightedRowId(null);
+    toastCustom(
+      (t) => (
+        <div className="flex items-center gap-2">
+          <span>SOV item deleted.</span>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="ml-2"
+            onClick={() => {
+              setSovItems(prev => [...prev, target]);
+              setHighlightedRowId(target.id);
+              setTimeout(() => setHighlightedRowId(null), 2000);
+              toastCustom.dismiss(t);
+              setUndoStack(undoStack); // just refresh
+            }}
+          >
+            Undo
+          </Button>
+        </div>
+      ),
+      { duration: 4000 }
+    );
+    // only delete from DB after timeout for undo
+    setTimeout(async () => {
+      if (!sovItems.find(i => i.id === itemId) && !undoStack.includes(target) && !itemId.startsWith('co-')) {
+        await supabase.from('sov_items').delete().eq('id', itemId);
+      }
+      setUndoStack(stack => stack.filter((v) => v.id !== itemId));
+    }, 4000);
+  };
+
+  // Row Animation helpers
+  const handleRowHighlight = (id: string) => {
+    setHighlightedRowId(id);
+    setTimeout(() => setHighlightedRowId(null), 1500);
+  };
+
+  const handleDeleteSOVItem = async (itemId: string) => {
+    // replaced by handleDeleteSOVItemWithUndo
   };
 
   const handleAddNewItem = () => {
       const nextItemNumber = sovItems.length > 0 ? String(Math.max(...sovItems.map(i => Number(i.itemNumber)).filter(Number.isFinite)) + 1) : "1";
       setNewSOVItem({ itemNumber: nextItemNumber, description: '', scheduledValue: 0, category: 'General' });
+      handleRowHighlight('new');
   };
 
   const handleCancelNewItem = () => {
@@ -256,6 +331,7 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
         setSovItems([...sovItems, mappedItem]);
         setNewSOVItem(null);
         toast.success("New SOV item added.");
+        handleRowHighlight(mappedItem.id);
     } catch (error) {
         toast.error("Failed to save new item.");
         console.error(error);
@@ -474,14 +550,41 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
                 const totalCompleted = (item.previousApplications || 0) + (item.thisPeriod || 0) + (item.materialsStored || 0);
                 const percentComplete = totalContract > 0 ? (totalCompleted / totalContract) * 100 : 0;
                 const balanceToFinish = totalContract - totalCompleted;
-                
+                const canEdit = !item.id.startsWith('co-');
                 return (
-                  <div key={item.id} className="grid grid-cols-9 gap-2 items-center text-sm border-b pb-2">
-                    <div className="font-medium col-span-1">
+                  <div
+                    key={item.id}
+                    className={`grid grid-cols-9 gap-2 items-center text-sm border-b pb-2 transition-all duration-300 ${
+                      highlightedRowId === item.id ? 'bg-lime-100' : ''
+                    }`}
+                  >
+                    <div className="font-medium col-span-1 flex flex-col gap-1">
                       <div>{item.itemNumber}</div>
-                      <div className="text-xs text-gray-600 truncate">{item.description}</div>
+                      <div className="text-xs text-gray-600 truncate flex items-center gap-1">
+                        {canEdit && selectedApplication === 'current' ? (
+                          <Input
+                            value={item.description}
+                            className="text-xs h-6 px-2"
+                            onChange={e => handleInlineEdit(item.id, "description", e.target.value)}
+                          />
+                        ) : (
+                          <span>{item.description}</span>
+                        )}
+                      </div>
                     </div>
-                    <div>${(item.scheduledValue || 0).toLocaleString()}</div>
+                    <div>
+                      {canEdit && selectedApplication === 'current' ? (
+                        <Input
+                          type="number"
+                          min={0}
+                          className="w-full h-6 px-2"
+                          value={item.scheduledValue}
+                          onChange={e => handleInlineEdit(item.id, "scheduledValue", Number(e.target.value) || 0)}
+                        />
+                      ) : (
+                        <>${(item.scheduledValue || 0).toLocaleString()}</>
+                      )}
+                    </div>
                     <div>${(item.changeOrders || 0).toLocaleString()}</div>
                     <div className="font-medium">${totalContract.toLocaleString()}</div>
                     <div>
@@ -492,14 +595,23 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
                         onChange={(e) => updateSOVItemThisPeriod(item.id, Number(e.target.value) || 0)}
                         className="w-full"
                         disabled={selectedApplication !== 'current'}
+                        min={0}
                       />
                     </div>
                     <div>${totalCompleted.toLocaleString()}</div>
                     <div>{percentComplete.toFixed(1)}%</div>
                     <div>${balanceToFinish.toLocaleString()}</div>
                     <div>
-                      {!item.id.startsWith('co-') && (
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteSOVItem(item.id)} className="text-red-500 hover:text-red-700">
+                      {canEdit && (
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => {
+                            handleDeleteSOVItemWithUndo(item.id);
+                          }}
+                          className="text-red-500 hover:text-red-700"
+                          aria-label="Delete SOV Item"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       )}
@@ -508,7 +620,7 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
                 );
               })}
               {newSOVItem && (
-                  <div className="grid grid-cols-9 gap-2 items-center text-sm border-b-2 border-blue-200 py-2">
+                  <div className={`grid grid-cols-9 gap-2 items-center text-sm border-b-2 border-blue-200 py-2 bg-lime-50 ${highlightedRowId === 'new' ? 'bg-lime-200' : ''}`}>
                       <div className="col-span-1">
                           <Input
                               value={newSOVItem.itemNumber}
@@ -569,13 +681,25 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="retainagePercentage">Retainage Percentage</Label>
+              <div className="flex items-center gap-1">
+                <Label htmlFor="retainagePercentage">Retainage Percentage</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-help text-blue-400">?</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    The percentage of payments held back until project completion as a safeguard.
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <Input
                 id="retainagePercentage"
                 type="number"
                 step="0.1"
                 value={formData.retainagePercentage}
                 onChange={(e) => setFormData({ ...formData, retainagePercentage: Number(e.target.value) })}
+                min={0}
+                max={100}
               />
             </div>
             <div>
