@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface G702DocumentProps {
@@ -80,6 +79,7 @@ export function G702Document({ project, formData, totals }: G702DocumentProps) {
       <div className="grid grid-cols-3 gap-6">
         {/* Left Column - Payment Summary Table */}
         <div className="col-span-2">
+          {/* ... keep existing code (payment summary table and description) */}
           <div className="mb-4">
             <h3 className="font-bold mb-3 text-sm">CONTRACTOR'S APPLICATION FOR PAYMENT</h3>
             <p className="text-sm mb-2">Application is made for payment, as shown below, in connection with the Contract.</p>
@@ -168,6 +168,12 @@ export function G702Document({ project, formData, totals }: G702DocumentProps) {
               <tbody>
                 <tr>
                   <td className="border border-black p-2 text-center">${totals.netChangeOrders.toLocaleString()}</td>
+                  <td className="border border-black p-2 text-center">$0.00</td>
+                  <td className="border border-black p-2 text-center">$0.00</td>
+                  <td className="border border-black p-2 text-center">$0.00</td>
+                </tr>
+                <tr>
+                  <td className="border border-black p-2 text-center">$0.00</td>
                   <td className="border border-black p-2 text-center">$0.00</td>
                   <td className="border border-black p-2 text-center">$0.00</td>
                   <td className="border border-black p-2 text-center">$0.00</td>
