@@ -79,7 +79,13 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
       <div className="border border-black">
         <table className="w-full border-collapse text-xs">
           <thead>
-            {/* First row - Column letters A through L */}
+            {/* Row 1: Grouping Header */}
+            <tr className="bg-gray-100 text-center font-bold text-xs">
+              <th className="p-1 border-r border-b border-black" colSpan={5}></th>
+              <th className="p-1 border-r border-b border-black" colSpan={4}>WORK COMPLETED</th>
+              <th className="p-1 border-b border-black" colSpan={3}></th>
+            </tr>
+            {/* Row 2: Column letters A through L */}
             <tr className="bg-gray-100 text-center font-bold">
               <th className="border-r border-b border-black p-1" style={{ width: '6%' }}>A</th>
               <th className="border-r border-b border-black p-1" style={{ width: '22%' }}>B</th>
@@ -94,7 +100,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>K</th>
               <th className="border-b border-black p-1" style={{ width: '8%' }}>L</th>
             </tr>
-            {/* Second row - Headers */}
+            {/* Row 3: Column Descriptions */}
             <tr className="bg-gray-100 text-center text-xs">
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
                 ITEM<br />NO.
@@ -121,7 +127,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
                 MATERIALS<br />PRESENTLY<br />STORED
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                TOTAL<br />COMPLETED<br />AND STORED TO
+                TOTAL<br />COMPLETED<br />AND STORED TO DATE
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
                 %<br />COMPLETE
