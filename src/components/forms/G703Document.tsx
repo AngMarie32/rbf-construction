@@ -81,20 +81,21 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
           <thead>
             {/* First row - Column letters A through K */}
             <tr className="bg-gray-100 text-center font-bold">
-              <th className="border-r border-b border-black p-1 w-8">A</th>
-              <th className="border-r border-b border-black p-1 w-32">B</th>
-              <th className="border-r border-b border-black p-1 w-16">C</th>
-              <th className="border-r border-b border-black p-1 w-16">D</th>
-              <th className="border-r border-b border-black p-1 w-16">E</th>
-              <th className="border-r border-b border-black p-1 w-16">F</th>
-              <th className="border-r border-b border-black p-1 w-16">G</th>
-              <th className="border-r border-b border-black p-1 w-16">H</th>
-              <th className="border-r border-b border-black p-1 w-24" colSpan={2}>I</th>
-              <th className="border-r border-b border-black p-1 w-16">J</th>
-              <th className="border-b border-black p-1 w-16">K</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '6%' }}>A</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '22%' }}>B</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '10%' }}>C</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>D</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '10%' }}>E</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>F</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>G</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>H</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '10%' }}>I</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '6%' }}>J</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>K</th>
+              <th className="border-b border-black p-1" style={{ width: '8%' }}>L</th>
             </tr>
             {/* Second row - Main headers with "WORK COMPLETED" spanning F, G, H */}
-            <tr className="bg-gray-100 text-center font-bold">
+            <tr className="bg-gray-100 text-center">
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
                 <div className="text-xs">ITEM<br />NO.</div>
               </th>
@@ -113,16 +114,16 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               <th className="border-r border-b border-black p-1 font-bold" colSpan={3}>
                 <div className="border-b border-black pb-1 mb-1">WORK COMPLETED</div>
                 <div className="grid grid-cols-3 gap-0 text-xs font-normal">
-                  <div className="border-r border-black pr-1 align-bottom">FROM<br />PREVIOUS<br />APPLICATION</div>
-                  <div className="border-r border-black px-1 align-bottom">THIS PERIOD</div>
-                  <div className="align-bottom">MATERIALS<br />PRESENTLY<br />STORED</div>
+                  <div className="border-r border-black pr-1 text-center">FROM<br />PREVIOUS<br />APPLICATION</div>
+                  <div className="border-r border-black px-1 text-center">THIS PERIOD</div>
+                  <div className="text-center">MATERIALS<br />PRESENTLY<br />STORED</div>
                 </div>
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
                 <div className="text-xs">TOTAL<br />COMPLETED<br />AND STORED TO</div>
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                <div className="text-xs">% COMPLETE</div>
+                <div className="text-xs">%<br />COMPLETE</div>
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
                 <div className="text-xs">BALANCE TO<br />FINISH</div>
