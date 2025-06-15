@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -274,13 +273,36 @@ export function TabbedBidInterface({
 
   const handleExportToSOV = async () => {
     try {
+      // First, check if any SOV items already exist for this project
+      const { data: existingSOVItems, error: checkError } = await supabase
+        .from('sov_items')
+        .select('id')
+        .eq('project_id', projectId)
+        .limit(1);
+
+      if (checkError) throw checkError;
+
+      // If SOV items already exist, ask for confirmation
+      if (existingSOVItems && existingSOVItems.length > 0) {
+        const confirmed = confirm('SOV items already exist for this project. Do you want to replace them?');
+        if (!confirmed) return;
+
+        // Delete existing SOV items
+        const { error: deleteError } = await supabase
+          .from('sov_items')
+          .delete()
+          .eq('project_id', projectId);
+
+        if (deleteError) throw deleteError;
+      }
+
       // Convert bid items to SOV items
       const sovItems = bidItems.map((item, index) => ({
         project_id: projectId,
         item_number: String(index + 1).padStart(3, '0'),
         category: item.category,
         description: item.description,
-        scheduled_value: item.unit_cost * item.quantity,
+        scheduled_value: (item.unit_cost || 0) * (item.quantity || 0),
         previous_applications: 0,
         this_period: 0,
         materials_stored: 0,
@@ -290,6 +312,11 @@ export function TabbedBidInterface({
         percent_complete: 0,
         retainage_percentage: 10
       }));
+
+      if (sovItems.length === 0) {
+        toast.error('No bid items to export to SOV');
+        return;
+      }
 
       const { error } = await supabase
         .from('sov_items')
@@ -531,14 +558,6 @@ export function TabbedBidInterface({
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Subcategory</label>
-                  <Input
-                    value={newItem.subcategory}
-                    onChange={(e) => setNewItem({ ...newItem, subcategory: e.target.value })}
-                    placeholder="Subcategory"
-                  />
-                </div>
-                <div>
                   <label className="text-sm font-medium text-gray-700">Description *</label>
                   <Input
                     value={newItem.description}
@@ -620,24 +639,24 @@ export function TabbedBidInterface({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* Header row matching the add form */}
+                  {/* Header row */}
                   <div className="grid grid-cols-6 gap-4 items-center py-2 border-b font-medium text-sm text-gray-700">
                     <div>Category / Subcategory</div>
                     <div>Description</div>
                     <div className="text-center">Unit</div>
-                    <div className="text-right">Unit Cost ($)</div>
+                    <div className="text-center">Unit Cost ($)</div>
                     <div className="text-center">Quantity</div>
-                    <div className="text-right">Total</div>
+                    <div className="text-center">Total</div>
                   </div>
                   
                   {bidItems.map((item, index) => (
                     <div key={item.id || index} className="border rounded-lg p-3">
                       <div className="grid grid-cols-6 gap-4 items-center">
-                        <div>
+                        <div className="space-y-2">
                           <Input
                             value={item.category}
                             onChange={(e) => handleUpdateItem(item.id, 'category', e.target.value)}
-                            className="text-sm mb-2"
+                            className="text-sm"
                             placeholder="Category"
                           />
                           <Input
@@ -655,7 +674,7 @@ export function TabbedBidInterface({
                             placeholder="Description"
                           />
                         </div>
-                        <div className="text-center">
+                        <div>
                           <Select 
                             value={item.unit} 
                             onValueChange={(value) => handleUpdateItem(item.id, 'unit', value)}
@@ -685,17 +704,17 @@ export function TabbedBidInterface({
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="text-right">
+                        <div>
                           <Input
                             type="number"
                             value={item.unit_cost}
                             onChange={(e) => handleUpdateItem(item.id, 'unit_cost', e.target.value)}
-                            className="text-sm text-right"
+                            className="text-sm text-center"
                             step="0.01"
                             placeholder="0.00"
                           />
                         </div>
-                        <div className="text-center">
+                        <div>
                           <Input
                             type="number"
                             value={item.quantity}
@@ -705,8 +724,8 @@ export function TabbedBidInterface({
                             placeholder="0"
                           />
                         </div>
-                        <div className="text-right">
-                          <div className="flex items-center justify-between">
+                        <div className="text-center">
+                          <div className="flex items-center justify-center gap-2">
                             <span className="font-bold">
                               ${formatCurrency((item.unit_cost || 0) * (item.quantity || 0))}
                             </span>
@@ -714,7 +733,7 @@ export function TabbedBidInterface({
                               variant="ghost" 
                               size="sm" 
                               onClick={() => handleDeleteItem(item.id)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 ml-2"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
