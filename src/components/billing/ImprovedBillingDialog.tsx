@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -154,8 +153,7 @@ export function ImprovedBillingDialog({
         invoice_number: formData.invoice_number || null,
         invoice_date: formData.invoice_date ? formData.invoice_date.toISOString().split('T')[0] : null,
         due_date: formData.due_date ? formData.due_date.toISOString().split('T')[0] : null,
-        notes: formData.notes || null,
-        remaining_amount: Number(formData.billed_amount) - Number(formData.paid_amount || 0)
+        notes: formData.notes || null
       };
 
       console.log('Submitting billing data:', billingData);

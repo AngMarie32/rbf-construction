@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -286,7 +285,6 @@ export default function ProjectBilling() {
               billing_period_end: payApp.period_to,
               billed_amount: payApp.current_payment_due,
               paid_amount: 0,
-              remaining_amount: payApp.current_payment_due,
               status: 'Draft',
               notes: `Auto-generated from Payment Application #${payApp.application_number}`
             });
