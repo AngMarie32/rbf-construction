@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface G703DocumentProps {
@@ -76,7 +75,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
       </div>
 
       {/* SOV Table */}
-      <div className="border-l border-r border-b border-black">
+      <div className="border-b border-black">
         <table className="w-full border-collapse text-xs">
           <thead>
             {/* Row 1: Grouping Header */}
@@ -87,7 +86,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
             </tr>
             {/* Row 2: Column letters A through L */}
             <tr className="bg-gray-100 text-center font-bold border-t border-black">
-              <th className="border-r border-b border-black p-1" style={{ width: '6%' }}>A</th>
+              <th className="border-l border-r border-b border-black p-1" style={{ width: '6%' }}>A</th>
               <th className="border-r border-b border-black p-1" style={{ width: '22%' }}>B</th>
               <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>C</th>
               <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>D</th>
@@ -98,11 +97,11 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>I</th>
               <th className="border-r border-b border-black p-1" style={{ width: '6%' }}>J</th>
               <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>K</th>
-              <th className="border-b border-black p-1" style={{ width: '8%' }}>L</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>L</th>
             </tr>
             {/* Row 3: Column Descriptions */}
             <tr className="bg-gray-100 text-center text-xs">
-              <th className="border-r border-b border-black p-1 h-16 align-bottom">
+              <th className="border-l border-r border-b border-black p-1 h-16 align-bottom">
                 ITEM<br />NO.
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
@@ -135,7 +134,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
                 BALANCE TO<br />FINISH
               </th>
-              <th className="border-b border-black p-1 h-16 align-bottom">
+              <th className="border-r border-b border-black p-1 h-16 align-bottom">
                 RETAINAGE
               </th>
             </tr>
@@ -150,7 +149,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               
               return (
                 <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                  <td className="border-r border-black p-1 text-center">{item.itemNumber}</td>
+                  <td className="border-l border-r border-black p-1 text-center">{item.itemNumber}</td>
                   <td className="border-r border-black p-1">{item.description}</td>
                   <td className="border-r border-black p-1 text-right">${(item.scheduledValue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className="border-r border-black p-1 text-right">${(item.changeOrders || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -161,14 +160,14 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
                   <td className="border-r border-black p-1 text-right">${totalCompleted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className="border-r border-black p-1 text-right">{percentComplete.toFixed(2)}%</td>
                   <td className="border-r border-black p-1 text-right">${balanceToFinish.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className="p-1 text-right">${retainage.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="border-r p-1 text-right">${retainage.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
               );
             })}
             
             {/* Totals Row */}
             <tr className="bg-gray-200 font-bold">
-              <td className="border-r border-black p-1 text-center" colSpan={2}>GRAND TOTALS</td>
+              <td className="border-l border-r border-black p-1 text-center" colSpan={2}>GRAND TOTALS</td>
               <td className="border-r border-black p-1 text-right">${totals.totalScheduledValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               <td className="border-r border-black p-1 text-right">${totals.totalChangeOrders.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               <td className="border-r border-black p-1 text-right">${totals.totalContract.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -178,7 +177,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               <td className="border-r border-black p-1 text-right">${totals.totalCompleted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               <td className="border-r border-black p-1 text-right">{totals.percentComplete.toFixed(2)}%</td>
               <td className="border-r border-black p-1 text-right">${totals.balanceToFinish.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td className="p-1 text-right">${totals.totalRetainage.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td className="border-r p-1 text-right">${totals.totalRetainage.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           </tbody>
         </table>

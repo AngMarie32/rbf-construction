@@ -1,4 +1,3 @@
-
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -105,7 +104,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       console.log('G702 element dimensions:', g702Element.scrollWidth, g702Element.scrollHeight);
 
       const g702Canvas = await html2canvas(g702Element, {
-        scale: 1.8,
+        scale: 2.2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
@@ -173,7 +172,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       console.log('G703 element dimensions:', g703Element.scrollWidth, g703Element.scrollHeight);
 
       const g703Canvas = await html2canvas(g703Element, {
-        scale: 1.8,
+        scale: 2.2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
