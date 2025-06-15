@@ -1,11 +1,12 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Upload, FileText, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -18,6 +19,7 @@ interface CreateExpenseDialogProps {
 
 export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCreated }: CreateExpenseDialogProps) {
   const [projects, setProjects] = useState<any[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     project_id: projectId || '',
     category: '',
@@ -29,6 +31,7 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
     status: 'Field Approval'
   });
   const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -44,6 +47,7 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
         receipt_number: '',
         status: 'Field Approval'
       });
+      setSelectedFile(null);
     }
   }, [open, projectId]);
 
@@ -59,6 +63,39 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');
+    }
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Check file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Please select an image (JPEG, PNG, GIF) or PDF file');
+        return;
+      }
+      
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size must be less than 5MB');
+        return;
+      }
+      
+      setSelectedFile(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const event = { target: { files: [file] } } as any;
+      handleFileSelect(event);
     }
   };
 
@@ -86,6 +123,24 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
 
       if (error) throw error;
 
+      // If there's a file attached, save it to localStorage
+      if (selectedFile && data && data[0]) {
+        const fileUrl = URL.createObjectURL(selectedFile);
+        const invoiceData = {
+          id: crypto.randomUUID(),
+          expenseId: data[0].id,
+          fileName: selectedFile.name,
+          fileSize: selectedFile.size,
+          fileType: selectedFile.type,
+          fileUrl,
+          uploadDate: new Date().toISOString()
+        };
+        
+        const existingInvoices = JSON.parse(localStorage.getItem('expense_invoices') || '[]');
+        existingInvoices.push(invoiceData);
+        localStorage.setItem('expense_invoices', JSON.stringify(existingInvoices));
+      }
+
       toast.success('Expense created successfully');
       onExpenseCreated();
       onOpenChange(false);
@@ -101,6 +156,7 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
         receipt_number: '',
         status: 'Field Approval'
       });
+      setSelectedFile(null);
     } catch (error) {
       console.error('Error creating expense:', error);
       toast.error('Failed to create expense');
@@ -111,7 +167,7 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Expense</DialogTitle>
         </DialogHeader>
@@ -201,6 +257,68 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
               value={formData.receipt_number}
               onChange={(e) => setFormData(prev => ({ ...prev, receipt_number: e.target.value }))}
               placeholder="Enter receipt number"
+            />
+          </div>
+
+          {/* Invoice Upload Section */}
+          <div>
+            <Label>Invoice (Optional)</Label>
+            <div 
+              className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors"
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              {selectedFile ? (
+                <div className="space-y-2">
+                  <FileText className="w-6 h-6 text-blue-500 mx-auto" />
+                  <p className="text-sm font-medium">{selectedFile.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                  <div className="flex gap-2 justify-center">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Change File
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setSelectedFile(null)}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Upload className="w-6 h-6 text-gray-400 mx-auto" />
+                  <div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Select File
+                    </Button>
+                    <p className="text-xs text-gray-500 mt-1">
+                      or drag and drop
+                    </p>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    PNG, JPG, GIF, PDF up to 5MB
+                  </p>
+                </div>
+              )}
+            </div>
+            <Input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf"
+              onChange={handleFileSelect}
+              className="hidden"
             />
           </div>
 

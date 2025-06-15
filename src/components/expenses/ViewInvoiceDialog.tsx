@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { FileText, Download, X } from 'lucide-react';
 
 interface Invoice {
@@ -87,7 +88,7 @@ export function ViewInvoiceDialog({
           <DialogTitle>View Invoice - {expenseDescription}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 flex flex-col h-full">
           {/* Invoice selector if multiple */}
           {invoices.length > 1 && (
             <div className="flex gap-2 flex-wrap">
@@ -125,13 +126,13 @@ export function ViewInvoiceDialog({
                 </Button>
               </div>
 
-              {/* Invoice preview */}
-              <div className="border rounded-lg bg-white overflow-hidden" style={{ maxHeight: '60vh' }}>
+              {/* Invoice preview with scrolling */}
+              <ScrollArea className="border rounded-lg bg-white h-96">
                 {isImageFile(selectedInvoice.fileType) ? (
                   <img
                     src={selectedInvoice.fileUrl}
                     alt={selectedInvoice.fileName}
-                    className="w-full h-auto max-h-full object-contain"
+                    className="w-full h-auto object-contain"
                   />
                 ) : isPdfFile(selectedInvoice.fileType) ? (
                   <iframe
@@ -141,15 +142,17 @@ export function ViewInvoiceDialog({
                   />
                 ) : (
                   <div className="flex items-center justify-center h-48 text-gray-500">
-                    <FileText className="w-16 h-16 mb-2" />
-                    <p>Preview not available for this file type</p>
+                    <div className="text-center">
+                      <FileText className="w-16 h-16 mb-2 mx-auto" />
+                      <p>Preview not available for this file type</p>
+                    </div>
                   </div>
                 )}
-              </div>
+              </ScrollArea>
             </div>
           )}
 
-          <div className="flex justify-end">
+          <div className="flex justify-end mt-4">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Close
             </Button>
