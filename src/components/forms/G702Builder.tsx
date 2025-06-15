@@ -244,7 +244,7 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
     const target = sovItems.find(i => i.id === itemId);
     if (!target) return;
     setLastDeletedSOV(target);
-    // Fix: use value, not updater function, to satisfy TS
+    // Pass direct value instead of updater function to setUndoStack
     setUndoStack([...undoStack, target]);
 
     setSovItems(sovItems.filter(item => item.id !== itemId));
