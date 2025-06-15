@@ -81,7 +81,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
             <tr className="bg-gray-100">
               <th className="border-r border-black border-b-2 p-1 w-8 font-bold align-bottom">
                 <div className="pb-1">A</div>
-                <div className="font-normal">ITEM<br/>NO.</div>
+                <div className="font-normal">ITEM<br />NO.</div>
               </th>
               <th className="border-r border-black border-b-2 p-1 w-32 font-bold align-bottom">
                 <div className="pb-1">B</div>
@@ -89,38 +89,53 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               </th>
               <th className="border-r border-black border-b-2 p-1 w-16 font-bold align-bottom">
                 <div className="pb-1">C</div>
-                <div className="font-normal">SCHEDULED<br/>VALUE</div>
+                <div className="font-normal">SCHEDULED<br />VALUE</div>
               </th>
               <th className="border-r border-black border-b-2 p-1 w-16 font-bold align-bottom">
                 <div className="pb-1">D</div>
-                <div className="font-normal">CHANGE<br/>ORDERS</div>
+                <div className="font-normal">CHANGE<br />ORDERS</div>
               </th>
               <th className="border-r border-black border-b-2 p-1 w-16 font-bold align-bottom">
                 <div className="pb-1">E</div>
-                <div className="font-normal">TOTAL<br/>CONTRACT</div>
+                <div className="font-normal">TOTAL<br />CONTRACT</div>
               </th>
-              <th className="border-r border-black border-b-2 p-1 font-bold align-bottom" colSpan={4}>
-                <div className="pb-1">WORK COMPLETED</div>
+              <th
+                className="border-r border-black border-b-2 p-1 font-bold align-bottom text-center"
+                colSpan={4}
+              >
+                WORK COMPLETED
               </th>
               <th className="border-r border-black border-b-2 p-1 w-12 font-bold align-bottom">
                 <div className="pb-1">J</div>
-                <div className="font-normal">%<br/>COMPLETE</div>
+                <div className="font-normal">%<br />COMPLETE</div>
               </th>
               <th className="border-r border-black border-b-2 p-1 w-16 font-bold align-bottom">
                 <div className="pb-1">K</div>
-                <div className="font-normal">BALANCE TO<br/>FINISH</div>
+                <div className="font-normal">BALANCE TO<br />FINISH</div>
               </th>
               <th className="border-black border-b-2 p-1 w-16 font-bold align-bottom">
                 <div className="pb-1">L</div>
-                <div className="font-normal">RETAINAGE<br/>HELD</div>
+                <div className="font-normal">RETAINAGE<br />HELD</div>
               </th>
             </tr>
             <tr className="bg-gray-100">
               <th className="border-r border-black p-1" colSpan={5}></th>
-              <th className="border-r border-black p-1 font-bold w-16">F<br/><span className="font-normal">FROM PREVIOUS<br/>APPLICATION</span></th>
-              <th className="border-r border-black p-1 font-bold w-16">G<br/><span className="font-normal">THIS PERIOD</span></th>
-              <th className="border-r border-black p-1 font-bold w-16">H<br/><span className="font-normal">MATERIALS PRESENTLY<br/>STORED</span></th>
-              <th className="border-r border-black p-1 font-bold w-16">I<br/><span className="font-normal">TOTAL COMPLETED<br/>AND STORED TO</span></th>
+              <th className="border-r border-black p-1 font-bold w-16 text-center">
+                F<br />
+                <span className="font-normal">FROM PREVIOUS APPLICATION</span>
+              </th>
+              <th className="border-r border-black p-1 font-bold w-16 text-center">
+                G<br />
+                <span className="font-normal">THIS PERIOD</span>
+              </th>
+              <th className="border-r border-black p-1 font-bold w-16 text-center">
+                H<br />
+                <span className="font-normal">MATERIALS PRESENTLY STORED</span>
+              </th>
+              <th className="border-r border-black p-1 font-bold w-16 text-center">
+                I<br />
+                <span className="font-normal">TOTAL COMPLETED AND STORED TO</span>
+              </th>
               <th className="border-r border-black p-1" colSpan={3}></th>
             </tr>
           </thead>
@@ -155,6 +170,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               <tr key={`empty-${index}`}>
                 <td className="border-r border-black p-1 text-center">{sovItems.length + index + 1}</td>
                 <td className="border-r border-black p-1"></td>
+                <td className="border-r border-black p-1 text-right">$0.00</td>
                 <td className="border-r border-black p-1 text-right">$0.00</td>
                 <td className="border-r border-black p-1 text-right">$0.00</td>
                 <td className="border-r border-black p-1 text-right">$0.00</td>
