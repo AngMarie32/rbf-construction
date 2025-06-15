@@ -12,43 +12,51 @@ export function G702Document({ project, formData, totals }: G702DocumentProps) {
     <div className="bg-white p-6 mx-auto text-black print:shadow-none" style={{ width: '11in', minHeight: '8.5in' }}>
       {/* Header */}
       <div className="text-center mb-6 border-b-2 border-black pb-4">
-        <h1 className="text-xl font-bold mb-3">APPLICATION AND CERTIFICATE FOR PAYMENT</h1>
-        <div className="grid grid-cols-3 gap-6 text-sm">
-          <div className="text-left">
-            <div className="font-bold mb-1">TO (Owner):</div>
+        <h1 className="text-xl font-bold mb-4">APPLICATION AND CERTIFICATE FOR PAYMENT</h1>
+        
+        {/* Main header layout - single row with three columns */}
+        <div className="grid grid-cols-12 gap-4 text-sm">
+          {/* Left Column - TO (Owner) */}
+          <div className="col-span-4 text-left">
+            <div className="font-bold mb-2">TO:</div>
             <div className="space-y-1">
               <div>{project.client}</div>
               <div>{project.address}</div>
             </div>
           </div>
-          <div className="text-center">
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div>
-                <div className="font-bold text-sm mb-1">APPLICATION NO:</div>
-                <div className="text-center text-2xl font-bold border-b-2 border-black pb-1">{formData.applicationNumber}</div>
-              </div>
-              <div>
-                <div className="font-bold text-sm mb-1">PERIOD TO:</div>
-                <div className="border-b-2 border-black pb-1 text-sm">{new Date(formData.periodTo).toLocaleDateString()}</div>
-              </div>
+          
+          {/* Center Column - Application details */}
+          <div className="col-span-4 text-left space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="font-bold">APPLICATION NO:</span>
+              <span className="text-xl font-bold border-b border-black px-2">{formData.applicationNumber}</span>
             </div>
-            <div className="mb-3">
-              <div className="font-bold text-sm mb-1">PROJECT:</div>
-              <div className="border-b-2 border-black pb-1 text-sm">{project.name}</div>
+            <div className="flex justify-between items-center">
+              <span className="font-bold">PERIOD TO:</span>
+              <span className="border-b border-black px-2">{new Date(formData.periodTo).toLocaleDateString()}</span>
             </div>
-            <div>
-              <div className="font-bold text-sm mb-1">PROJECT NUMBER:</div>
-              <div className="border-b-2 border-black pb-1 text-sm">{project.projectCode}</div>
+            <div className="flex justify-between items-center">
+              <span className="font-bold">PROJECT:</span>
+              <span className="border-b border-black px-2 flex-1 ml-2">{project.name}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="font-bold">PROJECT NO:</span>
+              <span className="border-b border-black px-2">{project.projectCode}</span>
             </div>
           </div>
-          <div className="text-left">
-            <div className="font-bold mb-1">FROM (Contractor):</div>
-            <div className="space-y-1 mb-3">
-              <div>{formData.contractorName}</div>
-              <div>{formData.contractorAddress}</div>
+          
+          {/* Right Column - FROM and Distribution */}
+          <div className="col-span-4 text-left">
+            <div className="mb-4">
+              <div className="font-bold mb-2">FROM:</div>
+              <div className="space-y-1">
+                <div>{formData.contractorName}</div>
+                <div>{formData.contractorAddress}</div>
+              </div>
             </div>
+            
             <div>
-              <div className="font-bold text-sm mb-2">Distribution to:</div>
+              <div className="font-bold mb-2">Distribution to:</div>
               <div className="space-y-1">
                 <label className="flex items-center text-sm">
                   <input type="checkbox" checked={formData.distributionTo?.owner} readOnly className="mr-2" />
