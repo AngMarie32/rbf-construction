@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -279,7 +280,8 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
       if (!sovItems.find(i => i.id === itemId) && !undoStack.includes(target) && !itemId.startsWith('co-')) {
         await supabase.from('sov_items').delete().eq('id', itemId);
       }
-      setUndoStack(stack => stack.filter((v) => v.id !== itemId));
+      // Fix: use direct value instead of functional updater
+      setUndoStack(undoStack.filter((v) => v.id !== itemId));
     }, 4000);
   };
 
