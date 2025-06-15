@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -245,7 +244,7 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
     const target = sovItems.find(i => i.id === itemId);
     if (!target) return;
     setLastDeletedSOV(target);
-    // Pass direct value instead of updater function to setUndoStack
+    // Fix: use direct value instead of updater function
     setUndoStack([...undoStack, target]);
 
     setSovItems(sovItems.filter(item => item.id !== itemId));
@@ -473,6 +472,10 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
             <Button onClick={importSOVItems} className="flex items-center gap-2">
               <Download className="w-4 h-4" />
               Import Schedule of Values
+            </Button>
+            <Button onClick={handleAddNewItem} variant="outline" className="flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              Add New Item
             </Button>
           </div>
 
