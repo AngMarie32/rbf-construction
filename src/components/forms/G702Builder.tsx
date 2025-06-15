@@ -244,7 +244,6 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
     const target = sovItems.find(i => i.id === itemId);
     if (!target) return;
     setLastDeletedSOV(target);
-    // Fix: Use functional update pattern for state updates
     setUndoStack(prev => [...prev, target]);
 
     setSovItems(sovItems.filter(item => item.id !== itemId));
@@ -278,8 +277,8 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
       if (!sovItems.find(i => i.id === itemId) && !itemId.startsWith('co-')) {
         await supabase.from('sov_items').delete().eq('id', itemId);
       }
-      // Fix: Use functional update pattern to remove from undo stack
-      setUndoStack(prev => prev.filter((v) => v.id !== itemId));
+      // Fix: Remove from undo stack after timeout - use direct state update
+      setUndoStack(currentStack => currentStack.filter((v) => v.id !== itemId));
     }, 4000);
   };
 
