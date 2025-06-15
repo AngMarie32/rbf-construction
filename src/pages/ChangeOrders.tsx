@@ -5,13 +5,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, FileText, DollarSign, Calendar, Eye, Edit, Trash2, Building2, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Search, Plus, FileText, DollarSign, Calendar, Eye, Edit, Trash2, Building2, AlertCircle, CheckCircle, Clock, XCircle, Paperclip, Filter, MoreHorizontal } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { CreateChangeOrderDialog } from '@/components/change-orders/CreateChangeOrderDialog';
+import { AttachChangeOrderDocumentDialog } from '@/components/change-orders/AttachChangeOrderDocumentDialog';
+import { ViewChangeOrderDocumentsDialog } from '@/components/change-orders/ViewChangeOrderDocumentsDialog';
+import { ChangeOrderSOVDialog } from '@/components/change-orders/ChangeOrderSOVDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export default function ChangeOrders() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -24,6 +29,15 @@ export default function ChangeOrders() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedChangeOrder, setSelectedChangeOrder] = useState<any>(null);
   const [editingChangeOrder, setEditingChangeOrder] = useState<any>(null);
+  
+  // New state for enhanced features
+  const [selectedChangeOrders, setSelectedChangeOrders] = useState<string[]>([]);
+  const [attachDocumentDialogOpen, setAttachDocumentDialogOpen] = useState(false);
+  const [viewDocumentsDialogOpen, setViewDocumentsDialogOpen] = useState(false);
+  const [sovDialogOpen, setSovDialogOpen] = useState(false);
+  const [amountFilter, setAmountFilter] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
+  
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -81,13 +95,11 @@ export default function ChangeOrders() {
 
   const viewChangeOrder = (co: any) => {
     setSelectedChangeOrder(co);
-    // Here you could open a detailed view dialog instead of an alert
     toast.info(`Viewing Change Order: ${co.number}`);
   };
 
   const editChangeOrder = (co: any) => {
     setEditingChangeOrder(co);
-    // Here you could open an edit dialog
     toast.info(`Editing Change Order: ${co.number}`);
   };
 
@@ -134,11 +146,64 @@ export default function ChangeOrders() {
     }
   };
 
+  const handleSelectAll = () => {
+    if (selectedChangeOrders.length === filteredChangeOrders.length) {
+      setSelectedChangeOrders([]);
+    } else {
+      setSelectedChangeOrders(filteredChangeOrders.map(co => co.id));
+    }
+  };
+
+  const handleSelectChangeOrder = (id: string) => {
+    setSelectedChangeOrders(prev =>
+      prev.includes(id)
+        ? prev.filter(coId => coId !== id)
+        : [...prev, id]
+    );
+  };
+
+  const handleBulkStatusUpdate = async (newStatus: string) => {
+    if (selectedChangeOrders.length === 0) {
+      toast.error('Please select change orders first');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('change_orders')
+        .update({ status: newStatus })
+        .in('id', selectedChangeOrders);
+
+      if (error) throw error;
+
+      toast.success(`Updated ${selectedChangeOrders.length} change orders to ${newStatus}`);
+      setSelectedChangeOrders([]);
+      fetchChangeOrders();
+    } catch (error) {
+      console.error('Error updating change orders:', error);
+      toast.error('Failed to update change orders');
+    }
+  };
+
+  const handleAttachDocument = (co: any) => {
+    setSelectedChangeOrder(co);
+    setAttachDocumentDialogOpen(true);
+  };
+
+  const handleViewDocuments = (co: any) => {
+    setSelectedChangeOrder(co);
+    setViewDocumentsDialogOpen(true);
+  };
+
   const filteredChangeOrders = changeOrders.filter(co => {
     const matchesSearch = co.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          co.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || co.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesAmount = amountFilter === 'all' || 
+                         (amountFilter === 'positive' && co.amount > 0) ||
+                         (amountFilter === 'negative' && co.amount < 0) ||
+                         (amountFilter === 'large' && Math.abs(co.amount) > 10000);
+    return matchesSearch && matchesStatus && matchesAmount;
   });
 
   const totalAmount = changeOrders.reduce((sum, co) => sum + (co.amount || 0), 0);
@@ -259,50 +324,141 @@ export default function ChangeOrders() {
               </Card>
             </div>
 
-            {/* Controls */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
-              <div className="flex gap-4 flex-1">
-                <div className="relative max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Search change orders..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+            {/* Enhanced Controls */}
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
+                <div className="flex gap-4 flex-1">
+                  <div className="relative max-w-md">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      placeholder="Search change orders..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="flex items-center gap-2"
+                  >
+                    <Filter className="w-4 h-4" />
+                    Filters
+                  </Button>
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="Draft">Draft</SelectItem>
-                    <SelectItem value="Submitted">Submitted</SelectItem>
-                    <SelectItem value="Approved">Approved</SelectItem>
-                    <SelectItem value="Rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  {changeOrders.filter(co => co.status === 'Approved').length > 0 && (
+                    <Button onClick={() => setSovDialogOpen(true)} variant="outline">
+                      Add to SOV
+                    </Button>
+                  )}
+                  <Button onClick={handleCreateNew} className="bg-accent hover:bg-accent/90">
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Change Order
+                  </Button>
+                </div>
               </div>
-              <Button onClick={handleCreateNew} className="bg-accent hover:bg-accent/90">
-                <Plus className="w-4 h-4 mr-2" />
-                New Change Order
-              </Button>
+
+              {/* Enhanced Filters */}
+              {showFilters && (
+                <Card className="p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Status</label>
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          <SelectItem value="Draft">Draft</SelectItem>
+                          <SelectItem value="Submitted">Submitted</SelectItem>
+                          <SelectItem value="Approved">Approved</SelectItem>
+                          <SelectItem value="Rejected">Rejected</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Amount</label>
+                      <Select value={amountFilter} onValueChange={setAmountFilter}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Amounts</SelectItem>
+                          <SelectItem value="positive">Positive (Additions)</SelectItem>
+                          <SelectItem value="negative">Negative (Deductions)</SelectItem>
+                          <SelectItem value="large">Large (&gt; $10,000)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Bulk Operations */}
+              {selectedChangeOrders.length > 0 && (
+                <Card className="p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      {selectedChangeOrders.length} change orders selected
+                    </span>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleBulkStatusUpdate('Approved')}
+                      >
+                        Bulk Approve
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleBulkStatusUpdate('Rejected')}
+                      >
+                        Bulk Reject
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => setSelectedChangeOrders([])}
+                      >
+                        Clear Selection
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              )}
             </div>
 
             {/* Change Orders List */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  Change Orders
-                </CardTitle>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Change Orders
+                  </CardTitle>
+                  {filteredChangeOrders.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={selectedChangeOrders.length === filteredChangeOrders.length}
+                        onCheckedChange={handleSelectAll}
+                      />
+                      <span className="text-sm text-gray-500">Select All</span>
+                    </div>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {filteredChangeOrders.length > 0 ? (
                   <div className="space-y-4">
                     {filteredChangeOrders.map((co) => (
-                      <div key={co.id} className="flex justify-between items-center p-6 border rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+                      <div key={co.id} className="flex items-center gap-4 p-6 border rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+                        <Checkbox
+                          checked={selectedChangeOrders.includes(co.id)}
+                          onCheckedChange={() => handleSelectChangeOrder(co.id)}
+                        />
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-3">
                             <Badge variant="outline" className="font-mono text-sm px-3 py-1">
@@ -332,41 +488,46 @@ export default function ChangeOrders() {
                             <Eye className="w-4 h-4 mr-1" />
                             View
                           </Button>
-                          <Button variant="outline" size="sm" onClick={() => editChangeOrder(co)}>
-                            <Edit className="w-4 h-4 mr-1" />
-                            Edit
+                          <Button variant="outline" size="sm" onClick={() => handleAttachDocument(co)}>
+                            <Paperclip className="w-4 h-4 mr-1" />
+                            Attach
                           </Button>
-                          {co.status === 'Submitted' && (
-                            <>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => updateChangeOrderStatus(co.id, 'Approved')}
-                                className="text-green-600 hover:text-green-800 hover:bg-green-50"
-                              >
-                                <CheckCircle className="w-4 h-4 mr-1" />
-                                Approve
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => updateChangeOrderStatus(co.id, 'Rejected')}
-                                className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                              >
-                                <XCircle className="w-4 h-4 mr-1" />
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleDeleteClick(co)}
-                            className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            Delete
+                          <Button variant="outline" size="sm" onClick={() => handleViewDocuments(co)}>
+                            <FileText className="w-4 h-4 mr-1" />
+                            Documents
                           </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => editChangeOrder(co)}>
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              {co.status === 'Submitted' && (
+                                <>
+                                  <DropdownMenuItem onClick={() => updateChangeOrderStatus(co.id, 'Approved')}>
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    Approve
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => updateChangeOrderStatus(co.id, 'Rejected')}>
+                                    <XCircle className="w-4 h-4 mr-2" />
+                                    Reject
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteClick(co)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     ))}
@@ -414,11 +575,37 @@ export default function ChangeOrders() {
           </Card>
         )}
 
+        {/* Dialogs */}
         <CreateChangeOrderDialog
           open={createDialogOpen}
           onOpenChange={setCreateDialogOpen}
           projectId={selectedProject}
           onSave={fetchChangeOrders}
+        />
+
+        <AttachChangeOrderDocumentDialog
+          open={attachDocumentDialogOpen}
+          onOpenChange={setAttachDocumentDialogOpen}
+          changeOrderId={selectedChangeOrder?.id || null}
+          changeOrderNumber={selectedChangeOrder?.number || ''}
+          onDocumentAttached={fetchChangeOrders}
+        />
+
+        <ViewChangeOrderDocumentsDialog
+          open={viewDocumentsDialogOpen}
+          onOpenChange={setViewDocumentsDialogOpen}
+          changeOrderId={selectedChangeOrder?.id || null}
+          changeOrderNumber={selectedChangeOrder?.number || ''}
+        />
+
+        <ChangeOrderSOVDialog
+          open={sovDialogOpen}
+          onOpenChange={setSovDialogOpen}
+          projectId={selectedProject}
+          onSuccess={() => {
+            toast.success('Successfully added change orders to SOV');
+            fetchChangeOrders();
+          }}
         />
 
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
