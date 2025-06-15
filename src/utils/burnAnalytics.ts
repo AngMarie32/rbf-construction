@@ -80,7 +80,8 @@ export class BurnAnalyticsEngine {
   ): Promise<CategoryAnalysis[]> {
     if (projectIds.length === 0) return [];
 
-    const categories = await this.getExpenseCategories();
+    // Get all expense categories and create a comprehensive list
+    const expenseCategories = await this.getExpenseCategories();
     const expenses = await this.getExpensesData(projectIds, dateRange);
     const billing = await this.getBillingData(projectIds, dateRange);
     const variances = await this.getBudgetVariances(projectIds, dateRange);
@@ -91,11 +92,33 @@ export class BurnAnalyticsEngine {
     // Check if we have actual budget variance data for these projects
     const hasVarianceData = variances.length > 0;
 
-    // Get actual expenses by category
+    // Get actual expenses by category - improved to capture all expense categories
     const expensesByCategory = this.groupExpensesByCategory(expenses);
     const billingByCategory = this.groupBillingByCategory(billing);
 
-    return categories.map(category => {
+    // Combine predefined categories with categories found in expenses
+    const allCategories = new Map();
+    
+    // Add predefined categories
+    expenseCategories.forEach(cat => {
+      allCategories.set(cat.name, { id: cat.id, name: cat.name });
+    });
+    
+    // Add categories found in actual expenses
+    Object.keys(expensesByCategory).forEach(categoryName => {
+      if (!allCategories.has(categoryName)) {
+        allCategories.set(categoryName, { id: `expense-${categoryName}`, name: categoryName });
+      }
+    });
+    
+    // Add categories found in billing
+    Object.keys(billingByCategory).forEach(categoryName => {
+      if (!allCategories.has(categoryName)) {
+        allCategories.set(categoryName, { id: `billing-${categoryName}`, name: categoryName });
+      }
+    });
+
+    return Array.from(allCategories.values()).map(category => {
       // Check if this category has real budget allocation data
       const categoryVariances = variances.filter(v => v.category_id === category.id);
       const hasRealBudgetData = categoryVariances.length > 0;
@@ -110,16 +133,16 @@ export class BurnAnalyticsEngine {
         return null;
       }
 
-      // Use real planned budget if available, otherwise show only actual data
+      // Use real planned budget if available, otherwise estimate based on category type
       const plannedBudget = hasRealBudgetData 
         ? categoryVariances.reduce((sum, v) => sum + v.planned_amount, 0)
-        : 0;
+        : this.estimateCategoryBudget(category.name, totalBudget);
 
       const variance = actualSpend - plannedBudget;
       const variancePercent = plannedBudget > 0 ? (variance / plannedBudget) * 100 : 0;
 
       const trend = this.calculateTrend(categoryVariances);
-      const riskLevel = this.assessRiskLevel(variancePercent, trend, hasRealBudgetData);
+      const riskLevel = this.assessRiskLevel(variancePercent, trend, hasRealBudgetData || actualSpend > 0);
       const status = this.determineStatus(riskLevel);
 
       return {
@@ -134,7 +157,7 @@ export class BurnAnalyticsEngine {
         riskLevel,
         trend,
         forecastedTotal: this.forecastCategoryTotal(actualSpend, plannedBudget, trend),
-        alerts: this.generateCategoryAlerts(category.name, variancePercent, riskLevel, hasRealBudgetData),
+        alerts: this.generateCategoryAlerts(category.name, variancePercent, riskLevel, hasRealBudgetData || actualSpend > 0),
         hasRealData: hasRealBudgetData || actualSpend > 0
       };
     }).filter(Boolean) as CategoryAnalysis[];
@@ -143,18 +166,36 @@ export class BurnAnalyticsEngine {
   private static groupExpensesByCategory(expenses: any[]): Record<string, number> {
     return expenses.reduce((acc, expense) => {
       const category = expense.category || 'Other';
-      acc[category] = (acc[category] || 0) + (expense.amount || 0);
+      acc[category] = (acc[category] || 0) + (Number(expense.amount) || 0);
       return acc;
     }, {});
   }
 
   private static groupBillingByCategory(billing: any[]): Record<string, number> {
-    // For now, we'll categorize billing as Labor since most billing is labor-related
-    // This could be enhanced with better categorization logic
     return billing.reduce((acc, bill) => {
-      acc['Labor'] = (acc['Labor'] || 0) + (bill.billed_amount || 0);
+      // For now, categorize most billing as Labor since billing is typically labor-related
+      // This could be enhanced with better categorization logic
+      const category = 'Labor';
+      acc[category] = (acc[category] || 0) + (Number(bill.billed_amount) || 0);
       return acc;
     }, {});
+  }
+
+  private static estimateCategoryBudget(categoryName: string, totalBudget: number): number {
+    // Standard industry allocation percentages
+    const allocations: Record<string, number> = {
+      'Labor': 0.35,
+      'Materials': 0.30,
+      'Equipment': 0.15,
+      'Subcontractors': 0.12,
+      'Overhead': 0.05,
+      'Insurance': 0.02,
+      'Permits': 0.01,
+      'Other': 0.05
+    };
+    
+    // Use allocation if available, otherwise default to small percentage
+    return totalBudget * (allocations[categoryName] || 0.05);
   }
 
   static async generateRiskAssessment(
@@ -196,7 +237,7 @@ export class BurnAnalyticsEngine {
       .from('expenses')
       .select('project_id, amount, date, category, status')
       .in('project_id', projectIds)
-      .in('status', ['Approved', 'Paid']);
+      .in('status', ['Approved', 'Paid']); // Only include approved/paid expenses
 
     if (dateRange?.from && dateRange?.to) {
       query = query.gte('date', format(dateRange.from, 'yyyy-MM-dd'))
@@ -241,7 +282,18 @@ export class BurnAnalyticsEngine {
       .select('*')
       .order('name');
 
-    if (error) throw error;
+    if (error) {
+      // If no expense categories table exists, return default categories
+      console.warn('No expense categories found, using defaults');
+      return [
+        { id: 'labor', name: 'Labor' },
+        { id: 'materials', name: 'Materials' },
+        { id: 'equipment', name: 'Equipment' },
+        { id: 'subcontractors', name: 'Subcontractors' },
+        { id: 'overhead', name: 'Overhead' },
+        { id: 'other', name: 'Other' }
+      ];
+    }
     return data || [];
   }
 
@@ -257,7 +309,10 @@ export class BurnAnalyticsEngine {
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      console.warn('No budget variances found');
+      return [];
+    }
     return data || [];
   }
 
@@ -272,11 +327,11 @@ export class BurnAnalyticsEngine {
   private static calculateActualSpendToDate(month: Date, expenses: any[], billing: any[]) {
     const expenseSpend = expenses
       .filter(e => new Date(e.date) <= month)
-      .reduce((sum, e) => sum + (e.amount || 0), 0);
+      .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
     const billingSpend = billing
       .filter(b => new Date(b.billing_period_end) <= month)
-      .reduce((sum, b) => sum + (b.billed_amount || 0), 0);
+      .reduce((sum, b) => sum + (Number(b.billed_amount) || 0), 0);
 
     return expenseSpend + billingSpend;
   }
@@ -294,33 +349,11 @@ export class BurnAnalyticsEngine {
     }
 
     // Simple trend-based forecast if no ML forecast available
-    const trend = actual / planned;
+    const trend = planned > 0 ? actual / planned : 1;
     return {
       predicted: planned * Math.max(0.8, Math.min(1.5, trend)),
       confidence: 0.6
     };
-  }
-
-  private static calculatePlannedBudget(categoryName: string, totalBudget: number) {
-    const allocations: Record<string, number> = {
-      'Labor': 0.35,
-      'Materials': 0.30,
-      'Equipment': 0.20,
-      'Subcontractors': 0.10,
-      'Overhead': 0.05
-    };
-    return totalBudget * (allocations[categoryName] || 0.1);
-  }
-
-  private static calculateActualSpend(expenses: any[], billing: any[]) {
-    const expenseTotal = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-    const billingTotal = billing.reduce((sum, b) => sum + (b.billed_amount || 0), 0);
-    return expenseTotal + billingTotal;
-  }
-
-  private static categorizeBilling(billing: any): string {
-    // Simple categorization logic - could be enhanced with ML
-    return 'Labor'; // Default categorization
   }
 
   private static calculateTrend(variances: any[]): 'improving' | 'stable' | 'declining' {

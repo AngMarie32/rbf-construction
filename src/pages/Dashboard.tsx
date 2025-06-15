@@ -1,6 +1,6 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { StatCard } from '@/components/dashboard/StatCard';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { Project } from '@/types';
 import { useNavigate } from 'react-router-dom';
+import { useProjectExpenses } from '@/hooks/useProjectExpenses';
 import { isWithinInterval, parseISO, startOfYear, endOfYear, startOfMonth, endOfMonth } from 'date-fns';
 
 interface DatabaseProject {
@@ -43,6 +44,10 @@ export default function Dashboard() {
     type: 'custom'
   });
   const navigate = useNavigate();
+
+  // Get project expenses
+  const projectIds = projects.map(p => p.id);
+  const { expenses: projectExpenses } = useProjectExpenses(projectIds);
 
   useEffect(() => {
     fetchProjects();
@@ -135,6 +140,7 @@ export default function Dashboard() {
   const totalContractValue = projects.reduce((sum, p) => sum + p.contractValue, 0);
   const openProjects = projects.filter(p => p.status !== 'Closed');
   const remainingContractBalance = openProjects.reduce((sum, p) => sum + p.contractValue, 0);
+  const totalExpenses = Object.values(projectExpenses).reduce((sum, expense) => sum + expense, 0);
 
   const handleDeleteProject = async (projectId: string) => {
     try {
@@ -146,7 +152,6 @@ export default function Dashboard() {
 
       if (expensesError) throw expensesError;
 
-      // Delete other related records
       const { error: billingError } = await supabase
         .from('project_billing')
         .delete()
@@ -168,7 +173,6 @@ export default function Dashboard() {
 
       if (tasksError) throw tasksError;
 
-      // Finally delete the project
       const { error: projectError } = await supabase
         .from('projects')
         .delete()
@@ -211,7 +215,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             {billingData && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Contract Value</CardTitle>
@@ -223,6 +227,21 @@ export default function Dashboard() {
                     </div>
                     <p className="text-xs text-muted-foreground">
                       All projects combined
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+                    <DollarSign className="h-4 w-4 text-red-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-red-600">
+                      ${totalExpenses.toLocaleString()}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Approved expenses
                     </p>
                   </CardContent>
                 </Card>
@@ -306,6 +325,8 @@ export default function Dashboard() {
                     project={project} 
                     showDeleteButton={true}
                     onDelete={handleDeleteProject}
+                    onUpdate={fetchProjects}
+                    totalExpenses={projectExpenses[project.id] || 0}
                   />
                 ))}
               </div>

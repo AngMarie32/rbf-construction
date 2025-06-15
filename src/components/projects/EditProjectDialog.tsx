@@ -1,13 +1,13 @@
 
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Edit } from 'lucide-react';
+import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,17 +17,17 @@ import { Project } from '@/types';
 interface EditProjectDialogProps {
   project: Project;
   onProjectUpdated: () => void;
-  trigger?: React.ReactNode;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function EditProjectDialog({ project, onProjectUpdated, trigger }: EditProjectDialogProps) {
-  const [open, setOpen] = useState(false);
+export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChange }: EditProjectDialogProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: project.name,
     type: project.type,
     contractValue: project.contractValue.toString(),
-    status: project.status as 'Planning' | 'Open' | 'Closed',
+    status: project.status as 'Planning' | 'Active' | 'On Hold' | 'Completed' | 'Closed',
     startDate: project.startDate,
     dueDate: project.dueDate,
     address: project.address,
@@ -60,26 +60,30 @@ export function EditProjectDialog({ project, onProjectUpdated, trigger }: EditPr
 
     setLoading(true);
     try {
+      const updateData = {
+        name: formData.name,
+        type: formData.type || 'General',
+        contract_value: formData.contractValue ? parseFloat(formData.contractValue) : 0,
+        status: formData.status,
+        start_date: formData.startDate ? format(formData.startDate, 'yyyy-MM-dd') : null,
+        due_date: formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : null,
+        address: formData.address || null,
+        project_code: formData.projectCode || null,
+        client: formData.client || null,
+        completion_percentage: formData.completionPercentage ? parseInt(formData.completionPercentage) : 0,
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('Updating project with data:', updateData);
+
       const { error } = await supabase
         .from('projects')
-        .update({
-          name: formData.name,
-          type: formData.type || 'General',
-          contract_value: formData.contractValue ? parseFloat(formData.contractValue) : 0,
-          status: formData.status,
-          start_date: formData.startDate ? format(formData.startDate, 'yyyy-MM-dd') : null,
-          due_date: formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : null,
-          address: formData.address || null,
-          project_code: formData.projectCode || null,
-          client: formData.client || null,
-          completion_percentage: formData.completionPercentage ? parseInt(formData.completionPercentage) : 0,
-        })
+        .update(updateData)
         .eq('id', project.id);
 
       if (error) throw error;
 
       toast.success('Project updated successfully');
-      setOpen(false);
       onProjectUpdated();
     } catch (error) {
       console.error('Error updating project:', error);
@@ -90,18 +94,10 @@ export function EditProjectDialog({ project, onProjectUpdated, trigger }: EditPr
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button>
-            <Edit className="w-4 h-4 mr-2" />
-            Edit Project
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Project</DialogTitle>
+          <DialogTitle>Edit Project: {project.name}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -188,13 +184,15 @@ export function EditProjectDialog({ project, onProjectUpdated, trigger }: EditPr
 
           <div className="space-y-2">
             <Label htmlFor="status">Status</Label>
-            <Select value={formData.status} onValueChange={(value: 'Planning' | 'Open' | 'Closed') => setFormData({ ...formData, status: value })}>
+            <Select value={formData.status} onValueChange={(value: 'Planning' | 'Active' | 'On Hold' | 'Completed' | 'Closed') => setFormData({ ...formData, status: value })}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Planning">Planning</SelectItem>
-                <SelectItem value="Open">Open</SelectItem>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="On Hold">On Hold</SelectItem>
+                <SelectItem value="Completed">Completed</SelectItem>
                 <SelectItem value="Closed">Closed</SelectItem>
               </SelectContent>
             </Select>
@@ -257,7 +255,7 @@ export function EditProjectDialog({ project, onProjectUpdated, trigger }: EditPr
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>

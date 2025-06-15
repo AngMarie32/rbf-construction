@@ -1,169 +1,230 @@
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import { Calendar, DollarSign, MapPin, Trash2, TrendingUp, CreditCard, Clock } from 'lucide-react';
+import { Calendar, DollarSign, Clock, Trash2, Edit2, ExternalLink } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { Project } from '@/types';
+import { EditProjectDialog } from './EditProjectDialog';
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 
 interface ProjectCardProps {
   project: Project;
   showDeleteButton?: boolean;
   onDelete?: (projectId: string) => void;
+  onUpdate?: () => void;
+  totalExpenses?: number;
 }
 
-export function ProjectCard({ project, showDeleteButton = false, onDelete }: ProjectCardProps) {
+export function ProjectCard({ 
+  project, 
+  showDeleteButton = false, 
+  onDelete, 
+  onUpdate,
+  totalExpenses = 0
+}: ProjectCardProps) {
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const navigate = useNavigate();
-  const [paymentsReceived, setPaymentsReceived] = useState(0);
-
-  useEffect(() => {
-    fetchPaymentsReceived();
-  }, [project.id]);
-
-  const fetchPaymentsReceived = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('project_billing')
-        .select('paid_amount')
-        .eq('project_id', project.id);
-
-      if (error) throw error;
-
-      const totalPaid = data?.reduce((sum, bill) => sum + (bill.paid_amount || 0), 0) || 0;
-      setPaymentsReceived(totalPaid);
-    } catch (error) {
-      console.error('Error fetching payments received:', error);
-    }
-  };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Planning': return 'bg-blue-500';
-      case 'Active': return 'bg-green-500';
-      case 'On Hold': return 'bg-yellow-500';
-      case 'Completed': return 'bg-gray-500';
-      case 'Closed': return 'bg-red-500';
-      default: return 'bg-gray-500';
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'bg-green-500 text-white';
+      case 'active':
+      case 'open':
+        return 'bg-blue-500 text-white';
+      case 'on hold':
+        return 'bg-yellow-500 text-white';
+      case 'planning':
+        return 'bg-purple-500 text-white';
+      case 'closed':
+        return 'bg-gray-500 text-white';
+      default:
+        return 'bg-gray-500 text-white';
     }
   };
 
-  const handleCardClick = () => {
+  const getUrgencyLevel = () => {
+    const daysUntilDue = differenceInDays(project.dueDate, new Date());
+    if (daysUntilDue < 0) return 'overdue';
+    if (daysUntilDue <= 7) return 'urgent';
+    if (daysUntilDue <= 30) return 'upcoming';
+    return 'normal';
+  };
+
+  const urgencyLevel = getUrgencyLevel();
+  const progressPercentage = project.completionPercentage || 0;
+  const remainingBudget = project.contractValue - totalExpenses;
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't navigate if clicking on buttons
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
     navigate(`/projects/${project.id}`);
   };
 
-  const handleDeleteClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onDelete && window.confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
-      onDelete(project.id);
+  const handleProjectUpdated = () => {
+    setShowEditDialog(false);
+    if (onUpdate) {
+      onUpdate();
     }
   };
 
-  // Calculate financial metrics
-  const originalContract = project.contractValue || 0;
-  const completionPercentage = project.completionPercentage || 0;
-  const remaining = Math.max(0, originalContract - paymentsReceived);
-  
-  // Calculate days since project started
-  const daysSinceStart = differenceInDays(new Date(), project.startDate);
-
   return (
-    <Card 
-      className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
-      onClick={handleCardClick}
-    >
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-lg line-clamp-2">{project.name}</CardTitle>
-          <Badge className={`${getStatusColor(project.status)} text-white ml-2 flex-shrink-0`}>
-            {project.status}
-          </Badge>
-        </div>
-        {project.projectCode && (
-          <p className="text-sm text-gray-600">{project.projectCode}</p>
+    <>
+      <Card 
+        className={cn(
+          "hover:shadow-lg transition-all duration-200 cursor-pointer",
+          urgencyLevel === 'overdue' && "border-red-500 bg-red-50",
+          urgencyLevel === 'urgent' && "border-yellow-500 bg-yellow-50"
         )}
-      </CardHeader>
-      
-      <CardContent className="space-y-4">
-        {project.client && (
-          <div className="flex items-center text-sm text-gray-600">
-            <span className="font-medium">Client:</span>
-            <span className="ml-2">{project.client}</span>
-          </div>
-        )}
-        
-        {project.address && (
-          <div className="flex items-center text-sm text-gray-600">
-            <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
-            <span className="line-clamp-2">{project.address}</span>
-          </div>
-        )}
-        
-        {/* Financial Information */}
-        <div className="space-y-2 bg-gray-50 p-3 rounded-lg">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center text-gray-600">
-              <DollarSign className="w-4 h-4 mr-1" />
-              <span>Contract Value:</span>
+        onClick={handleCardClick}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-lg mb-2 truncate">{project.name}</CardTitle>
+              <div className="flex items-center gap-2 mb-2">
+                <Badge className={getStatusColor(project.status)}>
+                  {project.status}
+                </Badge>
+                {project.projectCode && (
+                  <Badge variant="outline">
+                    {project.projectCode}
+                  </Badge>
+                )}
+              </div>
+              {project.client && (
+                <p className="text-sm text-gray-600 mb-1">Client: {project.client}</p>
+              )}
+              {project.address && (
+                <p className="text-sm text-gray-500 truncate">{project.address}</p>
+              )}
             </div>
-            <span className="font-semibold">${originalContract.toLocaleString()}</span>
-          </div>
-          
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center text-green-600">
-              <CreditCard className="w-4 h-4 mr-1" />
-              <span>Payments Received:</span>
+            <div className="flex gap-1 ml-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowEditDialog(true);
+                }}
+              >
+                <Edit2 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/projects/${project.id}`);
+                }}
+              >
+                <ExternalLink className="w-4 h-4" />
+              </Button>
+              {showDeleteButton && onDelete && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(project.id);
+                  }}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
             </div>
-            <span className="font-semibold text-green-600">${paymentsReceived.toLocaleString()}</span>
           </div>
-          
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center text-blue-600">
-              <TrendingUp className="w-4 h-4 mr-1" />
-              <span>Remaining:</span>
-            </div>
-            <span className="font-semibold text-blue-600">${remaining.toLocaleString()}</span>
-          </div>
-        </div>
-        
-        <div className="flex items-center justify-between text-sm text-gray-600">
-          <div className="flex items-center">
-            <Calendar className="w-4 h-4 mr-2" />
-            <span>
-              {format(project.startDate, 'MMM dd')} - {format(project.dueDate, 'MMM dd, yyyy')}
-            </span>
-          </div>
-          <div className="flex items-center">
-            <Clock className="w-4 h-4 mr-1" />
-            <span>{daysSinceStart} days</span>
-          </div>
-        </div>
-        
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span>Progress</span>
-            <span>{completionPercentage}%</span>
-          </div>
-          <Progress value={completionPercentage} className="h-2" />
-        </div>
+        </CardHeader>
 
-        {showDeleteButton && (
-          <div className="pt-4 border-t">
-            <Button 
-              variant="destructive" 
-              size="sm" 
-              onClick={handleDeleteClick}
-              className="w-full"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete Project
-            </Button>
+        <CardContent className="space-y-4">
+          {/* Progress */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Progress</span>
+              <span className="font-medium">{progressPercentage}%</span>
+            </div>
+            <Progress value={progressPercentage} className="w-full" />
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          {/* Financial Summary */}
+          <div className="grid grid-cols-1 gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <DollarSign className="w-4 h-4" />
+                Contract Value
+              </div>
+              <span className="font-medium text-green-600">
+                ${project.contractValue.toLocaleString()}
+              </span>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">Total Expenses</div>
+              <span className="font-medium text-red-600">
+                ${totalExpenses.toLocaleString()}
+              </span>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">Remaining Budget</div>
+              <span className={cn(
+                "font-medium",
+                remainingBudget >= 0 ? "text-green-600" : "text-red-600"
+              )}>
+                ${remainingBudget.toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          {/* Timeline */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2 text-gray-600">
+                <Calendar className="w-4 h-4" />
+                Timeline
+              </div>
+            </div>
+            <div className="text-sm space-y-1">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Start:</span>
+                <span>{format(project.startDate, 'MMM dd, yyyy')}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Due:</span>
+                <span className={cn(
+                  urgencyLevel === 'overdue' && "text-red-600 font-medium",
+                  urgencyLevel === 'urgent' && "text-yellow-600 font-medium"
+                )}>
+                  {format(project.dueDate, 'MMM dd, yyyy')}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Days Remaining:</span>
+                <span className={cn(
+                  urgencyLevel === 'overdue' && "text-red-600 font-medium",
+                  urgencyLevel === 'urgent' && "text-yellow-600 font-medium"
+                )}>
+                  {differenceInDays(project.dueDate, new Date())} days
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <EditProjectDialog
+        project={project}
+        onProjectUpdated={handleProjectUpdated}
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+      />
+    </>
   );
 }

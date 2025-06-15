@@ -1,36 +1,15 @@
 
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Plus, 
-  Search, 
-  Settings2, 
-  Calendar,
-  DollarSign,
-  Clock,
-  Truck,
-  Wrench,
-  Building,
-  Edit2,
-  Trash2,
-  Upload,
-  X
-} from 'lucide-react';
+import { Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { ProjectCard } from '@/components/projects/ProjectCard';
+import { useProjectExpenses } from '@/hooks/useProjectExpenses';
 import type { Project } from '@/types';
-
-interface ProjectFilter {
-  status: string;
-  type: string;
-  searchTerm: string;
-}
 
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -39,6 +18,10 @@ export default function Projects() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+
+  // Get project expenses
+  const projectIds = projects.map(p => p.id);
+  const { expenses: projectExpenses } = useProjectExpenses(projectIds);
 
   useEffect(() => {
     fetchProjects();
@@ -88,7 +71,8 @@ export default function Projects() {
     if (searchTerm) {
       filtered = filtered.filter(project =>
         project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.projectCode?.toLowerCase().includes(searchTerm.toLowerCase())
+        project.projectCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.client?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -214,6 +198,8 @@ export default function Projects() {
               project={project} 
               showDeleteButton={true}
               onDelete={handleDeleteProject}
+              onUpdate={fetchProjects}
+              totalExpenses={projectExpenses[project.id] || 0}
             />
           ))}
 
