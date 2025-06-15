@@ -108,7 +108,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               </th>
               <th className="border-r border-black p-1 w-12 font-bold" rowSpan={3}>
                 <div className="border-b border-black pb-1 mb-1">J</div>
-                <div>% COMPLETE</div>
+                <div>%<br/>COMPLETE</div>
               </th>
               <th className="border-r border-black p-1 w-16 font-bold" rowSpan={3}>
                 <div className="border-b border-black pb-1 mb-1">K</div>
@@ -127,7 +127,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               </th>
               <th className="border-r border-black p-1 w-16 font-bold">
                 <div className="border-b border-black pb-1 mb-1">G</div>
-                <div>THIS PERIOD</div>
+                <div>THIS<br/>PERIOD</div>
               </th>
               <th className="border-r border-black p-1 w-16 font-bold">
                 <div className="border-b border-black pb-1 mb-1">H</div>
