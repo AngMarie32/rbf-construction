@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -75,6 +74,8 @@ export default function Expenses() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -166,6 +167,8 @@ export default function Expenses() {
       if (error) throw error;
 
       toast.success('Expense deleted successfully');
+      setDeleteDialogOpen(false);
+      setExpenseToDelete(null);
       fetchExpenses();
     } catch (error) {
       console.error('Error deleting expense:', error);
@@ -174,15 +177,23 @@ export default function Expenses() {
   };
 
   const handleViewExpense = (expense: Expense) => {
+    console.log('Viewing expense:', expense);
     toast.info(`Viewing: ${expense.description}`);
   };
 
   const handleEditExpense = (expense: Expense) => {
+    console.log('Editing expense:', expense);
     toast.info(`Edit feature coming soon for: ${expense.description}`);
   };
 
   const handleAttachReceipt = (expense: Expense) => {
+    console.log('Attaching receipt for expense:', expense);
     toast.info(`Receipt attachment feature coming soon`);
+  };
+
+  const handleDeleteClick = (expenseId: string) => {
+    setExpenseToDelete(expenseId);
+    setDeleteDialogOpen(true);
   };
 
   const filteredExpenses = expenses.filter(expense =>
@@ -414,7 +425,7 @@ export default function Expenses() {
                                 updateExpenseStatus(expense.id, nextStatus);
                               }
                             }}
-                            className="bg-green-600 hover:bg-green-700 text-white h-7 px-2 text-xs"
+                            className="bg-green-600 hover:bg-green-700 text-white h-6 px-2 text-xs"
                           >
                             <Check className="w-3 h-3 mr-1" />
                             Approve
@@ -427,7 +438,7 @@ export default function Expenses() {
                             size="sm"
                             variant="destructive"
                             onClick={() => updateExpenseStatus(expense.id, 'Rejected')}
-                            className="h-7 px-2 text-xs"
+                            className="h-6 px-2 text-xs"
                           >
                             <X className="w-3 h-3 mr-1" />
                             Reject
@@ -439,52 +450,49 @@ export default function Expenses() {
                       {/* Nested Actions Menu */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" className="h-7 w-7 p-0">
+                          <Button variant="outline" size="sm" className="h-6 w-6 p-0">
                             <MoreHorizontal className="w-3 h-3" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewExpense(expense)}>
+                          <DropdownMenuItem 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewExpense(expense);
+                            }}
+                          >
                             <Eye className="w-4 h-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditExpense(expense)}>
+                          <DropdownMenuItem 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditExpense(expense);
+                            }}
+                          >
                             <Edit className="w-4 h-4 mr-2" />
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleAttachReceipt(expense)}>
+                          <DropdownMenuItem 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAttachReceipt(expense);
+                            }}
+                          >
                             <Paperclip className="w-4 h-4 mr-2" />
                             Attach Receipt
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <DropdownMenuItem 
-                                className="text-red-600 focus:text-red-600"
-                                onSelect={(e) => e.preventDefault()}
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Expense</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this expense? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => deleteExpense(expense.id)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          <DropdownMenuItem 
+                            className="text-red-600 focus:text-red-600"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClick(expense.id);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -512,6 +520,36 @@ export default function Expenses() {
           onOpenChange={setCreateDialogOpen}
           onExpenseCreated={fetchExpenses}
         />
+
+        {/* Separate Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Expense</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this expense? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => {
+                setDeleteDialogOpen(false);
+                setExpenseToDelete(null);
+              }}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={() => {
+                  if (expenseToDelete) {
+                    deleteExpense(expenseToDelete);
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );
