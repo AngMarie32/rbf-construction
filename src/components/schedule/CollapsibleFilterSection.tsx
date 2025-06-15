@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { ProjectSelector } from './ProjectSelector';
-import { ChevronDown, ChevronRight, Filter, Search } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronLeft, Filter, Search } from 'lucide-react';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface Project {

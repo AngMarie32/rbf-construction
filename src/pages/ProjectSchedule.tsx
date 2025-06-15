@@ -1,7 +1,14 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { QuickPlanner } from '@/components/schedule/QuickPlanner';
 import { TemplateManager } from '@/components/schedule/TemplateManager';
 import { GanttChart } from '@/components/schedule/GanttChart';
@@ -15,7 +22,8 @@ import {
   Download, 
   Clock,
   File,
-  Info
+  Info,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import { format, addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -71,9 +79,6 @@ export default function ProjectSchedule() {
   });
 
   const [loading, setLoading] = useState(true);
-  const [templateTasks, setTemplateTasks] = useState<any[]>([]);
-
-  // For template integration with QuickPlanner
   const [templateTasks, setTemplateTasks] = useState<any[]>([]);
 
   // Create project data for PDF export
