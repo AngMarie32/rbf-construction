@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -108,6 +109,80 @@ export default function ProjectSchedule() {
   
   // Debounced search for better performance
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Enhanced handleTaskUpdate with auto-save
+  const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      const updatedTask = { ...task, ...updates };
+      
+      // Prepare updates for database (convert Date objects to strings)
+      const dbUpdates: any = {
+        progress: updatedTask.progress,
+        status: updatedTask.status
+      };
+
+      if (updates.startDate) {
+        dbUpdates.start_date = updates.startDate.toISOString().split('T')[0];
+      }
+      if (updates.endDate) {
+        dbUpdates.end_date = updates.endDate.toISOString().split('T')[0];
+      }
+
+      const { error } = await supabase
+        .from('tasks')
+        .update(dbUpdates)
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      setTasks(prevTasks => 
+        prevTasks.map(t => t.id === taskId ? updatedTask : t)
+      );
+      
+      if (autoSaveEnabled) {
+        toast.success('Task updated automatically');
+      }
+    } catch (error) {
+      console.error('Error updating task:', error);
+      toast.error('Failed to update task');
+      throw error;
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      if (activeTab === 'gantt') {
+        const { exportGanttToPDF } = await import('@/utils/ganttPdfExport');
+        await exportGanttToPDF(
+          filteredTasks, 
+          projects, 
+          projectData,
+          `project-schedule-gantt-${format(new Date(), 'yyyy-MM-dd')}.pdf`
+        );
+      } else if (activeTab === 'calendar') {
+        await exportToPDF('schedule-calendar', `project-schedule-calendar-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+      } else if (activeTab === 'critical-path') {
+        await exportToPDF('critical-path-view', `project-schedule-critical-path-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+      } else {
+        // Export as CSV for list view
+        const exportData = filteredTasks.map(task => ({
+          'Task Name': task.title,
+          'Project': projects.find(p => p.id === task.projectId)?.name || '',
+          'Start Date': format(task.startDate, 'yyyy-MM-dd'),
+          'End Date': format(task.endDate, 'yyyy-MM-dd'),
+          'Progress': `${task.progress}%`,
+          'Status': task.status
+        }));
+        exportCSV(exportData, `project-schedule-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      }
+      toast.success('Export completed successfully');
+    } catch (error) {
+      console.error('Export error:', error);
+    }
+  };
 
   // Optimistic updates for better UX
   const { optimisticTasks, optimisticUpdate } = useOptimisticUpdates(tasks, handleTaskUpdate);
@@ -311,47 +386,6 @@ export default function ProjectSchedule() {
     }
   };
 
-  const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
-    try {
-      const task = tasks.find(t => t.id === taskId);
-      if (!task) return;
-
-      const updatedTask = { ...task, ...updates };
-      
-      // Prepare updates for database (convert Date objects to strings)
-      const dbUpdates: any = {
-        progress: updatedTask.progress,
-        status: updatedTask.status
-      };
-
-      if (updates.startDate) {
-        dbUpdates.start_date = updates.startDate.toISOString().split('T')[0];
-      }
-      if (updates.endDate) {
-        dbUpdates.end_date = updates.endDate.toISOString().split('T')[0];
-      }
-
-      const { error } = await supabase
-        .from('tasks')
-        .update(dbUpdates)
-        .eq('id', taskId);
-
-      if (error) throw error;
-
-      setTasks(prevTasks => 
-        prevTasks.map(t => t.id === taskId ? updatedTask : t)
-      );
-      
-      if (autoSaveEnabled) {
-        toast.success('Task updated automatically');
-      }
-    } catch (error) {
-      console.error('Error updating task:', error);
-      toast.error('Failed to update task');
-      throw error;
-    }
-  };
-
   const handleTaskDelete = async (taskId: string) => {
     try {
       const { error } = await supabase
@@ -410,38 +444,6 @@ export default function ProjectSchedule() {
     setQuickPlannerOpen(true);
     setTemplateManagerOpen(false);
     toast.success('Template loaded into Quick Planner');
-  };
-
-  const handleExport = async () => {
-    try {
-      if (activeTab === 'gantt') {
-        const { exportGanttToPDF } = await import('@/utils/ganttPdfExport');
-        await exportGanttToPDF(
-          filteredTasks, 
-          projects, 
-          projectData,
-          `project-schedule-gantt-${format(new Date(), 'yyyy-MM-dd')}.pdf`
-        );
-      } else if (activeTab === 'calendar') {
-        await exportToPDF('schedule-calendar', `project-schedule-calendar-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-      } else if (activeTab === 'critical-path') {
-        await exportToPDF('critical-path-view', `project-schedule-critical-path-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-      } else {
-        // Export as CSV for list view
-        const exportData = filteredTasks.map(task => ({
-          'Task Name': task.title,
-          'Project': projects.find(p => p.id === task.projectId)?.name || '',
-          'Start Date': format(task.startDate, 'yyyy-MM-dd'),
-          'End Date': format(task.endDate, 'yyyy-MM-dd'),
-          'Progress': `${task.progress}%`,
-          'Status': task.status
-        }));
-        exportCSV(exportData, `project-schedule-${format(new Date(), 'yyyy-MM-dd')}.csv`);
-      }
-      toast.success('Export completed successfully');
-    } catch (error) {
-      console.error('Export error:', error);
-    }
   };
 
   const navigateDate = (direction: 'prev' | 'next') => {
