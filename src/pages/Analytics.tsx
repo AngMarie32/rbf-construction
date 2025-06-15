@@ -3,288 +3,351 @@ import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, Area, AreaChart
-} from 'recharts';
-import { TrendingUp, DollarSign, Calendar, Building, Target } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ReportCard } from '@/components/reports/ReportCard';
+import { ReportFilters } from '@/components/reports/ReportFilters';
+import { ExecutiveReports } from '@/components/reports/ExecutiveReports';
+import { ProjectReports } from '@/components/reports/ProjectReports';
+import { FinancialReports } from '@/components/reports/FinancialReports';
+import { exportToExcel, exportToPDF, exportToCSV, ExportData } from '@/utils/reportExports';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { FileText, Download, BarChart3, TrendingUp, Building } from 'lucide-react';
 
-interface ProjectAnalytics {
-  totalProjects: number;
-  totalContractValue: number;
-  averageCompletionTime: number;
-  profitMargin: number;
-}
-
-interface MonthlyData {
-  month: string;
-  revenue: number;
-  costs: number;
-  profit: number;
-}
-
-interface StatusDistribution {
+interface ProjectManager {
+  id: string;
   name: string;
-  value: number;
-  color: string;
 }
 
 export default function Analytics() {
-  const [analytics, setAnalytics] = useState<ProjectAnalytics | null>(null);
-  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
-  const [statusData, setStatusData] = useState<StatusDistribution[]>([]);
-  const [timeframe, setTimeframe] = useState('12m');
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('gallery');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: undefined,
+    to: undefined
+  });
+  const [selectedProjectManager, setSelectedProjectManager] = useState<string>('');
+  const [projectManagers, setProjectManagers] = useState<ProjectManager[]>([]);
+  const [reportData, setReportData] = useState<any>({});
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchAnalytics();
-  }, [timeframe]);
+    fetchProjectManagers();
+    fetchReportData();
+  }, []);
 
-  const fetchAnalytics = async () => {
+  const fetchProjectManagers = async () => {
+    try {
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .not('name', 'is', null);
+
+      if (error) throw error;
+
+      setProjectManagers(profiles || []);
+    } catch (error) {
+      console.error('Error fetching project managers:', error);
+    }
+  };
+
+  const fetchReportData = async () => {
     try {
       setLoading(true);
       
-      // Fetch projects for overall analytics
+      // Fetch projects
       const { data: projects, error: projectsError } = await supabase
         .from('projects')
         .select('*');
 
       if (projectsError) throw projectsError;
 
-      // Calculate analytics
-      const totalProjects = projects?.length || 0;
-      const totalContractValue = projects?.reduce((sum, p) => sum + p.contract_value, 0) || 0;
-      const completedProjects = projects?.filter(p => p.status === 'Closed') || [];
-      const averageCompletionTime = completedProjects.length > 0 ? 
-        completedProjects.reduce((sum, p) => {
-          const start = new Date(p.created_at);
-          const end = new Date(p.updated_at);
-          return sum + (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
-        }, 0) / completedProjects.length : 0;
-
-      setAnalytics({
-        totalProjects,
-        totalContractValue,
-        averageCompletionTime: Math.round(averageCompletionTime),
-        profitMargin: 15.5 // Mock data for now
-      });
-
-      // Generate monthly data (mock data for demonstration)
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const mockMonthlyData = months.map(month => ({
-        month,
-        revenue: Math.floor(Math.random() * 500000) + 100000,
-        costs: Math.floor(Math.random() * 300000) + 50000,
-        profit: 0
-      }));
-      mockMonthlyData.forEach(data => {
-        data.profit = data.revenue - data.costs;
-      });
-      setMonthlyData(mockMonthlyData);
-
-      // Status distribution
-      const statusCounts = projects?.reduce((acc, project) => {
-        acc[project.status] = (acc[project.status] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>) || {};
-
-      const statusDistribution = [
-        { name: 'Planning', value: statusCounts['Planning'] || 0, color: '#8884d8' },
-        { name: 'Open', value: statusCounts['Open'] || 0, color: '#82ca9d' },
-        { name: 'Closed', value: statusCounts['Closed'] || 0, color: '#ffc658' }
+      // Generate mock data for demonstration
+      const monthlyRevenue = [
+        { month: 'Jan', revenue: 450000, costs: 320000, profit: 130000 },
+        { month: 'Feb', revenue: 520000, costs: 380000, profit: 140000 },
+        { month: 'Mar', revenue: 480000, costs: 340000, profit: 140000 },
+        { month: 'Apr', revenue: 610000, costs: 420000, profit: 190000 },
+        { month: 'May', revenue: 580000, costs: 400000, profit: 180000 },
+        { month: 'Jun', revenue: 650000, costs: 450000, profit: 200000 }
       ];
-      setStatusData(statusDistribution);
+
+      const performanceByManager = projectManagers.slice(0, 5).map((pm, index) => ({
+        name: pm.name,
+        totalRevenue: (Math.random() * 500000) + 200000,
+        projectCount: Math.floor(Math.random() * 8) + 2,
+        onTimeRate: Math.floor(Math.random() * 30) + 70,
+        avgProfitMargin: Math.floor(Math.random() * 10) + 15
+      }));
+
+      const projectSummary = {
+        totalRevenue: projects?.reduce((sum, p) => sum + p.contract_value, 0) || 0,
+        activeProjects: projects?.filter(p => p.status === 'Open').length || 0,
+        avgProfitMargin: 18.5,
+        onTimeRate: 87
+      };
+
+      const projectStatus = [
+        { name: 'Planning', value: projects?.filter(p => p.status === 'Planning').length || 0 },
+        { name: 'Open', value: projects?.filter(p => p.status === 'Open').length || 0 },
+        { name: 'Closed', value: projects?.filter(p => p.status === 'Closed').length || 0 }
+      ];
+
+      const budgetPerformance = projects?.slice(0, 6).map(project => ({
+        projectName: project.name.length > 15 ? project.name.substring(0, 15) + '...' : project.name,
+        budgeted: project.contract_value,
+        actual: project.contract_value * (0.85 + Math.random() * 0.3)
+      })) || [];
+
+      const timelinePerformance = projects?.slice(0, 5).map(project => ({
+        projectName: project.name,
+        manager: 'Project Manager',
+        daysVariance: Math.floor(Math.random() * 20) - 10,
+        onTime: Math.random() > 0.3
+      })) || [];
+
+      const changeOrderImpact = [
+        { month: 'Jan', changeOrderValue: 25000 },
+        { month: 'Feb', changeOrderValue: 38000 },
+        { month: 'Mar', changeOrderValue: 18000 },
+        { month: 'Apr', changeOrderValue: 45000 },
+        { month: 'May', changeOrderValue: 32000 },
+        { month: 'Jun', changeOrderValue: 28000 }
+      ];
+
+      const revenueRecognition = monthlyRevenue.map(item => ({
+        month: item.month,
+        recognized: item.revenue * 0.8,
+        deferred: item.revenue * 0.2
+      }));
+
+      const profitLossByProject = projects?.slice(0, 6).map(project => ({
+        projectName: project.name.length > 15 ? project.name.substring(0, 15) + '...' : project.name,
+        revenue: project.contract_value,
+        costs: project.contract_value * 0.75,
+        profit: project.contract_value * 0.25
+      })) || [];
+
+      const cashFlowProjection = [
+        { month: 'Jul', inflow: 580000, outflow: 420000, net: 160000 },
+        { month: 'Aug', inflow: 620000, outflow: 450000, net: 170000 },
+        { month: 'Sep', inflow: 540000, outflow: 380000, net: 160000 },
+        { month: 'Oct', inflow: 680000, outflow: 480000, net: 200000 },
+        { month: 'Nov', inflow: 640000, outflow: 440000, net: 200000 },
+        { month: 'Dec', inflow: 720000, outflow: 500000, net: 220000 }
+      ];
+
+      const profitMargins = monthlyRevenue.map(item => ({
+        month: item.month,
+        margin: ((item.profit / item.revenue) * 100).toFixed(1)
+      }));
+
+      setReportData({
+        executive: {
+          monthlyRevenue,
+          projectSummary,
+          profitMargins,
+          performanceByManager
+        },
+        project: {
+          projectStatus,
+          budgetPerformance,
+          timelinePerformance,
+          changeOrderImpact
+        },
+        financial: {
+          revenueRecognition,
+          profitLossByProject,
+          cashFlowProjection
+        }
+      });
 
     } catch (error) {
-      console.error('Error fetching analytics:', error);
-      toast.error('Failed to load analytics data');
+      console.error('Error fetching report data:', error);
+      toast.error('Failed to load report data');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <Layout title="Analytics" subtitle="Comprehensive project analytics and insights">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-        </div>
-      </Layout>
-    );
-  }
+  const handleExportReport = async (reportType: string, format: 'excel' | 'pdf' | 'csv') => {
+    const data = reportData[reportType];
+    if (!data) return;
+
+    const exportData: ExportData = {
+      title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`,
+      data: Object.values(data).flat(),
+      metadata: {
+        dateRange: dateRange.from && dateRange.to 
+          ? `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`
+          : 'All Time',
+        generatedBy: 'RBF Construction Analytics',
+        generatedAt: new Date().toLocaleString(),
+        filters: {
+          category: selectedCategory,
+          projectManager: selectedProjectManager
+        }
+      }
+    };
+
+    try {
+      switch (format) {
+        case 'excel':
+          exportToExcel(exportData);
+          break;
+        case 'pdf':
+          await exportToPDF(exportData);
+          break;
+        case 'csv':
+          exportToCSV(exportData);
+          break;
+      }
+      toast.success(`Report exported as ${format.toUpperCase()}`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export report');
+    }
+  };
+
+  const reports = [
+    {
+      title: 'Executive Dashboard',
+      description: 'High-level KPIs, revenue trends, and performance metrics',
+      category: 'executive',
+      lastUpdated: 'Today'
+    },
+    {
+      title: 'Project Performance',
+      description: 'Project status, budget vs actual, timeline analysis',
+      category: 'project',
+      lastUpdated: 'Today'
+    },
+    {
+      title: 'Financial Analysis',
+      description: 'Revenue recognition, P&L by project, cash flow',
+      category: 'financial',
+      lastUpdated: 'Today'
+    },
+    {
+      title: 'Performance by Manager',
+      description: 'Individual project manager performance metrics',
+      category: 'executive',
+      lastUpdated: 'Today'
+    }
+  ];
+
+  const filteredReports = reports.filter(report => 
+    selectedCategory === 'all' || report.category === selectedCategory
+  );
 
   return (
-    <Layout title="Analytics" subtitle="Comprehensive project analytics and insights">
+    <Layout title="Analytics & Reporting" subtitle="Executive reports and business intelligence">
       <div className="space-y-6">
-        {/* Controls */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <Select value={timeframe} onValueChange={setTimeframe}>
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="Timeframe" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="3m">3 Months</SelectItem>
-                <SelectItem value="6m">6 Months</SelectItem>
-                <SelectItem value="12m">12 Months</SelectItem>
-                <SelectItem value="24m">24 Months</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <ReportFilters
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          selectedProjectManager={selectedProjectManager}
+          onProjectManagerChange={setSelectedProjectManager}
+          projectManagers={projectManagers}
+          onApplyFilters={fetchReportData}
+          onClearFilters={() => {
+            setSelectedCategory('all');
+            setDateRange({ from: undefined, to: undefined });
+            setSelectedProjectManager('');
+          }}
+        />
 
-        {/* Key Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
-              <Building className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analytics?.totalProjects || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                +12% from last month
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Contract Value</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${((analytics?.totalContractValue || 0) / 1000000).toFixed(1)}M
-              </div>
-              <p className="text-xs text-muted-foreground">
-                +8% from last month
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Completion</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analytics?.averageCompletionTime || 0} days</div>
-              <p className="text-xs text-muted-foreground">
-                -5% from last month
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Profit Margin</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analytics?.profitMargin || 0}%</div>
-              <p className="text-xs text-muted-foreground">
-                +2% from last month
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Charts Section */}
-        <Tabs defaultValue="revenue" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="revenue">Revenue & Costs</TabsTrigger>
-            <TabsTrigger value="projects">Project Status</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="gallery" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Report Gallery
+            </TabsTrigger>
+            <TabsTrigger value="executive" className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Executive
+            </TabsTrigger>
+            <TabsTrigger value="project" className="flex items-center gap-2">
+              <Building className="w-4 h-4" />
+              Projects
+            </TabsTrigger>
+            <TabsTrigger value="financial" className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Financial
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="revenue" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Revenue vs Costs</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <AreaChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, '']} />
-                    <Area type="monotone" dataKey="revenue" stackId="1" stroke="#8884d8" fill="#8884d8" />
-                    <Area type="monotone" dataKey="costs" stackId="2" stroke="#82ca9d" fill="#82ca9d" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="projects" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Project Status Distribution</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={statusData}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        label={({ name, value }) => `${name}: ${value}`}
-                      >
-                        {statusData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Monthly Project Completion</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={monthlyData.slice(-6)}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="profit" fill="#82ca9d" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+          <TabsContent value="gallery" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredReports.map((report, index) => (
+                <ReportCard
+                  key={index}
+                  title={report.title}
+                  description={report.description}
+                  category={report.category}
+                  lastUpdated={report.lastUpdated}
+                  onView={() => setActiveTab(report.category)}
+                  onExport={() => handleExportReport(report.category, 'excel')}
+                  isLoading={loading}
+                />
+              ))}
             </div>
           </TabsContent>
 
-          <TabsContent value="performance" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Profit Trend</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <LineChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Profit']} />
-                    <Line type="monotone" dataKey="profit" stroke="#8884d8" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+          <TabsContent value="executive" className="space-y-4">
+            <div className="flex justify-end gap-2 mb-4">
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('executive', 'excel')}>
+                <Download className="w-4 h-4 mr-1" />
+                Excel
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('executive', 'pdf')}>
+                <Download className="w-4 h-4 mr-1" />
+                PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('executive', 'csv')}>
+                <Download className="w-4 h-4 mr-1" />
+                CSV
+              </Button>
+            </div>
+            {reportData.executive && <ExecutiveReports data={reportData.executive} />}
+          </TabsContent>
+
+          <TabsContent value="project" className="space-y-4">
+            <div className="flex justify-end gap-2 mb-4">
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('project', 'excel')}>
+                <Download className="w-4 h-4 mr-1" />
+                Excel
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('project', 'pdf')}>
+                <Download className="w-4 h-4 mr-1" />
+                PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('project', 'csv')}>
+                <Download className="w-4 h-4 mr-1" />
+                CSV
+              </Button>
+            </div>
+            {reportData.project && <ProjectReports data={reportData.project} />}
+          </TabsContent>
+
+          <TabsContent value="financial" className="space-y-4">
+            <div className="flex justify-end gap-2 mb-4">
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('financial', 'excel')}>
+                <Download className="w-4 h-4 mr-1" />
+                Excel
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('financial', 'pdf')}>
+                <Download className="w-4 h-4 mr-1" />
+                PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('financial', 'csv')}>
+                <Download className="w-4 h-4 mr-1" />
+                CSV
+              </Button>
+            </div>
+            {reportData.financial && <FinancialReports data={reportData.financial} />}
           </TabsContent>
         </Tabs>
       </div>
