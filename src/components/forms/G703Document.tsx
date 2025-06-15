@@ -81,19 +81,19 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
           <thead>
             {/* First row - Column letters A through K */}
             <tr className="bg-gray-100 text-center font-bold">
-              <th className="border-r border-b border-black p-1 w-8">A</th>
-              <th className="border-r border-b border-black p-1 w-32">B</th>
-              <th className="border-r border-b border-black p-1 w-16">C</th>
-              <th className="border-r border-b border-black p-1 w-16">D</th>
-              <th className="border-r border-b border-black p-1 w-16">E</th>
-              <th className="border-r border-b border-black p-1 w-16">F</th>
-              <th className="border-r border-b border-black p-1 w-16">G</th>
-              <th className="border-r border-b border-black p-1 w-16">H</th>
+              <th className="border-r border-b border-black p-1 w-12">A</th>
+              <th className="border-r border-b border-black p-1 w-40">B</th>
+              <th className="border-r border-b border-black p-1 w-20">C</th>
+              <th className="border-r border-b border-black p-1 w-20">D</th>
+              <th className="border-r border-b border-black p-1 w-20">E</th>
+              <th className="border-r border-b border-black p-1 w-20">F</th>
+              <th className="border-r border-b border-black p-1 w-20">G</th>
+              <th className="border-r border-b border-black p-1 w-20">H</th>
               <th className="border-r border-b border-black p-1 w-24" colSpan={2}>I</th>
-              <th className="border-r border-b border-black p-1 w-16">J</th>
-              <th className="border-b border-black p-1 w-16">K</th>
+              <th className="border-r border-b border-black p-1 w-20">J</th>
+              <th className="border-b border-black p-1 w-20">K</th>
             </tr>
-            {/* Second row - Main headers with "WORK COMPLETED" spanning F, G, H */}
+            {/* Second row - Main headers with proper alignment */}
             <tr className="bg-gray-100 text-center font-bold">
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
                 <div className="text-xs">ITEM<br />NO.</div>
@@ -118,11 +118,8 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
                   <div className="align-bottom">MATERIALS<br />PRESENTLY<br />STORED</div>
                 </div>
               </th>
-              <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                <div className="text-xs">TOTAL<br />COMPLETED<br />AND STORED TO</div>
-              </th>
-              <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                <div className="text-xs">% COMPLETE</div>
+              <th className="border-r border-b border-black p-1 h-16" colSpan={2}>
+                <div className="text-xs align-bottom flex justify-center items-end h-full pb-1">TOTAL COMPLETED<br />AND STORED TO<br />DATE</div>
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
                 <div className="text-xs">BALANCE TO<br />FINISH</div>
