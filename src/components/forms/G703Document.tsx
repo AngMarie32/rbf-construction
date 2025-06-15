@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface G703DocumentProps {
@@ -79,58 +80,58 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
         <table className="w-full border-collapse text-xs">
           <thead>
             <tr className="bg-gray-100 text-center font-bold">
-              <th className="border-r border-b-2 border-black p-1 align-middle w-8" rowSpan={2}>
+              <th className="border-r border-b border-black p-1 align-middle w-8" rowSpan={2}>
                 <div className="pb-1">A</div>
                 <div className="font-normal">ITEM<br />NO.</div>
               </th>
-              <th className="border-r border-b-2 border-black p-1 align-middle w-32" rowSpan={2}>
+              <th className="border-r border-b border-black p-1 align-middle w-32" rowSpan={2}>
                 <div className="pb-1">B</div>
                 <div className="font-normal">DESCRIPTION OF WORK</div>
               </th>
-              <th className="border-r border-b-2 border-black p-1 align-middle w-16" rowSpan={2}>
+              <th className="border-r border-b border-black p-1 align-middle w-16" rowSpan={2}>
                 <div className="pb-1">C</div>
                 <div className="font-normal">SCHEDULED<br />VALUE</div>
               </th>
-              <th className="border-r border-b-2 border-black p-1 align-middle w-16" rowSpan={2}>
+              <th className="border-r border-b border-black p-1 align-middle w-16" rowSpan={2}>
                 <div className="pb-1">D</div>
                 <div className="font-normal">CHANGE<br />ORDERS</div>
               </th>
-              <th className="border-r border-b-2 border-black p-1 align-middle w-16" rowSpan={2}>
+              <th className="border-r border-b border-black p-1 align-middle w-16" rowSpan={2}>
                 <div className="pb-1">E</div>
                 <div className="font-normal">TOTAL<br />CONTRACT</div>
               </th>
               <th className="border-r border-b border-black p-1" colSpan={3}>
                 WORK COMPLETED
               </th>
-              <th className="border-r border-b-2 border-black p-1 align-middle w-16" rowSpan={2}>
+              <th className="border-r border-b border-black p-1 align-middle w-16" rowSpan={2}>
                 <div className="pb-1">I</div>
-                <div className="font-normal">TOTAL COMPLETED<br />AND STORED TO</div>
+                <div className="font-normal">TOTAL<br />COMPLETED<br />AND STORED TO</div>
               </th>
-              <th className="border-r border-b-2 border-black p-1 align-middle w-12" rowSpan={2}>
+              <th className="border-r border-b border-black p-1 align-middle w-12" rowSpan={2}>
                 <div className="pb-1">J</div>
                 <div className="font-normal">%<br />COMPLETE</div>
               </th>
-              <th className="border-r border-b-2 border-black p-1 align-middle w-16" rowSpan={2}>
+              <th className="border-r border-b border-black p-1 align-middle w-16" rowSpan={2}>
                 <div className="pb-1">K</div>
                 <div className="font-normal">BALANCE TO<br />FINISH</div>
               </th>
-              <th className="border-b-2 border-black p-1 align-middle w-16" rowSpan={2}>
+              <th className="border-b border-black p-1 align-middle w-16" rowSpan={2}>
                 <div className="pb-1">L</div>
                 <div className="font-normal">RETAINAGE<br />HELD</div>
               </th>
             </tr>
             <tr className="bg-gray-100 text-center font-bold">
-              <th className="border-r border-b-2 border-black p-1 align-middle w-16">
+              <th className="border-r border-b border-black p-1 align-middle w-16">
                 F<br />
-                <span className="font-normal">FROM PREVIOUS<br/>APPLICATION</span>
+                <span className="font-normal">FROM<br />PREVIOUS<br />APPLICATION</span>
               </th>
-              <th className="border-r border-b-2 border-black p-1 align-middle w-16">
+              <th className="border-r border-b border-black p-1 align-middle w-16">
                 G<br />
                 <span className="font-normal">THIS PERIOD</span>
               </th>
-              <th className="border-r border-b-2 border-black p-1 align-middle w-16">
+              <th className="border-r border-b border-black p-1 align-middle w-16">
                 H<br />
-                <span className="font-normal">MATERIALS<br/>PRESENTLY<br/>STORED</span>
+                <span className="font-normal">MATERIALS<br />PRESENTLY<br />STORED</span>
               </th>
             </tr>
           </thead>
