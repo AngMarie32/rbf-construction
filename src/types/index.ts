@@ -19,6 +19,7 @@ export interface Project {
   address: string;
   projectCode: string;
   client: string;
+  fieldLeader?: string;
   description?: string;
   createdAt: Date;
   updatedAt: Date;

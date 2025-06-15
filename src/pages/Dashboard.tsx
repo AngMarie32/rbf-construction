@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { ProjectCard } from '@/components/projects/ProjectCard';
@@ -13,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Project } from '@/types';
 import { useNavigate } from 'react-router-dom';
 import { useProjectExpenses } from '@/hooks/useProjectExpenses';
+import { useProjectBilling } from '@/hooks/useProjectBilling';
 import { isWithinInterval, parseISO, startOfYear, endOfYear, startOfMonth, endOfMonth } from 'date-fns';
 
 interface DatabaseProject {
@@ -48,6 +48,9 @@ export default function Dashboard() {
   // Get project expenses
   const projectIds = projects.map(p => p.id);
   const { expenses: projectExpenses } = useProjectExpenses(projectIds);
+
+  // Get project billing data
+  const { billing: projectBilling } = useProjectBilling(projectIds);
 
   useEffect(() => {
     fetchProjects();
@@ -327,6 +330,8 @@ export default function Dashboard() {
                     onDelete={handleDeleteProject}
                     onUpdate={fetchProjects}
                     totalExpenses={projectExpenses[project.id] || 0}
+                    totalBilled={projectBilling[project.id]?.totalBilled || 0}
+                    totalReceived={projectBilling[project.id]?.totalReceived || 0}
                   />
                 ))}
               </div>

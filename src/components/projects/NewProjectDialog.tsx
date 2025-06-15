@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -30,6 +29,7 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
     address: '',
     projectCode: '',
     client: '',
+    fieldLeader: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,6 +53,7 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
           address: formData.address || null,
           project_code: formData.projectCode || null,
           client: formData.client || null,
+          field_leader: formData.fieldLeader || null,
         });
 
       if (error) throw error;
@@ -69,6 +70,7 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
         address: '',
         projectCode: '',
         client: '',
+        fieldLeader: '',
       });
       onProjectCreated();
     } catch (error) {
@@ -137,14 +139,26 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
-            <Input
-              id="address"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              placeholder="Project address"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                placeholder="Project address"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fieldLeader">Field Leader</Label>
+              <Input
+                id="fieldLeader"
+                value={formData.fieldLeader}
+                onChange={(e) => setFormData({ ...formData, fieldLeader: e.target.value })}
+                placeholder="Field leader name"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

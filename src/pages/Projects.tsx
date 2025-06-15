@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { useProjectExpenses } from '@/hooks/useProjectExpenses';
+import { useProjectBilling } from '@/hooks/useProjectBilling';
 import type { Project } from '@/types';
 
 export default function Projects() {
@@ -22,6 +22,9 @@ export default function Projects() {
   // Get project expenses
   const projectIds = projects.map(p => p.id);
   const { expenses: projectExpenses } = useProjectExpenses(projectIds);
+
+  // Get project billing data
+  const { billing: projectBilling } = useProjectBilling(projectIds);
 
   useEffect(() => {
     fetchProjects();
@@ -200,6 +203,8 @@ export default function Projects() {
               onDelete={handleDeleteProject}
               onUpdate={fetchProjects}
               totalExpenses={projectExpenses[project.id] || 0}
+              totalBilled={projectBilling[project.id]?.totalBilled || 0}
+              totalReceived={projectBilling[project.id]?.totalReceived || 0}
             />
           ))}
 

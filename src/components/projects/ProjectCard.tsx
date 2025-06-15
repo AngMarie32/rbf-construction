@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Calendar, DollarSign, Clock, Trash2, Edit2, ExternalLink } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Calendar, DollarSign, MoreVertical, Edit2, ExternalLink, Trash2 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Project } from '@/types';
@@ -17,6 +18,8 @@ interface ProjectCardProps {
   onDelete?: (projectId: string) => void;
   onUpdate?: () => void;
   totalExpenses?: number;
+  totalBilled?: number;
+  totalReceived?: number;
 }
 
 export function ProjectCard({ 
@@ -24,7 +27,9 @@ export function ProjectCard({
   showDeleteButton = false, 
   onDelete, 
   onUpdate,
-  totalExpenses = 0
+  totalExpenses = 0,
+  totalBilled = 0,
+  totalReceived = 0
 }: ProjectCardProps) {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const navigate = useNavigate();
@@ -57,11 +62,10 @@ export function ProjectCard({
 
   const urgencyLevel = getUrgencyLevel();
   const progressPercentage = project.completionPercentage || 0;
-  const remainingBudget = project.contractValue - totalExpenses;
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Don't navigate if clicking on buttons
-    if ((e.target as HTMLElement).closest('button')) {
+    // Don't navigate if clicking on buttons or dropdown
+    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('[role="menu"]')) {
       return;
     }
     navigate(`/projects/${project.id}`);
@@ -86,60 +90,69 @@ export function ProjectCard({
       >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <CardTitle className="text-lg mb-2 truncate">{project.name}</CardTitle>
-              <div className="flex items-center gap-2 mb-2">
-                <Badge className={getStatusColor(project.status)}>
-                  {project.status}
-                </Badge>
-                {project.projectCode && (
-                  <Badge variant="outline">
+            <div className="flex-1 min-w-0 space-y-2">
+              <CardTitle className="text-lg font-semibold truncate">{project.name}</CardTitle>
+              
+              {project.client && (
+                <p className="text-sm font-medium text-gray-700">Client: {project.client}</p>
+              )}
+              
+              {project.projectCode && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
                     {project.projectCode}
                   </Badge>
-                )}
-              </div>
-              {project.client && (
-                <p className="text-sm text-gray-600 mb-1">Client: {project.client}</p>
+                  <Badge className={getStatusColor(project.status)} variant="default">
+                    {project.status}
+                  </Badge>
+                </div>
               )}
+              
               {project.address && (
-                <p className="text-sm text-gray-500 truncate">{project.address}</p>
+                <p className="text-sm text-gray-600 truncate">{project.address}</p>
               )}
             </div>
-            <div className="flex gap-1 ml-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={(e) => {
                   e.stopPropagation();
                   setShowEditDialog(true);
-                }}
-              >
-                <Edit2 className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
+                }}>
+                  <Edit2 className="mr-2 h-4 w-4" />
+                  Edit Project
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => {
                   e.stopPropagation();
                   navigate(`/projects/${project.id}`);
-                }}
-              >
-                <ExternalLink className="w-4 h-4" />
-              </Button>
-              {showDeleteButton && onDelete && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(project.id);
-                  }}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
+                }}>
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  View Details
+                </DropdownMenuItem>
+                {showDeleteButton && onDelete && (
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(project.id);
+                    }}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Project
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardHeader>
 
@@ -160,25 +173,22 @@ export function ProjectCard({
                 <DollarSign className="w-4 h-4" />
                 Contract Value
               </div>
-              <span className="font-medium text-green-600">
+              <span className="font-medium text-blue-600">
                 ${project.contractValue.toLocaleString()}
               </span>
             </div>
             
             <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">Total Expenses</div>
-              <span className="font-medium text-red-600">
-                ${totalExpenses.toLocaleString()}
+              <div className="text-sm text-gray-600">Total Billed</div>
+              <span className="font-medium text-green-600">
+                ${totalBilled.toLocaleString()}
               </span>
             </div>
             
             <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">Remaining Budget</div>
-              <span className={cn(
-                "font-medium",
-                remainingBudget >= 0 ? "text-green-600" : "text-red-600"
-              )}>
-                ${remainingBudget.toLocaleString()}
+              <div className="text-sm text-gray-600">Total Received</div>
+              <span className="font-medium text-emerald-600">
+                ${totalReceived.toLocaleString()}
               </span>
             </div>
           </div>

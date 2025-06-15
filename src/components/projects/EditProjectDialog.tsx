@@ -32,6 +32,7 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
     address: project.address,
     projectCode: project.projectCode,
     client: project.client,
+    fieldLeader: project.fieldLeader || '',
     completionPercentage: project.completionPercentage.toString(),
   });
 
@@ -46,6 +47,7 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
       address: project.address,
       projectCode: project.projectCode,
       client: project.client,
+      fieldLeader: project.fieldLeader || '',
       completionPercentage: project.completionPercentage.toString(),
     });
   }, [project]);
@@ -72,6 +74,7 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
         address: formData.address || null,
         project_code: formData.projectCode || null,
         client: formData.client || null,
+        field_leader: formData.fieldLeader || null,
         completion_percentage: formData.completionPercentage ? parseInt(formData.completionPercentage) : 0,
         updated_at: new Date().toISOString()
       };
@@ -148,14 +151,26 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
-            <Input
-              id="address"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              placeholder="Project address"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                placeholder="Project address"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fieldLeader">Field Leader</Label>
+              <Input
+                id="fieldLeader"
+                value={formData.fieldLeader}
+                onChange={(e) => setFormData({ ...formData, fieldLeader: e.target.value })}
+                placeholder="Field leader name"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
