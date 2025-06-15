@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ProjectBilling {
@@ -13,17 +12,13 @@ export function useProjectBilling(projectIds: string[]) {
   const [billing, setBilling] = useState<ProjectBilling>({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchBilling = useCallback(async () => {
     if (projectIds.length === 0) {
       setBilling({});
       setLoading(false);
       return;
     }
 
-    fetchBilling();
-  }, [projectIds]);
-
-  const fetchBilling = async () => {
     try {
       setLoading(true);
       
@@ -39,6 +34,7 @@ export function useProjectBilling(projectIds: string[]) {
       // Check if supabase client is available
       if (!supabase) {
         console.warn('Supabase client not available');
+        setLoading(false);
         return;
       }
 
@@ -50,6 +46,7 @@ export function useProjectBilling(projectIds: string[]) {
       if (error) {
         console.error('Error fetching project billing:', error);
         // Keep the initialized values and don't throw
+        setLoading(false);
         return;
       }
 
@@ -77,7 +74,11 @@ export function useProjectBilling(projectIds: string[]) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectIds]);
+
+  useEffect(() => {
+    fetchBilling();
+  }, [fetchBilling]);
 
   return { billing, loading, refetch: fetchBilling };
 }

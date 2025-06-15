@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ProjectExpenses {
@@ -10,17 +10,13 @@ export function useProjectExpenses(projectIds: string[]) {
   const [expenses, setExpenses] = useState<ProjectExpenses>({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchExpenses = useCallback(async () => {
     if (projectIds.length === 0) {
       setExpenses({});
       setLoading(false);
       return;
     }
 
-    fetchExpenses();
-  }, [projectIds]);
-
-  const fetchExpenses = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -49,11 +45,19 @@ export function useProjectExpenses(projectIds: string[]) {
       setExpenses(expensesByProject);
     } catch (error) {
       console.error('Error fetching project expenses:', error);
-      setExpenses({});
+      const defaultExpenses: ProjectExpenses = {};
+      projectIds.forEach(id => {
+        defaultExpenses[id] = 0;
+      });
+      setExpenses(defaultExpenses);
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectIds]);
+
+  useEffect(() => {
+    fetchExpenses();
+  }, [fetchExpenses]);
 
   return { expenses, loading, refetch: fetchExpenses };
 }
