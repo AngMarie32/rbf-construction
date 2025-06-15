@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -304,7 +303,7 @@ export default function ScheduleOfValues() {
                     </tbody>
                     <tfoot>
                       <tr className="bg-gray-100 font-bold">
-                        <td colSpan="3" className="border border-gray-200 px-4 py-2 text-right">TOTALS:</td>
+                        <td colSpan={3} className="border border-gray-200 px-4 py-2 text-right">TOTALS:</td>
                         <td className="border border-gray-200 px-4 py-2 text-right">${totalScheduledValue.toLocaleString()}</td>
                         <td className="border border-gray-200 px-4 py-2 text-right text-green-600">
                           ${sovItems.reduce((sum, item) => sum + (Number(item.change_orders) || 0), 0).toLocaleString()}
