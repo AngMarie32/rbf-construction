@@ -7,9 +7,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, FileSpreadsheet, Share, Printer, AlertCircle } from 'lucide-react';
+import { FileText, Printer, AlertCircle, BarChart3, Calendar, List, GitBranch } from 'lucide-react';
 import { Task } from '@/types';
-import { exportToExcel, exportToGoogleSheets, printOptimizedReport } from '@/utils/enhancedExports';
+import { generateReport } from '@/utils/enhancedExports';
 import { validateTaskList, formatValidationMessage, getValidationSummary } from '@/utils/dataValidation';
 import { toast } from 'sonner';
 
@@ -35,9 +35,13 @@ export function EnhancedExportDialog({
   onOpenChange,
   tasks,
   projects,
-  title = 'Project Schedule Export'
+  title = 'Project Schedule Report'
 }: EnhancedExportDialogProps) {
-  const [exportOptions, setExportOptions] = useState({
+  const [reportOptions, setReportOptions] = useState({
+    includeGanttChart: true,
+    includeTaskList: true,
+    includeCalendarView: true,
+    includeCriticalPath: true,
     includeProgress: true,
     includeDependencies: true,
     includeProjectInfo: true,
@@ -47,43 +51,17 @@ export function EnhancedExportDialog({
   const [loading, setLoading] = useState(false);
   const [validationResult, setValidationResult] = useState(validateTaskList(tasks));
 
-  const handleExportOption = (key: string, value: any) => {
-    setExportOptions(prev => ({ ...prev, [key]: value }));
+  const handleReportOption = (key: string, value: any) => {
+    setReportOptions(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleExcelExport = async () => {
-    setLoading(true);
+  const handleGenerateReport = () => {
     try {
-      await exportToExcel(tasks, projects, exportOptions);
-      toast.success('Excel export completed successfully');
+      generateReport(tasks, projects, reportOptions, title);
+      toast.success('Report generated successfully');
       onOpenChange(false);
     } catch (error) {
-      toast.error('Failed to export to Excel');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleSheetsExport = async () => {
-    setLoading(true);
-    try {
-      await exportToGoogleSheets(tasks, projects, exportOptions);
-      toast.success('Google Sheets export opened in new tab');
-      onOpenChange(false);
-    } catch (error) {
-      toast.error('Failed to export to Google Sheets');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePrintExport = () => {
-    try {
-      printOptimizedReport(tasks, projects, title);
-      toast.success('Print preview opened');
-      onOpenChange(false);
-    } catch (error) {
-      toast.error('Failed to generate print report');
+      toast.error('Failed to generate report');
     }
   };
 
@@ -93,29 +71,129 @@ export function EnhancedExportDialog({
     return result;
   };
 
+  const getIncludedViewsCount = () => {
+    const views = [
+      reportOptions.includeGanttChart,
+      reportOptions.includeTaskList,
+      reportOptions.includeCalendarView,
+      reportOptions.includeCriticalPath
+    ];
+    return views.filter(Boolean).length;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Download className="w-5 h-5" />
-            {title}
+            <FileText className="w-5 h-5" />
+            Generate Project Report
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="export" className="w-full">
+        <Tabs defaultValue="views" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="export">Export Options</TabsTrigger>
-            <TabsTrigger value="validation">Data Validation</TabsTrigger>
-            <TabsTrigger value="formats">Export Formats</TabsTrigger>
+            <TabsTrigger value="views">Report Views</TabsTrigger>
+            <TabsTrigger value="options">Data Options</TabsTrigger>
+            <TabsTrigger value="validation">Validation</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="export" className="space-y-4">
+          <TabsContent value="views" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Export Settings</CardTitle>
+                <CardTitle className="text-lg">Select Report Views</CardTitle>
                 <CardDescription>
-                  Configure what data to include in your export
+                  Choose which views to include in your comprehensive report ({getIncludedViewsCount()} selected)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-gray-50">
+                    <Checkbox
+                      id="includeGanttChart"
+                      checked={reportOptions.includeGanttChart}
+                      onCheckedChange={(checked) => 
+                        handleReportOption('includeGanttChart', checked)
+                      }
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-blue-600" />
+                        <Label htmlFor="includeGanttChart" className="font-medium">Gantt Chart View</Label>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Timeline visualization showing task dependencies and project timeline
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-gray-50">
+                    <Checkbox
+                      id="includeTaskList"
+                      checked={reportOptions.includeTaskList}
+                      onCheckedChange={(checked) => 
+                        handleReportOption('includeTaskList', checked)
+                      }
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <List className="w-4 h-4 text-green-600" />
+                        <Label htmlFor="includeTaskList" className="font-medium">Task List</Label>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Detailed table with all tasks, dates, status, and progress information
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-gray-50">
+                    <Checkbox
+                      id="includeCalendarView"
+                      checked={reportOptions.includeCalendarView}
+                      onCheckedChange={(checked) => 
+                        handleReportOption('includeCalendarView', checked)
+                      }
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-purple-600" />
+                        <Label htmlFor="includeCalendarView" className="font-medium">Calendar Overview</Label>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Calendar-style view highlighting upcoming and overdue tasks
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-gray-50">
+                    <Checkbox
+                      id="includeCriticalPath"
+                      checked={reportOptions.includeCriticalPath}
+                      onCheckedChange={(checked) => 
+                        handleReportOption('includeCriticalPath', checked)
+                      }
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <GitBranch className="w-4 h-4 text-red-600" />
+                        <Label htmlFor="includeCriticalPath" className="font-medium">Critical Path Analysis</Label>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Analysis of critical tasks that impact project completion timeline
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="options" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Data & Formatting Options</CardTitle>
+                <CardDescription>
+                  Configure what data to include and how to format the report
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -123,20 +201,20 @@ export function EnhancedExportDialog({
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="includeProgress"
-                      checked={exportOptions.includeProgress}
+                      checked={reportOptions.includeProgress}
                       onCheckedChange={(checked) => 
-                        handleExportOption('includeProgress', checked)
+                        handleReportOption('includeProgress', checked)
                       }
                     />
-                    <Label htmlFor="includeProgress">Include Progress</Label>
+                    <Label htmlFor="includeProgress">Include Progress Bars</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="includeDependencies"
-                      checked={exportOptions.includeDependencies}
+                      checked={reportOptions.includeDependencies}
                       onCheckedChange={(checked) => 
-                        handleExportOption('includeDependencies', checked)
+                        handleReportOption('includeDependencies', checked)
                       }
                     />
                     <Label htmlFor="includeDependencies">Include Dependencies</Label>
@@ -145,9 +223,9 @@ export function EnhancedExportDialog({
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="includeProjectInfo"
-                      checked={exportOptions.includeProjectInfo}
+                      checked={reportOptions.includeProjectInfo}
                       onCheckedChange={(checked) => 
-                        handleExportOption('includeProjectInfo', checked)
+                        handleReportOption('includeProjectInfo', checked)
                       }
                     />
                     <Label htmlFor="includeProjectInfo">Include Project Details</Label>
@@ -157,16 +235,16 @@ export function EnhancedExportDialog({
                 <div>
                   <Label>Date Format</Label>
                   <Select
-                    value={exportOptions.dateFormat}
-                    onValueChange={(value) => handleExportOption('dateFormat', value)}
+                    value={reportOptions.dateFormat}
+                    onValueChange={(value) => handleReportOption('dateFormat', value)}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="yyyy-MM-dd">YYYY-MM-DD</SelectItem>
-                      <SelectItem value="MM/dd/yyyy">MM/DD/YYYY</SelectItem>
-                      <SelectItem value="dd/MM/yyyy">DD/MM/YYYY</SelectItem>
+                      <SelectItem value="yyyy-MM-dd">YYYY-MM-DD (2025-06-15)</SelectItem>
+                      <SelectItem value="MM/dd/yyyy">MM/DD/YYYY (06/15/2025)</SelectItem>
+                      <SelectItem value="dd/MM/yyyy">DD/MM/YYYY (15/06/2025)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -241,83 +319,25 @@ export function EnhancedExportDialog({
               </CardContent>
             </Card>
           </TabsContent>
-
-          <TabsContent value="formats" className="space-y-4">
-            <div className="grid gap-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileSpreadsheet className="w-5 h-5 text-green-600" />
-                    Excel Export
-                  </CardTitle>
-                  <CardDescription>
-                    Export as Excel workbook with multiple sheets for detailed analysis
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    onClick={handleExcelExport}
-                    disabled={loading}
-                    className="w-full"
-                  >
-                    {loading ? 'Exporting...' : 'Export to Excel'}
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Share className="w-5 h-5 text-blue-600" />
-                    Google Sheets
-                  </CardTitle>
-                  <CardDescription>
-                    Open directly in Google Sheets for collaborative editing
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    onClick={handleGoogleSheetsExport}
-                    disabled={loading}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    {loading ? 'Opening...' : 'Open in Google Sheets'}
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Printer className="w-5 h-5 text-gray-600" />
-                    Print Report
-                  </CardTitle>
-                  <CardDescription>
-                    Generate print-optimized report with proper formatting
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    onClick={handlePrintExport}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    Generate Print Report
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
         </Tabs>
 
-        <div className="flex justify-between pt-4 border-t">
+        <div className="flex justify-between items-center pt-4 border-t">
           <div className="text-sm text-gray-500">
-            {tasks.length} tasks, {projects.length} projects
+            {tasks.length} tasks, {projects.length} projects • {getIncludedViewsCount()} views selected
           </div>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleGenerateReport}
+              disabled={loading || getIncludedViewsCount() === 0}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Generate Report
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

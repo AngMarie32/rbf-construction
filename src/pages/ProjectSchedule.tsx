@@ -448,7 +448,7 @@ export default function ProjectSchedule() {
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Project Schedule</h1>
               <p className="text-gray-600">Manage project timelines, dependencies, and track progress</p>
               <div className="mt-2 text-sm text-gray-500">
-                Shortcuts: Ctrl+N (New Task), Ctrl+E (Export), Ctrl+Q (Quick Planner), Esc (Close)
+                Shortcuts: Ctrl+N (New Task), Ctrl+E (Generate Report), Ctrl+Q (Quick Planner), Esc (Close)
               </div>
             </div>
             
@@ -467,7 +467,7 @@ export default function ProjectSchedule() {
               </Button>
               <Button variant="outline" onClick={handleExport}>
                 <Download className="w-4 h-4 mr-2" />
-                Enhanced Export
+                Generate Report
               </Button>
             </div>
           </div>
@@ -611,7 +611,7 @@ export default function ProjectSchedule() {
                   <h4 className="font-medium text-blue-800 mb-2">Advanced Features:</h4>
                   <ul className="text-sm space-y-1 text-blue-700">
                     <li>• Enhanced critical path analysis with float calculations</li>
-                    <li>• Export to Excel, Google Sheets, or print-optimized reports</li>
+                    <li>• Generate comprehensive reports with multiple views</li>
                     <li>• Data validation with error detection</li>
                     <li>• Bulk operations for multiple task management</li>
                   </ul>
@@ -642,7 +642,7 @@ export default function ProjectSchedule() {
         onOpenChange={setEnhancedExportOpen}
         tasks={filteredTasks}
         projects={projects}
-        title="Project Schedule Export"
+        title="Project Schedule Report"
       />
 
       {/* Add Task Dialog */}
