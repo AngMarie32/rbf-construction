@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { PenTool, Type, X, Upload, Plus, Download, Trash2 } from 'lucide-react';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useToast, toast as toastCustom } from "@/hooks/use-toast";
 
 interface G702BuilderProps {
@@ -277,7 +277,7 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
       if (!sovItems.find(i => i.id === itemId) && !itemId.startsWith('co-')) {
         await supabase.from('sov_items').delete().eq('id', itemId);
       }
-      // Fix: Remove from undo stack after timeout - use direct state update
+      // Fix: Remove from undo stack after timeout - use functional update
       setUndoStack(currentStack => currentStack.filter((v) => v.id !== itemId));
     }, 4000);
   };
@@ -459,425 +459,427 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
   const totals = calculateTotals();
 
   return (
-    <div className="space-y-6">
-      {/* SOV Import and Change Orders */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Schedule of Values & Change Orders</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4 mb-4">
-            <Button onClick={importSOVItems} className="flex items-center gap-2">
-              <Download className="w-4 h-4" />
-              Import Schedule of Values
-            </Button>
-            <Button onClick={handleAddNewItem} variant="outline" className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Add New Item
-            </Button>
-          </div>
+    <TooltipProvider>
+      <div className="space-y-6">
+        {/* SOV Import and Change Orders */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Schedule of Values & Change Orders</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4 mb-4">
+              <Button onClick={importSOVItems} className="flex items-center gap-2">
+                <Download className="w-4 h-4" />
+                Import Schedule of Values
+              </Button>
+              <Button onClick={handleAddNewItem} variant="outline" className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Add New Item
+              </Button>
+            </div>
 
-          <div className="mb-4">
-            <Label className="text-sm font-medium mb-2 block">Available Change Orders:</Label>
-            {changeOrders.length > 0 ? (
-              <>
-                <div className="space-y-2">
-                  {changeOrders.map((co) => (
-                    <div key={co.id} className="flex items-center justify-between p-2 border rounded">
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                            id={`co-${co.id}`}
-                            checked={selectedChangeOrders.includes(co.id)}
-                            onCheckedChange={() => handleToggleChangeOrderSelection(co.id)}
-                        />
-                        <label htmlFor={`co-${co.id}`} className="cursor-pointer">
-                          <span className="font-medium">CO-{co.number}: </span>
-                          <span className="text-sm">{co.description}</span>
-                          <span className="ml-2 text-green-600">${co.amount.toLocaleString()}</span>
-                        </label>
+            <div className="mb-4">
+              <Label className="text-sm font-medium mb-2 block">Available Change Orders:</Label>
+              {changeOrders.length > 0 ? (
+                <>
+                  <div className="space-y-2">
+                    {changeOrders.map((co) => (
+                      <div key={co.id} className="flex items-center justify-between p-2 border rounded">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                              id={`co-${co.id}`}
+                              checked={selectedChangeOrders.includes(co.id)}
+                              onCheckedChange={() => handleToggleChangeOrderSelection(co.id)}
+                          />
+                          <label htmlFor={`co-${co.id}`} className="cursor-pointer">
+                            <span className="font-medium">CO-{co.number}: </span>
+                            <span className="text-sm">{co.description}</span>
+                            <span className="ml-2 text-green-600">${co.amount.toLocaleString()}</span>
+                          </label>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-                <Button 
-                  size="sm" 
-                  onClick={addSelectedChangeOrdersToSOV}
-                  className="flex items-center gap-1 mt-2"
-                  disabled={selectedChangeOrders.length === 0}
-                >
-                  <Plus className="w-3 h-3" />
-                  Add Selected to SOV
-                </Button>
-              </>
-            ) : (
-              <p className="text-sm text-gray-500">No approved change orders available for this project.</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>G703 Continuation Sheet Builder</CardTitle>
-            <div className="flex items-center gap-4">
-              <Label htmlFor="applicationSelect">Application:</Label>
-              <Select value={selectedApplication} onValueChange={setSelectedApplication}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="current">Current Application #{formData.applicationNumber}</SelectItem>
-                  {applications.map((app) => (
-                    <SelectItem key={app.id} value={app.id}>
-                      Application #{app.application_number}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="grid grid-cols-9 gap-4 text-sm font-medium border-b pb-2">
-              <div>Item & Description</div>
-              <div>Scheduled Value</div>
-              <div>Change Orders</div>
-              <div>Total Contract</div>
-              <div>Work Completed This Period</div>
-              <div>Total Completed</div>
-              <div>% Complete</div>
-              <div>Balance to Finish</div>
-              <div>Actions</div>
-            </div>
-
-            <div className="max-h-96 overflow-y-auto space-y-2">
-              {sovItems.map((item) => {
-                const totalContract = (item.scheduledValue || 0) + (item.changeOrders || 0);
-                const totalCompleted = (item.previousApplications || 0) + (item.thisPeriod || 0) + (item.materialsStored || 0);
-                const percentComplete = totalContract > 0 ? (totalCompleted / totalContract) * 100 : 0;
-                const balanceToFinish = totalContract - totalCompleted;
-                const canEdit = !item.id.startsWith('co-');
-                return (
-                  <div
-                    key={item.id}
-                    className={`grid grid-cols-9 gap-2 items-center text-sm border-b pb-2 transition-all duration-300 ${
-                      highlightedRowId === item.id ? 'bg-lime-100' : ''
-                    }`}
+                    ))}
+                  </div>
+                  <Button 
+                    size="sm" 
+                    onClick={addSelectedChangeOrdersToSOV}
+                    className="flex items-center gap-1 mt-2"
+                    disabled={selectedChangeOrders.length === 0}
                   >
-                    <div className="font-medium col-span-1 flex flex-col gap-1">
-                      <div>{item.itemNumber}</div>
-                      <div className="text-xs text-gray-600 truncate flex items-center gap-1">
+                    <Plus className="w-3 h-3" />
+                    Add Selected to SOV
+                  </Button>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500">No approved change orders available for this project.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle>G703 Continuation Sheet Builder</CardTitle>
+              <div className="flex items-center gap-4">
+                <Label htmlFor="applicationSelect">Application:</Label>
+                <Select value={selectedApplication} onValueChange={setSelectedApplication}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="current">Current Application #{formData.applicationNumber}</SelectItem>
+                    {applications.map((app) => (
+                      <SelectItem key={app.id} value={app.id}>
+                        Application #{app.application_number}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-9 gap-4 text-sm font-medium border-b pb-2">
+                <div>Item & Description</div>
+                <div>Scheduled Value</div>
+                <div>Change Orders</div>
+                <div>Total Contract</div>
+                <div>Work Completed This Period</div>
+                <div>Total Completed</div>
+                <div>% Complete</div>
+                <div>Balance to Finish</div>
+                <div>Actions</div>
+              </div>
+
+              <div className="max-h-96 overflow-y-auto space-y-2">
+                {sovItems.map((item) => {
+                  const totalContract = (item.scheduledValue || 0) + (item.changeOrders || 0);
+                  const totalCompleted = (item.previousApplications || 0) + (item.thisPeriod || 0) + (item.materialsStored || 0);
+                  const percentComplete = totalContract > 0 ? (totalCompleted / totalContract) * 100 : 0;
+                  const balanceToFinish = totalContract - totalCompleted;
+                  const canEdit = !item.id.startsWith('co-');
+                  return (
+                    <div
+                      key={item.id}
+                      className={`grid grid-cols-9 gap-2 items-center text-sm border-b pb-2 transition-all duration-300 ${
+                        highlightedRowId === item.id ? 'bg-lime-100' : ''
+                      }`}
+                    >
+                      <div className="font-medium col-span-1 flex flex-col gap-1">
+                        <div>{item.itemNumber}</div>
+                        <div className="text-xs text-gray-600 truncate flex items-center gap-1">
+                          {canEdit && selectedApplication === 'current' ? (
+                            <Input
+                              value={item.description}
+                              className="text-xs h-6 px-2"
+                              onChange={e => handleInlineEdit(item.id, "description", e.target.value)}
+                            />
+                          ) : (
+                            <span>{item.description}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div>
                         {canEdit && selectedApplication === 'current' ? (
                           <Input
-                            value={item.description}
-                            className="text-xs h-6 px-2"
-                            onChange={e => handleInlineEdit(item.id, "description", e.target.value)}
+                            type="number"
+                            min={0}
+                            className="w-full h-6 px-2"
+                            value={item.scheduledValue}
+                            onChange={e => handleInlineEdit(item.id, "scheduledValue", Number(e.target.value) || 0)}
                           />
                         ) : (
-                          <span>{item.description}</span>
+                          <>${(item.scheduledValue || 0).toLocaleString()}</>
+                        )}
+                      </div>
+                      <div>${(item.changeOrders || 0).toLocaleString()}</div>
+                      <div className="font-medium">${totalContract.toLocaleString()}</div>
+                      <div>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={item.thisPeriod || 0}
+                          onChange={(e) => updateSOVItemThisPeriod(item.id, Number(e.target.value) || 0)}
+                          className="w-full"
+                          disabled={selectedApplication !== 'current'}
+                          min={0}
+                        />
+                      </div>
+                      <div>${totalCompleted.toLocaleString()}</div>
+                      <div>{percentComplete.toFixed(1)}%</div>
+                      <div>${balanceToFinish.toLocaleString()}</div>
+                      <div>
+                        {canEdit && (
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            onClick={() => {
+                              handleDeleteSOVItemWithUndo(item.id);
+                            }}
+                            className="text-red-500 hover:text-red-700"
+                            aria-label="Delete SOV Item"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         )}
                       </div>
                     </div>
-                    <div>
-                      {canEdit && selectedApplication === 'current' ? (
-                        <Input
-                          type="number"
-                          min={0}
-                          className="w-full h-6 px-2"
-                          value={item.scheduledValue}
-                          onChange={e => handleInlineEdit(item.id, "scheduledValue", Number(e.target.value) || 0)}
-                        />
-                      ) : (
-                        <>${(item.scheduledValue || 0).toLocaleString()}</>
-                      )}
+                  );
+                })}
+                {newSOVItem && (
+                    <div className={`grid grid-cols-9 gap-2 items-center text-sm border-b-2 border-blue-200 py-2 bg-lime-50 ${highlightedRowId === 'new' ? 'bg-lime-200' : ''}`}>
+                        <div className="col-span-1">
+                            <Input
+                                value={newSOVItem.itemNumber}
+                                onChange={(e) => setNewSOVItem({ ...newSOVItem, itemNumber: e.target.value })}
+                                placeholder="Item #"
+                                className="h-8"
+                            />
+                            <Input
+                                value={newSOVItem.description}
+                                onChange={(e) => setNewSOVItem({ ...newSOVItem, description: e.target.value })}
+                                placeholder="Description"
+                                className="h-8 mt-1"
+                            />
+                        </div>
+                        <div>
+                            <Input
+                                type="number"
+                                value={newSOVItem.scheduledValue}
+                                onChange={(e) => setNewSOVItem({ ...newSOVItem, scheduledValue: Number(e.target.value) || 0 })}
+                                placeholder="Value"
+                                className="h-8"
+                            />
+                        </div>
+                        <div>$0.00</div>
+                        <div>${(newSOVItem.scheduledValue || 0).toLocaleString()}</div>
+                        <div>$0.00</div>
+                        <div>$0.00</div>
+                        <div>0.0%</div>
+                        <div>${(newSOVItem.scheduledValue || 0).toLocaleString()}</div>
+                        <div className="flex gap-1">
+                            <Button onClick={handleSaveNewItem} size="sm" className="h-8" disabled={loading}>{loading ? 'Saving...' : 'Save'}</Button>
+                            <Button onClick={handleCancelNewItem} variant="ghost" size="sm" className="h-8">Cancel</Button>
+                        </div>
                     </div>
-                    <div>${(item.changeOrders || 0).toLocaleString()}</div>
-                    <div className="font-medium">${totalContract.toLocaleString()}</div>
-                    <div>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={item.thisPeriod || 0}
-                        onChange={(e) => updateSOVItemThisPeriod(item.id, Number(e.target.value) || 0)}
-                        className="w-full"
-                        disabled={selectedApplication !== 'current'}
-                        min={0}
-                      />
-                    </div>
-                    <div>${totalCompleted.toLocaleString()}</div>
-                    <div>{percentComplete.toFixed(1)}%</div>
-                    <div>${balanceToFinish.toLocaleString()}</div>
-                    <div>
-                      {canEdit && (
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          onClick={() => {
-                            handleDeleteSOVItemWithUndo(item.id);
-                          }}
-                          className="text-red-500 hover:text-red-700"
-                          aria-label="Delete SOV Item"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              {newSOVItem && (
-                  <div className={`grid grid-cols-9 gap-2 items-center text-sm border-b-2 border-blue-200 py-2 bg-lime-50 ${highlightedRowId === 'new' ? 'bg-lime-200' : ''}`}>
-                      <div className="col-span-1">
-                          <Input
-                              value={newSOVItem.itemNumber}
-                              onChange={(e) => setNewSOVItem({ ...newSOVItem, itemNumber: e.target.value })}
-                              placeholder="Item #"
-                              className="h-8"
-                          />
-                          <Input
-                              value={newSOVItem.description}
-                              onChange={(e) => setNewSOVItem({ ...newSOVItem, description: e.target.value })}
-                              placeholder="Description"
-                              className="h-8 mt-1"
-                          />
-                      </div>
-                      <div>
-                          <Input
-                              type="number"
-                              value={newSOVItem.scheduledValue}
-                              onChange={(e) => setNewSOVItem({ ...newSOVItem, scheduledValue: Number(e.target.value) || 0 })}
-                              placeholder="Value"
-                              className="h-8"
-                          />
-                      </div>
-                      <div>$0.00</div>
-                      <div>${(newSOVItem.scheduledValue || 0).toLocaleString()}</div>
-                      <div>$0.00</div>
-                      <div>$0.00</div>
-                      <div>0.0%</div>
-                      <div>${(newSOVItem.scheduledValue || 0).toLocaleString()}</div>
-                      <div className="flex gap-1">
-                          <Button onClick={handleSaveNewItem} size="sm" className="h-8" disabled={loading}>{loading ? 'Saving...' : 'Save'}</Button>
-                          <Button onClick={handleCancelNewItem} variant="ghost" size="sm" className="h-8">Cancel</Button>
-                      </div>
-                  </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-9 gap-2 items-center text-sm font-bold border-t pt-2 bg-gray-50">
-              <div>TOTALS</div>
-              <div>${totals.totalScheduledValue.toLocaleString()}</div>
-              <div>${totals.totalChangeOrders.toLocaleString()}</div>
-              <div>${totals.totalContract.toLocaleString()}</div>
-              <div>${totals.totalThisPeriod.toLocaleString()}</div>
-              <div>${totals.totalCompleted.toLocaleString()}</div>
-              <div>{totals.totalContract > 0 ? ((totals.totalCompleted / totals.totalContract) * 100).toFixed(1) : 0}%</div>
-              <div>${totals.balanceToFinish.toLocaleString()}</div>
-              <div></div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Application Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Application Settings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <div className="flex items-center gap-1">
-                <Label htmlFor="retainagePercentage">Retainage Percentage</Label>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="cursor-help text-blue-400">?</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    The percentage of payments held back until project completion as a safeguard.
-                  </TooltipContent>
-                </Tooltip>
+                )}
               </div>
-              <Input
-                id="retainagePercentage"
-                type="number"
-                step="0.1"
-                value={formData.retainagePercentage}
-                onChange={(e) => setFormData({ ...formData, retainagePercentage: Number(e.target.value) })}
-                min={0}
-                max={100}
-              />
-            </div>
-            <div>
-              <Label htmlFor="periodFrom">Period From</Label>
-              <Input
-                id="periodFrom"
-                type="date"
-                value={formData.periodFrom}
-                onChange={(e) => setFormData({ ...formData, periodFrom: e.target.value })}
-              />
-            </div>
-          </div>
 
-          <div className="mt-4">
-            <Label>Distribution To</Label>
-            <div className="flex gap-4 mt-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="owner"
-                  checked={formData.distributionTo?.owner || false}
-                  onCheckedChange={(checked) => 
-                    setFormData({
-                      ...formData,
-                      distributionTo: { ...formData.distributionTo, owner: checked }
-                    })
-                  }
-                />
-                <Label htmlFor="owner">Owner</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="architect"
-                  checked={formData.distributionTo?.architect || false}
-                  onCheckedChange={(checked) => 
-                    setFormData({
-                      ...formData,
-                      distributionTo: { ...formData.distributionTo, architect: checked }
-                    })
-                  }
-                />
-                <Label htmlFor="architect">Architect</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="contractor"
-                  checked={formData.distributionTo?.contractor || false}
-                  onCheckedChange={(checked) => 
-                    setFormData({
-                      ...formData,
-                      distributionTo: { ...formData.distributionTo, contractor: checked }
-                    })
-                  }
-                />
-                <Label htmlFor="contractor">Contractor</Label>
+              <div className="grid grid-cols-9 gap-2 items-center text-sm font-bold border-t pt-2 bg-gray-50">
+                <div>TOTALS</div>
+                <div>${totals.totalScheduledValue.toLocaleString()}</div>
+                <div>${totals.totalChangeOrders.toLocaleString()}</div>
+                <div>${totals.totalContract.toLocaleString()}</div>
+                <div>${totals.totalThisPeriod.toLocaleString()}</div>
+                <div>${totals.totalCompleted.toLocaleString()}</div>
+                <div>{totals.totalContract > 0 ? ((totals.totalCompleted / totals.totalContract) * 100).toFixed(1) : 0}%</div>
+                <div>${totals.balanceToFinish.toLocaleString()}</div>
+                <div></div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Contractor Signature Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Contractor Certification</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        {/* Application Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Application Settings</CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="contractorSignatory">Signatory Name</Label>
+                <div className="flex items-center gap-1">
+                  <Label htmlFor="retainagePercentage">Retainage Percentage</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help text-blue-400">?</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      The percentage of payments held back until project completion as a safeguard.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 <Input
-                  id="contractorSignatory"
-                  value={formData.contractorSignatory || ''}
-                  onChange={(e) => setFormData({ ...formData, contractorSignatory: e.target.value })}
+                  id="retainagePercentage"
+                  type="number"
+                  step="0.1"
+                  value={formData.retainagePercentage}
+                  onChange={(e) => setFormData({ ...formData, retainagePercentage: Number(e.target.value) })}
+                  min={0}
+                  max={100}
                 />
               </div>
               <div>
-                <Label htmlFor="contractorTitle">Title</Label>
+                <Label htmlFor="periodFrom">Period From</Label>
                 <Input
-                  id="contractorTitle"
-                  value={formData.contractorTitle || ''}
-                  onChange={(e) => setFormData({ ...formData, contractorTitle: e.target.value })}
+                  id="periodFrom"
+                  type="date"
+                  value={formData.periodFrom}
+                  onChange={(e) => setFormData({ ...formData, periodFrom: e.target.value })}
                 />
               </div>
             </div>
 
-            <div>
-              <Label>Signature</Label>
-              <Tabs value={signatureType} onValueChange={(value) => setSignatureType(value as 'draw' | 'type')}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="type" className="flex items-center gap-2">
-                    <Type className="w-4 h-4" />
-                    Type Signature
-                  </TabsTrigger>
-                  <TabsTrigger value="draw" className="flex items-center gap-2">
-                    <PenTool className="w-4 h-4" />
-                    Draw Signature
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="type" className="mt-4">
-                  <div className="space-y-3">
-                    <Input
-                      placeholder="Type your signature here"
-                      value={typedSignature}
-                      onChange={(e) => setTypedSignature(e.target.value)}
-                      className="text-2xl font-script"
-                      style={{ fontFamily: '"Brush Script MT", cursive' }}
-                    />
-                    {formData.contractorSignature && (
-                      <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium">Signature Preview:</span>
+            <div className="mt-4">
+              <Label>Distribution To</Label>
+              <div className="flex gap-4 mt-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="owner"
+                    checked={formData.distributionTo?.owner || false}
+                    onCheckedChange={(checked) => 
+                      setFormData({
+                        ...formData,
+                        distributionTo: { ...formData.distributionTo, owner: checked }
+                      })
+                    }
+                  />
+                  <Label htmlFor="owner">Owner</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="architect"
+                    checked={formData.distributionTo?.architect || false}
+                    onCheckedChange={(checked) => 
+                      setFormData({
+                        ...formData,
+                        distributionTo: { ...formData.distributionTo, architect: checked }
+                      })
+                    }
+                  />
+                  <Label htmlFor="architect">Architect</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="contractor"
+                    checked={formData.distributionTo?.contractor || false}
+                    onCheckedChange={(checked) => 
+                      setFormData({
+                        ...formData,
+                        distributionTo: { ...formData.distributionTo, contractor: checked }
+                      })
+                    }
+                  />
+                  <Label htmlFor="contractor">Contractor</Label>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Contractor Signature Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Contractor Certification</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="contractorSignatory">Signatory Name</Label>
+                  <Input
+                    id="contractorSignatory"
+                    value={formData.contractorSignatory || ''}
+                    onChange={(e) => setFormData({ ...formData, contractorSignatory: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="contractorTitle">Title</Label>
+                  <Input
+                    id="contractorTitle"
+                    value={formData.contractorTitle || ''}
+                    onChange={(e) => setFormData({ ...formData, contractorTitle: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Signature</Label>
+                <Tabs value={signatureType} onValueChange={(value) => setSignatureType(value as 'draw' | 'type')}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="type" className="flex items-center gap-2">
+                      <Type className="w-4 h-4" />
+                      Type Signature
+                    </TabsTrigger>
+                    <TabsTrigger value="draw" className="flex items-center gap-2">
+                      <PenTool className="w-4 h-4" />
+                      Draw Signature
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="type" className="mt-4">
+                    <div className="space-y-3">
+                      <Input
+                        placeholder="Type your signature here"
+                        value={typedSignature}
+                        onChange={(e) => setTypedSignature(e.target.value)}
+                        className="text-2xl font-script"
+                        style={{ fontFamily: '"Brush Script MT", cursive' }}
+                      />
+                      {formData.contractorSignature && (
+                        <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium">Signature Preview:</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setFormData({ ...formData, contractorSignature: null });
+                                setTypedSignature('');
+                              }}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <X className="w-4 h-4 mr-1" />
+                              Clear
+                            </Button>
+                          </div>
+                          <img 
+                            src={formData.contractorSignature} 
+                            alt="Typed Signature" 
+                            className="max-h-20 border border-gray-300 bg-white rounded"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="draw" className="mt-4">
+                    <div className="space-y-3">
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                        <canvas
+                          ref={canvasRef}
+                          width={400}
+                          height={150}
+                          className="border border-gray-300 bg-white rounded cursor-crosshair w-full"
+                          onMouseDown={startDrawing}
+                          onMouseMove={draw}
+                          onMouseUp={stopDrawing}
+                          onMouseLeave={stopDrawing}
+                        />
+                        <div className="flex gap-2 mt-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              setFormData({ ...formData, contractorSignature: null });
-                              setTypedSignature('');
-                            }}
-                            className="text-red-600 hover:text-red-700"
+                            onClick={clearCanvas}
                           >
                             <X className="w-4 h-4 mr-1" />
                             Clear
                           </Button>
                         </div>
-                        <img 
-                          src={formData.contractorSignature} 
-                          alt="Typed Signature" 
-                          className="max-h-20 border border-gray-300 bg-white rounded"
-                        />
                       </div>
-                    )}
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="draw" className="mt-4">
-                  <div className="space-y-3">
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                      <canvas
-                        ref={canvasRef}
-                        width={400}
-                        height={150}
-                        className="border border-gray-300 bg-white rounded cursor-crosshair w-full"
-                        onMouseDown={startDrawing}
-                        onMouseMove={draw}
-                        onMouseUp={stopDrawing}
-                        onMouseLeave={stopDrawing}
-                      />
-                      <div className="flex gap-2 mt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={clearCanvas}
-                        >
-                          <X className="w-4 h-4 mr-1" />
-                          Clear
-                        </Button>
-                      </div>
+                      <p className="text-xs text-gray-500">
+                        Click and drag to draw your signature
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      Click and drag to draw your signature
-                    </p>
-                  </div>
-                </TabsContent>
-              </Tabs>
+                  </TabsContent>
+                </Tabs>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          </CardContent>
+        </Card>
+      </div>
+    </TooltipProvider>
   );
 }
