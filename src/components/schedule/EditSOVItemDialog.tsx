@@ -22,9 +22,7 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
     description: '',
     category: '',
     scheduled_value: '',
-    change_orders: '',
-    previous_applications: '',
-    this_period: '',
+    work_completed_to_date: '',
     materials_stored: '',
     retainage_percentage: '10'
   });
@@ -36,9 +34,7 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
         description: sovItem.description || '',
         category: sovItem.category || '',
         scheduled_value: sovItem.scheduled_value?.toString() || '',
-        change_orders: sovItem.change_orders?.toString() || '0',
-        previous_applications: sovItem.previous_applications?.toString() || '0',
-        this_period: sovItem.this_period?.toString() || '0',
+        work_completed_to_date: sovItem.work_completed_to_date?.toString() || '0',
         materials_stored: sovItem.materials_stored?.toString() || '0',
         retainage_percentage: sovItem.retainage_percentage?.toString() || '10'
       });
@@ -61,9 +57,7 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
           description: formData.description,
           category: formData.category,
           scheduled_value: parseFloat(formData.scheduled_value),
-          change_orders: parseFloat(formData.change_orders) || 0,
-          previous_applications: parseFloat(formData.previous_applications) || 0,
-          this_period: parseFloat(formData.this_period) || 0,
+          work_completed_to_date: parseFloat(formData.work_completed_to_date) || 0,
           materials_stored: parseFloat(formData.materials_stored) || 0,
           retainage_percentage: parseFloat(formData.retainage_percentage) || 10
         })
@@ -84,7 +78,7 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Edit SOV Item</DialogTitle>
         </DialogHeader>
@@ -137,56 +131,6 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="change_orders">Change Orders ($)</Label>
-              <Input
-                id="change_orders"
-                type="number"
-                step="0.01"
-                value={formData.change_orders}
-                onChange={(e) => setFormData({ ...formData, change_orders: e.target.value })}
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="previous_applications">Previous Applications ($)</Label>
-              <Input
-                id="previous_applications"
-                type="number"
-                step="0.01"
-                value={formData.previous_applications}
-                onChange={(e) => setFormData({ ...formData, previous_applications: e.target.value })}
-                placeholder="0.00"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="this_period">This Period ($)</Label>
-              <Input
-                id="this_period"
-                type="number"
-                step="0.01"
-                value={formData.this_period}
-                onChange={(e) => setFormData({ ...formData, this_period: e.target.value })}
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="materials_stored">Materials Stored ($)</Label>
-              <Input
-                id="materials_stored"
-                type="number"
-                step="0.01"
-                value={formData.materials_stored}
-                onChange={(e) => setFormData({ ...formData, materials_stored: e.target.value })}
-                placeholder="0.00"
-              />
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="retainage_percentage">Retainage % *</Label>
               <Input
                 id="retainage_percentage"
@@ -196,6 +140,31 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
                 onChange={(e) => setFormData({ ...formData, retainage_percentage: e.target.value })}
                 placeholder="10"
                 required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="work_completed_to_date">Work Completed ($)</Label>
+              <Input
+                id="work_completed_to_date"
+                type="number"
+                step="0.01"
+                value={formData.work_completed_to_date}
+                onChange={(e) => setFormData({ ...formData, work_completed_to_date: e.target.value })}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="materials_stored">Materials Stored ($)</Label>
+              <Input
+                id="materials_stored"
+                type="number"
+                step="0.01"
+                value={formData.materials_stored}
+                onChange={(e) => setFormData({ ...formData, materials_stored: e.target.value })}
+                placeholder="0.00"
               />
             </div>
           </div>

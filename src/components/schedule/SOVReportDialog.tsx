@@ -15,20 +15,17 @@ interface SOVReportDialogProps {
 export function SOVReportDialog({ open, onOpenChange, projectData, sovItems }: SOVReportDialogProps) {
   const [loading, setLoading] = useState(false);
 
-  const totalScheduledValue = sovItems.reduce((sum, item) => sum + (Number(item.scheduled_value) || 0), 0);
-  const totalCompleted = sovItems.reduce((sum, item) => sum + (Number(item.previous_applications) || 0) + (Number(item.this_period) || 0) + (Number(item.materials_stored) || 0), 0);
+  const totalScheduledValue = sovItems.reduce((sum, item) => sum + (item.scheduled_value || 0), 0);
+  const totalCompleted = sovItems.reduce((sum, item) => sum + (item.total_completed_and_stored || 0), 0);
   const completionPercentage = totalScheduledValue ? Math.round((totalCompleted / totalScheduledValue) * 100) : 0;
 
   const handleExportPDF = async () => {
-    if (!projectData) {
-      toast.error('Project data not available');
-      return;
-    }
+    if (!projectData) return;
 
     setLoading(true);
     try {
       const reportElement = document.createElement('div');
-      reportElement.id = 'sov-report';
+      reportElement.id = 'sov-professional-report';
       reportElement.style.position = 'absolute';
       reportElement.style.left = '-9999px';
       reportElement.style.background = 'white';
@@ -80,16 +77,14 @@ export function SOVReportDialog({ open, onOpenChange, projectData, sovItems }: S
           </thead>
           <tbody>
             ${sovItems.map(item => {
-              const totalItemCompleted = (Number(item.previous_applications) || 0) + (Number(item.this_period) || 0) + (Number(item.materials_stored) || 0);
-              const balance = (Number(item.scheduled_value) || 0) - totalItemCompleted;
-              const itemPercentComplete = (Number(item.scheduled_value) || 0) > 0 ? ((totalItemCompleted / (Number(item.scheduled_value) || 0)) * 100) : 0;
+              const balance = (item.scheduled_value || 0) - (item.total_completed_and_stored || 0);
               return `
                 <tr>
                   <td style="border: 1px solid #d1d5db; padding: 6px; font-weight: bold;">${item.item_number}</td>
                   <td style="border: 1px solid #d1d5db; padding: 6px;">${item.description}</td>
-                  <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${(Number(item.scheduled_value) || 0).toLocaleString()}</td>
-                  <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${totalItemCompleted.toLocaleString()}</td>
-                  <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${itemPercentComplete.toFixed(1)}%</td>
+                  <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${(item.scheduled_value || 0).toLocaleString()}</td>
+                  <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${(item.total_completed_and_stored || 0).toLocaleString()}</td>
+                  <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${item.percent_complete || 0}%</td>
                   <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${balance.toLocaleString()}</td>
                 </tr>
               `;
@@ -116,10 +111,10 @@ export function SOVReportDialog({ open, onOpenChange, projectData, sovItems }: S
 
       document.body.appendChild(reportElement);
       
-      await exportToPDF('sov-report', `SOV-Report-${projectData?.name?.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`);
+      await exportToPDF('sov-professional-report', `SOV-Report-${projectData?.name?.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`);
       
       document.body.removeChild(reportElement);
-      toast.success('SOV report generated successfully');
+      toast.success('Professional SOV report generated successfully');
       onOpenChange(false);
     } catch (error) {
       console.error('Error generating report:', error);
@@ -190,7 +185,7 @@ export function SOVReportDialog({ open, onOpenChange, projectData, sovItems }: S
             </div>
 
             <div className="text-center text-sm text-gray-600">
-              <p>Preview of SOV report with {sovItems.length} line items</p>
+              <p>Preview of professional SOV report with {sovItems.length} line items</p>
             </div>
           </div>
 
@@ -199,7 +194,7 @@ export function SOVReportDialog({ open, onOpenChange, projectData, sovItems }: S
               Cancel
             </Button>
             <Button onClick={handleExportPDF} disabled={loading}>
-              {loading ? 'Generating PDF...' : 'Export Report'}
+              {loading ? 'Generating PDF...' : 'Export Professional Report'}
             </Button>
           </div>
         </div>
