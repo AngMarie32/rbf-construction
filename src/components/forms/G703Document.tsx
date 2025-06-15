@@ -81,20 +81,19 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
           <thead>
             {/* First row - Column letters A through K */}
             <tr className="bg-gray-100 text-center font-bold">
-              <th className="border-r border-b border-black p-1 w-12">A</th>
-              <th className="border-r border-b border-black p-1 w-40">B</th>
-              <th className="border-r border-b border-black p-1 w-20">C</th>
-              <th className="border-r border-b border-black p-1 w-20">D</th>
-              <th className="border-r border-b border-black p-1 w-20">E</th>
-              <th className="border-r border-b border-black p-1 w-20">F</th>
-              <th className="border-r border-b border-black p-1 w-20">G</th>
-              <th className="border-r border-b border-black p-1 w-20">H</th>
-              <th className="border-r border-b border-black p-1 w-20">I</th>
-              <th className="border-r border-b border-black p-1 w-16">I</th>
-              <th className="border-r border-b border-black p-1 w-20">J</th>
-              <th className="border-b border-black p-1 w-20">K</th>
+              <th className="border-r border-b border-black p-1 w-8">A</th>
+              <th className="border-r border-b border-black p-1 w-32">B</th>
+              <th className="border-r border-b border-black p-1 w-16">C</th>
+              <th className="border-r border-b border-black p-1 w-16">D</th>
+              <th className="border-r border-b border-black p-1 w-16">E</th>
+              <th className="border-r border-b border-black p-1 w-16">F</th>
+              <th className="border-r border-b border-black p-1 w-16">G</th>
+              <th className="border-r border-b border-black p-1 w-16">H</th>
+              <th className="border-r border-b border-black p-1 w-24" colSpan={2}>I</th>
+              <th className="border-r border-b border-black p-1 w-16">J</th>
+              <th className="border-b border-black p-1 w-16">K</th>
             </tr>
-            {/* Second row - Main headers with proper alignment */}
+            {/* Second row - Main headers with "WORK COMPLETED" spanning F, G, H */}
             <tr className="bg-gray-100 text-center font-bold">
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
                 <div className="text-xs">ITEM<br />NO.</div>
@@ -114,16 +113,16 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               <th className="border-r border-b border-black p-1 font-bold" colSpan={3}>
                 <div className="border-b border-black pb-1 mb-1">WORK COMPLETED</div>
                 <div className="grid grid-cols-3 gap-0 text-xs font-normal">
-                  <div className="border-r border-black pr-1 align-bottom"><strong>FROM<br />PREVIOUS<br />APPLICATION</strong></div>
-                  <div className="border-r border-black px-1 align-bottom"><strong>THIS PERIOD</strong></div>
-                  <div className="align-bottom"><strong>MATERIALS<br />PRESENTLY<br />STORED</strong></div>
+                  <div className="border-r border-black pr-1 align-bottom">FROM<br />PREVIOUS<br />APPLICATION</div>
+                  <div className="border-r border-black px-1 align-bottom">THIS PERIOD</div>
+                  <div className="align-bottom">MATERIALS<br />PRESENTLY<br />STORED</div>
                 </div>
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                <div className="text-xs">TOTAL<br />COMPLETED<br />AND STORED TO<br />DATE</div>
+                <div className="text-xs">TOTAL<br />COMPLETED<br />AND STORED TO</div>
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                <div className="text-xs">%<br />COMPLETE</div>
+                <div className="text-xs">% COMPLETE</div>
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
                 <div className="text-xs">BALANCE TO<br />FINISH</div>
