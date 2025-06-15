@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -187,21 +186,30 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
 
       if (error) throw error;
 
-      const mappedItems = (data || []).map(item => ({
-        id: item.id,
-        itemNumber: item.item_number,
-        description: item.description,
-        scheduledValue: item.scheduled_value,
-        changeOrders: item.change_orders || 0, // Ensure this is properly mapped
-        previousApplications: item.previous_applications || 0,
-        thisPeriod: item.this_period || 0,
-        materialsStored: item.materials_stored || 0,
-        totalCompletedAndStored: item.total_completed_and_stored || 0,
-        percentComplete: item.percent_complete || 0,
-        category: item.category
-      }));
+      console.log('Fetched SOV items:', data); // Debug log
+
+      const mappedItems = (data || []).map(item => {
+        console.log(`Item ${item.item_number}: change_orders = ${item.change_orders}`); // Debug log
+        return {
+          id: item.id,
+          itemNumber: item.item_number,
+          description: item.description,
+          scheduledValue: item.scheduled_value,
+          changeOrders: item.change_orders || 0, // Make sure this is properly mapped
+          previousApplications: item.previous_applications || 0,
+          thisPeriod: item.this_period || 0,
+          materialsStored: item.materials_stored || 0,
+          totalCompletedAndStored: item.total_completed_and_stored || 0,
+          percentComplete: item.percent_complete || 0,
+          category: item.category
+        };
+      });
 
       setSovItems(mappedItems);
+      
+      // Log the total change orders for debugging
+      const totalChangeOrders = mappedItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
+      console.log('Total change orders from SOV items:', totalChangeOrders);
     } catch (error) {
       console.error('Error fetching SOV items:', error);
       toast.error('Failed to load SOV items');
@@ -216,20 +224,24 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
       .eq('project_id', projectId)
       .lt('application_number', formData.applicationNumber);
 
-    // Use form data values if available, otherwise calculate from SOV
-    const originalContractSum = formData.originalContractSum || project?.originalContractSum || 0;
+    // Calculate from SOV items - this ensures we get the most up-to-date values
+    const originalContractSum = sovItems.reduce((sum, item) => sum + (item.scheduledValue || 0), 0);
+    const netChangeOrders = sovItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
     
-    // Net Change by Change Orders - use project value or calculate from SOV items
-    const netChangeOrders = formData.netChangeOrders || 
-                           project?.netChangeOrders || 
-                           sovItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
+    console.log('Calculated totals:', {
+      originalContractSum,
+      netChangeOrders,
+      sovItemsCount: sovItems.length
+    });
     
     // Contract Sum to Date = Original Contract Sum + Net Change by Change Orders
     const contractSumToDate = originalContractSum + netChangeOrders;
     
-    // Total Completed & Stored to Date = Total from G703 from current and all previous applications
-    const currentTotalCompleted = sovItems.reduce((sum, item) => sum + (item.totalCompletedAndStored || 0), 0);
-    const totalCompletedAndStored = currentTotalCompleted;
+    // Total Completed & Stored to Date = Sum of all SOV item totals
+    const totalCompletedAndStored = sovItems.reduce((sum, item) => {
+      const itemTotal = (item.previousApplications || 0) + (item.thisPeriod || 0) + (item.materialsStored || 0);
+      return sum + itemTotal;
+    }, 0);
     
     // Retainage calculations
     const retainageRate = formData.retainagePercentage / 100;
@@ -247,7 +259,7 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
     // Balance to Finish = Contract Sum to Date - Less Previous Certificates - Current Payment Due
     const balanceToFinish = contractSumToDate - lessPreviousPayments - currentPaymentDue;
 
-    return {
+    const totals = {
       originalContractSum,
       netChangeOrders,
       contractSumToDate,
@@ -258,6 +270,9 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
       currentPaymentDue,
       balanceToFinish
     };
+
+    console.log('Final calculated totals:', totals);
+    return totals;
   };
 
   const saveG702Application = async () => {
