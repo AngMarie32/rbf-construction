@@ -71,7 +71,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    const margin = 6;
+    const margin = 8;
     const availableWidth = pdfWidth - (margin * 2);
     const availableHeight = pdfHeight - (margin * 2);
 
@@ -99,20 +99,20 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       g702Element.style.display = 'block';
       g702Element.style.visibility = 'visible';
       g702Element.style.width = '11in';
-      g702Element.style.transform = 'scale(0.88)';
+      g702Element.style.transform = 'scale(0.85)';
       g702Element.style.transformOrigin = 'top left';
       
       console.log('G702 element dimensions:', g702Element.scrollWidth, g702Element.scrollHeight);
 
       const g702Canvas = await html2canvas(g702Element, {
-        scale: 1.8,
+        scale: 1.6,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        width: Math.min(g702Element.scrollWidth * 0.88, 1050),
-        height: Math.min(g702Element.scrollHeight * 0.88, 800),
-        windowWidth: 1500,
-        windowHeight: 1000
+        width: Math.min(g702Element.scrollWidth * 0.85, 1000),
+        height: Math.min(g702Element.scrollHeight * 0.85, 750),
+        windowWidth: 1400,
+        windowHeight: 950
       });
 
       // Restore original styles safely
@@ -123,13 +123,13 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
 
       const g702ImgData = g702Canvas.toDataURL('image/png');
       
-      // Calculate optimal scaling for landscape with better fitting
+      // Calculate optimal scaling for landscape with better fitting and margin buffer
       const imgWidthMm = g702Canvas.width * 0.264583;
       const imgHeightMm = g702Canvas.height * 0.264583;
       
       const scaleX = availableWidth / imgWidthMm;
       const scaleY = availableHeight / imgHeightMm;
-      const scale = Math.min(scaleX, scaleY, 0.95); // Ensure it fits with small buffer
+      const scale = Math.min(scaleX, scaleY, 0.92); // Reduced scale to ensure no cutoff
       
       const scaledWidth = imgWidthMm * scale;
       const scaledHeight = imgHeightMm * scale;
@@ -167,20 +167,20 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       g703Element.style.display = 'block';
       g703Element.style.visibility = 'visible';
       g703Element.style.width = '11in';
-      g703Element.style.transform = 'scale(0.88)';
+      g703Element.style.transform = 'scale(0.85)';
       g703Element.style.transformOrigin = 'top left';
       
       console.log('G703 element dimensions:', g703Element.scrollWidth, g703Element.scrollHeight);
 
       const g703Canvas = await html2canvas(g703Element, {
-        scale: 1.8,
+        scale: 1.6,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        width: Math.min(g703Element.scrollWidth * 0.88, 1050),
-        height: Math.min(g703Element.scrollHeight * 0.88, 800),
-        windowWidth: 1500,
-        windowHeight: 1000
+        width: Math.min(g703Element.scrollWidth * 0.85, 1000),
+        height: Math.min(g703Element.scrollHeight * 0.85, 750),
+        windowWidth: 1400,
+        windowHeight: 950
       });
 
       // Restore original styles safely
@@ -191,13 +191,13 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
 
       const g703ImgData = g703Canvas.toDataURL('image/png');
       
-      // Calculate optimal scaling for landscape with better fitting
+      // Calculate optimal scaling for landscape with better fitting and margin buffer
       const imgWidthMm = g703Canvas.width * 0.264583;
       const imgHeightMm = g703Canvas.height * 0.264583;
       
       const scaleX = availableWidth / imgWidthMm;
       const scaleY = availableHeight / imgHeightMm;
-      const scale = Math.min(scaleX, scaleY, 0.95); // Ensure it fits with small buffer
+      const scale = Math.min(scaleX, scaleY, 0.92); // Reduced scale to ensure no cutoff
       
       const scaledWidth = imgWidthMm * scale;
       const scaledHeight = imgHeightMm * scale;

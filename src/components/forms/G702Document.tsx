@@ -39,19 +39,19 @@ export function G702Document({ project, formData, totals }: G702DocumentProps) {
           <div className="col-span-4 text-left space-y-2">
             <div className="flex justify-between items-center">
               <span className="font-bold">APPLICATION NO:</span>
-              <span className="text-lg font-bold border-b border-black px-2 min-w-[60px] text-center">{formData.applicationNumber}</span>
+              <span className="text-lg font-bold px-2 min-w-[60px] text-center">{formData.applicationNumber}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="font-bold">PERIOD TO:</span>
-              <span className="border-b border-black px-2 min-w-[100px] text-center">{new Date(formData.periodTo).toLocaleDateString()}</span>
+              <span className="px-2 min-w-[100px] text-center">{new Date(formData.periodTo).toLocaleDateString()}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="font-bold">PROJECT:</span>
-              <span className="border-b border-black px-2 flex-1 ml-2 text-center">{project.name}</span>
+              <span className="px-2 flex-1 ml-2 text-center">{project.name}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="font-bold">PROJECT NO:</span>
-              <span className="border-b border-black px-2 min-w-[80px] text-center">{project.projectCode}</span>
+              <span className="px-2 min-w-[80px] text-center">{project.projectCode}</span>
             </div>
           </div>
           
