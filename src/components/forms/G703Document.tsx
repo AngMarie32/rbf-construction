@@ -111,7 +111,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
                 <div className="text-xs">TOTAL<br />CONTRACT</div>
               </th>
-              <th className="border-r border-b border-black p-1 font-bold" colSpan={3}>
+              <th className="border-r border-b border-black p-1" colSpan={3}>
                 <div className="border-b border-black pb-1 mb-1">WORK COMPLETED</div>
                 <div className="grid grid-cols-3 gap-0 text-xs font-normal">
                   <div className="border-r border-black pr-1 text-center">FROM<br />PREVIOUS<br />APPLICATION</div>

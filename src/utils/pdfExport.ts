@@ -71,7 +71,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    const margin = 8;
+    const margin = 6;
     const availableWidth = pdfWidth - (margin * 2);
     const availableHeight = pdfHeight - (margin * 2);
 
@@ -99,20 +99,20 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       g702Element.style.display = 'block';
       g702Element.style.visibility = 'visible';
       g702Element.style.width = '11in';
-      g702Element.style.transform = 'scale(0.85)';
+      g702Element.style.transform = 'scale(0.9)';
       g702Element.style.transformOrigin = 'top left';
       
       console.log('G702 element dimensions:', g702Element.scrollWidth, g702Element.scrollHeight);
 
       const g702Canvas = await html2canvas(g702Element, {
-        scale: 1.6,
+        scale: 1.8,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        width: Math.min(g702Element.scrollWidth * 0.85, 1000),
-        height: Math.min(g702Element.scrollHeight * 0.85, 750),
-        windowWidth: 1400,
-        windowHeight: 950
+        width: g702Element.scrollWidth,
+        height: g702Element.scrollHeight,
+        windowWidth: 1600,
+        windowHeight: 1200
       });
 
       // Restore original styles safely
@@ -129,7 +129,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       
       const scaleX = availableWidth / imgWidthMm;
       const scaleY = availableHeight / imgHeightMm;
-      const scale = Math.min(scaleX, scaleY, 0.92); // Reduced scale to ensure no cutoff
+      const scale = Math.min(scaleX, scaleY, 0.95);
       
       const scaledWidth = imgWidthMm * scale;
       const scaledHeight = imgHeightMm * scale;
@@ -167,20 +167,20 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       g703Element.style.display = 'block';
       g703Element.style.visibility = 'visible';
       g703Element.style.width = '11in';
-      g703Element.style.transform = 'scale(0.85)';
+      g703Element.style.transform = 'scale(0.9)';
       g703Element.style.transformOrigin = 'top left';
       
       console.log('G703 element dimensions:', g703Element.scrollWidth, g703Element.scrollHeight);
 
       const g703Canvas = await html2canvas(g703Element, {
-        scale: 1.6,
+        scale: 1.8,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        width: Math.min(g703Element.scrollWidth * 0.85, 1000),
-        height: Math.min(g703Element.scrollHeight * 0.85, 750),
-        windowWidth: 1400,
-        windowHeight: 950
+        width: g703Element.scrollWidth,
+        height: g703Element.scrollHeight,
+        windowWidth: 1600,
+        windowHeight: 1200
       });
 
       // Restore original styles safely
@@ -197,7 +197,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       
       const scaleX = availableWidth / imgWidthMm;
       const scaleY = availableHeight / imgHeightMm;
-      const scale = Math.min(scaleX, scaleY, 0.92); // Reduced scale to ensure no cutoff
+      const scale = Math.min(scaleX, scaleY, 0.95);
       
       const scaledWidth = imgWidthMm * scale;
       const scaledHeight = imgHeightMm * scale;
