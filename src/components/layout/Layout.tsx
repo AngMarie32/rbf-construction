@@ -3,7 +3,6 @@ import { ReactNode, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { DMChatWidget } from '@/components/chat/DMChatWidget';
 
 interface LayoutProps {
   children: ReactNode;
@@ -18,9 +17,6 @@ export function Layout({ children, title, subtitle }: LayoutProps) {
   const handleMenuClick = () => {
     setSidebarOpen(!sidebarOpen);
   };
-
-  // Don't show DM chat widget on dedicated chat page
-  const showDMChat = !location.pathname.startsWith('/chat');
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -37,9 +33,6 @@ export function Layout({ children, title, subtitle }: LayoutProps) {
           {children}
         </main>
       </div>
-      
-      {/* DM Chat Widget */}
-      {showDMChat && <DMChatWidget />}
     </div>
   );
 }

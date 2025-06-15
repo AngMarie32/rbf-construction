@@ -85,20 +85,40 @@ export const ProfileSettings: React.FC = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase
+      // First check if profile exists
+      const { data: existingProfile } = await supabase
         .from('profiles')
-        .update({
-          name: profileData.name,
-          email: profileData.email,
-          // Don't allow direct role updates - they must go through approval process
-        })
-        .eq('id', user.id);
+        .select('id')
+        .eq('id', user.id)
+        .single();
 
-      if (error) {
-        console.error('Error saving profile:', error);
+      let result;
+      if (existingProfile) {
+        // Update existing profile
+        result = await supabase
+          .from('profiles')
+          .update({
+            name: profileData.name,
+            email: profileData.email,
+          })
+          .eq('id', user.id);
+      } else {
+        // Insert new profile
+        result = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            name: profileData.name,
+            email: profileData.email,
+            role: 'Field'
+          });
+      }
+
+      if (result.error) {
+        console.error('Error saving profile:', result.error);
         toast({
           title: "Error",
-          description: `Failed to update profile: ${error.message}`,
+          description: `Failed to update profile: ${result.error.message}`,
           variant: "destructive",
         });
         return;
