@@ -35,7 +35,7 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
   const [newSOVItem, setNewSOVItem] = useState<null | { itemNumber: string, description: string, scheduledValue: number, category: string }>(null);
 
   // State for undo functionality - Fix: Properly type to allow functional updates
-  const [undoStack, setUndoStack] = useState<any[]>([]);
+  const [undoStack, setUndoStack] = useState([] as any[]);
   const [lastDeletedSOV, setLastDeletedSOV] = useState<any | null>(null);
   const [highlightedRowId, setHighlightedRowId] = useState<string | null>(null);
 
