@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { Calendar, DollarSign, Clock, Users, FileText, TrendingUp, ArrowLeft, Brain, ExternalLink } from 'lucide-react';
+import { Calendar, DollarSign, Clock, Users, FileText, TrendingUp, ArrowLeft, Brain, ExternalLink, MapPin, User, Building } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format, differenceInDays, isWithinInterval } from 'date-fns';
@@ -14,6 +15,8 @@ import { GanttChart } from '@/components/schedule/GanttChart';
 import { ScheduleDateFilter } from '@/components/schedule/ScheduleDateFilter';
 import { DateRange } from 'react-day-picker';
 import { PageChatWidget } from '@/components/chat/PageChatWidget';
+import { useProjectExpenses } from '@/hooks/useProjectExpenses';
+import { useProjectBilling } from '@/hooks/useProjectBilling';
 
 interface Project {
   id: string;
@@ -21,15 +24,14 @@ interface Project {
   client: string;
   status: string;
   start_date: string;
-  end_date: string;
-  budget: number;
-  spent: number;
-  description?: string;
-  project_manager?: string;
-  location?: string;
-  contract_type?: string;
-  contract_value: number;
   due_date: string;
+  contract_value: number;
+  completion_percentage: number;
+  description?: string;
+  field_leader?: string;
+  address?: string;
+  project_code?: string;
+  type?: string;
 }
 
 interface Task {
@@ -62,6 +64,14 @@ export default function ProjectDetail() {
   const [showCriticalPath, setShowCriticalPath] = useState(false);
   const [showMilestones, setShowMilestones] = useState(true);
 
+  // Get project expenses and billing data
+  const { expenses: projectExpenses } = useProjectExpenses(id ? [id] : []);
+  const { billing: projectBilling } = useProjectBilling(id ? [id] : []);
+
+  const totalExpenses = id ? (projectExpenses[id] || 0) : 0;
+  const totalBilled = id ? (projectBilling[id]?.totalBilled || 0) : 0;
+  const totalReceived = id ? (projectBilling[id]?.totalReceived || 0) : 0;
+
   useEffect(() => {
     if (id) {
       fetchProject();
@@ -78,16 +88,7 @@ export default function ProjectDetail() {
         .single();
 
       if (error) throw error;
-      
-      // Map database fields to expected interface
-      const mappedProject: Project = {
-        ...data,
-        end_date: data.due_date || data.due_date,
-        budget: data.contract_value || 0,
-        spent: data.contract_value * (data.completion_percentage / 100) || 0
-      };
-      
-      setProject(mappedProject);
+      setProject(data);
     } catch (error) {
       console.error('Error fetching project:', error);
       toast.error('Failed to load project details');
@@ -149,11 +150,6 @@ export default function ProjectDetail() {
     });
   };
 
-  const handleBackToOverview = () => {
-    setActiveTab('overview');
-    setShowFilters(false);
-  };
-
   const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {
     setTasks(prev => prev.map(task => 
       task.id === taskId ? { ...task, ...updates } : task
@@ -192,20 +188,22 @@ export default function ProjectDetail() {
     );
   }
 
-  const progressPercentage = project.budget > 0 ? (project.spent / project.budget) * 100 : 0;
-  const remainingBudget = project.budget - project.spent;
-  const daysRemaining = differenceInDays(new Date(project.end_date), new Date());
+  const progressPercentage = project.completion_percentage || 0;
+  const remainingValue = project.contract_value - totalBilled;
+  const daysRemaining = differenceInDays(new Date(project.due_date), new Date());
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'completed':
         return 'bg-green-500';
-      case 'in_progress':
+      case 'active':
         return 'bg-blue-500';
-      case 'on_hold':
+      case 'on hold':
         return 'bg-yellow-500';
-      case 'cancelled':
-        return 'bg-red-500';
+      case 'planning':
+        return 'bg-purple-500';
+      case 'closed':
+        return 'bg-gray-500';
       default:
         return 'bg-gray-500';
     }
@@ -242,92 +240,262 @@ export default function ProjectDetail() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="financial">Financial</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="budget">Budget</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="team">Team</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="analysis">Analysis</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            {/* Project Header */}
+            {/* Project Header Card */}
             <Card>
               <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                  <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
                     <div className="flex items-center gap-3">
                       <h1 className="text-2xl font-bold">{project.name}</h1>
                       <Badge className={`${getStatusColor(project.status)} text-white`}>
-                        {project.status.replace('_', ' ').toUpperCase()}
+                        {project.status}
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
-                      <div><strong>Client:</strong> {project.client || 'Not specified'}</div>
-                      <div><strong>Project Manager:</strong> {project.project_manager || 'Not assigned'}</div>
-                      <div><strong>Location:</strong> {project.location || 'Not specified'}</div>
-                      <div><strong>Contract Type:</strong> {project.contract_type || 'Standard'}</div>
-                    </div>
+                    {project.project_code && (
+                      <p className="text-sm text-gray-600">Project Code: {project.project_code}</p>
+                    )}
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div className="space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {/* Client Information */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                      <Building className="w-4 h-4" />
+                      Client Details
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-medium">{project.client}</p>
+                      {project.address && (
+                        <div className="flex items-start gap-2">
+                          <MapPin className="w-3 h-3 mt-1 text-gray-400" />
+                          <p className="text-sm text-gray-600">{project.address}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Timeline */}
+                  <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
                       <Calendar className="w-4 h-4" />
                       Timeline
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-sm"><strong>Start:</strong> {project.start_date ? format(new Date(project.start_date), 'MMM dd, yyyy') : 'Not set'}</p>
-                      <p className="text-sm"><strong>End:</strong> {format(new Date(project.end_date), 'MMM dd, yyyy')}</p>
-                      <p className="text-sm"><strong>Days Left:</strong> {daysRemaining > 0 ? daysRemaining : 'Overdue'}</p>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs text-gray-500">Start Date</p>
+                        <p className="text-sm font-medium">
+                          {project.start_date ? format(new Date(project.start_date), 'MMM dd, yyyy') : 'Not set'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Due Date</p>
+                        <p className="text-sm font-medium">
+                          {format(new Date(project.due_date), 'MMM dd, yyyy')}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Days Remaining</p>
+                        <p className={`text-sm font-medium ${daysRemaining < 0 ? 'text-red-600' : daysRemaining <= 7 ? 'text-yellow-600' : 'text-green-600'}`}>
+                          {daysRemaining > 0 ? `${daysRemaining} days` : 'Overdue'}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  {/* Financial Summary */}
+                  <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
                       <DollarSign className="w-4 h-4" />
-                      Budget
+                      Financial
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-sm"><strong>Total:</strong> ${project.budget.toLocaleString()}</p>
-                      <p className="text-sm"><strong>Spent:</strong> ${project.spent.toLocaleString()}</p>
-                      <p className="text-sm"><strong>Remaining:</strong> ${remainingBudget.toLocaleString()}</p>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs text-gray-500">Contract Value</p>
+                        <p className="text-sm font-medium">${project.contract_value.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Total Billed</p>
+                        <p className="text-sm font-medium text-green-600">${totalBilled.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Total Received</p>
+                        <p className="text-sm font-medium text-emerald-600">${totalReceived.toLocaleString()}</p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  {/* Project Progress */}
+                  <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
                       <TrendingUp className="w-4 h-4" />
                       Progress
                     </div>
                     <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-xs text-gray-500">Completion</span>
+                        <span className="text-sm font-medium">{progressPercentage}%</span>
+                      </div>
                       <Progress value={progressPercentage} className="w-full" />
-                      <p className="text-sm">{progressPercentage.toFixed(1)}% Complete</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-                      <FileText className="w-4 h-4" />
-                      Details
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm"><strong>Tasks:</strong> {tasks.length}</p>
-                      <p className="text-sm"><strong>Contract Value:</strong> ${project.contract_value.toLocaleString()}</p>
+                      <div>
+                        <p className="text-xs text-gray-500">Tasks</p>
+                        <p className="text-sm font-medium">{tasks.length} total</p>
+                      </div>
+                      {project.field_leader && (
+                        <div>
+                          <p className="text-xs text-gray-500">Field Leader</p>
+                          <div className="flex items-center gap-1">
+                            <User className="w-3 h-3 text-gray-400" />
+                            <p className="text-sm font-medium">{project.field_leader}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 {project.description && (
                   <div className="mt-6 pt-6 border-t">
-                    <h3 className="font-medium mb-2">Description</h3>
+                    <h3 className="font-medium mb-2">Project Description</h3>
                     <p className="text-gray-600">{project.description}</p>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Total Expenses</p>
+                      <p className="text-lg font-semibold text-red-600">${totalExpenses.toLocaleString()}</p>
+                    </div>
+                    <DollarSign className="w-8 h-8 text-red-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Remaining Value</p>
+                      <p className="text-lg font-semibold text-blue-600">${remainingValue.toLocaleString()}</p>
+                    </div>
+                    <TrendingUp className="w-8 h-8 text-blue-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Active Tasks</p>
+                      <p className="text-lg font-semibold">{tasks.filter(t => t.status === 'In Progress').length}</p>
+                    </div>
+                    <Clock className="w-8 h-8 text-orange-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Project Type</p>
+                      <p className="text-lg font-semibold">{project.type || 'General'}</p>
+                    </div>
+                    <FileText className="w-8 h-8 text-purple-500" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="financial" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5" />
+                  Financial Overview
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg">Contract Details</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Contract Value:</span>
+                        <span className="font-medium">${project.contract_value.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Billed:</span>
+                        <span className="font-medium text-green-600">${totalBilled.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Received:</span>
+                        <span className="font-medium text-emerald-600">${totalReceived.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Outstanding:</span>
+                        <span className="font-medium text-orange-600">${(totalBilled - totalReceived).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg">Project Costs</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Expenses:</span>
+                        <span className="font-medium text-red-600">${totalExpenses.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Remaining Budget:</span>
+                        <span className="font-medium">${remainingValue.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Profit Margin:</span>
+                        <span className="font-medium text-blue-600">
+                          {project.contract_value > 0 ? (((totalReceived - totalExpenses) / project.contract_value) * 100).toFixed(1) : 0}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg">Performance</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Billing Progress:</span>
+                        <span className="font-medium">
+                          {project.contract_value > 0 ? ((totalBilled / project.contract_value) * 100).toFixed(1) : 0}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Collection Rate:</span>
+                        <span className="font-medium">
+                          {totalBilled > 0 ? ((totalReceived / totalBilled) * 100).toFixed(1) : 0}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -337,7 +505,7 @@ export default function ProjectDetail() {
               <ScheduleDateFilter
                 dateRange={dateRange}
                 onDateRangeChange={setDateRange}
-                onBack={handleBackToOverview}
+                onBack={() => setShowFilters(false)}
                 showDependencies={showDependencies}
                 onShowDependenciesChange={setShowDependencies}
                 showCriticalPath={showCriticalPath}
@@ -358,15 +526,9 @@ export default function ProjectDetail() {
                     Project Schedule
                   </CardTitle>
                   {!showFilters && (
-                    <div className="flex gap-2">
-                      <Button variant="outline" onClick={handleBackToOverview}>
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Back to Details
-                      </Button>
-                      <Button onClick={() => setShowFilters(true)}>
-                        Customize View
-                      </Button>
-                    </div>
+                    <Button onClick={() => setShowFilters(true)}>
+                      Customize View
+                    </Button>
                   )}
                 </div>
               </CardHeader>
@@ -396,22 +558,27 @@ export default function ProjectDetail() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="budget">
+          <TabsContent value="team">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="w-5 h-5" />
-                    Budget Analysis
-                  </CardTitle>
-                  <Button variant="outline" onClick={handleBackToOverview}>
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Details
-                  </Button>
-                </div>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Project Team
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-500">Budget details and analysis will be displayed here.</p>
+                <div className="space-y-4">
+                  {project.field_leader && (
+                    <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                      <User className="w-8 h-8 text-gray-500" />
+                      <div>
+                        <p className="font-medium">{project.field_leader}</p>
+                        <p className="text-sm text-gray-600">Field Leader</p>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-gray-500">Additional team management features coming soon.</p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -419,39 +586,13 @@ export default function ProjectDetail() {
           <TabsContent value="documents">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Project Documents
-                  </CardTitle>
-                  <Button variant="outline" onClick={handleBackToOverview}>
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Details
-                  </Button>
-                </div>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Project Documents
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-500">Document management will be displayed here.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="team">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Project Team
-                  </CardTitle>
-                  <Button variant="outline" onClick={handleBackToOverview}>
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Details
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-500">Team management will be displayed here.</p>
+                <p className="text-gray-500">Document management features coming soon.</p>
               </CardContent>
             </Card>
           </TabsContent>
@@ -459,16 +600,10 @@ export default function ProjectDetail() {
           <TabsContent value="analysis">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Brain className="w-5 h-5" />
-                    Project Analysis
-                  </CardTitle>
-                  <Button variant="outline" onClick={handleBackToOverview}>
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Details
-                  </Button>
-                </div>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="w-5 h-5" />
+                  AI Project Analysis
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="text-center py-8">
@@ -479,78 +614,15 @@ export default function ProjectDetail() {
                     Analyze plans, scope of work, measurements, and get expert construction advice.
                   </p>
                   
-                  <div className="space-y-4">
-                    <Button 
-                      onClick={handleOpenCustomGPT}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg"
-                    >
-                      <Brain className="w-5 h-5 mr-2" />
-                      Open Albus AI Assistant
-                      <ExternalLink className="w-4 h-4 ml-2" />
-                    </Button>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 max-w-2xl mx-auto">
-                      <div className="p-4 bg-blue-50 rounded-lg border">
-                        <h4 className="font-medium text-blue-900 mb-2">Plan Analysis</h4>
-                        <p className="text-sm text-blue-700">Upload construction plans and get detailed scope analysis</p>
-                      </div>
-                      <div className="p-4 bg-green-50 rounded-lg border">
-                        <h4 className="font-medium text-green-900 mb-2">Measurements</h4>
-                        <p className="text-sm text-green-700">Extract precise measurements and quantities from drawings</p>
-                      </div>
-                      <div className="p-4 bg-purple-50 rounded-lg border">
-                        <h4 className="font-medium text-purple-900 mb-2">Cost Estimation</h4>
-                        <p className="text-sm text-purple-700">Get intelligent cost estimates based on project scope</p>
-                      </div>
-                      <div className="p-4 bg-orange-50 rounded-lg border">
-                        <h4 className="font-medium text-orange-900 mb-2">Expert Advice</h4>
-                        <p className="text-sm text-orange-700">Receive construction best practices and recommendations</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t pt-6">
-                  <h4 className="font-medium mb-3">Quick Actions</h4>
-                  <div className="space-y-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => navigate('/project-analyzer')}
-                      className="w-full justify-start"
-                    >
-                      <FileText className="w-4 h-4 mr-2" />
-                      Go to Project Analyzer Tool
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={handleOpenCustomGPT}
-                      className="w-full justify-start"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Chat with Albus AI
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="reports">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5" />
-                    Project Reports
-                  </CardTitle>
-                  <Button variant="outline" onClick={handleBackToOverview}>
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Details
+                  <Button 
+                    onClick={handleOpenCustomGPT}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg"
+                  >
+                    <Brain className="w-5 h-5 mr-2" />
+                    Open Albus AI Assistant
+                    <ExternalLink className="w-4 h-4 ml-2" />
                   </Button>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-500">Project reports and analytics will be displayed here.</p>
               </CardContent>
             </Card>
           </TabsContent>
