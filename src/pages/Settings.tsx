@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +30,7 @@ const Settings = () => {
   }, []);
 
   const fetchCompanySettings = async () => {
+    console.log('Fetching company settings...');
     try {
       const { data, error } = await supabase
         .from('company_settings')
@@ -38,11 +38,15 @@ const Settings = () => {
         .limit(1)
         .maybeSingle();
 
+      console.log('Company settings data:', data);
+      console.log('Company settings error:', error);
+
       if (error && error.code !== 'PGRST116') {
         throw error;
       }
 
       if (data) {
+        console.log('Setting existing ID:', data.id);
         setExistingId(data.id);
         setCompanySettings({
           company_name: data.company_name || '',
@@ -51,6 +55,8 @@ const Settings = () => {
           company_email: data.company_email || '',
           logo_url: data.logo_url || '',
         });
+      } else {
+        console.log('No existing company settings found');
       }
     } catch (error) {
       console.error('Error fetching company settings:', error);
@@ -65,21 +71,30 @@ const Settings = () => {
   const handleLogoUpload = async () => {
     if (!logoFile) return null;
 
+    console.log('Starting logo upload...');
     setUploadingLogo(true);
     try {
       const fileExt = logoFile.name.split('.').pop();
       const fileName = `company-logo-${Date.now()}.${fileExt}`;
 
+      console.log('Uploading file:', fileName);
+
       const { data, error } = await supabase.storage
         .from('company-assets')
         .upload(fileName, logoFile);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Logo upload error:', error);
+        throw error;
+      }
+
+      console.log('Logo upload success:', data);
 
       const { data: { publicUrl } } = supabase.storage
         .from('company-assets')
         .getPublicUrl(fileName);
 
+      console.log('Logo public URL:', publicUrl);
       return publicUrl;
     } catch (error) {
       console.error('Error uploading logo:', error);
@@ -96,6 +111,10 @@ const Settings = () => {
 
   const handleSaveCompanySettings = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Starting save company settings...');
+    console.log('Current state - existingId:', existingId);
+    console.log('Current settings:', companySettings);
+    
     setLoading(true);
 
     try {
@@ -103,9 +122,11 @@ const Settings = () => {
 
       // Upload new logo if selected
       if (logoFile) {
+        console.log('Uploading new logo...');
         const uploadedUrl = await handleLogoUpload();
         if (uploadedUrl) {
           logoUrl = uploadedUrl;
+          console.log('New logo URL:', logoUrl);
         }
       }
 
@@ -117,14 +138,18 @@ const Settings = () => {
         logo_url: logoUrl,
       };
 
+      console.log('Settings to save:', settingsToSave);
+
       let result;
       if (existingId) {
+        console.log('Updating existing record with ID:', existingId);
         // Update existing record
         result = await supabase
           .from('company_settings')
           .update(settingsToSave)
           .eq('id', existingId);
       } else {
+        console.log('Inserting new record...');
         // Insert new record
         result = await supabase
           .from('company_settings')
@@ -133,11 +158,17 @@ const Settings = () => {
           .single();
         
         if (result.data) {
+          console.log('New record created with ID:', result.data.id);
           setExistingId(result.data.id);
         }
       }
 
-      if (result.error) throw result.error;
+      console.log('Save result:', result);
+
+      if (result.error) {
+        console.error('Save error:', result.error);
+        throw result.error;
+      }
 
       setCompanySettings(prev => ({ ...prev, logo_url: logoUrl }));
       setLogoFile(null);
@@ -148,6 +179,7 @@ const Settings = () => {
       });
 
       // Refresh the data to ensure consistency
+      console.log('Refreshing company settings...');
       fetchCompanySettings();
     } catch (error) {
       console.error('Error saving company settings:', error);
