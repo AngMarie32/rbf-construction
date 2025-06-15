@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CalendarIcon, Download } from 'lucide-react';
+import { CalendarIcon, Download, Import } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -267,6 +268,61 @@ export function ImprovedBillingDialog({
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {formData.project_id && (
+                    <div className="flex gap-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => setShowPaymentApps(!showPaymentApps)}
+                        className="flex-1"
+                      >
+                        <Import className="w-4 h-4 mr-2" />
+                        {showPaymentApps ? 'Hide Payment Apps' : 'Import from Payment Apps'}
+                      </Button>
+                    </div>
+                  )}
+
+                  {showPaymentApps && (
+                    <Card className="p-4 bg-gray-50">
+                      <h4 className="font-medium mb-3">Available Payment Applications</h4>
+                      {paymentApps.length === 0 ? (
+                        <p className="text-sm text-gray-500">No payment applications found for this project.</p>
+                      ) : (
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {paymentApps.map(app => (
+                            <div key={app.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={app.id}
+                                checked={selectedPaymentApps.includes(app.id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedPaymentApps([...selectedPaymentApps, app.id]);
+                                  } else {
+                                    setSelectedPaymentApps(selectedPaymentApps.filter(id => id !== app.id));
+                                  }
+                                }}
+                              />
+                              <Label htmlFor={app.id} className="text-sm flex-1">
+                                App #{app.application_number} - ${app.current_payment_due.toLocaleString()} 
+                                ({format(new Date(app.period_to), 'MMM dd, yyyy')})
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {selectedPaymentApps.length > 0 && (
+                        <Button 
+                          type="button" 
+                          onClick={handleImportFromPaymentApps}
+                          className="mt-3 w-full"
+                          size="sm"
+                        >
+                          Import Selected ({selectedPaymentApps.length})
+                        </Button>
+                      )}
+                    </Card>
+                  )}
 
                   <div>
                     <Label htmlFor="status">Status</Label>

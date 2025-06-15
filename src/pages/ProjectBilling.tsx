@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +26,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ImprovedBillingDialog } from '@/components/billing/ImprovedBillingDialog';
+import { toast } from 'sonner';
 
 interface ProjectBilling {
   id: string;
@@ -85,9 +87,9 @@ export default function ProjectBilling() {
         billing_period_start: billing.billing_period_start,
         billing_period_end: billing.billing_period_end,
         invoice_number: billing.invoice_number,
-        billed_amount: billing.billed_amount,
-        paid_amount: billing.paid_amount,
-        remaining_amount: billing.remaining_amount,
+        billed_amount: Number(billing.billed_amount) || 0,
+        paid_amount: Number(billing.paid_amount) || 0,
+        remaining_amount: Number(billing.billed_amount || 0) - Number(billing.paid_amount || 0),
         status: billing.status as 'Draft' | 'Sent' | 'Paid' | 'Overdue' | 'Cancelled',
         invoice_date: billing.invoice_date,
         due_date: billing.due_date,
@@ -99,6 +101,7 @@ export default function ProjectBilling() {
       setBillings(mappedBillings);
     } catch (error) {
       console.error('Error fetching billings:', error);
+      toast.error('Failed to load billing records');
     } finally {
       setLoading(false);
     }
@@ -128,8 +131,10 @@ export default function ProjectBilling() {
       if (error) throw error;
 
       fetchBillings();
+      toast.success('Billing record deleted successfully');
     } catch (error) {
       console.error('Error deleting billing record:', error);
+      toast.error('Failed to delete billing record');
     }
   };
 
@@ -153,8 +158,10 @@ export default function ProjectBilling() {
       if (error) throw error;
 
       fetchBillings();
+      toast.success('Billing marked as paid');
     } catch (error) {
       console.error('Error updating billing:', error);
+      toast.error('Failed to update billing');
     }
   };
 
@@ -256,49 +263,6 @@ export default function ProjectBilling() {
     a.click();
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
-  };
-
-  const createBillingFromPayApp = async () => {
-    try {
-      const { data: payApps, error } = await supabase
-        .from('payment_applications_g702')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-
-      for (const payApp of payApps || []) {
-        const { data: existingBilling } = await supabase
-          .from('project_billing')
-          .select('id')
-          .eq('project_id', payApp.project_id)
-          .eq('billing_period_end', payApp.period_to)
-          .single();
-
-        if (!existingBilling && payApp.current_payment_due > 0) {
-          const { error: insertError } = await supabase
-            .from('project_billing')
-            .insert({
-              project_id: payApp.project_id,
-              billing_period_start: new Date(new Date(payApp.period_to).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-              billing_period_end: payApp.period_to,
-              billed_amount: payApp.current_payment_due,
-              paid_amount: 0,
-              status: 'Draft',
-              notes: `Auto-generated from Payment Application #${payApp.application_number}`
-            });
-
-          if (insertError) {
-            console.error('Error creating billing from pay app:', insertError);
-          }
-        }
-      }
-
-      fetchBillings();
-    } catch (error) {
-      console.error('Error creating billing from payment applications:', error);
-    }
   };
 
   const totals = calculateTotals();
