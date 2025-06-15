@@ -32,6 +32,25 @@ serve(async (req) => {
 
     if (invitationError) throw invitationError
 
+    // Get the user's verified email from their profile
+    const { data: userData } = await supabaseClient.auth.getUser()
+    const userId = userData?.user?.id
+
+    let senderEmail = 'BuildPro Construction <noreply@buildpro.com>' // Default
+    
+    if (userId) {
+      const { data: profile } = await supabaseClient
+        .from('profiles')
+        .select('email, email_verified, name')
+        .eq('id', userId)
+        .single()
+
+      if (profile?.email_verified && profile?.email) {
+        const senderName = profile.name || 'BuildPro Team'
+        senderEmail = `${senderName} <${profile.email}>`
+      }
+    }
+
     // Send email to each recipient
     for (const recipient of recipients) {
       const emailHtml = `
@@ -39,9 +58,9 @@ serve(async (req) => {
         <p>Dear ${recipient.name},</p>
         <p>You have been invited to submit a bid for the following project:</p>
         <h3>Project: ${invitation.bid_package.project.name}</h3>
-        <p><strong>Due Date:</strong> ${invitation.due_date}</p>
-        <p><strong>Message:</strong></p>
-        <p>${invitation.message}</p>
+        <p><strong>Bid Package:</strong> ${invitation.bid_package.name}</p>
+        <p><strong>Due Date:</strong> ${invitation.due_date || 'To be determined'}</p>
+        ${invitation.message ? `<p><strong>Message:</strong></p><p>${invitation.message}</p>` : ''}
         <p>Please respond by the due date with your bid proposal.</p>
         <p>Best regards,<br/>BuildPro Construction</p>
       `
@@ -49,6 +68,7 @@ serve(async (req) => {
       // Here you would integrate with your email service (Resend, SendGrid, etc.)
       // For now, we'll just log that the email would be sent
       console.log(`Email would be sent to: ${recipient.email}`)
+      console.log(`From: ${senderEmail}`)
       console.log(`Subject: Bid Invitation - ${invitation.title}`)
       console.log(`Content: ${emailHtml}`)
 
@@ -72,7 +92,11 @@ serve(async (req) => {
       .eq('id', invitationId)
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Emails sent successfully' }),
+      JSON.stringify({ 
+        success: true, 
+        message: 'Emails sent successfully',
+        senderEmail: senderEmail
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 
