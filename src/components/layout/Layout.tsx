@@ -1,7 +1,9 @@
 
 import { ReactNode, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { PageChatWidget } from '@/components/chat/PageChatWidget';
 
 interface LayoutProps {
   children: ReactNode;
@@ -11,10 +13,14 @@ interface LayoutProps {
 
 export function Layout({ children, title, subtitle }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
 
   const handleMenuClick = () => {
     setSidebarOpen(!sidebarOpen);
   };
+
+  // Don't show page chat widget on dedicated chat page
+  const showPageChat = !location.pathname.startsWith('/chat');
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -31,6 +37,14 @@ export function Layout({ children, title, subtitle }: LayoutProps) {
           {children}
         </main>
       </div>
+      
+      {/* Page-specific Chat Widget */}
+      {showPageChat && (
+        <PageChatWidget
+          pageName={title}
+          contextType="page"
+        />
+      )}
     </div>
   );
 }

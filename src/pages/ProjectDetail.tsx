@@ -13,6 +13,7 @@ import { format, differenceInDays, isWithinInterval } from 'date-fns';
 import { GanttChart } from '@/components/schedule/GanttChart';
 import { ScheduleDateFilter } from '@/components/schedule/ScheduleDateFilter';
 import { DateRange } from 'react-day-picker';
+import { PageChatWidget } from '@/components/chat/PageChatWidget';
 
 interface Project {
   id: string;
@@ -554,6 +555,13 @@ export default function ProjectDetail() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Project-specific Chat Widget */}
+        <PageChatWidget
+          contextId={project.id}
+          contextType="project"
+          pageName={`${project.name} Chat`}
+        />
       </div>
     </Layout>
   );
