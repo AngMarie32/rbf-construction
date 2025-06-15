@@ -126,29 +126,106 @@ export function ProjectReportBuilder({ project }: ProjectReportBuilderProps) {
 
     try {
       for (const source of selectedDataSources) {
-        let query = supabase.from(source === 'payment_apps' ? 'payment_applications_g702' : source).select('*');
+        let sourceData = [];
         
-        if (source !== 'equipment') {
-          query = query.eq('project_id', project.id);
-        }
-
-        if (dateRange?.from && dateRange?.to) {
-          const dateColumn = source === 'expenses' ? 'date' : 
-                           source === 'billing' ? 'billing_period_start' :
-                           source === 'change_orders' ? 'date' :
-                           source === 'payment_apps' ? 'period_to' :
-                           source === 'tasks' ? 'start_date' :
-                           'created_at';
+        // Handle each data source individually with proper table names
+        if (source === 'expenses') {
+          let query = supabase.from('expenses').select('*').eq('project_id', project.id);
           
-          query = query
-            .gte(dateColumn, dateRange.from.toISOString().split('T')[0])
-            .lte(dateColumn, dateRange.to.toISOString().split('T')[0]);
+          if (dateRange?.from && dateRange?.to) {
+            query = query
+              .gte('date', dateRange.from.toISOString().split('T')[0])
+              .lte('date', dateRange.to.toISOString().split('T')[0]);
+          }
+          
+          const { data: expenseData, error } = await query;
+          if (error) throw error;
+          sourceData = expenseData || [];
         }
-
-        const { data: sourceData, error } = await query;
-        if (error) throw error;
         
-        data[source] = sourceData || [];
+        else if (source === 'billing') {
+          let query = supabase.from('project_billing').select('*').eq('project_id', project.id);
+          
+          if (dateRange?.from && dateRange?.to) {
+            query = query
+              .gte('billing_period_start', dateRange.from.toISOString().split('T')[0])
+              .lte('billing_period_start', dateRange.to.toISOString().split('T')[0]);
+          }
+          
+          const { data: billingData, error } = await query;
+          if (error) throw error;
+          sourceData = billingData || [];
+        }
+        
+        else if (source === 'change_orders') {
+          let query = supabase.from('change_orders').select('*').eq('project_id', project.id);
+          
+          if (dateRange?.from && dateRange?.to) {
+            query = query
+              .gte('date', dateRange.from.toISOString().split('T')[0])
+              .lte('date', dateRange.to.toISOString().split('T')[0]);
+          }
+          
+          const { data: changeOrderData, error } = await query;
+          if (error) throw error;
+          sourceData = changeOrderData || [];
+        }
+        
+        else if (source === 'payment_apps') {
+          let query = supabase.from('payment_applications_g702').select('*').eq('project_id', project.id);
+          
+          if (dateRange?.from && dateRange?.to) {
+            query = query
+              .gte('period_to', dateRange.from.toISOString().split('T')[0])
+              .lte('period_to', dateRange.to.toISOString().split('T')[0]);
+          }
+          
+          const { data: paymentData, error } = await query;
+          if (error) throw error;
+          sourceData = paymentData || [];
+        }
+        
+        else if (source === 'tasks') {
+          let query = supabase.from('tasks').select('*').eq('project_id', project.id);
+          
+          if (dateRange?.from && dateRange?.to) {
+            query = query
+              .gte('start_date', dateRange.from.toISOString().split('T')[0])
+              .lte('start_date', dateRange.to.toISOString().split('T')[0]);
+          }
+          
+          const { data: taskData, error } = await query;
+          if (error) throw error;
+          sourceData = taskData || [];
+        }
+        
+        else if (source === 'equipment') {
+          let query = supabase.from('equipment_usage_logs').select('*');
+          
+          if (project.id) {
+            query = query.eq('project_id', project.id);
+          }
+          
+          if (dateRange?.from && dateRange?.to) {
+            query = query
+              .gte('start_time', dateRange.from.toISOString())
+              .lte('start_time', dateRange.to.toISOString());
+          }
+          
+          const { data: equipmentData, error } = await query;
+          if (error) throw error;
+          sourceData = equipmentData || [];
+        }
+        
+        else if (source === 'sov_items') {
+          let query = supabase.from('sov_items').select('*').eq('project_id', project.id);
+          
+          const { data: sovData, error } = await query;
+          if (error) throw error;
+          sourceData = sovData || [];
+        }
+        
+        data[source] = sourceData;
       }
 
       setReportData(data);
