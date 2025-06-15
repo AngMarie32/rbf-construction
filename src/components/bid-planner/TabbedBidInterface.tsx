@@ -1,11 +1,10 @@
-
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileText, Save, Upload, PaperclipIcon, Trash2, Edit } from 'lucide-react';
+import { Plus, Download, FileText, Save, Upload, PaperclipIcon, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { TemplateLibrary } from './TemplateLibrary';
@@ -25,7 +24,6 @@ export function TabbedBidInterface({
 }: TabbedBidInterfaceProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [templateLibraryOpen, setTemplateLibraryOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<string | null>(null);
   const [newItem, setNewItem] = useState({
     category: '',
     subcategory: '',
@@ -625,93 +623,81 @@ export function TabbedBidInterface({
                     <div key={item.id || index} className="border rounded-lg p-3">
                       <div className="grid grid-cols-9 gap-3 text-sm items-center">
                         <div>
-                          {editingItem === item.id ? (
-                            <Input
-                              value={item.category}
-                              onChange={(e) => handleUpdateItem(item.id, 'category', e.target.value)}
-                              className="text-xs"
-                            />
-                          ) : (
-                            <div>
-                              <div className="font-medium">{item.category}</div>
-                              {item.subcategory && <div className="text-gray-500">{item.subcategory}</div>}
-                            </div>
-                          )}
+                          <Input
+                            value={item.category}
+                            onChange={(e) => handleUpdateItem(item.id, 'category', e.target.value)}
+                            className="text-xs"
+                            placeholder="Category"
+                          />
+                          <Input
+                            value={item.subcategory || ''}
+                            onChange={(e) => handleUpdateItem(item.id, 'subcategory', e.target.value)}
+                            className="text-xs mt-1"
+                            placeholder="Subcategory"
+                          />
                         </div>
                         <div className="col-span-2">
-                          {editingItem === item.id ? (
-                            <Input
-                              value={item.description}
-                              onChange={(e) => handleUpdateItem(item.id, 'description', e.target.value)}
-                              className="text-xs"
-                            />
-                          ) : (
-                            <div>{item.description}</div>
-                          )}
+                          <Input
+                            value={item.description}
+                            onChange={(e) => handleUpdateItem(item.id, 'description', e.target.value)}
+                            className="text-xs"
+                            placeholder="Description"
+                          />
                         </div>
                         <div className="text-center">
-                          {editingItem === item.id ? (
-                            <Select 
-                              value={item.unit} 
-                              onValueChange={(value) => handleUpdateItem(item.id, 'unit', value)}
-                            >
-                              <SelectTrigger className="text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Each">Each</SelectItem>
-                                <SelectItem value="SF">SF</SelectItem>
-                                <SelectItem value="LF">LF</SelectItem>
-                                <SelectItem value="CF">CF</SelectItem>
-                                <SelectItem value="CY">CY</SelectItem>
-                                <SelectItem value="Ton">Ton</SelectItem>
-                                <SelectItem value="Hour">Hour</SelectItem>
-                                <SelectItem value="Day">Day</SelectItem>
-                                <SelectItem value="Lot">Lot</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <div>{item.unit}</div>
-                          )}
+                          <Select 
+                            value={item.unit} 
+                            onValueChange={(value) => handleUpdateItem(item.id, 'unit', value)}
+                          >
+                            <SelectTrigger className="text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Each">Each</SelectItem>
+                              <SelectItem value="SF">SF</SelectItem>
+                              <SelectItem value="LF">LF</SelectItem>
+                              <SelectItem value="CF">CF</SelectItem>
+                              <SelectItem value="CY">CY</SelectItem>
+                              <SelectItem value="Ton">Ton</SelectItem>
+                              <SelectItem value="Hour">Hour</SelectItem>
+                              <SelectItem value="Day">Day</SelectItem>
+                              <SelectItem value="Lot">Lot</SelectItem>
+                              <SelectItem value="Month">Month</SelectItem>
+                              <SelectItem value="MBF">MBF</SelectItem>
+                              <SelectItem value="Flight">Flight</SelectItem>
+                              <SelectItem value="Acre">Acre</SelectItem>
+                              <SelectItem value="Unit">Unit</SelectItem>
+                              <SelectItem value="Fixture">Fixture</SelectItem>
+                              <SelectItem value="Device">Device</SelectItem>
+                              <SelectItem value="Outlet">Outlet</SelectItem>
+                              <SelectItem value="Room">Room</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="text-right">
-                          {editingItem === item.id ? (
-                            <Input
-                              type="number"
-                              value={item.unit_cost}
-                              onChange={(e) => handleUpdateItem(item.id, 'unit_cost', e.target.value)}
-                              className="text-xs text-right"
-                              step="0.01"
-                            />
-                          ) : (
-                            <div>${formatCurrency(item.unit_cost || 0)}</div>
-                          )}
+                          <Input
+                            type="number"
+                            value={item.unit_cost}
+                            onChange={(e) => handleUpdateItem(item.id, 'unit_cost', e.target.value)}
+                            className="text-xs text-right"
+                            step="0.01"
+                            placeholder="0.00"
+                          />
                         </div>
                         <div className="text-center">
-                          {editingItem === item.id ? (
-                            <Input
-                              type="number"
-                              value={item.quantity}
-                              onChange={(e) => handleUpdateItem(item.id, 'quantity', e.target.value)}
-                              className="text-xs text-center"
-                              step="0.01"
-                            />
-                          ) : (
-                            <div>{item.quantity}</div>
-                          )}
+                          <Input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => handleUpdateItem(item.id, 'quantity', e.target.value)}
+                            className="text-xs text-center"
+                            step="0.01"
+                            placeholder="0"
+                          />
                         </div>
                         <div className="text-right font-bold">
                           ${formatCurrency((item.unit_cost || 0) * (item.quantity || 0))}
                         </div>
                         <div className="text-right flex gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => setEditingItem(editingItem === item.id ? null : item.id)}
-                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
                           <Button 
                             variant="ghost" 
                             size="sm" 
