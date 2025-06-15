@@ -1,3 +1,4 @@
+
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -70,7 +71,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    const margin = 8;
+    const margin = 6;
     const availableWidth = pdfWidth - (margin * 2);
     const availableHeight = pdfHeight - (margin * 2);
 
@@ -86,7 +87,8 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
         display: g702Element.style.display,
         visibility: g702Element.style.visibility,
         width: g702Element.style.width,
-        transform: g702Element.style.transform
+        transform: g702Element.style.transform,
+        transformOrigin: g702Element.style.transformOrigin
       };
       
       // Temporarily make visible and optimize for landscape export
@@ -97,19 +99,19 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       g702Element.style.display = 'block';
       g702Element.style.visibility = 'visible';
       g702Element.style.width = '11in';
-      g702Element.style.transform = 'scale(0.85)';
+      g702Element.style.transform = 'scale(0.88)';
       g702Element.style.transformOrigin = 'top left';
       
       console.log('G702 element dimensions:', g702Element.scrollWidth, g702Element.scrollHeight);
 
       const g702Canvas = await html2canvas(g702Element, {
-        scale: 2,
+        scale: 1.8,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        width: Math.min(g702Element.scrollWidth, 1100),
-        height: Math.min(g702Element.scrollHeight, 850),
-        windowWidth: 1400,
+        width: Math.min(g702Element.scrollWidth * 0.88, 1050),
+        height: Math.min(g702Element.scrollHeight * 0.88, 800),
+        windowWidth: 1500,
         windowHeight: 1000
       });
 
@@ -121,13 +123,13 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
 
       const g702ImgData = g702Canvas.toDataURL('image/png');
       
-      // Calculate optimal scaling for landscape
+      // Calculate optimal scaling for landscape with better fitting
       const imgWidthMm = g702Canvas.width * 0.264583;
       const imgHeightMm = g702Canvas.height * 0.264583;
       
       const scaleX = availableWidth / imgWidthMm;
       const scaleY = availableHeight / imgHeightMm;
-      const scale = Math.min(scaleX, scaleY, 1); // Don't scale up
+      const scale = Math.min(scaleX, scaleY, 0.95); // Ensure it fits with small buffer
       
       const scaledWidth = imgWidthMm * scale;
       const scaledHeight = imgHeightMm * scale;
@@ -153,7 +155,8 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
         display: g703Element.style.display,
         visibility: g703Element.style.visibility,
         width: g703Element.style.width,
-        transform: g703Element.style.transform
+        transform: g703Element.style.transform,
+        transformOrigin: g703Element.style.transformOrigin
       };
       
       // Temporarily make visible and optimize for landscape export
@@ -164,19 +167,19 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       g703Element.style.display = 'block';
       g703Element.style.visibility = 'visible';
       g703Element.style.width = '11in';
-      g703Element.style.transform = 'scale(0.85)';
+      g703Element.style.transform = 'scale(0.88)';
       g703Element.style.transformOrigin = 'top left';
       
       console.log('G703 element dimensions:', g703Element.scrollWidth, g703Element.scrollHeight);
 
       const g703Canvas = await html2canvas(g703Element, {
-        scale: 2,
+        scale: 1.8,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        width: Math.min(g703Element.scrollWidth, 1100),
-        height: Math.min(g703Element.scrollHeight, 850),
-        windowWidth: 1400,
+        width: Math.min(g703Element.scrollWidth * 0.88, 1050),
+        height: Math.min(g703Element.scrollHeight * 0.88, 800),
+        windowWidth: 1500,
         windowHeight: 1000
       });
 
@@ -188,13 +191,13 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
 
       const g703ImgData = g703Canvas.toDataURL('image/png');
       
-      // Calculate optimal scaling for landscape
+      // Calculate optimal scaling for landscape with better fitting
       const imgWidthMm = g703Canvas.width * 0.264583;
       const imgHeightMm = g703Canvas.height * 0.264583;
       
       const scaleX = availableWidth / imgWidthMm;
       const scaleY = availableHeight / imgHeightMm;
-      const scale = Math.min(scaleX, scaleY, 1); // Don't scale up
+      const scale = Math.min(scaleX, scaleY, 0.95); // Ensure it fits with small buffer
       
       const scaledWidth = imgWidthMm * scale;
       const scaledHeight = imgHeightMm * scale;
