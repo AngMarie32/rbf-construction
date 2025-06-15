@@ -1,5 +1,4 @@
 
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -126,9 +125,10 @@ export default function ScheduleOfValues() {
   );
 
   const totalScheduledValue = sovItems.reduce((sum, item) => sum + (item.scheduled_value || 0), 0);
-  const totalWorkCompleted = sovItems.reduce((sum, item) => sum + (item.work_completed_to_date || 0), 0);
+  const totalWorkCompleted = sovItems.reduce((sum, item) => sum + (item.previous_applications || 0) + (item.this_period || 0), 0);
   const totalMaterialsStored = sovItems.reduce((sum, item) => sum + (item.materials_stored || 0), 0);
-  const totalPercentComplete = sovItems.reduce((sum, item) => sum + (item.percent_complete || 0), 0) / sovItems.length || 0;
+  const totalCompletedAndStored = totalWorkCompleted + totalMaterialsStored;
+  const overallPercentComplete = totalScheduledValue > 0 ? (totalCompletedAndStored / totalScheduledValue) * 100 : 0;
 
   if (loading) {
     return (
@@ -175,10 +175,10 @@ export default function ScheduleOfValues() {
                   <span className="font-medium">Total Scheduled Value:</span> ${totalScheduledValue.toLocaleString()}
                 </div>
                 <div className="text-sm text-gray-600">
-                  <span className="font-medium">Total Work Completed:</span> ${totalWorkCompleted.toLocaleString()}
+                  <span className="font-medium">Total Completed:</span> ${totalCompletedAndStored.toLocaleString()}
                 </div>
                 <div className="text-sm text-gray-600">
-                  <span className="font-medium">Total Materials Stored:</span> ${totalMaterialsStored.toLocaleString()}
+                  <span className="font-medium">Progress:</span> {overallPercentComplete.toFixed(1)}%
                 </div>
               </div>
             )}
@@ -229,53 +229,100 @@ export default function ScheduleOfValues() {
                         <th className="border border-gray-200 px-4 py-2 text-left">Description</th>
                         <th className="border border-gray-200 px-4 py-2 text-left">Category</th>
                         <th className="border border-gray-200 px-4 py-2 text-right">Scheduled Value</th>
-                        <th className="border border-gray-200 px-4 py-2 text-right">Work Completed</th>
+                        <th className="border border-gray-200 px-4 py-2 text-right">Change Orders</th>
+                        <th className="border border-gray-200 px-4 py-2 text-right">Previous Apps</th>
+                        <th className="border border-gray-200 px-4 py-2 text-right">This Period</th>
                         <th className="border border-gray-200 px-4 py-2 text-right">Materials Stored</th>
+                        <th className="border border-gray-200 px-4 py-2 text-right">Total Complete</th>
                         <th className="border border-gray-200 px-4 py-2 text-right">% Complete</th>
                         <th className="border border-gray-200 px-4 py-2 text-center">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredItems.map((item) => (
-                        <tr key={item.id} className="hover:bg-gray-50">
-                          <td className="border border-gray-200 px-4 py-2">{item.item_number}</td>
-                          <td className="border border-gray-200 px-4 py-2">{item.description}</td>
-                          <td className="border border-gray-200 px-4 py-2">
-                            <Badge variant="outline">{item.category}</Badge>
-                          </td>
-                          <td className="border border-gray-200 px-4 py-2 text-right font-medium">
-                            ${(item.scheduled_value || 0).toLocaleString()}
-                          </td>
-                          <td className="border border-gray-200 px-4 py-2 text-right">
-                            ${(item.work_completed_to_date || 0).toLocaleString()}
-                          </td>
-                          <td className="border border-gray-200 px-4 py-2 text-right">
-                            ${(item.materials_stored || 0).toLocaleString()}
-                          </td>
-                          <td className="border border-gray-200 px-4 py-2 text-right">
-                            {((item.percent_complete || 0) * 100).toFixed(1)}%
-                          </td>
-                          <td className="border border-gray-200 px-4 py-2">
-                            <div className="flex justify-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditSOVItem(item)}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteSOVItem(item.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                      {filteredItems.map((item) => {
+                        const totalContract = (item.scheduled_value || 0) + (item.change_orders || 0);
+                        const totalCompleted = (item.previous_applications || 0) + (item.this_period || 0) + (item.materials_stored || 0);
+                        const percentComplete = totalContract > 0 ? (totalCompleted / totalContract) * 100 : 0;
+                        
+                        return (
+                          <tr key={item.id} className="hover:bg-gray-50">
+                            <td className="border border-gray-200 px-4 py-2">{item.item_number}</td>
+                            <td className="border border-gray-200 px-4 py-2">{item.description}</td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              <Badge variant="outline">{item.category}</Badge>
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2 text-right font-medium">
+                              ${(item.scheduled_value || 0).toLocaleString()}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2 text-right text-green-600">
+                              ${(item.change_orders || 0).toLocaleString()}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2 text-right">
+                              ${(item.previous_applications || 0).toLocaleString()}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2 text-right text-blue-600">
+                              ${(item.this_period || 0).toLocaleString()}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2 text-right">
+                              ${(item.materials_stored || 0).toLocaleString()}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2 text-right font-medium">
+                              ${totalCompleted.toLocaleString()}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2 text-right">
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-gray-200 rounded-full h-2 min-w-[60px]">
+                                  <div 
+                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                                    style={{ width: `${Math.min(percentComplete, 100)}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-xs font-medium min-w-[40px]">{percentComplete.toFixed(1)}%</span>
+                              </div>
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              <div className="flex justify-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditSOVItem(item)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteSOVItem(item.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
+                    <tfoot>
+                      <tr className="bg-gray-100 font-bold">
+                        <td colSpan="3" className="border border-gray-200 px-4 py-2 text-right">TOTALS:</td>
+                        <td className="border border-gray-200 px-4 py-2 text-right">${totalScheduledValue.toLocaleString()}</td>
+                        <td className="border border-gray-200 px-4 py-2 text-right text-green-600">
+                          ${sovItems.reduce((sum, item) => sum + (item.change_orders || 0), 0).toLocaleString()}
+                        </td>
+                        <td className="border border-gray-200 px-4 py-2 text-right">
+                          ${sovItems.reduce((sum, item) => sum + (item.previous_applications || 0), 0).toLocaleString()}
+                        </td>
+                        <td className="border border-gray-200 px-4 py-2 text-right text-blue-600">
+                          ${sovItems.reduce((sum, item) => sum + (item.this_period || 0), 0).toLocaleString()}
+                        </td>
+                        <td className="border border-gray-200 px-4 py-2 text-right">
+                          ${totalMaterialsStored.toLocaleString()}
+                        </td>
+                        <td className="border border-gray-200 px-4 py-2 text-right">${totalCompletedAndStored.toLocaleString()}</td>
+                        <td className="border border-gray-200 px-4 py-2 text-right">{overallPercentComplete.toFixed(1)}%</td>
+                        <td className="border border-gray-200 px-4 py-2"></td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               ) : (
@@ -321,4 +368,3 @@ export default function ScheduleOfValues() {
     </Layout>
   );
 }
-
