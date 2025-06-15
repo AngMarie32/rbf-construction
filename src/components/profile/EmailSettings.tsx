@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,6 +46,11 @@ export const EmailSettings: React.FC = () => {
           setVerificationStatus(status);
         } else {
           setVerificationStatus('none');
+        }
+        
+        // Show verification input if status is pending
+        if (status === 'pending') {
+          setShowVerificationInput(true);
         }
       }
     } catch (error) {
@@ -222,13 +228,25 @@ export const EmailSettings: React.FC = () => {
         </div>
 
         {!isVerified && (
-          <Button 
-            onClick={sendVerificationEmail} 
-            disabled={loading || !email}
-            className="w-full"
-          >
-            {loading ? 'Sending...' : 'Send Verification Email'}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={sendVerificationEmail} 
+              disabled={loading || !email}
+              className="flex-1"
+            >
+              {loading ? 'Sending...' : 'Send Verification Email'}
+            </Button>
+            
+            {verificationStatus === 'pending' && (
+              <Button 
+                variant="outline"
+                onClick={sendVerificationEmail} 
+                disabled={loading}
+              >
+                Resend
+              </Button>
+            )}
+          </div>
         )}
 
         {showVerificationInput && (
@@ -247,7 +265,15 @@ export const EmailSettings: React.FC = () => {
               </Button>
             </div>
             <p className="text-sm text-gray-600">
-              Check your email for the verification code
+              Check your email for the verification code. Didn't receive it?{' '}
+              <Button 
+                variant="link" 
+                className="p-0 h-auto text-sm"
+                onClick={sendVerificationEmail}
+                disabled={loading}
+              >
+                Resend verification email
+              </Button>
             </p>
           </div>
         )}

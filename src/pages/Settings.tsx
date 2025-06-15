@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, User, Mail, Settings as SettingsIcon } from 'lucide-react';
+import { Building, User, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Layout } from '@/components/layout/Layout';
 import { EmailSettings } from '@/components/profile/EmailSettings';
+import { ProfileSettings } from '@/components/profile/ProfileSettings';
 
 const Settings = () => {
   const [companySettings, setCompanySettings] = useState({
@@ -17,8 +18,6 @@ const Settings = () => {
     company_address: '',
     company_phone: '',
     company_email: '',
-    default_tax_rate: 0,
-    default_retainage_rate: 10,
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -40,7 +39,12 @@ const Settings = () => {
       }
 
       if (data) {
-        setCompanySettings(data);
+        setCompanySettings({
+          company_name: data.company_name || '',
+          company_address: data.company_address || '',
+          company_phone: data.company_phone || '',
+          company_email: data.company_email || '',
+        });
       }
     } catch (error) {
       console.error('Error fetching company settings:', error);
@@ -105,9 +109,6 @@ const Settings = () => {
                   <Building className="w-5 h-5" />
                   Company Information
                 </CardTitle>
-                <p className="text-sm text-gray-600">
-                  Manage your company details and default settings
-                </p>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSaveCompanySettings} className="space-y-4">
@@ -153,31 +154,6 @@ const Settings = () => {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="default_tax_rate">Default Tax Rate (%)</Label>
-                      <Input
-                        id="default_tax_rate"
-                        type="number"
-                        step="0.01"
-                        value={companySettings.default_tax_rate}
-                        onChange={(e) => setCompanySettings(prev => ({ ...prev, default_tax_rate: parseFloat(e.target.value) || 0 }))}
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="default_retainage_rate">Default Retainage Rate (%)</Label>
-                      <Input
-                        id="default_retainage_rate"
-                        type="number"
-                        step="0.01"
-                        value={companySettings.default_retainage_rate}
-                        onChange={(e) => setCompanySettings(prev => ({ ...prev, default_retainage_rate: parseFloat(e.target.value) || 0 }))}
-                        placeholder="10.00"
-                      />
-                    </div>
-                  </div>
-
                   <Button type="submit" disabled={loading}>
                     {loading ? 'Saving...' : 'Save Company Settings'}
                   </Button>
@@ -187,20 +163,7 @@ const Settings = () => {
           </TabsContent>
 
           <TabsContent value="profile">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="w-5 h-5" />
-                  Profile Settings
-                </CardTitle>
-                <p className="text-sm text-gray-600">
-                  Manage your personal profile information
-                </p>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-500">Profile settings coming soon...</p>
-              </CardContent>
-            </Card>
+            <ProfileSettings />
           </TabsContent>
 
           <TabsContent value="email">
