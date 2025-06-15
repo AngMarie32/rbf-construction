@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -33,6 +32,8 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useOptimisticUpdates } from '@/hooks/useOptimisticUpdates';
 import { BulkTaskOperations } from '@/components/schedule/BulkTaskOperations';
+import { EnhancedCriticalPath } from '@/components/schedule/EnhancedCriticalPath';
+import { EnhancedExportDialog } from '@/components/schedule/EnhancedExportDialog';
 
 interface Project {
   id: string;
@@ -71,6 +72,7 @@ export default function ProjectSchedule() {
   const [quickPlannerOpen, setQuickPlannerOpen] = useState(false);
   const [templateManagerOpen, setTemplateManagerOpen] = useState(false);
   const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
+  const [enhancedExportOpen, setEnhancedExportOpen] = useState(false);
   
   // New task form
   const [newTask, setNewTask] = useState({
@@ -153,35 +155,7 @@ export default function ProjectSchedule() {
   };
 
   const handleExport = async () => {
-    try {
-      if (activeTab === 'gantt') {
-        const { exportGanttToPDF } = await import('@/utils/ganttPdfExport');
-        await exportGanttToPDF(
-          filteredTasks, 
-          projects, 
-          projectData,
-          `project-schedule-gantt-${format(new Date(), 'yyyy-MM-dd')}.pdf`
-        );
-      } else if (activeTab === 'calendar') {
-        await exportToPDF('schedule-calendar', `project-schedule-calendar-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-      } else if (activeTab === 'critical-path') {
-        await exportToPDF('critical-path-view', `project-schedule-critical-path-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-      } else {
-        // Export as CSV for list view
-        const exportData = filteredTasks.map(task => ({
-          'Task Name': task.title,
-          'Project': projects.find(p => p.id === task.projectId)?.name || '',
-          'Start Date': format(task.startDate, 'yyyy-MM-dd'),
-          'End Date': format(task.endDate, 'yyyy-MM-dd'),
-          'Progress': `${task.progress}%`,
-          'Status': task.status
-        }));
-        exportCSV(exportData, `project-schedule-${format(new Date(), 'yyyy-MM-dd')}.csv`);
-      }
-      toast.success('Export completed successfully');
-    } catch (error) {
-      console.error('Export error:', error);
-    }
+    setEnhancedExportOpen(true);
   };
 
   // Optimistic updates for better UX
@@ -493,7 +467,7 @@ export default function ProjectSchedule() {
               </Button>
               <Button variant="outline" onClick={handleExport}>
                 <Download className="w-4 h-4 mr-2" />
-                Export
+                Enhanced Export
               </Button>
             </div>
           </div>
@@ -575,8 +549,9 @@ export default function ProjectSchedule() {
 
           <TabsContent value="critical-path" className="mt-6">
             <div id="critical-path-view">
-              <CriticalPath
+              <EnhancedCriticalPath
                 tasks={filteredTasks}
+                projects={projects}
                 selectedProjects={selectedProjects}
               />
             </div>
@@ -635,10 +610,10 @@ export default function ProjectSchedule() {
                 <div>
                   <h4 className="font-medium text-blue-800 mb-2">Advanced Features:</h4>
                   <ul className="text-sm space-y-1 text-blue-700">
-                    <li>• Toggle dependencies, critical path, and milestones</li>
-                    <li>• Select multiple tasks for bulk operations</li>
-                    <li>• Export current view as PDF or CSV</li>
-                    <li>• Switch between week, month, and quarter views</li>
+                    <li>• Enhanced critical path analysis with float calculations</li>
+                    <li>• Export to Excel, Google Sheets, or print-optimized reports</li>
+                    <li>• Data validation with error detection</li>
+                    <li>• Bulk operations for multiple task management</li>
                   </ul>
                 </div>
               </div>
@@ -660,6 +635,14 @@ export default function ProjectSchedule() {
         open={templateManagerOpen}
         onOpenChange={setTemplateManagerOpen}
         onTemplateApplied={handleTemplateApplied}
+      />
+
+      <EnhancedExportDialog
+        open={enhancedExportOpen}
+        onOpenChange={setEnhancedExportOpen}
+        tasks={filteredTasks}
+        projects={projects}
+        title="Project Schedule Export"
       />
 
       {/* Add Task Dialog */}
