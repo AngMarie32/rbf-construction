@@ -1199,6 +1199,45 @@ export type Database = {
         }
         Relationships: []
       }
+      role_change_requests: {
+        Row: {
+          admin_notes: string | null
+          existing_role: string
+          id: string
+          reason: string | null
+          requested_at: string
+          requested_role: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          existing_role: string
+          id?: string
+          reason?: string | null
+          requested_at?: string
+          requested_role: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          existing_role?: string
+          id?: string
+          reason?: string | null
+          requested_at?: string
+          requested_role?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       schedule_template_items: {
         Row: {
           category: string | null
@@ -1549,7 +1588,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      approve_role_change: {
+        Args: { request_id: string; admin_notes?: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
