@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Upload } from 'lucide-react';
+import { Plus, Upload, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -28,18 +28,25 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
   });
   const [loading, setLoading] = useState(false);
 
-  const handleImageUpload = (file: File) => {
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setFormData(prev => ({ ...prev, image: result }));
-        toast.success('Image uploaded successfully');
-      };
-      reader.readAsDataURL(file);
-    } else {
-      toast.error('Please select a valid image file');
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const result = event.target?.result as string;
+          setFormData(prev => ({ ...prev, image: result }));
+          toast.success('Image uploaded successfully');
+        };
+        reader.readAsDataURL(file);
+      } else {
+        toast.error('Please select a valid image file');
+      }
     }
+  };
+
+  const removeImage = () => {
+    setFormData(prev => ({ ...prev, image: '' }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -210,30 +217,35 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
 
           <div>
             <Label>Equipment Image</Label>
-            <div className="flex items-center gap-2">
-              <label className="cursor-pointer flex-1">
+            {!formData.image ? (
+              <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center">
                 <input
                   type="file"
                   accept="image/*"
+                  onChange={handleImageUpload}
                   className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleImageUpload(file);
-                  }}
+                  id="image-upload"
                 />
-                <Button type="button" variant="outline" className="w-full">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload Image
-                </Button>
-              </label>
-            </div>
-            {formData.image && (
-              <div className="mt-2">
+                <label htmlFor="image-upload" className="cursor-pointer">
+                  <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-600">Click to upload image</p>
+                  <p className="text-xs text-gray-400">JPEG, PNG up to 10MB</p>
+                </label>
+              </div>
+            ) : (
+              <div className="relative">
                 <img 
                   src={formData.image} 
                   alt="Preview" 
                   className="w-full h-32 object-cover rounded border"
                 />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             )}
           </div>
