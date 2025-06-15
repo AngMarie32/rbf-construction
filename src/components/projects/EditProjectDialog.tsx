@@ -27,7 +27,7 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
     name: project.name,
     type: project.type,
     contractValue: project.contractValue.toString(),
-    status: project.status as 'Planning' | 'Active' | 'On Hold' | 'Completed' | 'Closed',
+    status: project.status,
     startDate: project.startDate,
     dueDate: project.dueDate,
     address: project.address,
@@ -37,11 +37,13 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
   });
 
   useEffect(() => {
+    // Convert "Open" status to "Active" for compatibility
+    const mappedStatus = project.status === 'Open' ? 'Active' : project.status;
     setFormData({
       name: project.name,
       type: project.type,
       contractValue: project.contractValue.toString(),
-      status: project.status,
+      status: mappedStatus as 'Planning' | 'Active' | 'On Hold' | 'Completed' | 'Closed',
       startDate: project.startDate,
       dueDate: project.dueDate,
       address: project.address,
@@ -60,11 +62,14 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
 
     setLoading(true);
     try {
+      // Map "Active" back to "Open" for database storage if needed
+      const dbStatus = formData.status === 'Active' ? 'Open' : formData.status;
+      
       const updateData = {
         name: formData.name,
         type: formData.type || 'General',
         contract_value: formData.contractValue ? parseFloat(formData.contractValue) : 0,
-        status: formData.status,
+        status: dbStatus,
         start_date: formData.startDate ? format(formData.startDate, 'yyyy-MM-dd') : null,
         due_date: formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : null,
         address: formData.address || null,
@@ -85,6 +90,7 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
 
       toast.success('Project updated successfully');
       onProjectUpdated();
+      onOpenChange(false);
     } catch (error) {
       console.error('Error updating project:', error);
       toast.error('Failed to update project');
