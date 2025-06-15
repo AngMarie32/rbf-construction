@@ -58,6 +58,7 @@ import { toast } from 'sonner';
 import { CreateExpenseDialog } from '@/components/expenses/CreateExpenseDialog';
 import { EditExpenseDialog } from '@/components/expenses/EditExpenseDialog';
 import { AttachInvoiceDialog } from '@/components/expenses/AttachInvoiceDialog';
+import { ViewInvoiceDialog } from '@/components/expenses/ViewInvoiceDialog';
 
 interface Expense {
   id: string;
@@ -91,6 +92,8 @@ export default function Expenses() {
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
   const [attachInvoiceDialogOpen, setAttachInvoiceDialogOpen] = useState(false);
   const [expenseForInvoice, setExpenseForInvoice] = useState<Expense | null>(null);
+  const [viewInvoiceDialogOpen, setViewInvoiceDialogOpen] = useState(false);
+  const [expenseForViewInvoice, setExpenseForViewInvoice] = useState<Expense | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -207,6 +210,12 @@ export default function Expenses() {
     console.log('Attaching invoice for expense:', expense);
     setExpenseForInvoice(expense);
     setAttachInvoiceDialogOpen(true);
+  };
+
+  const handleViewInvoice = (expense: Expense) => {
+    console.log('Viewing invoice for expense:', expense);
+    setExpenseForViewInvoice(expense);
+    setViewInvoiceDialogOpen(true);
   };
 
   const handleDeleteClick = (expenseId: string) => {
@@ -486,6 +495,12 @@ export default function Expenses() {
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem 
+                            onClick={() => handleViewInvoice(expense)}
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Invoice
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
                             onClick={() => handleAttachInvoice(expense)}
                           >
                             <Paperclip className="w-4 h-4 mr-2" />
@@ -542,64 +557,12 @@ export default function Expenses() {
           onInvoiceAttached={fetchExpenses}
         />
 
-        {/* View Expense Dialog */}
-        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Expense Details</DialogTitle>
-              <DialogDescription>
-                Detailed information about this expense.
-              </DialogDescription>
-            </DialogHeader>
-            {selectedExpense && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium text-gray-500">Description:</span>
-                    <p className="font-medium">{selectedExpense.description}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-500">Amount:</span>
-                    <p className="font-medium">${selectedExpense.amount.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-500">Category:</span>
-                    <p>{selectedExpense.category}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-500">Date:</span>
-                    <p>{new Date(selectedExpense.date).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-500">Vendor:</span>
-                    <p>{selectedExpense.vendor || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-500">Status:</span>
-                    <Badge className={`${getStatusColor(selectedExpense.status)} text-white`}>
-                      {selectedExpense.status}
-                    </Badge>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="font-medium text-gray-500">Project:</span>
-                    <p>{selectedExpense.projects.name}</p>
-                  </div>
-                  {selectedExpense.receipt_number && (
-                    <div className="col-span-2">
-                      <span className="font-medium text-gray-500">Receipt Number:</span>
-                      <p>{selectedExpense.receipt_number}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <ViewInvoiceDialog
+          open={viewInvoiceDialogOpen}
+          onOpenChange={setViewInvoiceDialogOpen}
+          expenseId={expenseForViewInvoice?.id || null}
+          expenseDescription={expenseForViewInvoice?.description || ''}
+        />
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

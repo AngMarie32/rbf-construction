@@ -54,10 +54,25 @@ export function AttachInvoiceDialog({
 
     setUploading(true);
     try {
-      // For now, we'll just simulate the upload since we don't have storage set up
+      // Create a temporary URL for the file and store it in localStorage for demo purposes
       // In a real implementation, you would upload to Supabase storage here
+      const fileUrl = URL.createObjectURL(selectedFile);
+      const invoiceData = {
+        id: crypto.randomUUID(),
+        expenseId,
+        fileName: selectedFile.name,
+        fileSize: selectedFile.size,
+        fileType: selectedFile.type,
+        fileUrl,
+        uploadDate: new Date().toISOString()
+      };
       
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate upload
+      // Store in localStorage for demo (in real app, this would be in database)
+      const existingInvoices = JSON.parse(localStorage.getItem('expense_invoices') || '[]');
+      existingInvoices.push(invoiceData);
+      localStorage.setItem('expense_invoices', JSON.stringify(existingInvoices));
+      
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate upload
       
       toast.success('Invoice attached successfully');
       onInvoiceAttached();
