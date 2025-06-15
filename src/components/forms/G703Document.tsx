@@ -79,64 +79,66 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
       <div className="border border-black">
         <table className="w-full border-collapse text-xs">
           <thead>
-            <tr className="bg-gray-100 text-center font-bold">
-              <th className="border-r border-b border-black p-1 align-middle w-8" rowSpan={2}>
-                <div className="pb-1">A</div>
+            <tr className="bg-gray-100 text-center font-bold border-b border-black">
+              <th className="border-r border-black p-1 w-8">A</th>
+              <th className="border-r border-black p-1 w-32">B</th>
+              <th className="border-r border-black p-1 w-16">C</th>
+              <th className="border-r border-black p-1 w-16">D</th>
+              <th className="border-r border-black p-1 w-16">E</th>
+              <th className="border-r border-black p-1 w-16">F</th>
+              <th className="border-r border-black p-1 w-16">G</th>
+              <th className="border-r border-black p-1 w-16">H</th>
+              <th className="border-r border-black p-1 w-16">I</th>
+              <th className="border-r border-black p-1 w-12">J</th>
+              <th className="border-r border-black p-1 w-16">K</th>
+              <th className="p-1 w-16">L</th>
+            </tr>
+            <tr className="bg-gray-100 text-center">
+              <th className="border-r border-b border-black p-1 align-middle" rowSpan={2}>
                 <div className="font-normal">ITEM<br />NO.</div>
               </th>
-              <th className="border-r border-b border-black p-1 align-middle w-32" rowSpan={2}>
-                <div className="pb-1">B</div>
+              <th className="border-r border-b border-black p-1 align-middle" rowSpan={2}>
                 <div className="font-normal">DESCRIPTION OF WORK</div>
               </th>
-              <th className="border-r border-b border-black p-1 align-middle w-16" rowSpan={2}>
-                <div className="pb-1">C</div>
+              <th className="border-r border-b border-black p-1 align-middle" rowSpan={2}>
                 <div className="font-normal">SCHEDULED<br />VALUE</div>
               </th>
-              <th className="border-r border-b border-black p-1 align-middle w-16" rowSpan={2}>
-                <div className="pb-1">D</div>
+              <th className="border-r border-b border-black p-1 align-middle" rowSpan={2}>
                 <div className="font-normal">CHANGE<br />ORDERS</div>
               </th>
-              <th className="border-r border-b border-black p-1 align-middle w-16" rowSpan={2}>
-                <div className="pb-1">E</div>
+              <th className="border-r border-b border-black p-1 align-middle" rowSpan={2}>
                 <div className="font-normal">TOTAL<br />CONTRACT</div>
               </th>
-              <th className="border-r border-b border-black p-1" colSpan={3}>
+              <th className="border-r border-black p-1 font-bold" colSpan={3}>
                 WORK COMPLETED
               </th>
-              <th className="border-r border-b border-black p-1 align-middle w-16" rowSpan={2}>
-                <div className="pb-1">I</div>
+              <th className="border-r border-b border-black p-1 align-middle" rowSpan={2}>
                 <div className="font-normal">TOTAL<br />COMPLETED<br />AND STORED TO</div>
               </th>
-              <th className="border-r border-b border-black p-1 align-middle w-12" rowSpan={2}>
-                <div className="pb-1">J</div>
+              <th className="border-r border-b border-black p-1 align-middle" rowSpan={2}>
                 <div className="font-normal">%<br />COMPLETE</div>
               </th>
-              <th className="border-r border-b border-black p-1 align-middle w-16" rowSpan={2}>
-                <div className="pb-1">K</div>
+              <th className="border-r border-b border-black p-1 align-middle" rowSpan={2}>
                 <div className="font-normal">BALANCE TO<br />FINISH</div>
               </th>
-              <th className="border-b border-black p-1 align-middle w-16" rowSpan={2}>
-                <div className="pb-1">L</div>
+              <th className="border-b border-black p-1 align-middle" rowSpan={2}>
                 <div className="font-normal">RETAINAGE<br />HELD</div>
               </th>
             </tr>
-            <tr className="bg-gray-100 text-center font-bold">
-              <th className="border-r border-b border-black p-1 align-middle w-16">
-                F<br />
-                <span className="font-normal">FROM<br />PREVIOUS<br />APPLICATION</span>
+            <tr className="bg-gray-100 text-center">
+              <th className="border-r border-b border-black p-1">
+                <div className="font-normal">FROM<br />PREVIOUS<br />APPLICATION</div>
               </th>
-              <th className="border-r border-b border-black p-1 align-middle w-16">
-                G<br />
-                <span className="font-normal">THIS PERIOD</span>
+              <th className="border-r border-b border-black p-1">
+                <div className="font-normal">THIS PERIOD</div>
               </th>
-              <th className="border-r border-b border-black p-1 align-middle w-16">
-                H<br />
-                <span className="font-normal">MATERIALS<br />PRESENTLY<br />STORED</span>
+              <th className="border-r border-b border-black p-1">
+                <div className="font-normal">MATERIALS<br />PRESENTLY<br />STORED</div>
               </th>
             </tr>
           </thead>
           <tbody>
-            {sovItems.map((item, index) => {
+            {sovItems.filter(item => item.description || item.scheduledValue > 0).map((item, index) => {
               const totalContract = (item.scheduledValue || 0) + (item.changeOrders || 0);
               const totalCompleted = (item.previousApplications || 0) + (item.thisPeriod || 0) + (item.materialsStored || 0);
               const percentComplete = totalContract > 0 ? ((totalCompleted / totalContract) * 100) : 0;
@@ -160,24 +162,6 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
                 </tr>
               );
             })}
-            
-            {/* Add empty rows to fill the page if needed */}
-            {Array.from({ length: Math.max(0, 35 - sovItems.length) }).map((_, index) => (
-              <tr key={`empty-${index}`} style={{height: '24px'}}>
-                <td className="border-r border-black p-1 text-center">{sovItems.length + index + 1}</td>
-                <td className="border-r border-black p-1"></td>
-                <td className="border-r border-black p-1 text-right"></td>
-                <td className="border-r border-black p-1 text-right"></td>
-                <td className="border-r border-black p-1 text-right"></td>
-                <td className="border-r border-black p-1 text-right"></td>
-                <td className="border-r border-black p-1 text-right"></td>
-                <td className="border-r border-black p-1 text-right"></td>
-                <td className="border-r border-black p-1 text-right"></td>
-                <td className="border-r border-black p-1 text-right"></td>
-                <td className="border-r border-black p-1 text-right"></td>
-                <td className="p-1 text-right"></td>
-              </tr>
-            ))}
             
             {/* Totals Row */}
             <tr className="bg-gray-200 font-bold">
