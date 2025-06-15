@@ -18,10 +18,10 @@ interface RoleChangeRequest {
   reason: string | null;
   status: string;
   requested_at: string;
-  profiles: {
+  user_profile: {
     name: string;
     email: string;
-  };
+  } | null;
 }
 
 export const UserManagement: React.FC = () => {
@@ -38,25 +38,14 @@ export const UserManagement: React.FC = () => {
 
   const fetchRoleChangeRequests = async () => {
     try {
-      const { data, error } = await supabase
+      // First get all role change requests
+      const { data: requestsData, error: requestsError } = await supabase
         .from('role_change_requests')
-        .select(`
-          id,
-          user_id,
-          requested_role,
-          existing_role,
-          reason,
-          status,
-          requested_at,
-          profiles (
-            name,
-            email
-          )
-        `)
+        .select('*')
         .order('requested_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching role change requests:', error);
+      if (requestsError) {
+        console.error('Error fetching role change requests:', requestsError);
         toast({
           title: "Error",
           description: "Failed to load role change requests",
@@ -65,7 +54,23 @@ export const UserManagement: React.FC = () => {
         return;
       }
 
-      setRequests(data || []);
+      // Then get user profiles for each request
+      const requestsWithProfiles = await Promise.all(
+        (requestsData || []).map(async (request) => {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('name, email')
+            .eq('id', request.user_id)
+            .single();
+
+          return {
+            ...request,
+            user_profile: profileError ? null : profileData
+          };
+        })
+      );
+
+      setRequests(requestsWithProfiles);
     } catch (error) {
       console.error('Error fetching role change requests:', error);
       toast({
@@ -221,8 +226,12 @@ export const UserManagement: React.FC = () => {
               <div key={request.id} className="border rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-medium">{request.profiles.name}</h3>
-                    <p className="text-sm text-gray-600">{request.profiles.email}</p>
+                    <h3 className="font-medium">
+                      {request.user_profile?.name || 'Unknown User'}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {request.user_profile?.email || 'No email available'}
+                    </p>
                   </div>
                   {getStatusBadge(request.status)}
                 </div>
