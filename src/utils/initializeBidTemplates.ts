@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { comprehensiveBidTemplate, generalConditionsAndSiteTemplate, generalConditionsAndBuildingTemplate } from './bidTemplateData';
+import { bidTemplateData } from './bidTemplateData';
 
 export const initializeBidTemplates = async () => {
   try {
@@ -25,7 +25,7 @@ export const initializeBidTemplates = async () => {
 
       if (templateError1) throw templateError1;
 
-      const comprehensiveItems = comprehensiveBidTemplate.map(item => ({
+      const comprehensiveItems = bidTemplateData["Complete Construction Template"].map(item => ({
         template_id: comprehensiveTemplate.id,
         ...item
       }));
@@ -51,7 +51,7 @@ export const initializeBidTemplates = async () => {
 
       if (templateError2) throw templateError2;
 
-      const siteItems = generalConditionsAndSiteTemplate.map(item => ({
+      const siteItems = bidTemplateData["General Conditions & Site Work"].map(item => ({
         template_id: siteTemplate.id,
         ...item
       }));
@@ -77,7 +77,7 @@ export const initializeBidTemplates = async () => {
 
       if (templateError3) throw templateError3;
 
-      const buildingItems = generalConditionsAndBuildingTemplate.map(item => ({
+      const buildingItems = bidTemplateData["General Conditions & Building"].map(item => ({
         template_id: buildingTemplate.id,
         ...item
       }));
