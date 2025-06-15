@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -111,6 +112,7 @@ const Settings = () => {
 
   const handleSaveCompanySettings = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('=== FORM SUBMITTED ===');
     console.log('Starting save company settings...');
     console.log('Current state - existingId:', existingId);
     console.log('Current settings:', companySettings);
@@ -196,8 +198,14 @@ const Settings = () => {
   const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      console.log('Logo file selected:', file.name);
       setLogoFile(file);
     }
+  };
+
+  const handleButtonClick = () => {
+    console.log('=== SAVE BUTTON CLICKED ===');
+    console.log('Button clicked - this should trigger form submission');
   };
 
   return (
@@ -296,7 +304,11 @@ const Settings = () => {
                     </div>
                   </div>
 
-                  <Button type="submit" disabled={loading || uploadingLogo}>
+                  <Button 
+                    type="submit" 
+                    disabled={loading || uploadingLogo}
+                    onClick={handleButtonClick}
+                  >
                     {loading || uploadingLogo ? 'Saving...' : 'Save Company Settings'}
                   </Button>
                 </form>
