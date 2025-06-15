@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,7 @@ interface CreateBidPackageDialogProps {
 }
 
 export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ onPackageCreated }) => {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -183,6 +185,11 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
     })).filter(group => group.documents.length > 0);
   };
 
+  const handleNavigateToDocuments = () => {
+    setOpen(false);
+    navigate('/documents');
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -286,7 +293,7 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
                 <FileText className="w-4 h-4" />
                 <Label className="text-base font-medium">Include Documents</Label>
               </div>
-              <Button size="sm" variant="outline" onClick={() => window.open('/documents', '_blank')}>
+              <Button size="sm" variant="outline" onClick={handleNavigateToDocuments}>
                 <Upload className="w-4 h-4 mr-2" />
                 Upload New Documents
               </Button>
@@ -304,7 +311,7 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
                   size="sm" 
                   variant="outline" 
                   className="mt-3"
-                  onClick={() => window.open('/documents', '_blank')}
+                  onClick={handleNavigateToDocuments}
                 >
                   <Upload className="w-4 h-4 mr-2" />
                   Go to Documents
