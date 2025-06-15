@@ -101,11 +101,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
                 <div className="border-b border-black pb-1 mb-1">E</div>
                 <div>TOTAL<br/>CONTRACT</div>
               </th>
-              <th className="border-r border-black p-1 font-bold" colSpan={3}>WORK COMPLETED</th>
-              <th className="border-r border-black p-1 w-16 font-bold" rowSpan={2}>
-                <div className="border-b border-black pb-1 mb-1">I</div>
-                <div>TOTAL<br/>COMPLETED<br/>AND STORED TO<br/>DATE</div>
-              </th>
+              <th className="border-r border-black p-1 font-bold" colSpan={4}>WORK COMPLETED</th>
               <th className="border-r border-black p-1 w-12 font-bold" rowSpan={3}>
                 <div className="border-b border-black pb-1 mb-1">J</div>
                 <div>%<br/>COMPLETE</div>
@@ -121,25 +117,26 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
             </tr>
             {/* Second header row - work completed subdivisions */}
             <tr className="bg-gray-100">
-              <th className="border-r border-black p-1 w-16 font-bold">
+              <th className="border-r border-black p-1 w-16 font-bold" rowSpan={2}>
                 <div className="border-b border-black pb-1 mb-1">F</div>
                 <div>FROM<br/>PREVIOUS<br/>APPLICATION</div>
               </th>
-              <th className="border-r border-black p-1 w-16 font-bold">
+              <th className="border-r border-black p-1 w-16 font-bold" rowSpan={2}>
                 <div className="border-b border-black pb-1 mb-1">G</div>
                 <div>THIS<br/>PERIOD</div>
               </th>
-              <th className="border-r border-black p-1 w-16 font-bold">
+              <th className="border-r border-black p-1 w-16 font-bold" rowSpan={2}>
                 <div className="border-b border-black pb-1 mb-1">H</div>
                 <div>MATERIALS<br/>PRESENTLY<br/>STORED</div>
+              </th>
+              <th className="border-r border-black p-1 w-16 font-bold">
+                <div className="border-b border-black pb-1 mb-1">I</div>
+                <div>TOTAL<br/>COMPLETED<br/>AND STORED TO</div>
               </th>
             </tr>
             {/* Third header row - column I subdivision */}
             <tr className="bg-gray-100">
-              <th className="border-r border-black p-1 w-16 font-bold"></th>
-              <th className="border-r border-black p-1 w-16 font-bold"></th>
-              <th className="border-r border-black p-1 w-16 font-bold"></th>
-              <th className="border-r border-black p-1 w-16 font-bold">(F+G+H)</th>
+              <th className="border-r border-black p-1 w-16 font-bold">DATE<br/>(F+G+H)</th>
             </tr>
           </thead>
           <tbody>
