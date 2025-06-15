@@ -9,6 +9,134 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      bid_invitation_documents: {
+        Row: {
+          bid_invitation_id: string | null
+          created_at: string
+          document_id: string | null
+          id: string
+        }
+        Insert: {
+          bid_invitation_id?: string | null
+          created_at?: string
+          document_id?: string | null
+          id?: string
+        }
+        Update: {
+          bid_invitation_id?: string | null
+          created_at?: string
+          document_id?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bid_invitation_documents_bid_invitation_id_fkey"
+            columns: ["bid_invitation_id"]
+            isOneToOne: false
+            referencedRelation: "bid_invitations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bid_invitation_documents_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bid_invitation_recipients: {
+        Row: {
+          bid_invitation_id: string | null
+          created_at: string
+          id: string
+          opened_at: string | null
+          responded_at: string | null
+          sent_at: string | null
+          status: string
+          subcontractor_id: string | null
+        }
+        Insert: {
+          bid_invitation_id?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string | null
+          responded_at?: string | null
+          sent_at?: string | null
+          status?: string
+          subcontractor_id?: string | null
+        }
+        Update: {
+          bid_invitation_id?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string | null
+          responded_at?: string | null
+          sent_at?: string | null
+          status?: string
+          subcontractor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bid_invitation_recipients_bid_invitation_id_fkey"
+            columns: ["bid_invitation_id"]
+            isOneToOne: false
+            referencedRelation: "bid_invitations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bid_invitation_recipients_subcontractor_id_fkey"
+            columns: ["subcontractor_id"]
+            isOneToOne: false
+            referencedRelation: "subcontractors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bid_invitations: {
+        Row: {
+          bid_package_id: string | null
+          created_at: string
+          due_date: string | null
+          id: string
+          message: string | null
+          sent_at: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          bid_package_id?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          message?: string | null
+          sent_at?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          bid_package_id?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          message?: string | null
+          sent_at?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bid_invitations_bid_package_id_fkey"
+            columns: ["bid_package_id"]
+            isOneToOne: false
+            referencedRelation: "bid_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bid_items: {
         Row: {
           category: string
@@ -1226,6 +1354,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subcontractor_group_members: {
+        Row: {
+          created_at: string
+          group_id: string | null
+          id: string
+          subcontractor_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          subcontractor_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          subcontractor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subcontractor_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "subcontractor_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subcontractor_group_members_subcontractor_id_fkey"
+            columns: ["subcontractor_id"]
+            isOneToOne: false
+            referencedRelation: "subcontractors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subcontractor_groups: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       subcontractors: {
         Row: {
