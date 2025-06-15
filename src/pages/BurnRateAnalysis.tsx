@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +8,11 @@ import { BurnAnalysisSummary } from '@/components/burn-analysis/BurnAnalysisSumm
 import { BurnAnalysisChart } from '@/components/burn-analysis/BurnAnalysisChart';
 import { CategoryBreakdownTable } from '@/components/burn-analysis/CategoryBreakdownTable';
 import { ProjectSelectionHeader } from '@/components/burn-analysis/ProjectSelectionHeader';
+import { BurnAnalyticsEngine } from '@/utils/burnAnalytics';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, Info } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface Project {
   id: string;
@@ -35,6 +39,7 @@ interface CategoryBreakdown {
   variancePercent: number;
   remaining: number;
   status: 'On Track' | 'At Risk' | 'Over Budget';
+  hasRealData?: boolean;
 }
 
 export default function BurnRateAnalysis() {
@@ -45,6 +50,7 @@ export default function BurnRateAnalysis() {
   const [loading, setLoading] = useState(true);
   const [burnData, setBurnData] = useState<BurnData[]>([]);
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([]);
+  const [hasDetailedBudgets, setHasDetailedBudgets] = useState(false);
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
     from: undefined,
     to: undefined
@@ -64,7 +70,7 @@ export default function BurnRateAnalysis() {
 
   useEffect(() => {
     if (selectedProjects.length > 0) {
-      fetchBurnAnalysisData();
+      fetchAdvancedBurnAnalysisData();
     }
   }, [selectedProjects, dateRange]);
 
@@ -90,186 +96,58 @@ export default function BurnRateAnalysis() {
     }
   };
 
-  const fetchBurnAnalysisData = async () => {
+  const fetchAdvancedBurnAnalysisData = async () => {
     try {
-      // Fetch billing data for actual spending
-      const { data: billingData, error: billingError } = await supabase
-        .from('project_billing')
-        .select('project_id, billed_amount, billing_period_start, billing_period_end')
-        .in('project_id', selectedProjects);
-
-      if (billingError) throw billingError;
-
-      // Fetch expenses data for additional actual spending
-      const { data: expensesData, error: expensesError } = await supabase
-        .from('expenses')
-        .select('project_id, amount, date, status')
-        .in('project_id', selectedProjects)
-        .in('status', ['Approved', 'Paid']);
-
-      if (expensesError) throw expensesError;
-
-      // Fetch change orders for contract adjustments
-      const { data: changeOrders, error: changeError } = await supabase
-        .from('change_orders')
-        .select('project_id, amount, status')
-        .in('project_id', selectedProjects)
-        .eq('status', 'Approved');
-
-      if (changeError) throw changeError;
-
-      const selectedProjectsData = projects.filter(p => selectedProjects.includes(p.id));
-      const totalBudget = selectedProjectsData.reduce((sum, p) => sum + p.contract_value, 0);
-
-      const totalChangeOrders = (changeOrders || [])
-        .reduce((sum, co) => sum + (co.amount || 0), 0);
-
-      const adjustedBudget = totalBudget + totalChangeOrders;
-
-      // Filter data by date range if set
-      let filteredBillingData = billingData || [];
-      let filteredExpensesData = expensesData || [];
+      setLoading(true);
       
-      if (dateRange.from && dateRange.to) {
-        filteredBillingData = filteredBillingData.filter(billing => {
-          const billingDate = parseISO(billing.billing_period_end);
-          return isWithinInterval(billingDate, { start: dateRange.from!, end: dateRange.to! });
-        });
-        
-        filteredExpensesData = filteredExpensesData.filter(expense => {
-          const expenseDate = parseISO(expense.date);
-          return isWithinInterval(expenseDate, { start: dateRange.from!, end: dateRange.to! });
-        });
-      }
+      // Use the new analytics engine
+      const [burnAnalysisData, categoryAnalysisData] = await Promise.all([
+        BurnAnalyticsEngine.calculateAdvancedBurnData(selectedProjects, dateRange),
+        BurnAnalyticsEngine.calculateCategoryAnalysis(selectedProjects, dateRange)
+      ]);
 
-      // Calculate burn rate data using real project data
-      const currentYear = new Date().getFullYear();
-      const months = eachMonthOfInterval({
-        start: startOfYear(new Date(currentYear, 0, 1)),
-        end: endOfYear(new Date(currentYear, 11, 31))
-      });
-
-      const burnChartData = months.map((month, index) => {
-        const monthStr = format(month, 'MMM');
-        const monthlyPlanned = adjustedBudget / 12;
-        const cumulativePlanned = monthlyPlanned * (index + 1);
-        
-        // Calculate actual spending from both billing and expenses
-        const billingSpend = filteredBillingData
-          .filter(b => {
-            const billingMonth = new Date(b.billing_period_end);
-            return billingMonth <= month;
-          })
-          .reduce((sum, b) => sum + (b.billed_amount || 0), 0);
-          
-        const expensesSpend = filteredExpensesData
-          .filter(e => {
-            const expenseMonth = new Date(e.date);
-            return expenseMonth <= month;
-          })
-          .reduce((sum, e) => sum + (e.amount || 0), 0);
-          
-        const cumulativeActual = billingSpend + expensesSpend;
-
-        return {
-          month: monthStr,
-          plannedSpending: cumulativePlanned,
-          actualSpending: cumulativeActual,
-          forecastedSpending: cumulativePlanned * 1.05,
-          budgetThreshold: adjustedBudget
-        };
-      });
-
-      setBurnData(burnChartData);
-
-      // Calculate total actual spend from both sources
-      const totalBillingSpend = filteredBillingData.reduce((sum, b) => sum + (b.billed_amount || 0), 0);
-      const totalExpensesSpend = filteredExpensesData.reduce((sum, e) => sum + (e.amount || 0), 0);
-      const totalActualSpend = totalBillingSpend + totalExpensesSpend;
+      setBurnData(burnAnalysisData);
       
-      // Calculate category breakdown based on real data
-      const categories: CategoryBreakdown[] = [
-        {
-          category: 'Labor',
-          plannedBudget: adjustedBudget * 0.35,
-          actualSpend: totalActualSpend * 0.35,
-          variance: 0,
-          variancePercent: 0,
-          remaining: 0,
-          status: 'On Track'
-        },
-        {
-          category: 'Materials',
-          plannedBudget: adjustedBudget * 0.30,
-          actualSpend: totalActualSpend * 0.30,
-          variance: 0,
-          variancePercent: 0,
-          remaining: 0,
-          status: 'On Track'
-        },
-        {
-          category: 'Equipment',
-          plannedBudget: adjustedBudget * 0.20,
-          actualSpend: totalActualSpend * 0.20,
-          variance: 0,
-          variancePercent: 0,
-          remaining: 0,
-          status: 'On Track'
-        },
-        {
-          category: 'Subcontractors',
-          plannedBudget: adjustedBudget * 0.10,
-          actualSpend: totalActualSpend * 0.10,
-          variance: 0,
-          variancePercent: 0,
-          remaining: 0,
-          status: 'On Track'
-        },
-        {
-          category: 'Overhead',
-          plannedBudget: adjustedBudget * 0.05,
-          actualSpend: totalActualSpend * 0.05,
-          variance: 0,
-          variancePercent: 0,
-          remaining: 0,
-          status: 'On Track'
-        }
-      ];
-
-      // Calculate variance and remaining for each category
-      categories.forEach(cat => {
-        cat.variance = cat.actualSpend - (cat.plannedBudget * (totalActualSpend / adjustedBudget));
-        cat.variancePercent = cat.plannedBudget > 0 ? (cat.variance / cat.plannedBudget) * 100 : 0;
-        cat.remaining = cat.plannedBudget - cat.actualSpend;
-        
-        if (Math.abs(cat.variancePercent) > 15) cat.status = 'Over Budget';
-        else if (Math.abs(cat.variancePercent) > 10) cat.status = 'At Risk';
-        else cat.status = 'On Track';
-      });
-
-      setCategoryBreakdown(categories.filter(cat => 
+      // Check if we have real budget data
+      const hasRealBudgetData = categoryAnalysisData.some(cat => cat.hasRealData && cat.plannedBudget > 0);
+      setHasDetailedBudgets(hasRealBudgetData);
+      
+      // Filter categories
+      const filteredCategories = categoryAnalysisData.filter(cat => 
         costCategories === 'All' || cat.category === costCategories
       ).filter(cat =>
         searchTerm === '' || cat.category.toLowerCase().includes(searchTerm.toLowerCase())
-      ));
+      );
 
-      // Calculate summary statistics from real data
-      const remainingBudget = adjustedBudget - totalActualSpend;
-      const budgetPercentage = adjustedBudget > 0 ? (totalActualSpend / adjustedBudget) * 100 : 0;
+      setCategoryBreakdown(filteredCategories);
+
+      // Calculate summary stats
+      const selectedProjectsData = projects.filter(p => selectedProjects.includes(p.id));
+      const totalBudget = selectedProjectsData.reduce((sum, p) => sum + p.contract_value, 0);
+      const totalActualSpend = categoryAnalysisData.reduce((sum, cat) => sum + cat.actualSpend, 0);
+      const remainingBudget = totalBudget - totalActualSpend;
+      const budgetPercentage = totalBudget > 0 ? (totalActualSpend / totalBudget) * 100 : 0;
       const monthlyBurnRate = totalActualSpend / Math.max(1, new Date().getMonth() + 1);
 
       setSummaryStats({
-        totalBudget: adjustedBudget,
+        totalBudget,
         actualSpend: totalActualSpend,
         remainingBudget,
         monthlyBurnRate,
         budgetPercentage,
-        monthlyChange: Math.random() * 10 - 5 // Mock data for monthly change
+        monthlyChange: Math.random() * 10 - 5 // This would come from historical data
       });
 
     } catch (error) {
-      console.error('Error fetching burn analysis data:', error);
+      console.error('Error fetching advanced burn analysis data:', error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleSetupBudgets = () => {
+    // Navigate to project settings or budget setup
+    console.log('Navigate to budget setup');
   };
 
   const handleExportPDF = () => {
@@ -323,15 +201,26 @@ export default function BurnRateAnalysis() {
         <BurnAnalysisFilters
           projects={projects}
           selectedProjects={selectedProjects}
-          onProjectToggle={handleProjectToggle}
+          onProjectToggle={(projectId) => {
+            setSelectedProjects(prev => 
+              prev.includes(projectId) 
+                ? prev.filter(id => id !== projectId)
+                : [...prev, projectId]
+            );
+          }}
           costCategories={costCategories}
           onCostCategoriesChange={setCostCategories}
           searchTerm={searchTerm}
           onSearchTermChange={setSearchTerm}
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
-          onClearFilters={clearFilters}
-          onExport={handleExportCSV}
+          onClearFilters={() => {
+            setSelectedProjects([]);
+            setCostCategories('All');
+            setSearchTerm('');
+            setDateRange({ from: undefined, to: undefined });
+          }}
+          onExport={() => exportCSV(categoryBreakdown, 'burn-rate-analysis.csv')}
         />
 
         {/* Project Selection Header */}
@@ -342,23 +231,69 @@ export default function BurnRateAnalysis() {
 
         {selectedProjects.length > 0 && (
           <>
+            {/* Budget Setup Alert */}
+            {!hasDetailedBudgets && (
+              <Alert className="border-amber-200 bg-amber-50">
+                <Info className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800">
+                  <div className="flex items-center justify-between">
+                    <span>
+                      No detailed budget allocations found for selected projects. 
+                      Set up category budgets for more accurate burn analysis.
+                    </span>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleSetupBudgets}
+                      className="ml-4"
+                    >
+                      Setup Budgets
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Summary Stats */}
             <BurnAnalysisSummary 
               summaryStats={summaryStats}
               selectedProjectsCount={selectedProjects.length}
+              loading={loading}
             />
 
             {/* Burn Rate Chart */}
             <BurnAnalysisChart
               burnData={burnData}
-              onExport={handleExportPDF}
+              onExport={() => exportToPDF('burn-analysis-content', 'burn-rate-analysis.pdf')}
+              loading={loading}
             />
 
             {/* Cost Category Breakdown */}
-            <CategoryBreakdownTable
-              categoryBreakdown={categoryBreakdown}
-              onExport={handleExportCSV}
-            />
+            {categoryBreakdown.length > 0 ? (
+              <CategoryBreakdownTable
+                categoryBreakdown={categoryBreakdown}
+                onExport={() => exportCSV(categoryBreakdown, 'burn-rate-analysis.csv')}
+                loading={loading}
+              />
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Cost Category Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-lg font-semibold mb-2">No Category Data Available</h3>
+                    <p className="text-gray-500 mb-4">
+                      No expenses or budget allocations found for the selected projects and date range.
+                    </p>
+                    <Button variant="outline" onClick={handleSetupBudgets}>
+                      Setup Category Budgets
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </div>

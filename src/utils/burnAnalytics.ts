@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
 
@@ -26,6 +25,7 @@ export interface CategoryAnalysis {
   trend: 'improving' | 'stable' | 'declining';
   forecastedTotal: number;
   alerts: string[];
+  hasRealData: boolean;
 }
 
 export interface RiskAssessment {
@@ -88,20 +88,38 @@ export class BurnAnalyticsEngine {
 
     const totalBudget = projects.reduce((sum, p) => sum + (p.contract_value || 0), 0);
 
-    return categories.map(category => {
-      const categoryExpenses = expenses.filter(e => e.category === category.name);
-      const categoryBilling = billing.filter(b => 
-        this.categorizeBilling(b) === category.name
-      );
+    // Check if we have actual budget variance data for these projects
+    const hasVarianceData = variances.length > 0;
 
-      const plannedBudget = this.calculatePlannedBudget(category.name, totalBudget);
-      const actualSpend = this.calculateActualSpend(categoryExpenses, categoryBilling);
+    // Get actual expenses by category
+    const expensesByCategory = this.groupExpensesByCategory(expenses);
+    const billingByCategory = this.groupBillingByCategory(billing);
+
+    return categories.map(category => {
+      // Check if this category has real budget allocation data
+      const categoryVariances = variances.filter(v => v.category_id === category.id);
+      const hasRealBudgetData = categoryVariances.length > 0;
+
+      // Calculate actual spending for this category
+      const categoryExpenses = expensesByCategory[category.name] || 0;
+      const categoryBilling = billingByCategory[category.name] || 0;
+      const actualSpend = categoryExpenses + categoryBilling;
+
+      // Only show category if it has real data (either budget allocation or actual spending)
+      if (!hasRealBudgetData && actualSpend === 0) {
+        return null;
+      }
+
+      // Use real planned budget if available, otherwise show only actual data
+      const plannedBudget = hasRealBudgetData 
+        ? categoryVariances.reduce((sum, v) => sum + v.planned_amount, 0)
+        : 0;
+
       const variance = actualSpend - plannedBudget;
       const variancePercent = plannedBudget > 0 ? (variance / plannedBudget) * 100 : 0;
 
-      const categoryVariances = variances.filter(v => v.category_id === category.id);
       const trend = this.calculateTrend(categoryVariances);
-      const riskLevel = this.assessRiskLevel(variancePercent, trend);
+      const riskLevel = this.assessRiskLevel(variancePercent, trend, hasRealBudgetData);
       const status = this.determineStatus(riskLevel);
 
       return {
@@ -111,29 +129,48 @@ export class BurnAnalyticsEngine {
         actualSpend,
         variance,
         variancePercent,
-        remaining: plannedBudget - actualSpend,
+        remaining: Math.max(0, plannedBudget - actualSpend),
         status,
         riskLevel,
         trend,
         forecastedTotal: this.forecastCategoryTotal(actualSpend, plannedBudget, trend),
-        alerts: this.generateCategoryAlerts(category.name, variancePercent, riskLevel)
+        alerts: this.generateCategoryAlerts(category.name, variancePercent, riskLevel, hasRealBudgetData),
+        hasRealData: hasRealBudgetData || actualSpend > 0
       };
-    });
+    }).filter(Boolean) as CategoryAnalysis[];
+  }
+
+  private static groupExpensesByCategory(expenses: any[]): Record<string, number> {
+    return expenses.reduce((acc, expense) => {
+      const category = expense.category || 'Other';
+      acc[category] = (acc[category] || 0) + (expense.amount || 0);
+      return acc;
+    }, {});
+  }
+
+  private static groupBillingByCategory(billing: any[]): Record<string, number> {
+    // For now, we'll categorize billing as Labor since most billing is labor-related
+    // This could be enhanced with better categorization logic
+    return billing.reduce((acc, bill) => {
+      acc['Labor'] = (acc['Labor'] || 0) + (bill.billed_amount || 0);
+      return acc;
+    }, {});
   }
 
   static async generateRiskAssessment(
     projectIds: string[],
     categoryAnalysis: CategoryAnalysis[]
   ): Promise<RiskAssessment> {
-    const overBudgetCategories = categoryAnalysis.filter(c => c.status === 'Over Budget');
-    const atRiskCategories = categoryAnalysis.filter(c => c.status === 'At Risk');
+    const realDataCategories = categoryAnalysis.filter(c => c.hasRealData);
+    const overBudgetCategories = realDataCategories.filter(c => c.status === 'Over Budget');
+    const atRiskCategories = realDataCategories.filter(c => c.status === 'At Risk');
 
-    const overallRisk = this.calculateOverallRisk(categoryAnalysis);
-    const riskFactors = this.identifyRiskFactors(categoryAnalysis);
-    const recommendations = this.generateRecommendations(categoryAnalysis);
+    const overallRisk = this.calculateOverallRisk(realDataCategories);
+    const riskFactors = this.identifyRiskFactors(realDataCategories);
+    const recommendations = this.generateRecommendations(realDataCategories, categoryAnalysis.length === 0);
     
-    const probabilityOfOverrun = this.calculateOverrunProbability(categoryAnalysis);
-    const estimatedOverrunAmount = this.estimateOverrunAmount(categoryAnalysis);
+    const probabilityOfOverrun = this.calculateOverrunProbability(realDataCategories);
+    const estimatedOverrunAmount = this.estimateOverrunAmount(realDataCategories);
 
     return {
       overallRisk,
@@ -297,7 +334,9 @@ export class BurnAnalyticsEngine {
     return 'stable';
   }
 
-  private static assessRiskLevel(variancePercent: number, trend: string): 'Low' | 'Medium' | 'High' | 'Critical' {
+  private static assessRiskLevel(variancePercent: number, trend: string, hasRealData: boolean): 'Low' | 'Medium' | 'High' | 'Critical' {
+    if (!hasRealData) return 'Low';
+    
     const absVariance = Math.abs(variancePercent);
     
     if (absVariance > 25 || (absVariance > 15 && trend === 'declining')) return 'Critical';
@@ -317,8 +356,13 @@ export class BurnAnalyticsEngine {
     return Math.max(actual, planned * trendMultiplier);
   }
 
-  private static generateCategoryAlerts(category: string, variancePercent: number, riskLevel: string): string[] {
+  private static generateCategoryAlerts(category: string, variancePercent: number, riskLevel: string, hasRealData: boolean): string[] {
     const alerts: string[] = [];
+    
+    if (!hasRealData) {
+      alerts.push('No budget allocation set for this category');
+      return alerts;
+    }
     
     if (Math.abs(variancePercent) > 15) {
       alerts.push(`${variancePercent > 0 ? 'Over' : 'Under'} budget by ${Math.abs(variancePercent).toFixed(1)}%`);
@@ -358,8 +402,14 @@ export class BurnAnalyticsEngine {
     return factors;
   }
 
-  private static generateRecommendations(categories: CategoryAnalysis[]): string[] {
+  private static generateRecommendations(categories: CategoryAnalysis[], hasNoData: boolean): string[] {
     const recommendations: string[] = [];
+    
+    if (hasNoData) {
+      recommendations.push('Set up detailed budget allocations by category for better tracking');
+      recommendations.push('Enter planned spending amounts for each cost category');
+      return recommendations;
+    }
     
     categories.forEach(cat => {
       if (cat.status === 'Over Budget') {
@@ -369,6 +419,11 @@ export class BurnAnalyticsEngine {
         recommendations.push(`Review ${cat.category} processes and suppliers`);
       }
     });
+    
+    if (recommendations.length === 0) {
+      recommendations.push('Continue monitoring spending patterns');
+      recommendations.push('Regular budget reviews recommended');
+    }
     
     return recommendations;
   }
