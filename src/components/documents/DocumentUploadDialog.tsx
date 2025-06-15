@@ -65,7 +65,7 @@ export function DocumentUploadDialog({ open, onOpenChange, onUpload, projects }:
       name: documentName,
       description,
       folder,
-      project_id: project || null,
+      project_id: project === 'no-project' ? null : project || null,
       tags: tags.split(',').map(tag => tag.trim()).filter(Boolean),
       file
     };
@@ -206,7 +206,7 @@ export function DocumentUploadDialog({ open, onOpenChange, onUpload, projects }:
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Project</SelectItem>
+                  <SelectItem value="no-project">No Project</SelectItem>
                   {projects.map((proj) => (
                     <SelectItem key={proj.id} value={proj.id}>
                       {proj.name}
