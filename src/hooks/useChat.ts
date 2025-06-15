@@ -3,7 +3,21 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import type { ChatRoom, Message, ChatParticipant } from '@/types/chat';
+import type { ChatRoom, Message, ChatParticipant, ChatRoomRow, MessageRow } from '@/types/chat';
+
+// Helper function to convert database row to ChatRoom
+const convertToChatRoom = (row: ChatRoomRow): ChatRoom => ({
+  ...row,
+  type: (row.type as ChatRoom['type']) || 'general'
+});
+
+// Helper function to convert database row to Message
+const convertToMessage = (row: MessageRow, userProfile?: { name: string; email: string }): Message => ({
+  ...row,
+  message_type: (row.message_type as Message['message_type']) || 'text',
+  file_url: row.file_url || undefined,
+  user_profile: userProfile
+});
 
 export const useChat = (roomId?: string) => {
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
@@ -29,7 +43,8 @@ export const useChat = (roomId?: string) => {
         return;
       }
 
-      setRooms(data || []);
+      const convertedRooms = (data || []).map(convertToChatRoom);
+      setRooms(convertedRooms);
     } catch (error) {
       console.error('Error fetching chat rooms:', error);
     }
@@ -61,10 +76,7 @@ export const useChat = (roomId?: string) => {
             .eq('id', message.user_id)
             .single();
 
-          return {
-            ...message,
-            user_profile: profileData
-          };
+          return convertToMessage(message as MessageRow, profileData || undefined);
         })
       );
 
@@ -152,8 +164,8 @@ export const useChat = (roomId?: string) => {
           user_id: user.id
         });
 
-      fetchRooms();
-      return roomData;
+      await fetchRooms();
+      return convertToChatRoom(roomData as ChatRoomRow);
     } catch (error) {
       console.error('Error creating room:', error);
       toast({
@@ -215,10 +227,10 @@ export const useChat = (roomId?: string) => {
             .eq('id', payload.new.user_id)
             .single();
 
-          const messageWithProfile = {
-            ...payload.new,
-            user_profile: profileData
-          } as Message;
+          const messageWithProfile = convertToMessage(
+            payload.new as MessageRow, 
+            profileData || undefined
+          );
 
           setMessages(prev => [...prev, messageWithProfile]);
         }

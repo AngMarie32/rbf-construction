@@ -32,3 +32,26 @@ export interface ChatParticipant {
   joined_at: string;
   last_read_at: string;
 }
+
+// Database response types (what actually comes from Supabase)
+export interface ChatRoomRow {
+  id: string;
+  name: string;
+  type: string;
+  context_id?: string;
+  context_type?: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MessageRow {
+  id: string;
+  chat_room_id: string;
+  user_id: string;
+  content: string;
+  message_type: string;
+  file_url?: string | null;
+  created_at: string;
+  updated_at: string;
+}
