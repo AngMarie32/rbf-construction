@@ -12,7 +12,7 @@ import {
   Clock,
   MapPin,
   Wrench,
-  Calendar
+  Settings
 } from 'lucide-react';
 import type { Equipment } from '@/types/equipment';
 
@@ -79,21 +79,19 @@ export function EquipmentCard({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 ml-2">
-            <Badge className={`text-xs font-medium border ${getStatusColor(equipment.status)}`} variant="outline">
-              {equipment.status}
-            </Badge>
-          </div>
+          <Badge className={`text-xs font-medium border ${getStatusColor(equipment.status)}`} variant="outline">
+            {equipment.status}
+          </Badge>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
         {equipment.image && (
-          <div className="relative h-48 overflow-hidden rounded-lg bg-gray-100">
+          <div className="relative h-40 overflow-hidden rounded-lg bg-gray-100">
             <img 
               src={equipment.image} 
               alt={equipment.name}
-              className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
+              className="w-full h-full object-cover"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}
@@ -102,45 +100,41 @@ export function EquipmentCard({
         )}
 
         {equipment.description && (
-          <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
+          <p className="text-sm text-gray-600 line-clamp-2">
             {equipment.description}
           </p>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="w-4 h-4 text-blue-600" />
-              <span className="text-xs font-medium text-blue-600 uppercase tracking-wide">Rate</span>
-            </div>
-            <div className="text-lg font-semibold text-gray-900">${equipment.hourly_rate}</div>
-            <div className="text-xs text-gray-500">per hour</div>
+        <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-600">Hourly Rate</span>
           </div>
-          
-          {equipment.value && (
-            <div className="bg-green-50 border border-green-100 rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <DollarSign className="w-4 h-4 text-green-600" />
-                <span className="text-xs font-medium text-green-600 uppercase tracking-wide">Value</span>
-              </div>
-              <div className="text-lg font-semibold text-gray-900">${equipment.value.toLocaleString()}</div>
-              <div className="text-xs text-gray-500">estimated</div>
-            </div>
-          )}
+          <span className="text-lg font-bold text-gray-900">${equipment.hourly_rate}</span>
         </div>
 
+        {equipment.value && (
+          <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-green-600" />
+              <span className="text-sm font-medium text-green-600">Value</span>
+            </div>
+            <span className="text-lg font-bold text-gray-900">${equipment.value.toLocaleString()}</span>
+          </div>
+        )}
+
         {equipment.location && (
-          <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
-            <MapPin className="w-4 h-4 text-gray-400" />
+          <div className="flex items-center gap-2 text-sm text-gray-600 p-3 bg-gray-50 rounded-lg">
+            <MapPin className="w-4 h-4" />
             <span>{equipment.location}</span>
           </div>
         )}
 
-        <div className="flex gap-2 pt-2 border-t border-gray-100">
+        <div className="flex gap-2 pt-2 border-t">
           <Button 
             size="sm" 
             variant="outline" 
-            className="flex-1 h-9"
+            className="flex-1"
             onClick={() => onEdit(equipment)}
           >
             <Edit2 className="w-4 h-4 mr-1" />
@@ -149,16 +143,16 @@ export function EquipmentCard({
           <Button 
             size="sm" 
             variant="outline" 
-            className="flex-1 h-9"
+            className="flex-1"
             onClick={() => onMaintenance(equipment)}
           >
-            <Calendar className="w-4 h-4 mr-1" />
-            Schedule
+            <Settings className="w-4 h-4 mr-1" />
+            Maintenance
           </Button>
           <Button 
             size="sm" 
             variant="outline" 
-            className="flex-1 h-9"
+            className="flex-1"
             onClick={() => onAddToEstimator(equipment)}
           >
             <DollarSign className="w-4 h-4 mr-1" />
@@ -167,7 +161,7 @@ export function EquipmentCard({
           <Button 
             size="sm" 
             variant="outline" 
-            className="h-9 px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+            className="px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
             onClick={() => onDelete(equipment.id)}
           >
             <Trash2 className="w-4 h-4" />
