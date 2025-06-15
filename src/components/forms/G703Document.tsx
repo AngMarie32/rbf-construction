@@ -79,57 +79,58 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
       <div className="border border-black">
         <table className="w-full border-collapse text-xs">
           <thead>
-            {/* First row - Column letters A through K */}
+            {/* First row - Column letters A through L */}
             <tr className="bg-gray-100 text-center font-bold">
               <th className="border-r border-b border-black p-1" style={{ width: '6%' }}>A</th>
               <th className="border-r border-b border-black p-1" style={{ width: '22%' }}>B</th>
-              <th className="border-r border-b border-black p-1" style={{ width: '10%' }}>C</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>C</th>
               <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>D</th>
-              <th className="border-r border-b border-black p-1" style={{ width: '10%' }}>E</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>E</th>
               <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>F</th>
               <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>G</th>
               <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>H</th>
-              <th className="border-r border-b border-black p-1" style={{ width: '10%' }}>I</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>I</th>
               <th className="border-r border-b border-black p-1" style={{ width: '6%' }}>J</th>
               <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>K</th>
               <th className="border-b border-black p-1" style={{ width: '8%' }}>L</th>
             </tr>
-            {/* Second row - Main headers with "WORK COMPLETED" spanning F, G, H */}
-            <tr className="bg-gray-100 text-center">
+            {/* Second row - Headers */}
+            <tr className="bg-gray-100 text-center text-xs">
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                <div className="text-xs">ITEM<br />NO.</div>
+                ITEM<br />NO.
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                <div className="text-xs">DESCRIPTION OF WORK</div>
+                DESCRIPTION OF WORK
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                <div className="text-xs">SCHEDULED<br />VALUE</div>
+                SCHEDULED<br />VALUE
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                <div className="text-xs">CHANGE<br />ORDERS</div>
+                CHANGE<br />ORDERS
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                <div className="text-xs">TOTAL<br />CONTRACT</div>
-              </th>
-              <th className="border-r border-b border-black p-1" colSpan={3}>
-                <div className="border-b border-black pb-1 mb-1 text-xs">WORK COMPLETED</div>
-                <div className="grid grid-cols-3 gap-0 text-xs">
-                  <div className="border-r border-black pr-1 text-center">FROM<br />PREVIOUS<br />APPLICATION</div>
-                  <div className="border-r border-black px-1 text-center">THIS PERIOD</div>
-                  <div className="text-center">MATERIALS<br />PRESENTLY<br />STORED</div>
-                </div>
+                TOTAL<br />CONTRACT
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                <div className="text-xs">TOTAL<br />COMPLETED<br />AND STORED TO</div>
+                FROM<br />PREVIOUS<br />APPLICATION
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                <div className="text-xs">%<br />COMPLETE</div>
+                THIS PERIOD
               </th>
               <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                <div className="text-xs">BALANCE TO<br />FINISH</div>
+                MATERIALS<br />PRESENTLY<br />STORED
+              </th>
+              <th className="border-r border-b border-black p-1 h-16 align-bottom">
+                TOTAL<br />COMPLETED<br />AND STORED TO
+              </th>
+              <th className="border-r border-b border-black p-1 h-16 align-bottom">
+                %<br />COMPLETE
+              </th>
+              <th className="border-r border-b border-black p-1 h-16 align-bottom">
+                BALANCE TO<br />FINISH
               </th>
               <th className="border-b border-black p-1 h-16 align-bottom">
-                <div className="text-xs">RETAINAGE</div>
+                RETAINAGE
               </th>
             </tr>
           </thead>
