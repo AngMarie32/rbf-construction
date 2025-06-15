@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Filter, FileText, Edit, Trash2, Eye, Download, Clipboard } from 'lucide-react';
+import { Search, Filter, FileText, Edit, Trash2, Eye, Download, Clipboard, ArrowUpDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { generateProfessionalProposalPDF } from '@/utils/proposalPdfExport';
@@ -39,6 +39,8 @@ export default function Proposals() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sortField, setSortField] = useState<'projectName' | 'client' | 'amount' | 'status' | 'createdAt'>('createdAt');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [viewingProposal, setViewingProposal] = useState<Proposal | null>(null);
   const [editingProposal, setEditingProposal] = useState<any>(null);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
@@ -152,10 +154,75 @@ export default function Proposals() {
 
   const totalValue = proposals.reduce((sum, proposal) => sum + proposal.amount, 0);
 
+  const handleSort = (field: 'projectName' | 'client' | 'amount' | 'status' | 'createdAt') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedAndFilteredProposals = filteredProposals.sort((a, b) => {
+    let aValue: string | number | Date;
+    let bValue: string | number | Date;
+
+    switch (sortField) {
+      case 'projectName':
+        aValue = a.projectName.toLowerCase();
+        bValue = b.projectName.toLowerCase();
+        break;
+      case 'client':
+        aValue = a.client.toLowerCase();
+        bValue = b.client.toLowerCase();
+        break;
+      case 'amount':
+        aValue = a.amount;
+        bValue = b.amount;
+        break;
+      case 'status':
+        aValue = a.status.toLowerCase();
+        bValue = b.status.toLowerCase();
+        break;
+      case 'createdAt':
+        aValue = a.createdAt;
+        bValue = b.createdAt;
+        break;
+      default:
+        aValue = a.createdAt;
+        bValue = b.createdAt;
+    }
+
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
   const handleTemplateSelect = (template: any) => {
-    // For now, we'll just show a toast. This can be enhanced later to populate a new proposal
-    toast.success(`Template "${template.name}" selected. Feature coming soon!`);
+    // Create a new proposal from the selected template
+    const newProposal = {
+      projectName: `${template.name} Project`,
+      client: '',
+      clientAddress: '',
+      clientPhone: '',
+      clientEmail: '',
+      projectAddress: '',
+      scope: template.description,
+      amount: template.items?.reduce((sum: number, item: any) => sum + (item.total || 0), 0) || 0,
+      status: 'Draft' as const,
+      validDays: 30,
+      notes: `Created from template: ${template.name}`,
+      proposalItems: template.items || []
+    };
+    
+    setEditingProposal(newProposal);
     setShowTemplateDialog(false);
+    toast.success(`New proposal created from template "${template.name}"`);
+  };
+
+  const getSortIcon = (field: string) => {
+    if (sortField !== field) return <ArrowUpDown className="w-4 h-4 ml-1 opacity-50" />;
+    return <ArrowUpDown className={`w-4 h-4 ml-1 ${sortDirection === 'desc' ? 'rotate-180' : ''}`} />;
   };
 
   if (loading) {
@@ -209,7 +276,7 @@ export default function Proposals() {
           </div>
         </div>
 
-        {/* Stats */}
+        {/* Stats Cards - keeping existing structure */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
@@ -266,16 +333,56 @@ export default function Proposals() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Project Name</TableHead>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-gray-50 select-none"
+                        onClick={() => handleSort('projectName')}
+                      >
+                        <div className="flex items-center">
+                          Project Name
+                          {getSortIcon('projectName')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-gray-50 select-none"
+                        onClick={() => handleSort('client')}
+                      >
+                        <div className="flex items-center">
+                          Client
+                          {getSortIcon('client')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-gray-50 select-none"
+                        onClick={() => handleSort('amount')}
+                      >
+                        <div className="flex items-center">
+                          Amount
+                          {getSortIcon('amount')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-gray-50 select-none"
+                        onClick={() => handleSort('status')}
+                      >
+                        <div className="flex items-center">
+                          Status
+                          {getSortIcon('status')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-gray-50 select-none"
+                        onClick={() => handleSort('createdAt')}
+                      >
+                        <div className="flex items-center">
+                          Created
+                          {getSortIcon('createdAt')}
+                        </div>
+                      </TableHead>
                       <TableHead className="w-[180px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredProposals.map((proposal) => (
+                    {sortedAndFilteredProposals.map((proposal) => (
                       <TableRow key={proposal.id}>
                         <TableCell className="font-medium">
                           {proposal.projectName}
@@ -298,6 +405,7 @@ export default function Proposals() {
                               variant="ghost" 
                               size="sm"
                               onClick={() => setViewingProposal(proposal)}
+                              title="View proposal"
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
@@ -305,6 +413,7 @@ export default function Proposals() {
                               variant="ghost" 
                               size="sm"
                               onClick={() => setEditingProposal(proposal)}
+                              title="Edit proposal"
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
@@ -321,6 +430,7 @@ export default function Proposals() {
                               size="sm"
                               onClick={() => deleteProposal(proposal.id)}
                               className="text-red-600 hover:text-red-800"
+                              title="Delete proposal"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>

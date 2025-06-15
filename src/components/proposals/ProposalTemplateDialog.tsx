@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, Plus, Trash2, Edit, Import } from 'lucide-react';
+import { FileText, Plus, Trash2, Edit, Download, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Template {
   id: string;
@@ -48,42 +49,62 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      // Mock data - replace with actual API call when backend is ready
+      // Mock data with realistic construction templates
       const mockTemplates: Template[] = [
         {
           id: '1',
           name: 'Kitchen Remodel',
-          description: 'Standard kitchen renovation template',
+          description: 'Complete kitchen renovation including cabinets, countertops, appliances, and flooring',
           projectType: 'Residential',
           createdAt: new Date('2024-01-15'),
           items: [
-            { description: 'Cabinet installation', quantity: 1, unit: 'set', unitPrice: 5000, total: 5000 },
-            { description: 'Countertop installation', quantity: 25, unit: 'sq ft', unitPrice: 75, total: 1875 },
-            { description: 'Appliance installation', quantity: 1, unit: 'set', unitPrice: 2500, total: 2500 }
+            { description: 'Cabinet removal and installation', quantity: 1, unit: 'job', unitPrice: 8500, total: 8500 },
+            { description: 'Granite countertop installation', quantity: 30, unit: 'sq ft', unitPrice: 85, total: 2550 },
+            { description: 'Appliance installation package', quantity: 1, unit: 'set', unitPrice: 1200, total: 1200 },
+            { description: 'Tile flooring installation', quantity: 150, unit: 'sq ft', unitPrice: 12, total: 1800 },
+            { description: 'Plumbing and electrical updates', quantity: 1, unit: 'job', unitPrice: 2500, total: 2500 }
           ]
         },
         {
           id: '2',
           name: 'Bathroom Renovation',
-          description: 'Complete bathroom renovation template',
+          description: 'Full bathroom remodel with modern fixtures and tile work',
           projectType: 'Residential',
           createdAt: new Date('2024-02-01'),
           items: [
-            { description: 'Tile installation', quantity: 100, unit: 'sq ft', unitPrice: 15, total: 1500 },
-            { description: 'Fixture installation', quantity: 1, unit: 'set', unitPrice: 1800, total: 1800 },
-            { description: 'Plumbing work', quantity: 1, unit: 'job', unitPrice: 1200, total: 1200 }
+            { description: 'Demolition and prep work', quantity: 1, unit: 'job', unitPrice: 1500, total: 1500 },
+            { description: 'Ceramic tile installation', quantity: 120, unit: 'sq ft', unitPrice: 18, total: 2160 },
+            { description: 'Vanity and mirror installation', quantity: 1, unit: 'set', unitPrice: 2200, total: 2200 },
+            { description: 'Shower/tub installation', quantity: 1, unit: 'unit', unitPrice: 3500, total: 3500 },
+            { description: 'Plumbing fixture installation', quantity: 1, unit: 'job', unitPrice: 1800, total: 1800 }
           ]
         },
         {
           id: '3',
           name: 'Office Build-out',
-          description: 'Commercial office space template',
+          description: 'Commercial office space construction with modern amenities',
           projectType: 'Commercial',
           createdAt: new Date('2024-01-20'),
           items: [
-            { description: 'Framing', quantity: 1, unit: 'job', unitPrice: 2000, total: 2000 },
-            { description: 'Drywall installation', quantity: 800, unit: 'sq ft', unitPrice: 3, total: 2400 },
-            { description: 'Electrical work', quantity: 1, unit: 'job', unitPrice: 3500, total: 3500 }
+            { description: 'Framing and drywall', quantity: 2000, unit: 'sq ft', unitPrice: 8, total: 16000 },
+            { description: 'Electrical rough-in and finishing', quantity: 1, unit: 'job', unitPrice: 12000, total: 12000 },
+            { description: 'HVAC installation', quantity: 1, unit: 'system', unitPrice: 8500, total: 8500 },
+            { description: 'Flooring installation', quantity: 1800, unit: 'sq ft', unitPrice: 15, total: 27000 },
+            { description: 'Paint and finishing work', quantity: 1, unit: 'job', unitPrice: 6000, total: 6000 }
+          ]
+        },
+        {
+          id: '4',
+          name: 'Deck Construction',
+          description: 'Outdoor deck construction with railings and stairs',
+          projectType: 'Residential',
+          createdAt: new Date('2024-02-10'),
+          items: [
+            { description: 'Foundation and footings', quantity: 8, unit: 'piers', unitPrice: 150, total: 1200 },
+            { description: 'Pressure treated lumber framing', quantity: 400, unit: 'sq ft', unitPrice: 12, total: 4800 },
+            { description: 'Composite decking installation', quantity: 350, unit: 'sq ft', unitPrice: 25, total: 8750 },
+            { description: 'Railing installation', quantity: 80, unit: 'linear ft', unitPrice: 45, total: 3600 },
+            { description: 'Stairs and finishing', quantity: 1, unit: 'set', unitPrice: 1800, total: 1800 }
           ]
         }
       ];
@@ -230,19 +251,57 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
     setShowCreateForm(false);
   };
 
-  const importFromBidPlanner = () => {
-    // TODO: Implement bid planner integration
-    toast.info('Bid planner import feature coming soon!');
+  const importFromBidPlanner = async () => {
+    setLoading(true);
+    try {
+      // Fetch data from bid_templates table
+      const { data: bidTemplates, error } = await supabase
+        .from('bid_templates')
+        .select(`
+          *,
+          bid_template_items (*)
+        `)
+        .eq('is_default', false);
+
+      if (error) throw error;
+
+      if (bidTemplates && bidTemplates.length > 0) {
+        const importedTemplates: Template[] = bidTemplates.map((bidTemplate: any) => ({
+          id: `imported-${bidTemplate.id}`,
+          name: bidTemplate.name,
+          description: bidTemplate.description || 'Imported from Bid Planner',
+          projectType: 'Imported',
+          createdAt: new Date(bidTemplate.created_at),
+          items: bidTemplate.bid_template_items?.map((item: any) => ({
+            description: item.description,
+            quantity: 1,
+            unit: item.unit || 'each',
+            unitPrice: item.unit_cost || 0,
+            total: item.unit_cost || 0
+          })) || []
+        }));
+
+        setTemplates(prev => [...prev, ...importedTemplates]);
+        toast.success(`Successfully imported ${importedTemplates.length} templates from Bid Planner`);
+      } else {
+        toast.info('No bid templates found to import');
+      }
+    } catch (error) {
+      console.error('Error importing from bid planner:', error);
+      toast.error('Failed to import from Bid Planner');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getSortIcon = (field: string) => {
-    if (sortField !== field) return '';
-    return sortDirection === 'asc' ? ' ↑' : ' ↓';
+    if (sortField !== field) return <ArrowUpDown className="w-4 h-4 ml-1 opacity-50" />;
+    return <ArrowUpDown className={`w-4 h-4 ml-1 ${sortDirection === 'desc' ? 'rotate-180' : ''}`} />;
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Proposal Templates</DialogTitle>
         </DialogHeader>
@@ -254,7 +313,7 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
                 <h3 className="text-lg font-medium">Template Library</h3>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={importFromBidPlanner}>
-                    <Import className="w-4 h-4 mr-2" />
+                    <Download className="w-4 h-4 mr-2" />
                     Import from Bid Planner
                   </Button>
                   <Button onClick={() => setShowCreateForm(true)}>
@@ -283,78 +342,94 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
                           className="cursor-pointer hover:bg-gray-50 select-none"
                           onClick={() => handleSort('name')}
                         >
-                          Template Name{getSortIcon('name')}
+                          <div className="flex items-center">
+                            Template Name
+                            {getSortIcon('name')}
+                          </div>
                         </TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead 
                           className="cursor-pointer hover:bg-gray-50 select-none"
                           onClick={() => handleSort('projectType')}
                         >
-                          Project Type{getSortIcon('projectType')}
+                          <div className="flex items-center">
+                            Project Type
+                            {getSortIcon('projectType')}
+                          </div>
                         </TableHead>
                         <TableHead>Items</TableHead>
+                        <TableHead>Total Value</TableHead>
                         <TableHead 
                           className="cursor-pointer hover:bg-gray-50 select-none"
                           onClick={() => handleSort('createdAt')}
                         >
-                          Created{getSortIcon('createdAt')}
+                          <div className="flex items-center">
+                            Created
+                            {getSortIcon('createdAt')}
+                          </div>
                         </TableHead>
                         <TableHead className="w-[140px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {sortedTemplates.map((template) => (
-                        <TableRow 
-                          key={template.id} 
-                          className="cursor-pointer hover:bg-gray-50"
-                          onClick={() => selectTemplate(template)}
-                        >
-                          <TableCell className="font-medium">
-                            {template.name}
-                          </TableCell>
-                          <TableCell className="max-w-xs truncate">
-                            {template.description || 'No description'}
-                          </TableCell>
-                          <TableCell>
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {template.projectType || 'General'}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {template.items?.length || 0} items
-                          </TableCell>
-                          <TableCell>
-                            {template.createdAt?.toLocaleDateString() || 'N/A'}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  startEdit(template);
-                                }}
-                                title="Edit template"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteTemplate(template.id);
-                                }}
-                                className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                                title="Delete template"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {sortedTemplates.map((template) => {
+                        const totalValue = template.items?.reduce((sum, item) => sum + (item.total || 0), 0) || 0;
+                        return (
+                          <TableRow 
+                            key={template.id} 
+                            className="cursor-pointer hover:bg-gray-50"
+                            onClick={() => selectTemplate(template)}
+                          >
+                            <TableCell className="font-medium">
+                              {template.name}
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate">
+                              {template.description || 'No description'}
+                            </TableCell>
+                            <TableCell>
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {template.projectType || 'General'}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              {template.items?.length || 0} items
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              ${totalValue.toLocaleString()}
+                            </TableCell>
+                            <TableCell>
+                              {template.createdAt?.toLocaleDateString() || 'N/A'}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    startEdit(template);
+                                  }}
+                                  title="Edit template"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteTemplate(template.id);
+                                  }}
+                                  className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                                  title="Delete template"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
