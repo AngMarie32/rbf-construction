@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import type { ChatRoom, Message } from '@/types/chat';
+import type { Message } from '@/types/chat';
 
 interface DMUser {
   id: string;
@@ -31,14 +31,13 @@ export const useDMChat = () => {
       const { data: dmRooms, error: roomsError } = await supabase
         .from('chat_rooms')
         .select(`
-          *,
-          chat_participants!inner(user_id),
-          messages(
-            id,
-            content,
-            created_at,
+          id,
+          name,
+          type,
+          updated_at,
+          chat_participants!inner(
             user_id,
-            user_profile:profiles(name, email)
+            profiles(id, name, email)
           )
         `)
         .eq('type', 'dm')
@@ -54,27 +53,49 @@ export const useDMChat = () => {
       const users: DMUser[] = [];
       
       for (const room of dmRooms || []) {
-        // Get the other participant in this DM
-        const { data: participants } = await supabase
+        // Get all participants in this room
+        const { data: allParticipants } = await supabase
           .from('chat_participants')
-          .select('user_id, profiles(id, name, email)')
-          .eq('chat_room_id', room.id)
-          .neq('user_id', user.id);
+          .select(`
+            user_id,
+            profiles(id, name, email)
+          `)
+          .eq('chat_room_id', room.id);
 
-        if (participants && participants.length > 0) {
-          const otherUser = participants[0].profiles;
-          if (otherUser) {
-            const lastMessage = room.messages?.[0];
-            users.push({
-              id: otherUser.id,
-              name: otherUser.name || otherUser.email,
-              email: otherUser.email,
-              lastMessage: lastMessage ? {
-                ...lastMessage,
-                user_profile: lastMessage.user_profile
-              } : undefined
-            });
-          }
+        // Find the other user (not the current user)
+        const otherParticipant = allParticipants?.find(p => p.user_id !== user.id);
+        
+        if (otherParticipant?.profiles) {
+          // Get last message for this room
+          const { data: lastMessages } = await supabase
+            .from('messages')
+            .select(`
+              id,
+              content,
+              created_at,
+              updated_at,
+              message_type,
+              chat_room_id,
+              user_id,
+              file_url,
+              user_profile:profiles(name, email)
+            `)
+            .eq('chat_room_id', room.id)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          const lastMessage = lastMessages?.[0];
+          const profile = otherParticipant.profiles;
+          
+          users.push({
+            id: profile.id,
+            name: profile.name || profile.email,
+            email: profile.email,
+            lastMessage: lastMessage ? {
+              ...lastMessage,
+              message_type: lastMessage.message_type as 'text' | 'file' | 'image'
+            } : undefined
+          });
         }
       }
 
@@ -165,7 +186,14 @@ export const useDMChat = () => {
       const { data: messagesData, error } = await supabase
         .from('messages')
         .select(`
-          *,
+          id,
+          chat_room_id,
+          user_id,
+          content,
+          message_type,
+          file_url,
+          created_at,
+          updated_at,
           user_profile:profiles(name, email)
         `)
         .eq('chat_room_id', roomId)
@@ -176,7 +204,13 @@ export const useDMChat = () => {
         return;
       }
 
-      setMessages(messagesData || []);
+      // Ensure proper typing for messages
+      const typedMessages: Message[] = (messagesData || []).map(msg => ({
+        ...msg,
+        message_type: msg.message_type as 'text' | 'file' | 'image'
+      }));
+
+      setMessages(typedMessages);
     } catch (error) {
       console.error('Error fetching DM messages:', error);
     }
@@ -284,10 +318,17 @@ export const useDMChat = () => {
               .eq('id', payload.new.user_id)
               .single();
 
-            const messageWithProfile = {
-              ...payload.new,
+            const messageWithProfile: Message = {
+              id: payload.new.id,
+              chat_room_id: payload.new.chat_room_id,
+              user_id: payload.new.user_id,
+              content: payload.new.content,
+              message_type: payload.new.message_type as 'text' | 'file' | 'image',
+              file_url: payload.new.file_url,
+              created_at: payload.new.created_at,
+              updated_at: payload.new.updated_at,
               user_profile: profileData || undefined
-            } as Message;
+            };
 
             setMessages(prev => [...prev, messageWithProfile]);
           }
