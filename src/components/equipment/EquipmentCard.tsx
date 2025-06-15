@@ -6,18 +6,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Building, 
   Truck, 
-  Wrench, 
   Edit2, 
-  Trash2, 
-  Calendar,
+  Trash2,
   DollarSign,
   Clock,
   MapPin,
-  AlertTriangle,
-  QrCode
+  Wrench
 } from 'lucide-react';
 import type { Equipment } from '@/types/equipment';
-import { EquipmentService } from '@/services/equipmentService';
 
 interface EquipmentCardProps {
   equipment: Equipment;
@@ -50,32 +46,23 @@ export function EquipmentCard({
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'Heavy Machinery': return <Building className="w-4 h-4" />;
-      case 'Vehicles': return <Truck className="w-4 h-4" />;
+      case 'Trucks': return <Truck className="w-4 h-4" />;
       case 'Trailers': return <Truck className="w-4 h-4" />;
       default: return <Wrench className="w-4 h-4" />;
     }
   };
 
-  const currentValue = EquipmentService.calculateDepreciation(equipment);
-  const isMaintenanceDue = equipment.last_inspection_date && 
-    new Date(equipment.last_inspection_date) < new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-
   return (
-    <Card className={`overflow-hidden ${isSelected ? 'ring-2 ring-blue-500' : ''}`}>
-      <CardHeader className="pb-3">
+    <Card className={`overflow-hidden transition-all hover:shadow-md ${isSelected ? 'ring-2 ring-blue-500' : ''}`}>
+      <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-1">
             <Checkbox
               checked={isSelected}
               onCheckedChange={() => onSelect(equipment.id)}
             />
-            <div>
-              <CardTitle className="text-lg flex items-center gap-2">
-                {equipment.name}
-                {isMaintenanceDue && (
-                  <AlertTriangle className="w-4 h-4 text-orange-500" />
-                )}
-              </CardTitle>
+            <div className="flex-1">
+              <CardTitle className="text-lg font-semibold">{equipment.name}</CardTitle>
               <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
                 {getCategoryIcon(equipment.category)}
                 <span>{equipment.category}</span>
@@ -84,7 +71,7 @@ export function EquipmentCard({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge className={`${getStatusColor(equipment.status)} text-white`}>
+            <Badge className={`${getStatusColor(equipment.status)} text-white text-xs`}>
               {equipment.status}
             </Badge>
             <div className="flex gap-1">
@@ -111,7 +98,7 @@ export function EquipmentCard({
 
       <CardContent className="space-y-3">
         {equipment.image && (
-          <div className="h-32 overflow-hidden rounded">
+          <div className="h-40 overflow-hidden rounded-lg">
             <img 
               src={equipment.image} 
               alt={equipment.name}
@@ -124,38 +111,32 @@ export function EquipmentCard({
         )}
 
         {equipment.description && (
-          <p className="text-sm text-gray-600">{equipment.description}</p>
+          <p className="text-sm text-gray-600 line-clamp-2">{equipment.description}</p>
         )}
 
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="flex items-center gap-1">
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="flex items-center gap-2 bg-gray-50 p-2 rounded">
             <Clock className="w-4 h-4 text-blue-600" />
-            <span>${equipment.hourly_rate}/hr</span>
+            <div>
+              <div className="font-medium">${equipment.hourly_rate}/hr</div>
+              <div className="text-xs text-gray-500">Hourly Rate</div>
+            </div>
           </div>
           {equipment.value && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2 bg-gray-50 p-2 rounded">
               <DollarSign className="w-4 h-4 text-green-600" />
-              <span>${currentValue.toLocaleString()}</span>
-            </div>
-          )}
-          {equipment.location && (
-            <div className="flex items-center gap-1">
-              <MapPin className="w-4 h-4 text-gray-600" />
-              <span className="truncate">{equipment.location}</span>
-            </div>
-          )}
-          {equipment.total_hours_used && (
-            <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4 text-purple-600" />
-              <span>{equipment.total_hours_used}h used</span>
+              <div>
+                <div className="font-medium">${equipment.value.toLocaleString()}</div>
+                <div className="text-xs text-gray-500">Value</div>
+              </div>
             </div>
           )}
         </div>
 
-        {equipment.insurance_expiry && (
-          <div className="flex items-center gap-1 text-sm">
-            <Calendar className="w-4 h-4 text-orange-600" />
-            <span>Insurance expires: {new Date(equipment.insurance_expiry).toLocaleDateString()}</span>
+        {equipment.location && (
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <MapPin className="w-4 h-4" />
+            <span>{equipment.location}</span>
           </div>
         )}
 
@@ -179,20 +160,6 @@ export function EquipmentCard({
             Estimate
           </Button>
         </div>
-
-        {equipment.qr_code && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full"
-            onClick={() => {
-              navigator.clipboard.writeText(equipment.qr_code!);
-            }}
-          >
-            <QrCode className="w-4 h-4 mr-2" />
-            Copy QR Code
-          </Button>
-        )}
       </CardContent>
     </Card>
   );

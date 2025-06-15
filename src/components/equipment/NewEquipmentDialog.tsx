@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { EquipmentService } from '@/services/equipmentService';
 import { toast } from 'sonner';
 
 interface NewEquipmentDialogProps {
@@ -27,17 +26,19 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
     value: '',
     image: ''
   });
-
   const [loading, setLoading] = useState(false);
 
-  const handleImageUpload = async (file: File) => {
-    try {
-      const imageData = await EquipmentService.uploadImage(file, 'temp');
-      setFormData(prev => ({ ...prev, image: imageData }));
-      toast.success('Image uploaded successfully');
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      toast.error('Failed to upload image');
+  const handleImageUpload = (file: File) => {
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setFormData(prev => ({ ...prev, image: result }));
+        toast.success('Image uploaded successfully');
+      };
+      reader.readAsDataURL(file);
+    } else {
+      toast.error('Please select a valid image file');
     }
   };
 
@@ -60,7 +61,9 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
         description: formData.description.trim() || null,
         year: formData.year ? parseInt(formData.year) : null,
         value: formData.value ? parseFloat(formData.value) : null,
-        image: formData.image || null
+        image: formData.image || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       const { error } = await supabase
@@ -129,14 +132,8 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Heavy Machinery">Heavy Machinery</SelectItem>
-                <SelectItem value="Vehicles">Vehicles</SelectItem>
                 <SelectItem value="Trailers">Trailers</SelectItem>
-                <SelectItem value="Excavators">Excavators</SelectItem>
-                <SelectItem value="Bulldozers">Bulldozers</SelectItem>
-                <SelectItem value="Cranes">Cranes</SelectItem>
                 <SelectItem value="Trucks">Trucks</SelectItem>
-                <SelectItem value="Generators">Generators</SelectItem>
-                <SelectItem value="Compactors">Compactors</SelectItem>
                 <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
             </Select>
@@ -153,30 +150,32 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
             />
           </div>
 
-          <div>
-            <Label htmlFor="hourly_rate">Hourly Rate ($)</Label>
-            <Input
-              id="hourly_rate"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.hourly_rate}
-              onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
-              placeholder="0.00"
-            />
-          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="hourly_rate">Hourly Rate ($)</Label>
+              <Input
+                id="hourly_rate"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.hourly_rate}
+                onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
+                placeholder="0.00"
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="year">Year</Label>
-            <Input
-              id="year"
-              type="number"
-              min="1900"
-              max="2030"
-              value={formData.year}
-              onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-              placeholder="2020"
-            />
+            <div>
+              <Label htmlFor="year">Year</Label>
+              <Input
+                id="year"
+                type="number"
+                min="1900"
+                max="2030"
+                value={formData.year}
+                onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                placeholder="2020"
+              />
+            </div>
           </div>
 
           <div>
@@ -205,19 +204,17 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
                 <SelectItem value="Available">Available</SelectItem>
                 <SelectItem value="In Use">In Use</SelectItem>
                 <SelectItem value="Maintenance">Maintenance</SelectItem>
-                <SelectItem value="Out of Service">Out of Service</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Image Upload */}
           <div>
             <Label>Equipment Image</Label>
             <div className="flex items-center gap-2">
               <label className="cursor-pointer flex-1">
                 <input
                   type="file"
-                  accept="image/jpeg,image/jpg,image/png"
+                  accept="image/*"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -226,7 +223,7 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
                 />
                 <Button type="button" variant="outline" className="w-full">
                   <Upload className="w-4 h-4 mr-2" />
-                  Upload JPEG Image
+                  Upload Image
                 </Button>
               </label>
             </div>
