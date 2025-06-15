@@ -56,6 +56,8 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { CreateExpenseDialog } from '@/components/expenses/CreateExpenseDialog';
+import { EditExpenseDialog } from '@/components/expenses/EditExpenseDialog';
+import { AttachInvoiceDialog } from '@/components/expenses/AttachInvoiceDialog';
 
 interface Expense {
   id: string;
@@ -85,6 +87,10 @@ export default function Expenses() {
   const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
+  const [attachInvoiceDialogOpen, setAttachInvoiceDialogOpen] = useState(false);
+  const [expenseForInvoice, setExpenseForInvoice] = useState<Expense | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -193,14 +199,14 @@ export default function Expenses() {
 
   const handleEditExpense = (expense: Expense) => {
     console.log('Editing expense:', expense);
-    // For now, just show a message - this would open an edit dialog
-    toast.info(`Edit functionality will be implemented soon for: ${expense.description}`);
+    setExpenseToEdit(expense);
+    setEditDialogOpen(true);
   };
 
-  const handleAttachReceipt = (expense: Expense) => {
-    console.log('Attaching receipt for expense:', expense);
-    // For now, just show a message - this would open a file upload dialog
-    toast.info(`Receipt attachment functionality will be implemented soon`);
+  const handleAttachInvoice = (expense: Expense) => {
+    console.log('Attaching invoice for expense:', expense);
+    setExpenseForInvoice(expense);
+    setAttachInvoiceDialogOpen(true);
   };
 
   const handleDeleteClick = (expenseId: string) => {
@@ -437,7 +443,7 @@ export default function Expenses() {
                                 updateExpenseStatus(expense.id, nextStatus);
                               }
                             }}
-                            className="bg-green-600 hover:bg-green-700 text-white h-7 px-2 text-xs"
+                            className="bg-green-600 hover:bg-green-700 text-white h-6 px-2 text-xs"
                           >
                             <Check className="w-3 h-3 mr-1" />
                             Approve
@@ -450,7 +456,7 @@ export default function Expenses() {
                             size="sm"
                             variant="destructive"
                             onClick={() => updateExpenseStatus(expense.id, 'Rejected')}
-                            className="h-7 px-2 text-xs"
+                            className="h-6 px-2 text-xs"
                           >
                             <X className="w-3 h-3 mr-1" />
                             Reject
@@ -480,10 +486,10 @@ export default function Expenses() {
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem 
-                            onClick={() => handleAttachReceipt(expense)}
+                            onClick={() => handleAttachInvoice(expense)}
                           >
                             <Paperclip className="w-4 h-4 mr-2" />
-                            Attach Receipt
+                            Attach Invoice
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
@@ -519,6 +525,21 @@ export default function Expenses() {
           open={createDialogOpen}
           onOpenChange={setCreateDialogOpen}
           onExpenseCreated={fetchExpenses}
+        />
+
+        <EditExpenseDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          expense={expenseToEdit}
+          onExpenseUpdated={fetchExpenses}
+        />
+
+        <AttachInvoiceDialog
+          open={attachInvoiceDialogOpen}
+          onOpenChange={setAttachInvoiceDialogOpen}
+          expenseId={expenseForInvoice?.id || null}
+          expenseDescription={expenseForInvoice?.description || ''}
+          onInvoiceAttached={fetchExpenses}
         />
 
         {/* View Expense Dialog */}
