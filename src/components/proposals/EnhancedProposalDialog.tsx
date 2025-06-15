@@ -55,6 +55,14 @@ export function EnhancedProposalDialog({
     { id: '1', description: '', quantity: 1, unit: 'each', unitPrice: 0, total: 0 }
   ]);
 
+  // Helper function to format currency with commas and two decimal places
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString('en-US', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    });
+  };
+
   // Use controlled open state if provided, otherwise use internal state
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setIsOpen = onOpenChange || setInternalOpen;
@@ -325,7 +333,7 @@ export function EnhancedProposalDialog({
                   </div>
                   <div className="col-span-1">
                     <Label>Total</Label>
-                    <div className="font-medium text-right p-2">${item.total.toFixed(2)}</div>
+                    <div className="font-medium text-right p-2">${formatCurrency(item.total)}</div>
                   </div>
                   <div className="col-span-1">
                     {proposalItems.length > 1 && (
@@ -344,7 +352,7 @@ export function EnhancedProposalDialog({
               
               <div className="border-t pt-4">
                 <div className="flex justify-end items-center text-lg font-bold">
-                  Total: ${calculateTotal().toFixed(2)}
+                  Total: ${formatCurrency(calculateTotal())}
                 </div>
               </div>
             </CardContent>

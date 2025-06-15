@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, FileText, Save, Upload, PaperclipIcon, Trash2 } from 'lucide-react';
+import { Plus, Download, FileText, Save, Upload, PaperclipIcon, Trash2, Edit } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { TemplateLibrary } from './TemplateLibrary';
@@ -25,6 +25,7 @@ export function TabbedBidInterface({
 }: TabbedBidInterfaceProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [templateLibraryOpen, setTemplateLibraryOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<string | null>(null);
   const [newItem, setNewItem] = useState({
     category: '',
     subcategory: '',
@@ -33,6 +34,14 @@ export function TabbedBidInterface({
     unitCost: '',
     quantity: '1'
   });
+
+  // Helper function to format currency with commas and two decimal places
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString('en-US', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    });
+  };
 
   const calculateTotalValue = () => {
     return bidItems.reduce((sum, item) => sum + (item.unit_cost * item.quantity || 0), 0);
@@ -139,6 +148,27 @@ export function TabbedBidInterface({
     }
   };
 
+  const handleUpdateItem = async (itemId: string, field: string, value: any) => {
+    try {
+      const updatedValue = field === 'unit_cost' || field === 'quantity' ? parseFloat(value) || 0 : value;
+      
+      const { error } = await supabase
+        .from('bid_items')
+        .update({ [field]: updatedValue })
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      const updatedItems = bidItems.map(item => 
+        item.id === itemId ? { ...item, [field]: updatedValue } : item
+      );
+      onItemsChange(updatedItems);
+    } catch (error) {
+      console.error('Error updating bid item:', error);
+      toast.error('Failed to update bid item');
+    }
+  };
+
   const handleDeleteItem = async (itemId: string) => {
     try {
       const { error } = await supabase
@@ -177,7 +207,7 @@ export function TabbedBidInterface({
         subcategory: item.subcategory || '',
         description: item.description,
         unit: item.unit,
-        unit_cost: item.unit_cost || 0,
+        unit_cost: 0, // Start with 0 cost so users can fill in their own
         quantity: 0 // Start with 0 quantity so users can fill in their own
       }));
 
@@ -384,7 +414,7 @@ export function TabbedBidInterface({
                   <div>
                     <div className="text-sm text-gray-600">Total Estimate</div>
                     <div className="text-2xl font-bold text-green-600">
-                      ${calculateTotalValue().toLocaleString()}
+                      ${formatCurrency(calculateTotalValue())}
                     </div>
                     <div className="text-xs text-gray-500">Project bid total</div>
                   </div>
@@ -417,7 +447,7 @@ export function TabbedBidInterface({
                     <div className="text-sm text-gray-600">Profit</div>
                     <div className="text-2xl font-bold text-blue-600">15%</div>
                     <div className="text-xs text-gray-500">
-                      ${profit.toLocaleString()}
+                      ${formatCurrency(profit)}
                     </div>
                   </div>
                 </div>
@@ -434,7 +464,7 @@ export function TabbedBidInterface({
                     <div className="text-sm text-gray-600">Overhead</div>
                     <div className="text-2xl font-bold text-orange-600">10%</div>
                     <div className="text-xs text-gray-500">
-                      ${overhead.toLocaleString()}
+                      ${formatCurrency(overhead)}
                     </div>
                   </div>
                 </div>
@@ -454,7 +484,7 @@ export function TabbedBidInterface({
                   <div className="flex items-center gap-4">
                     <span className="text-gray-600">{divisionBreakdown.generalConditionsPercent.toFixed(1)}%</span>
                     <span className="font-bold">
-                      ${divisionBreakdown.generalConditions.toLocaleString()}
+                      ${formatCurrency(divisionBreakdown.generalConditions)}
                     </span>
                   </div>
                 </div>
@@ -463,7 +493,7 @@ export function TabbedBidInterface({
                   <div className="flex items-center gap-4">
                     <span className="text-gray-600">{divisionBreakdown.siteWorkPercent.toFixed(1)}%</span>
                     <span className="font-bold">
-                      ${divisionBreakdown.siteWork.toLocaleString()}
+                      ${formatCurrency(divisionBreakdown.siteWork)}
                     </span>
                   </div>
                 </div>
@@ -472,13 +502,13 @@ export function TabbedBidInterface({
                   <div className="flex items-center gap-4">
                     <span className="text-gray-600">{divisionBreakdown.buildingPercent.toFixed(1)}%</span>
                     <span className="font-bold">
-                      ${divisionBreakdown.building.toLocaleString()}
+                      ${formatCurrency(divisionBreakdown.building)}
                     </span>
                   </div>
                 </div>
                 <div className="border-t pt-4 flex justify-between items-center font-bold text-lg">
                   <span>Total Bid Amount</span>
-                  <span className="text-green-600">${calculateTotalValue().toLocaleString()}</span>
+                  <span className="text-green-600">${formatCurrency(calculateTotalValue())}</span>
                 </div>
               </div>
             </CardContent>
@@ -593,19 +623,95 @@ export function TabbedBidInterface({
                 <div className="space-y-3">
                   {bidItems.map((item, index) => (
                     <div key={item.id || index} className="border rounded-lg p-3">
-                      <div className="grid grid-cols-8 gap-3 text-sm items-center">
+                      <div className="grid grid-cols-9 gap-3 text-sm items-center">
                         <div>
-                          <div className="font-medium">{item.category}</div>
-                          {item.subcategory && <div className="text-gray-500">{item.subcategory}</div>}
+                          {editingItem === item.id ? (
+                            <Input
+                              value={item.category}
+                              onChange={(e) => handleUpdateItem(item.id, 'category', e.target.value)}
+                              className="text-xs"
+                            />
+                          ) : (
+                            <div>
+                              <div className="font-medium">{item.category}</div>
+                              {item.subcategory && <div className="text-gray-500">{item.subcategory}</div>}
+                            </div>
+                          )}
                         </div>
                         <div className="col-span-2">
-                          <div>{item.description}</div>
+                          {editingItem === item.id ? (
+                            <Input
+                              value={item.description}
+                              onChange={(e) => handleUpdateItem(item.id, 'description', e.target.value)}
+                              className="text-xs"
+                            />
+                          ) : (
+                            <div>{item.description}</div>
+                          )}
                         </div>
-                        <div className="text-center">{item.unit}</div>
-                        <div className="text-right">${item.unit_cost?.toFixed(2) || '0.00'}</div>
-                        <div className="text-center">{item.quantity}</div>
-                        <div className="text-right font-bold">${((item.unit_cost || 0) * (item.quantity || 0)).toFixed(2)}</div>
+                        <div className="text-center">
+                          {editingItem === item.id ? (
+                            <Select 
+                              value={item.unit} 
+                              onValueChange={(value) => handleUpdateItem(item.id, 'unit', value)}
+                            >
+                              <SelectTrigger className="text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Each">Each</SelectItem>
+                                <SelectItem value="SF">SF</SelectItem>
+                                <SelectItem value="LF">LF</SelectItem>
+                                <SelectItem value="CF">CF</SelectItem>
+                                <SelectItem value="CY">CY</SelectItem>
+                                <SelectItem value="Ton">Ton</SelectItem>
+                                <SelectItem value="Hour">Hour</SelectItem>
+                                <SelectItem value="Day">Day</SelectItem>
+                                <SelectItem value="Lot">Lot</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <div>{item.unit}</div>
+                          )}
+                        </div>
                         <div className="text-right">
+                          {editingItem === item.id ? (
+                            <Input
+                              type="number"
+                              value={item.unit_cost}
+                              onChange={(e) => handleUpdateItem(item.id, 'unit_cost', e.target.value)}
+                              className="text-xs text-right"
+                              step="0.01"
+                            />
+                          ) : (
+                            <div>${formatCurrency(item.unit_cost || 0)}</div>
+                          )}
+                        </div>
+                        <div className="text-center">
+                          {editingItem === item.id ? (
+                            <Input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => handleUpdateItem(item.id, 'quantity', e.target.value)}
+                              className="text-xs text-center"
+                              step="0.01"
+                            />
+                          ) : (
+                            <div>{item.quantity}</div>
+                          )}
+                        </div>
+                        <div className="text-right font-bold">
+                          ${formatCurrency((item.unit_cost || 0) * (item.quantity || 0))}
+                        </div>
+                        <div className="text-right flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setEditingItem(editingItem === item.id ? null : item.id)}
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -624,7 +730,7 @@ export function TabbedBidInterface({
                     <div className="flex justify-end">
                       <div className="text-right">
                         <div className="text-lg font-bold">
-                          Grand Total: ${calculateTotalValue().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          Grand Total: ${formatCurrency(calculateTotalValue())}
                         </div>
                         <div className="text-sm text-gray-600">
                           {bidItems.length} line item{bidItems.length !== 1 ? 's' : ''}
