@@ -244,8 +244,8 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
     const target = sovItems.find(i => i.id === itemId);
     if (!target) return;
     setLastDeletedSOV(target);
-    // Fix: use direct value instead of updater function
-    setUndoStack([...undoStack, target]);
+    // Fix: Use functional update pattern for state updates
+    setUndoStack(prev => [...prev, target]);
 
     setSovItems(sovItems.filter(item => item.id !== itemId));
     setHighlightedRowId(null);
@@ -264,7 +264,6 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
               setHighlightedRowId(target.id);
               setTimeout(() => setHighlightedRowId(null), 2000);
               dismiss();
-              // don't touch undoStack here (or re-set as needed)
             }}
           >
             Undo
@@ -279,9 +278,8 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
       if (!sovItems.find(i => i.id === itemId) && !itemId.startsWith('co-')) {
         await supabase.from('sov_items').delete().eq('id', itemId);
       }
-      // Fix: use direct value by filtering the current undoStack state
-      const currentUndoStack = undoStack.filter((v) => v.id !== itemId);
-      setUndoStack(currentUndoStack);
+      // Fix: Use functional update pattern to remove from undo stack
+      setUndoStack(prev => prev.filter((v) => v.id !== itemId));
     }, 4000);
   };
 
