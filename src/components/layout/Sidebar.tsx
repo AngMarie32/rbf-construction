@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -25,7 +24,8 @@ import {
   ChevronDown,
   ChevronUp,
   BarChart3,
-  Shield
+  Shield,
+  MessageCircle
 } from 'lucide-react';
 import React from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,6 +36,12 @@ const menuSections = [
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: Home },
       { name: 'Analytics', href: '/analytics', icon: TrendingUp },
+    ]
+  },
+  {
+    title: 'Communication',
+    items: [
+      { name: 'Team Chat', href: '/chat', icon: MessageCircle },
     ]
   },
   {

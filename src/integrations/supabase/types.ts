@@ -487,6 +487,71 @@ export type Database = {
           },
         ]
       }
+      chat_participants: {
+        Row: {
+          chat_room_id: string
+          id: string
+          joined_at: string
+          last_read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          chat_room_id: string
+          id?: string
+          joined_at?: string
+          last_read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          chat_room_id?: string
+          id?: string
+          joined_at?: string
+          last_read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_participants_chat_room_id_fkey"
+            columns: ["chat_room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_rooms: {
+        Row: {
+          context_id: string | null
+          context_type: string | null
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          context_id?: string | null
+          context_type?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          context_id?: string | null
+          context_type?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       company_settings: {
         Row: {
           company_address: string | null
@@ -808,6 +873,47 @@ export type Database = {
             columns: ["equipment_id"]
             isOneToOne: false
             referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          chat_room_id: string
+          content: string
+          created_at: string
+          file_url: string | null
+          id: string
+          message_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chat_room_id: string
+          content: string
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          message_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chat_room_id?: string
+          content?: string
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          message_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_chat_room_id_fkey"
+            columns: ["chat_room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
             referencedColumns: ["id"]
           },
         ]

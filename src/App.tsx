@@ -30,6 +30,7 @@ import Settings from '@/pages/Settings';
 import NotFound from '@/pages/NotFound';
 import ProjectAnalyzer from '@/pages/ProjectAnalyzer';
 import AdminUsers from '@/pages/AdminUsers';
+import Chat from '@/pages/Chat';
 
 import './App.css';
 
@@ -69,6 +70,7 @@ function App() {
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/project-analyzer" element={<ProtectedRoute><ProjectAnalyzer /></ProtectedRoute>} />
               <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
+              <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
