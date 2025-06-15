@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { TabbedBidInterface } from '@/components/bid-planner/TabbedBidInterface';
 import { EnhancedBidDialog } from '@/components/bid-planner/EnhancedBidDialog';
+import { initializeBidTemplates } from '@/utils/initializeBidTemplates';
 
 export default function BidPlanner() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -24,6 +25,7 @@ export default function BidPlanner() {
 
   useEffect(() => {
     fetchProjects();
+    initializeBidTemplates(); // Initialize templates on page load
   }, []);
 
   useEffect(() => {
@@ -149,7 +151,6 @@ export default function BidPlanner() {
             projectId={selectedProject}
             bidItems={bidItems}
             onItemsChange={setBidItems}
-            onCreateNewBid={() => setCreateDialogOpen(true)}
             onExportReport={handleExportReport}
           />
         ) : (
