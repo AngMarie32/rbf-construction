@@ -24,10 +24,18 @@ interface EnhancedProposalDialogProps {
   onProposalCreated: () => void;
   trigger?: React.ReactNode;
   proposal?: any;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function EnhancedProposalDialog({ onProposalCreated, trigger, proposal }: EnhancedProposalDialogProps) {
-  const [open, setOpen] = useState(false);
+export function EnhancedProposalDialog({ 
+  onProposalCreated, 
+  trigger, 
+  proposal, 
+  open: controlledOpen, 
+  onOpenChange 
+}: EnhancedProposalDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     projectName: '',
@@ -47,6 +55,10 @@ export function EnhancedProposalDialog({ onProposalCreated, trigger, proposal }:
     { id: '1', description: '', quantity: 1, unit: 'each', unitPrice: 0, total: 0 }
   ]);
 
+  // Use controlled open state if provided, otherwise use internal state
+  const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setIsOpen = onOpenChange || setInternalOpen;
+
   useEffect(() => {
     if (proposal) {
       setFormData({
@@ -62,6 +74,17 @@ export function EnhancedProposalDialog({ onProposalCreated, trigger, proposal }:
         validDays: proposal.validDays || 30,
         notes: proposal.notes || ''
       });
+
+      if (proposal.proposalItems && proposal.proposalItems.length > 0) {
+        setProposalItems(proposal.proposalItems.map((item: any, index: number) => ({
+          id: item.id || (index + 1).toString(),
+          description: item.description || '',
+          quantity: item.quantity || 1,
+          unit: item.unit || 'each',
+          unitPrice: item.unitPrice || 0,
+          total: item.total || 0
+        })));
+      }
     }
   }, [proposal]);
 
@@ -131,7 +154,7 @@ export function EnhancedProposalDialog({ onProposalCreated, trigger, proposal }:
       if (error) throw error;
 
       toast.success(proposal?.id ? 'Proposal updated successfully' : 'Proposal created successfully');
-      setOpen(false);
+      setIsOpen(false);
       onProposalCreated();
     } catch (error) {
       console.error('Error saving proposal:', error);
@@ -149,10 +172,12 @@ export function EnhancedProposalDialog({ onProposalCreated, trigger, proposal }:
   );
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || defaultTrigger}
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      {trigger && (
+        <DialogTrigger asChild>
+          {trigger}
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{proposal?.id ? 'Edit Proposal' : 'Create New Proposal'}</DialogTitle>
@@ -345,7 +370,7 @@ export function EnhancedProposalDialog({ onProposalCreated, trigger, proposal }:
           </Card>
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
