@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +16,7 @@ import { CreateChangeOrderDialog } from '@/components/change-orders/CreateChange
 import { AttachChangeOrderDocumentDialog } from '@/components/change-orders/AttachChangeOrderDocumentDialog';
 import { ViewChangeOrderDocumentsDialog } from '@/components/change-orders/ViewChangeOrderDocumentsDialog';
 import { ChangeOrderSOVDialog } from '@/components/change-orders/ChangeOrderSOVDialog';
+import { FinancialImpactDashboard } from '@/components/change-orders/FinancialImpactDashboard';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
