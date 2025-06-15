@@ -244,31 +244,34 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
     const target = sovItems.find(i => i.id === itemId);
     if (!target) return;
     setLastDeletedSOV(target);
-    setUndoStack([...undoStack, target]);
+    setUndoStack(prev => [...prev, target]); // FIX 1: use updater function, which is correct for setState
+
     setSovItems(sovItems.filter(item => item.id !== itemId));
     setHighlightedRowId(null);
-    toastCustom(
-      (t) => (
-        <div className="flex items-center gap-2">
-          <span>SOV item deleted.</span>
-          <Button
-            size="sm"
-            variant="secondary"
-            className="ml-2"
-            onClick={() => {
-              setSovItems(prev => [...prev, target]);
-              setHighlightedRowId(target.id);
-              setTimeout(() => setHighlightedRowId(null), 2000);
-              toastCustom.dismiss(t);
-              setUndoStack(undoStack); // just refresh
-            }}
-          >
-            Undo
-          </Button>
-        </div>
-      ),
+
+    // Use shadcn custom toast pattern.
+    const dismissToast = toastCustom(
+      // FIX 3: Pass single JSX argument as shadcn custom toast expects
+      <div className="flex items-center gap-2">
+        <span>SOV item deleted.</span>
+        <Button
+          size="sm"
+          variant="secondary"
+          className="ml-2"
+          onClick={() => {
+            setSovItems(prev => [...prev, target]);
+            setHighlightedRowId(target.id);
+            setTimeout(() => setHighlightedRowId(null), 2000);
+            toastCustom.dismiss(dismissToast); // FIX 2: use dismiss method from toastCustom and toast id
+            // don't touch undoStack here (or re-set as needed)
+          }}
+        >
+          Undo
+        </Button>
+      </div>,
       { duration: 4000 }
     );
+
     // only delete from DB after timeout for undo
     setTimeout(async () => {
       if (!sovItems.find(i => i.id === itemId) && !undoStack.includes(target) && !itemId.startsWith('co-')) {
