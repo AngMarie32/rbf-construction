@@ -244,8 +244,8 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
     const target = sovItems.find(i => i.id === itemId);
     if (!target) return;
     setLastDeletedSOV(target);
-    // MAIN FIX: Make sure setUndoStack is not shadowed, and call as setter with updater function!
-    setUndoStack((prev) => [...prev, target]);
+    // Fix: use value, not updater function, to satisfy TS
+    setUndoStack([...undoStack, target]);
 
     setSovItems(sovItems.filter(item => item.id !== itemId));
     setHighlightedRowId(null);
