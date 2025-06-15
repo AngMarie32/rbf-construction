@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -42,6 +41,8 @@ export function MaintenanceView({ open, onOpenChange }: MaintenanceViewProps) {
   const [sortBy, setSortBy] = useState('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   
   const [equipment, setEquipment] = useState<Array<{ id: string; name: string }>>([]);
 
@@ -54,7 +55,7 @@ export function MaintenanceView({ open, onOpenChange }: MaintenanceViewProps) {
 
   useEffect(() => {
     applyFiltersAndSort();
-  }, [records, searchTerm, equipmentFilter, sortBy, sortOrder, statusFilter, activeTab]);
+  }, [records, searchTerm, equipmentFilter, sortBy, sortOrder, statusFilter, activeTab, dateFrom, dateTo]);
 
   const fetchEquipment = async () => {
     try {
@@ -116,6 +117,24 @@ export function MaintenanceView({ open, onOpenChange }: MaintenanceViewProps) {
       filtered = filtered.filter(r => 
         r.nextDue && r.nextDue < new Date() && r.type === 'scheduled'
       );
+    }
+
+    // Apply date filter
+    if (dateFrom || dateTo) {
+      filtered = filtered.filter(r => {
+        const recordDate = r.date;
+        const fromDate = dateFrom ? new Date(dateFrom) : null;
+        const toDate = dateTo ? new Date(dateTo) : null;
+        
+        if (fromDate && toDate) {
+          return recordDate >= fromDate && recordDate <= toDate;
+        } else if (fromDate) {
+          return recordDate >= fromDate;
+        } else if (toDate) {
+          return recordDate <= toDate;
+        }
+        return true;
+      });
     }
 
     // Apply search filter
@@ -291,18 +310,34 @@ export function MaintenanceView({ open, onOpenChange }: MaintenanceViewProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-6 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">Search</label>
                 <div className="relative">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <Input
-                    placeholder="Search description or equipment..."
+                    placeholder=""
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Date From</label>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Date To</label>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                />
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Equipment</label>
@@ -516,3 +551,101 @@ export function MaintenanceView({ open, onOpenChange }: MaintenanceViewProps) {
     </Layout>
   );
 }
+
+const fetchEquipment = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('equipment')
+      .select('id, name')
+      .order('name');
+
+    if (error) throw error;
+    setEquipment(data || []);
+  } catch (error) {
+    console.error('Error fetching equipment:', error);
+  }
+};
+
+const fetchAllMaintenanceRecords = async () => {
+  try {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('maintenance_logs')
+      .select(`
+        *,
+        equipment:equipment_id(name)
+      `)
+      .order('date', { ascending: false });
+
+    if (error) throw error;
+
+    const mappedRecords: MaintenanceRecord[] = (data || []).map(record => ({
+      id: record.id,
+      date: new Date(record.date),
+      description: record.description,
+      cost: record.cost || 0,
+      nextDue: record.next_due ? new Date(record.next_due) : null,
+      equipmentId: record.equipment_id,
+      equipmentName: record.equipment?.name || 'Unknown Equipment',
+      type: record.next_due && new Date(record.next_due) > new Date() ? 'scheduled' : 'completed',
+      isCompleted: record.next_due ? new Date(record.next_due) <= new Date() : true
+    }));
+
+    setRecords(mappedRecords);
+  } catch (error) {
+    console.error('Error fetching maintenance records:', error);
+    toast.error('Failed to load maintenance records');
+  } finally {
+    setLoading(false);
+  }
+};
+
+const deleteMaintenanceRecord = async (recordId: string) => {
+  if (!confirm('Are you sure you want to delete this maintenance record?')) {
+    return;
+  }
+
+  try {
+    const { error } = await supabase
+      .from('maintenance_logs')
+      .delete()
+      .eq('id', recordId);
+
+    if (error) throw error;
+
+    toast.success('Maintenance record deleted successfully');
+    fetchAllMaintenanceRecords();
+  } catch (error) {
+    console.error('Error deleting maintenance record:', error);
+    toast.error('Failed to delete maintenance record');
+  }
+};
+
+const markAsCompleted = async (recordId: string) => {
+  try {
+    const { error } = await supabase
+      .from('maintenance_logs')
+      .update({ 
+        date: new Date().toISOString().split('T')[0],
+        next_due: null 
+      })
+      .eq('id', recordId);
+
+    if (error) throw error;
+
+    toast.success('Maintenance marked as completed');
+    fetchAllMaintenanceRecords();
+  } catch (error) {
+    console.error('Error marking maintenance as completed:', error);
+    toast.error('Failed to update maintenance status');
+  }
+};
+
+const toggleSort = (field: string) => {
+  if (sortBy === field) {
+    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+  } else {
+    setSortBy(field);
+    setSortOrder('desc');
+  }
+};
