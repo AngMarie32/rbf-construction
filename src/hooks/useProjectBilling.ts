@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -26,19 +25,26 @@ export function useProjectBilling(projectIds: string[]) {
   const fetchBilling = async () => {
     try {
       setLoading(true);
+      
+      // Initialize billing data with 0 values for all projects
+      const initialBilling: ProjectBilling = {};
+      projectIds.forEach(id => {
+        initialBilling[id] = { totalBilled: 0, totalReceived: 0 };
+      });
+      setBilling(initialBilling);
+
       const { data, error } = await supabase
         .from('project_billing')
         .select('project_id, billed_amount, paid_amount')
         .in('project_id', projectIds);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching project billing:', error);
+        // Keep the initialized values and don't throw
+        return;
+      }
 
-      const billingByProject: ProjectBilling = {};
-      
-      // Initialize all project IDs with 0
-      projectIds.forEach(id => {
-        billingByProject[id] = { totalBilled: 0, totalReceived: 0 };
-      });
+      const billingByProject: ProjectBilling = { ...initialBilling };
 
       // Sum up billing by project
       (data || []).forEach(billing => {
@@ -51,7 +57,12 @@ export function useProjectBilling(projectIds: string[]) {
       setBilling(billingByProject);
     } catch (error) {
       console.error('Error fetching project billing:', error);
-      setBilling({});
+      // Set default values for all projects to prevent undefined errors
+      const defaultBilling: ProjectBilling = {};
+      projectIds.forEach(id => {
+        defaultBilling[id] = { totalBilled: 0, totalReceived: 0 };
+      });
+      setBilling(defaultBilling);
     } finally {
       setLoading(false);
     }
