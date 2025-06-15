@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface G703DocumentProps {
@@ -79,64 +78,50 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
       <div className="border border-black">
         <table className="w-full border-collapse text-xs">
           <thead>
-            {/* First header row - main categories and work completed span */}
             <tr className="bg-gray-100">
-              <th className="border-r border-black p-1 w-8 font-bold" rowSpan={3}>
-                <div className="border-b border-black pb-1 mb-1">A</div>
-                <div>ITEM<br/>NO.</div>
+              <th className="border-r border-black border-b-2 p-1 w-8 font-bold align-bottom">
+                <div className="pb-1">A</div>
+                <div className="font-normal">ITEM<br/>NO.</div>
               </th>
-              <th className="border-r border-black p-1 w-32 font-bold" rowSpan={3}>
-                <div className="border-b border-black pb-1 mb-1">B</div>
-                <div>DESCRIPTION OF WORK</div>
+              <th className="border-r border-black border-b-2 p-1 w-32 font-bold align-bottom">
+                <div className="pb-1">B</div>
+                <div className="font-normal">DESCRIPTION OF WORK</div>
               </th>
-              <th className="border-r border-black p-1 w-16 font-bold" rowSpan={3}>
-                <div className="border-b border-black pb-1 mb-1">C</div>
-                <div>SCHEDULED<br/>VALUE</div>
+              <th className="border-r border-black border-b-2 p-1 w-16 font-bold align-bottom">
+                <div className="pb-1">C</div>
+                <div className="font-normal">SCHEDULED<br/>VALUE</div>
               </th>
-              <th className="border-r border-black p-1 w-16 font-bold" rowSpan={3}>
-                <div className="border-b border-black pb-1 mb-1">D</div>
-                <div>CHANGE<br/>ORDERS</div>
+              <th className="border-r border-black border-b-2 p-1 w-16 font-bold align-bottom">
+                <div className="pb-1">D</div>
+                <div className="font-normal">CHANGE<br/>ORDERS</div>
               </th>
-              <th className="border-r border-black p-1 w-16 font-bold" rowSpan={3}>
-                <div className="border-b border-black pb-1 mb-1">E</div>
-                <div>TOTAL<br/>CONTRACT</div>
+              <th className="border-r border-black border-b-2 p-1 w-16 font-bold align-bottom">
+                <div className="pb-1">E</div>
+                <div className="font-normal">TOTAL<br/>CONTRACT</div>
               </th>
-              <th className="border-r border-black p-1 font-bold" colSpan={4}>WORK COMPLETED</th>
-              <th className="border-r border-black p-1 w-12 font-bold" rowSpan={3}>
-                <div className="border-b border-black pb-1 mb-1">J</div>
-                <div>%<br/>COMPLETE</div>
+              <th className="border-r border-black border-b-2 p-1 font-bold align-bottom" colSpan={4}>
+                <div className="pb-1">WORK COMPLETED</div>
               </th>
-              <th className="border-r border-black p-1 w-16 font-bold" rowSpan={3}>
-                <div className="border-b border-black pb-1 mb-1">K</div>
-                <div>BALANCE TO<br/>FINISH</div>
+              <th className="border-r border-black border-b-2 p-1 w-12 font-bold align-bottom">
+                <div className="pb-1">J</div>
+                <div className="font-normal">%<br/>COMPLETE</div>
               </th>
-              <th className="border border-black p-1 w-16 font-bold" rowSpan={3}>
-                <div className="border-b border-black pb-1 mb-1">L</div>
-                <div>RETAINAGE<br/>HELD</div>
+              <th className="border-r border-black border-b-2 p-1 w-16 font-bold align-bottom">
+                <div className="pb-1">K</div>
+                <div className="font-normal">BALANCE TO<br/>FINISH</div>
+              </th>
+              <th className="border-black border-b-2 p-1 w-16 font-bold align-bottom">
+                <div className="pb-1">L</div>
+                <div className="font-normal">RETAINAGE<br/>HELD</div>
               </th>
             </tr>
-            {/* Second header row - work completed subdivisions */}
             <tr className="bg-gray-100">
-              <th className="border-r border-black p-1 w-16 font-bold" rowSpan={2}>
-                <div className="border-b border-black pb-1 mb-1">F</div>
-                <div>FROM<br/>PREVIOUS<br/>APPLICATION</div>
-              </th>
-              <th className="border-r border-black p-1 w-16 font-bold" rowSpan={2}>
-                <div className="border-b border-black pb-1 mb-1">G</div>
-                <div>THIS<br/>PERIOD</div>
-              </th>
-              <th className="border-r border-black p-1 w-16 font-bold" rowSpan={2}>
-                <div className="border-b border-black pb-1 mb-1">H</div>
-                <div>MATERIALS<br/>PRESENTLY<br/>STORED</div>
-              </th>
-              <th className="border-r border-black p-1 w-16 font-bold">
-                <div className="border-b border-black pb-1 mb-1">I</div>
-                <div>TOTAL<br/>COMPLETED<br/>AND STORED TO</div>
-              </th>
-            </tr>
-            {/* Third header row - column I subdivision */}
-            <tr className="bg-gray-100">
-              <th className="border-r border-black p-1 w-16 font-bold">DATE<br/>(F+G+H)</th>
+              <th className="border-r border-black p-1" colSpan={5}></th>
+              <th className="border-r border-black p-1 font-bold w-16">F<br/><span className="font-normal">FROM PREVIOUS<br/>APPLICATION</span></th>
+              <th className="border-r border-black p-1 font-bold w-16">G<br/><span className="font-normal">THIS PERIOD</span></th>
+              <th className="border-r border-black p-1 font-bold w-16">H<br/><span className="font-normal">MATERIALS PRESENTLY<br/>STORED</span></th>
+              <th className="border-r border-black p-1 font-bold w-16">I<br/><span className="font-normal">TOTAL COMPLETED<br/>AND STORED TO</span></th>
+              <th className="border-r border-black p-1" colSpan={3}></th>
             </tr>
           </thead>
           <tbody>
@@ -170,6 +155,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               <tr key={`empty-${index}`}>
                 <td className="border-r border-black p-1 text-center">{sovItems.length + index + 1}</td>
                 <td className="border-r border-black p-1"></td>
+                <td className="border-r border-black p-1 text-right">$0.00</td>
                 <td className="border-r border-black p-1 text-right">$0.00</td>
                 <td className="border-r border-black p-1 text-right">$0.00</td>
                 <td className="border-r border-black p-1 text-right">$0.00</td>
