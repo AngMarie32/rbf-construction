@@ -276,11 +276,12 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
 
     // only delete from DB after timeout for undo
     setTimeout(async () => {
-      if (!sovItems.find(i => i.id === itemId) && !undoStack.includes(target) && !itemId.startsWith('co-')) {
+      if (!sovItems.find(i => i.id === itemId) && !itemId.startsWith('co-')) {
         await supabase.from('sov_items').delete().eq('id', itemId);
       }
-      // Fix: use direct value instead of functional updater
-      setUndoStack(undoStack.filter((v) => v.id !== itemId));
+      // Fix: use direct value by filtering the current undoStack state
+      const currentUndoStack = undoStack.filter((v) => v.id !== itemId);
+      setUndoStack(currentUndoStack);
     }, 4000);
   };
 
