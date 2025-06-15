@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -37,13 +36,11 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
   });
 
   useEffect(() => {
-    // Convert "Open" status to "Active" for compatibility
-    const mappedStatus = project.status === 'Open' ? 'Active' : project.status;
     setFormData({
       name: project.name,
       type: project.type,
       contractValue: project.contractValue.toString(),
-      status: mappedStatus as 'Planning' | 'Active' | 'On Hold' | 'Completed' | 'Closed',
+      status: project.status,
       startDate: project.startDate,
       dueDate: project.dueDate,
       address: project.address,
@@ -62,7 +59,7 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
 
     setLoading(true);
     try {
-      // Map "Active" back to "Open" for database storage if needed
+      // Map "Active" to "Open" for database storage, keep others as-is
       const dbStatus = formData.status === 'Active' ? 'Open' : formData.status;
       
       const updateData = {
