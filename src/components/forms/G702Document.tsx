@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface G702DocumentProps {
@@ -51,7 +50,7 @@ export function G702Document({ project, formData, totals }: G702DocumentProps) {
             </div>
             <div className="flex justify-between items-center">
               <span className="font-bold text-sm">PROJECT:</span>
-              <span className="text-sm px-2 flex-1 ml-2 text-right">{project.name}</span>
+              <span className="text-sm px-2 flex-1 text-right">{project.name}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="font-bold text-sm">PROJECT NO:</span>
@@ -160,33 +159,30 @@ export function G702Document({ project, formData, totals }: G702DocumentProps) {
             <table className="w-full border-collapse border-2 border-black text-sm">
               <thead>
                 <tr>
-                  <th className="border border-black p-2 text-left bg-gray-200 font-bold" colSpan={4}>CHANGE ORDER SUMMARY</th>
-                </tr>
-                <tr className="bg-gray-100">
-                  <th className="border border-black p-2 text-center font-medium">Changes approved in previous months by Owner</th>
-                  <th className="border border-black p-2 text-center font-medium">ADDITIONS</th>
-                  <th className="border border-black p-2 text-center font-medium">DEDUCTIONS</th>
-                  <th className="border border-black p-2 text-center font-medium">NET CHANGES by Change Order</th>
+                  <th className="border border-black p-2 text-center bg-gray-200 font-bold w-3/5">CHANGE ORDER SUMMARY</th>
+                  <th className="border border-black p-2 text-center bg-gray-200 font-bold w-1/5">ADDITIONS</th>
+                  <th className="border border-black p-2 text-center bg-gray-200 font-bold w-1/5">DEDUCTIONS</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td className="border border-black p-2 text-center">${formatCurrency(totals.netChangeOrders)}</td>
-                  <td className="border border-black p-2 text-center">$0.00</td>
-                  <td className="border border-black p-2 text-center">$0.00</td>
-                  <td className="border border-black p-2 text-center">${formatCurrency(totals.netChangeOrders)}</td>
+                  <td className="border border-black p-2">Total changes approved in previous months by Owner</td>
+                  <td className="border border-black p-2 text-center">${formatCurrency(0)}</td>
+                  <td className="border border-black p-2 text-center">${formatCurrency(0)}</td>
                 </tr>
                 <tr>
-                  <td className="border border-black p-2 font-medium">Total approved this Month</td>
-                  <td className="border border-black p-2 text-center">$0.00</td>
-                  <td className="border border-black p-2 text-center">$0.00</td>
-                  <td className="border border-black p-2 text-center">$0.00</td>
+                  <td className="border border-black p-2">Total approved this Month</td>
+                  <td className="border border-black p-2 text-center">${formatCurrency(4780)}</td>
+                  <td className="border border-black p-2 text-center">${formatCurrency(0)}</td>
                 </tr>
                 <tr className="bg-gray-100">
                   <td className="border border-black p-2 font-bold">TOTALS</td>
-                  <td className="border border-black p-2 text-center font-bold">${formatCurrency(totals.netChangeOrders)}</td>
-                  <td className="border border-black p-2 text-center font-bold">$0.00</td>
-                  <td className="border border-black p-2 text-center font-bold">${formatCurrency(totals.netChangeOrders)}</td>
+                  <td className="border border-black p-2 text-center font-bold">${formatCurrency(4780)}</td>
+                  <td className="border border-black p-2 text-center font-bold">${formatCurrency(0)}</td>
+                </tr>
+                <tr>
+                  <td className="border border-black p-2 font-bold">NET CHANGES by Change Order</td>
+                  <td className="border border-black p-2 text-center font-bold" colSpan={2}>${formatCurrency(4780)}</td>
                 </tr>
               </tbody>
             </table>
