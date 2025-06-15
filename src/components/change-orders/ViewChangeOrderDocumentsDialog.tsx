@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -43,10 +42,10 @@ export function ViewChangeOrderDocumentsDialog({
     }
   }, [open, changeOrderId]);
 
-  const handleDownload = (document: ChangeOrderDocument) => {
+  const handleDownload = (documentToDownload: ChangeOrderDocument) => {
     const link = document.createElement('a');
-    link.href = document.fileUrl;
-    link.download = document.fileName;
+    link.href = documentToDownload.fileUrl;
+    link.download = documentToDownload.fileName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -91,12 +90,12 @@ export function ViewChangeOrderDocumentsDialog({
           {/* Document selector if multiple */}
           {documents.length > 1 && (
             <div className="flex gap-2 flex-wrap">
-              {documents.map((document, index) => (
+              {documents.map((documentItem, index) => (
                 <Button
-                  key={document.id}
-                  variant={selectedDocument?.id === document.id ? "default" : "outline"}
+                  key={documentItem.id}
+                  variant={selectedDocument?.id === documentItem.id ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setSelectedDocument(document)}
+                  onClick={() => setSelectedDocument(documentItem)}
                 >
                   Document {index + 1}
                 </Button>
