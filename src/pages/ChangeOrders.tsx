@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +11,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { CreateChangeOrderDialog } from '@/components/change-orders/CreateChangeOrderDialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 export default function ChangeOrders() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -21,6 +21,9 @@ export default function ChangeOrders() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedChangeOrder, setSelectedChangeOrder] = useState<any>(null);
+  const [editingChangeOrder, setEditingChangeOrder] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -77,54 +80,57 @@ export default function ChangeOrders() {
   };
 
   const viewChangeOrder = (co: any) => {
-    // Simple alert for now - could be enhanced with a proper view modal
-    alert(`Change Order: ${co.number}\nDescription: ${co.description}\nAmount: $${co.amount.toLocaleString()}\nStatus: ${co.status}\nDate: ${format(new Date(co.date), 'MMM dd, yyyy')}`);
+    setSelectedChangeOrder(co);
+    // Here you could open a detailed view dialog instead of an alert
+    toast.info(`Viewing Change Order: ${co.number}`);
   };
 
   const editChangeOrder = (co: any) => {
-    // For now, we'll use a simple prompt - could be enhanced with a proper edit modal
-    const newDescription = prompt('Edit description:', co.description);
-    const newAmount = prompt('Edit amount:', co.amount.toString());
-    
-    if (newDescription !== null && newAmount !== null) {
-      updateChangeOrder(co.id, {
-        description: newDescription,
-        amount: parseFloat(newAmount) || co.amount
-      });
-    }
+    setEditingChangeOrder(co);
+    // Here you could open an edit dialog
+    toast.info(`Editing Change Order: ${co.number}`);
   };
 
-  const updateChangeOrder = async (id: string, updates: any) => {
-    try {
-      const { error } = await supabase
-        .from('change_orders')
-        .update(updates)
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast.success('Change order updated successfully');
-      fetchChangeOrders();
-    } catch (error) {
-      console.error('Error updating change order:', error);
-      toast.error('Failed to update change order');
-    }
+  const handleDeleteClick = (co: any) => {
+    setSelectedChangeOrder(co);
+    setDeleteDialogOpen(true);
   };
 
-  const deleteChangeOrder = async (id: string) => {
+  const confirmDelete = async () => {
+    if (!selectedChangeOrder) return;
+
     try {
       const { error } = await supabase
         .from('change_orders')
         .delete()
-        .eq('id', id);
+        .eq('id', selectedChangeOrder.id);
 
       if (error) throw error;
 
       toast.success('Change order deleted successfully');
       fetchChangeOrders();
+      setDeleteDialogOpen(false);
+      setSelectedChangeOrder(null);
     } catch (error) {
       console.error('Error deleting change order:', error);
       toast.error('Failed to delete change order');
+    }
+  };
+
+  const updateChangeOrderStatus = async (id: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('change_orders')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success(`Change order ${newStatus.toLowerCase()} successfully`);
+      fetchChangeOrders();
+    } catch (error) {
+      console.error('Error updating change order:', error);
+      toast.error('Failed to update change order');
     }
   };
 
@@ -330,10 +336,32 @@ export default function ChangeOrders() {
                             <Edit className="w-4 h-4 mr-1" />
                             Edit
                           </Button>
+                          {co.status === 'Submitted' && (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => updateChangeOrderStatus(co.id, 'Approved')}
+                                className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                              >
+                                <CheckCircle className="w-4 h-4 mr-1" />
+                                Approve
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => updateChangeOrderStatus(co.id, 'Rejected')}
+                                className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                              >
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Reject
+                              </Button>
+                            </>
+                          )}
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => deleteChangeOrder(co.id)}
+                            onClick={() => handleDeleteClick(co)}
                             className="text-red-600 hover:text-red-800 hover:bg-red-50"
                           >
                             <Trash2 className="w-4 h-4 mr-1" />
@@ -392,6 +420,23 @@ export default function ChangeOrders() {
           projectId={selectedProject}
           onSave={fetchChangeOrders}
         />
+
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Change Order</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete Change Order #{selectedChangeOrder?.number}? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );
