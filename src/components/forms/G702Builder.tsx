@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -198,73 +199,6 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
       }
     }
   }, [sovItems, setSovItems]);
-
-  const handleDeleteSOVItem = async (itemId: string) => {
-    if (!window.confirm("Are you sure you want to delete this item? This action cannot be undone.")) {
-        return;
-    }
-
-    try {
-        const { error } = await supabase.from('sov_items').delete().eq('id', itemId);
-        if (error) throw error;
-
-        setSovItems(sovItems.filter(item => item.id !== itemId));
-        toast.success("SOV item deleted.");
-    } catch (error) {
-        toast.error("Failed to delete SOV item.");
-        console.error(error);
-    }
-  };
-
-  const handleAddNewItem = () => {
-      const nextItemNumber = sovItems.length > 0 ? String(Math.max(...sovItems.map(i => Number(i.itemNumber)).filter(Number.isFinite)) + 1) : "1";
-      setNewSOVItem({ itemNumber: nextItemNumber, description: '', scheduledValue: 0, category: 'General' });
-  };
-
-  const handleCancelNewItem = () => {
-      setNewSOVItem(null);
-  };
-
-  const handleSaveNewItem = async () => {
-    if (!newSOVItem || !newSOVItem.description || newSOVItem.scheduledValue <= 0) {
-        toast.error("Please fill all fields for the new item.");
-        return;
-    }
-    try {
-        setLoading(true);
-        const { data, error } = await supabase.from('sov_items').insert({
-            project_id: projectId,
-            item_number: newSOVItem.itemNumber,
-            description: newSOVItem.description,
-            scheduled_value: newSOVItem.scheduledValue,
-            category: newSOVItem.category
-        }).select().single();
-
-        if (error) throw error;
-        
-        const mappedItem = {
-            id: data.id,
-            itemNumber: data.item_number,
-            description: data.description,
-            scheduledValue: data.scheduled_value,
-            changeOrders: 0,
-            previousApplications: 0,
-            thisPeriod: 0,
-            materialsStored: 0,
-            totalCompletedAndStored: 0,
-            percentComplete: 0,
-            category: data.category
-        };
-        setSovItems([...sovItems, mappedItem]);
-        setNewSOVItem(null);
-        toast.success("New SOV item added.");
-    } catch (error) {
-        toast.error("Failed to save new item.");
-        console.error(error);
-    } finally {
-        setLoading(false);
-    }
-  };
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
