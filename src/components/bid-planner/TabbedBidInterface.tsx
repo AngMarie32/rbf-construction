@@ -273,6 +273,15 @@ export function TabbedBidInterface({
 
   const handleExportToSOV = async () => {
     try {
+      console.log('Starting SOV export process...');
+      console.log('Project ID:', projectId);
+      console.log('Bid items count:', bidItems.length);
+
+      if (bidItems.length === 0) {
+        toast.error('No bid items to export to SOV');
+        return;
+      }
+
       // First, check if any SOV items already exist for this project
       const { data: existingSOVItems, error: checkError } = await supabase
         .from('sov_items')
@@ -280,20 +289,30 @@ export function TabbedBidInterface({
         .eq('project_id', projectId)
         .limit(1);
 
-      if (checkError) throw checkError;
+      if (checkError) {
+        console.error('Error checking existing SOV items:', checkError);
+        throw checkError;
+      }
+
+      console.log('Existing SOV items:', existingSOVItems);
 
       // If SOV items already exist, ask for confirmation
       if (existingSOVItems && existingSOVItems.length > 0) {
         const confirmed = confirm('SOV items already exist for this project. Do you want to replace them?');
         if (!confirmed) return;
 
+        console.log('User confirmed replacement, deleting existing SOV items...');
         // Delete existing SOV items
         const { error: deleteError } = await supabase
           .from('sov_items')
           .delete()
           .eq('project_id', projectId);
 
-        if (deleteError) throw deleteError;
+        if (deleteError) {
+          console.error('Error deleting existing SOV items:', deleteError);
+          throw deleteError;
+        }
+        console.log('Successfully deleted existing SOV items');
       }
 
       // Convert bid items to SOV items
@@ -313,17 +332,19 @@ export function TabbedBidInterface({
         retainage_percentage: 10
       }));
 
-      if (sovItems.length === 0) {
-        toast.error('No bid items to export to SOV');
-        return;
+      console.log('SOV items to insert:', sovItems);
+
+      const { data: insertedItems, error } = await supabase
+        .from('sov_items')
+        .insert(sovItems)
+        .select();
+
+      if (error) {
+        console.error('Error inserting SOV items:', error);
+        throw error;
       }
 
-      const { error } = await supabase
-        .from('sov_items')
-        .insert(sovItems);
-
-      if (error) throw error;
-
+      console.log('Successfully inserted SOV items:', insertedItems);
       toast.success(`Exported ${sovItems.length} items to Schedule of Values`);
     } catch (error) {
       console.error('Error exporting to SOV:', error);
@@ -548,7 +569,7 @@ export function TabbedBidInterface({
               <CardTitle>Add Bid Item</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-6 gap-4 items-end">
+              <div className="grid grid-cols-[1.5fr_2fr_1fr_1fr_1fr_auto] gap-4 items-end">
                 <div>
                   <label className="text-sm font-medium text-gray-700">Category *</label>
                   <Input
@@ -613,12 +634,12 @@ export function TabbedBidInterface({
                     step="0.01"
                   />
                 </div>
-              </div>
-              <div className="mt-4">
-                <Button onClick={handleAddItem} className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add
-                </Button>
+                <div>
+                  <Button onClick={handleAddItem} className="bg-blue-600 hover:bg-blue-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -639,8 +660,8 @@ export function TabbedBidInterface({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* Header row */}
-                  <div className="grid grid-cols-6 gap-4 items-center py-2 border-b font-medium text-sm text-gray-700">
+                  {/* Header row - matching the exact grid structure */}
+                  <div className="grid grid-cols-[1.5fr_2fr_1fr_1fr_1fr_auto] gap-4 items-center py-2 border-b font-medium text-sm text-gray-700">
                     <div>Category / Subcategory</div>
                     <div>Description</div>
                     <div className="text-center">Unit</div>
@@ -651,7 +672,7 @@ export function TabbedBidInterface({
                   
                   {bidItems.map((item, index) => (
                     <div key={item.id || index} className="border rounded-lg p-3">
-                      <div className="grid grid-cols-6 gap-4 items-center">
+                      <div className="grid grid-cols-[1.5fr_2fr_1fr_1fr_1fr_auto] gap-4 items-center">
                         <div className="space-y-2">
                           <Input
                             value={item.category}
