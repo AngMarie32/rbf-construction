@@ -8,8 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Calculator, 
   Target,
-  Building2,
-  Plus
+  Building2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -88,7 +87,7 @@ export default function BidPlanner() {
         companyEmail: companyData?.company_email || '',
         logoUrl: companyData?.logo_url || '',
         bidItems: bidItems,
-        totalAmount: bidItems.reduce((sum, item) => sum + (item.total || 0), 0)
+        totalAmount: bidItems.reduce((sum, item) => sum + ((item.unit_cost || 0) * (item.quantity || 0)), 0)
       };
 
       const { generateBidReport } = await import('@/utils/pdfExport');
@@ -141,13 +140,6 @@ export default function BidPlanner() {
                   ))}
                 </SelectContent>
               </Select>
-              
-              {selectedProject && (
-                <Button onClick={() => setCreateDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create New Bid
-                </Button>
-              )}
             </div>
           </CardContent>
         </Card>
