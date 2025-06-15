@@ -1,22 +1,19 @@
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
-import { Edit, Trash2, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
-import { format, isAfter, isBefore, addDays } from 'date-fns';
+import { MoreHorizontal, Edit, Trash2, Calendar, User, Clock } from 'lucide-react';
 import { Task } from '@/types';
-import { useState } from 'react';
-import { cn } from '@/lib/utils';
+import { TaskPriorityIndicator, TaskPriority } from './TaskPriorityIndicator';
+import { format } from 'date-fns';
 
 interface Project {
   id: string;
   name: string;
   color: string;
-  client?: string;
-  contractValue?: number;
-  status?: string;
 }
 
 interface EnhancedTaskListProps {
@@ -26,6 +23,8 @@ interface EnhancedTaskListProps {
   onTaskUpdate: (taskId: string, updates: Partial<Task>) => void;
   onTaskDelete: (taskId: string) => void;
   onTaskEdit: (task: Task) => void;
+  selectedTasks?: string[];
+  onSelectionChange?: (selectedTasks: string[]) => void;
 }
 
 export function EnhancedTaskList({
@@ -34,86 +33,96 @@ export function EnhancedTaskList({
   loading,
   onTaskUpdate,
   onTaskDelete,
-  onTaskEdit
+  onTaskEdit,
+  selectedTasks = [],
+  onSelectionChange
 }: EnhancedTaskListProps) {
-  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<'date' | 'progress' | 'status' | 'priority'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  const getTaskPriority = (task: Task): 'high' | 'medium' | 'low' => {
-    const today = new Date();
-    const daysUntilDue = Math.ceil((task.endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (daysUntilDue < 0) return 'high'; // Overdue
-    if (daysUntilDue <= 3) return 'high'; // Due soon
-    if (daysUntilDue <= 7) return 'medium'; // Due this week
-    return 'low'; // Due later
+  const getProjectColor = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    return project?.color || '#3b82f6';
   };
 
-  const getPriorityIcon = (priority: 'high' | 'medium' | 'low') => {
-    switch (priority) {
-      case 'high':
-        return <AlertTriangle className="w-4 h-4 text-red-500" />;
-      case 'medium':
-        return <Clock className="w-4 h-4 text-yellow-500" />;
-      case 'low':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-    }
+  const getProjectName = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    return project?.name || 'Unknown Project';
   };
 
-  const getStatusColor = (status: Task['status']) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Completed':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'In Progress':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'On Hold':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Not Started':
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'Completed': return 'bg-green-100 text-green-800 border-green-200';
+      case 'In Progress': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'On Hold': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'Not Started': return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
+  };
+
+  // Mock priority for demonstration - in real app this would come from the task data
+  const getTaskPriority = (task: Task): TaskPriority => {
+    if (task.progress > 75) return 'low';
+    if (task.status === 'On Hold') return 'urgent';
+    if (task.progress === 0) return 'high';
+    return 'medium';
   };
 
   const handleSelectTask = (taskId: string, checked: boolean) => {
+    if (!onSelectionChange) return;
+    
     if (checked) {
-      setSelectedTasks(prev => [...prev, taskId]);
+      onSelectionChange([...selectedTasks, taskId]);
     } else {
-      setSelectedTasks(prev => prev.filter(id => id !== taskId));
+      onSelectionChange(selectedTasks.filter(id => id !== taskId));
     }
   };
 
   const handleSelectAll = (checked: boolean) => {
+    if (!onSelectionChange) return;
+    
     if (checked) {
-      setSelectedTasks(tasks.map(t => t.id));
+      onSelectionChange(tasks.map(task => task.id));
     } else {
-      setSelectedTasks([]);
+      onSelectionChange([]);
     }
   };
 
-  const handleBulkStatusUpdate = (status: Task['status']) => {
-    selectedTasks.forEach(taskId => {
-      onTaskUpdate(taskId, { status });
-    });
-    setSelectedTasks([]);
-  };
+  const sortedTasks = [...tasks].sort((a, b) => {
+    let aValue, bValue;
+    
+    switch (sortBy) {
+      case 'date':
+        aValue = a.startDate.getTime();
+        bValue = b.startDate.getTime();
+        break;
+      case 'progress':
+        aValue = a.progress;
+        bValue = b.progress;
+        break;
+      case 'status':
+        aValue = a.status;
+        bValue = b.status;
+        break;
+      case 'priority':
+        const priorities = { urgent: 4, high: 3, medium: 2, low: 1 };
+        aValue = priorities[getTaskPriority(a)];
+        bValue = priorities[getTaskPriority(b)];
+        break;
+      default:
+        return 0;
+    }
+    
+    if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   if (loading) {
     return (
       <Card>
-        <CardContent className="py-8">
+        <CardContent className="p-6">
           <div className="text-center text-gray-500">Loading tasks...</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (tasks.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-8">
-          <div className="text-center text-gray-500">
-            No tasks found. Try adjusting your filters or add some tasks.
-          </div>
         </CardContent>
       </Card>
     );
@@ -123,134 +132,127 @@ export function EnhancedTaskList({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            Task List
-            <Badge variant="outline" className="ml-2">
-              {tasks.length} task{tasks.length !== 1 ? 's' : ''}
-            </Badge>
-          </CardTitle>
-          
-          {selectedTasks.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
-                {selectedTasks.length} selected
-              </span>
-              <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleBulkStatusUpdate('In Progress')}
-                  className="text-xs"
-                >
-                  Mark In Progress
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleBulkStatusUpdate('Completed')}
-                  className="text-xs"
-                >
-                  Mark Complete
-                </Button>
+          <CardTitle>Task List</CardTitle>
+          <div className="flex items-center gap-4">
+            {onSelectionChange && (
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={tasks.length > 0 && selectedTasks.length === tasks.length}
+                  onCheckedChange={handleSelectAll}
+                />
+                <span className="text-sm text-gray-600">Select All</span>
               </div>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Sort by:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="text-sm border rounded px-2 py-1"
+              >
+                <option value="date">Date</option>
+                <option value="progress">Progress</option>
+                <option value="status">Status</option>
+                <option value="priority">Priority</option>
+              </select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              >
+                {sortOrder === 'asc' ? '↑' : '↓'}
+              </Button>
             </div>
-          )}
-        </div>
-        
-        {/* Select All */}
-        <div className="flex items-center gap-2 pt-2 border-t">
-          <Checkbox
-            checked={selectedTasks.length === tasks.length}
-            onCheckedChange={handleSelectAll}
-          />
-          <span className="text-sm text-gray-600">Select all tasks</span>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="space-y-1">
-          {tasks.map((task) => {
-            const project = projects.find(p => p.id === task.projectId);
-            const priority = getTaskPriority(task);
-            const isSelected = selectedTasks.includes(task.id);
-            
-            return (
-              <div 
-                key={task.id} 
-                className={cn(
-                  "flex items-center gap-3 p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors",
-                  isSelected && "bg-blue-50 border-blue-200"
-                )}
+        {sortedTasks.length === 0 ? (
+          <div className="p-6 text-center text-gray-500">
+            No tasks found for the selected criteria.
+          </div>
+        ) : (
+          <div className="space-y-0">
+            {sortedTasks.map((task, index) => (
+              <div
+                key={task.id}
+                className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                  selectedTasks.includes(task.id) ? 'bg-blue-50 border-blue-200' : ''
+                }`}
               >
-                <Checkbox
-                  checked={isSelected}
-                  onCheckedChange={(checked) => handleSelectTask(task.id, !!checked)}
-                />
-                
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  {/* Priority Icon */}
-                  {getPriorityIcon(priority)}
+                <div className="flex items-center gap-4">
+                  {onSelectionChange && (
+                    <Checkbox
+                      checked={selectedTasks.includes(task.id)}
+                      onCheckedChange={(checked) => handleSelectTask(task.id, !!checked)}
+                    />
+                  )}
                   
-                  {/* Project Color */}
-                  <div 
-                    className="w-3 h-3 rounded-full flex-shrink-0" 
-                    style={{ backgroundColor: project?.color || '#gray' }}
-                  />
-                  
-                  {/* Task Info */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="font-medium text-sm truncate">{task.title}</div>
-                      <Badge 
-                        variant="outline" 
-                        className={cn("text-xs px-2 py-0", getStatusColor(task.status))}
-                      >
-                        {task.status}
-                      </Badge>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <h3 className="font-medium text-gray-900 truncate">{task.title}</h3>
+                        <TaskPriorityIndicator priority={getTaskPriority(task)} />
+                        <Badge variant="outline" className={getStatusColor(task.status)}>
+                          {task.status}
+                        </Badge>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onTaskEdit(task)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onTaskDelete(task.id)}
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <span className="font-medium">{project?.name}</span>
-                      </span>
-                      <span>
-                        {format(task.startDate, 'MMM dd')} - {format(task.endDate, 'MMM dd')}
-                      </span>
-                      <span>
-                        {Math.ceil((task.endDate.getTime() - task.startDate.getTime()) / (1000 * 60 * 60 * 24))} days
-                      </span>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: getProjectColor(task.projectId) }}
+                        />
+                        <span>{getProjectName(task.projectId)}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        <span>
+                          {format(task.startDate, 'MMM dd')} - {format(task.endDate, 'MMM dd')}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        <span>{Math.ceil((task.endDate.getTime() - task.startDate.getTime()) / (1000 * 60 * 60 * 24))} days</span>
+                      </div>
                     </div>
                     
-                    {/* Progress Bar */}
-                    <div className="mt-2 flex items-center gap-2">
-                      <Progress value={task.progress} className="flex-1 h-2" />
-                      <span className="text-xs text-gray-500 w-8">{task.progress}%</span>
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-gray-600">Progress</span>
+                        <span className="text-sm font-medium">{task.progress}%</span>
+                      </div>
+                      <Progress value={task.progress} className="h-2" />
                     </div>
                   </div>
                 </div>
-
-                {/* Actions */}
-                <div className="flex gap-1 flex-shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => onTaskEdit(task)}
-                  >
-                    <Edit className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 text-red-600 hover:text-red-800"
-                    onClick={() => onTaskDelete(task.id)}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

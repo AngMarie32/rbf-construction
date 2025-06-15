@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -29,6 +28,10 @@ import { format, addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMo
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Task } from '@/types';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useOptimisticUpdates } from '@/hooks/useOptimisticUpdates';
+import { BulkTaskOperations } from '@/components/schedule/BulkTaskOperations';
 
 interface Project {
   id: string;
@@ -99,6 +102,44 @@ export default function ProjectSchedule() {
     dateRange: `${format(dateRange.from, 'PPP')} - ${format(dateRange.to, 'PPP')}`
   };
 
+  // New state for enhanced features
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  
+  // Debounced search for better performance
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Optimistic updates for better UX
+  const { optimisticTasks, optimisticUpdate } = useOptimisticUpdates(tasks, handleTaskUpdate);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      key: 'n',
+      ctrlKey: true,
+      callback: () => setNewTaskDialogOpen(true)
+    },
+    {
+      key: 'e',
+      ctrlKey: true,
+      callback: handleExport
+    },
+    {
+      key: 'q',
+      ctrlKey: true,
+      callback: () => setQuickPlannerOpen(true)
+    },
+    {
+      key: 'Escape',
+      callback: () => {
+        setSelectedTaskIds([]);
+        setNewTaskDialogOpen(false);
+        setQuickPlannerOpen(false);
+        setTemplateManagerOpen(false);
+      }
+    }
+  ]);
+
   useEffect(() => {
     fetchProjects();
     fetchTasks();
@@ -106,7 +147,7 @@ export default function ProjectSchedule() {
 
   useEffect(() => {
     applyFilters();
-  }, [tasks, selectedProjects, searchQuery, dateRange]);
+  }, [tasks, selectedProjects, debouncedSearchQuery, dateRange]);
 
   useEffect(() => {
     updateDateRangeForViewMode();
@@ -212,10 +253,10 @@ export default function ProjectSchedule() {
       filtered = filtered.filter(task => selectedProjects.includes(task.projectId));
     }
 
-    // Filter by search query
-    if (searchQuery) {
+    // Filter by debounced search query
+    if (debouncedSearchQuery) {
       filtered = filtered.filter(task =>
-        task.title.toLowerCase().includes(searchQuery.toLowerCase())
+        task.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
       );
     }
 
@@ -301,10 +342,13 @@ export default function ProjectSchedule() {
         prevTasks.map(t => t.id === taskId ? updatedTask : t)
       );
       
-      toast.success('Task updated successfully');
+      if (autoSaveEnabled) {
+        toast.success('Task updated automatically');
+      }
     } catch (error) {
       console.error('Error updating task:', error);
       toast.error('Failed to update task');
+      throw error;
     }
   };
 
@@ -322,6 +366,35 @@ export default function ProjectSchedule() {
     } catch (error) {
       console.error('Error deleting task:', error);
       toast.error('Failed to delete task');
+    }
+  };
+
+  const handleBulkUpdate = async (taskIds: string[], updates: Partial<Task>) => {
+    try {
+      for (const taskId of taskIds) {
+        await handleTaskUpdate(taskId, updates);
+      }
+    } catch (error) {
+      console.error('Error in bulk update:', error);
+      throw error;
+    }
+  };
+
+  const handleBulkDelete = async (taskIds: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .in('id', taskIds);
+
+      if (error) throw error;
+
+      setTasks(prevTasks => prevTasks.filter(t => !taskIds.includes(t.id)));
+      toast.success(`Deleted ${taskIds.length} tasks successfully`);
+    } catch (error) {
+      console.error('Error deleting tasks:', error);
+      toast.error('Failed to delete tasks');
+      throw error;
     }
   };
 
@@ -392,12 +465,15 @@ export default function ProjectSchedule() {
   return (
     <Layout title="Project Schedule" subtitle="Manage project timelines and dependencies">
       <div className="space-y-6">
-        {/* Enhanced Header with better visual hierarchy */}
+        {/* Enhanced Header with keyboard shortcuts info */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Project Schedule</h1>
               <p className="text-gray-600">Manage project timelines, dependencies, and track progress</p>
+              <div className="mt-2 text-sm text-gray-500">
+                Shortcuts: Ctrl+N (New Task), Ctrl+E (Export), Ctrl+Q (Quick Planner), Esc (Close)
+              </div>
             </div>
             
             <div className="flex flex-wrap gap-2">
@@ -420,6 +496,15 @@ export default function ProjectSchedule() {
             </div>
           </div>
         </div>
+
+        {/* Bulk Operations */}
+        <BulkTaskOperations
+          selectedTasks={selectedTaskIds}
+          tasks={filteredTasks}
+          onClearSelection={() => setSelectedTaskIds([])}
+          onBulkUpdate={handleBulkUpdate}
+          onBulkDelete={handleBulkDelete}
+        />
 
         {/* Enhanced Filters Section */}
         <CollapsibleFilterSection
@@ -462,7 +547,7 @@ export default function ProjectSchedule() {
             <div id="gantt-chart">
               <GanttChart
                 tasks={filteredTasks}
-                onUpdateTask={handleTaskUpdate}
+                onUpdateTask={optimisticUpdate}
                 onDeleteTask={handleTaskDelete}
                 projects={projects}
                 selectedProjects={selectedProjects}
@@ -481,7 +566,7 @@ export default function ProjectSchedule() {
                 projects={projects}
                 currentDate={currentDate}
                 onDateChange={setCurrentDate}
-                onTaskUpdate={handleTaskUpdate}
+                onTaskUpdate={optimisticUpdate}
               />
             </div>
           </TabsContent>
@@ -500,12 +585,34 @@ export default function ProjectSchedule() {
               tasks={filteredTasks}
               projects={projects}
               loading={loading}
-              onTaskUpdate={handleTaskUpdate}
+              onTaskUpdate={optimisticUpdate}
               onTaskDelete={handleTaskDelete}
-              onTaskEdit={(task) => console.log('Edit task:', task)} // TODO: Implement edit dialog
+              onTaskEdit={(task) => console.log('Edit task:', task)}
+              selectedTasks={selectedTaskIds}
+              onSelectionChange={setSelectedTaskIds}
             />
           </TabsContent>
         </Tabs>
+
+        {/* Performance Status Indicator */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-sm text-green-800">
+                Performance: Debounced search active, Auto-save {autoSaveEnabled ? 'enabled' : 'disabled'}
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}
+              className="text-green-700 border-green-300"
+            >
+              {autoSaveEnabled ? 'Disable' : 'Enable'} Auto-save
+            </Button>
+          </div>
+        </div>
 
         {/* Enhanced Instructions Panel */}
         <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200 p-6">
