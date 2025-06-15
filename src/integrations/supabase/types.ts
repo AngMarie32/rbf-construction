@@ -967,6 +967,9 @@ export type Database = {
         Row: {
           created_at: string | null
           email: string | null
+          email_verification_code: string | null
+          email_verification_status: string | null
+          email_verified: boolean | null
           id: string
           name: string | null
           role: string | null
@@ -975,6 +978,9 @@ export type Database = {
         Insert: {
           created_at?: string | null
           email?: string | null
+          email_verification_code?: string | null
+          email_verification_status?: string | null
+          email_verified?: boolean | null
           id: string
           name?: string | null
           role?: string | null
@@ -983,6 +989,9 @@ export type Database = {
         Update: {
           created_at?: string | null
           email?: string | null
+          email_verification_code?: string | null
+          email_verification_status?: string | null
+          email_verified?: boolean | null
           id?: string
           name?: string | null
           role?: string | null
