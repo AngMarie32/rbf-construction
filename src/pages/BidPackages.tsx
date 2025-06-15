@@ -4,7 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, Calendar, DollarSign, FileText, Mail, Users } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Package, Calendar, DollarSign, FileText, Mail, Users, Trash2, ArrowUpDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -31,11 +33,13 @@ const BidPackages = () => {
   const [bidPackages, setBidPackages] = useState<BidPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [sortBy, setSortBy] = useState<string>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const { toast } = useToast();
 
   useEffect(() => {
     fetchBidPackages();
-  }, []);
+  }, [sortBy, sortOrder]);
 
   const fetchBidPackages = async () => {
     try {
@@ -45,7 +49,7 @@ const BidPackages = () => {
           *,
           project:projects(name)
         `)
-        .order('created_at', { ascending: false });
+        .order(sortBy === 'project' ? 'project(name)' : sortBy, { ascending: sortOrder === 'asc' });
 
       if (error) throw error;
       setBidPackages(data || []);
@@ -58,6 +62,66 @@ const BidPackages = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeletePackage = async (packageId: string) => {
+    try {
+      // First delete related bid invitations and their recipients
+      const { data: invitations } = await supabase
+        .from('bid_invitations')
+        .select('id')
+        .eq('bid_package_id', packageId);
+
+      if (invitations && invitations.length > 0) {
+        const invitationIds = invitations.map(inv => inv.id);
+        
+        // Delete invitation recipients
+        await supabase
+          .from('bid_invitation_recipients')
+          .delete()
+          .in('bid_invitation_id', invitationIds);
+
+        // Delete invitation documents
+        await supabase
+          .from('bid_invitation_documents')
+          .delete()
+          .in('bid_invitation_id', invitationIds);
+
+        // Delete invitations
+        await supabase
+          .from('bid_invitations')
+          .delete()
+          .eq('bid_package_id', packageId);
+      }
+
+      // Delete bid package items
+      await supabase
+        .from('bid_package_items')
+        .delete()
+        .eq('bid_package_id', packageId);
+
+      // Finally delete the bid package
+      const { error } = await supabase
+        .from('bid_packages')
+        .delete()
+        .eq('id', packageId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Bid package deleted successfully",
+      });
+
+      fetchBidPackages();
+    } catch (error) {
+      console.error('Error deleting bid package:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete bid package",
+        variant: "destructive",
+      });
     }
   };
 
@@ -76,6 +140,15 @@ const BidPackages = () => {
       case 'Closed': return 'bg-green-100 text-green-800';
       case 'Cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const toggleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
     }
   };
 
@@ -116,6 +189,28 @@ const BidPackages = () => {
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-800">Active Bid Packages</h2>
               <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                  <Select value={sortBy} onValueChange={(value) => setSortBy(value)}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="created_at">Date Created</SelectItem>
+                      <SelectItem value="name">Package Name</SelectItem>
+                      <SelectItem value="due_date">Due Date</SelectItem>
+                      <SelectItem value="estimated_value">Value</SelectItem>
+                      <SelectItem value="project">Project</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  >
+                    {sortOrder === 'asc' ? '↑' : '↓'}
+                  </Button>
+                </div>
                 <div className="text-sm text-gray-500">
                   {bidPackages.length} package{bidPackages.length !== 1 ? 's' : ''} found
                 </div>
@@ -144,9 +239,35 @@ const BidPackages = () => {
                           <CardTitle className="text-xl text-gray-900">{pkg.name}</CardTitle>
                           <p className="text-sm text-gray-600 font-medium">{pkg.project?.name}</p>
                         </div>
-                        <Badge className={`${getStatusColor(pkg.status)} font-medium`}>
-                          {pkg.status}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className={`${getStatusColor(pkg.status)} font-medium`}>
+                            {pkg.status}
+                          </Badge>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Bid Package</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{pkg.name}"? This will also delete all related bid invitations and cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeletePackage(pkg.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
