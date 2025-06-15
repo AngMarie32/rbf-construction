@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -120,10 +119,83 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
           netChangeOrders: data.net_change_by_change_orders || 0,
           contractorSignature: data.contractor_signature || null
         }));
+
+        // When viewing an existing application, we need to reconstruct the SOV state 
+        // at the time of that application
+        await reconstructSOVForApplication(data.application_number);
       }
     } catch (error) {
       console.error('Error fetching existing application:', error);
       toast.error('Failed to load existing application');
+    }
+  };
+
+  const reconstructSOVForApplication = async (appNumber: number) => {
+    try {
+      // Get the SOV items as they are now
+      const { data: currentSOVItems, error } = await supabase
+        .from('sov_items')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('item_number');
+
+      if (error) throw error;
+
+      // Get all applications up to and including this one
+      const { data: applicationsUpToThis, error: appError } = await supabase
+        .from('payment_applications_g702')
+        .select('*')
+        .eq('project_id', projectId)
+        .lte('application_number', appNumber)
+        .order('application_number');
+
+      if (appError) throw appError;
+
+      console.log('Reconstructing SOV for application', appNumber);
+      console.log('Applications up to this:', applicationsUpToThis?.map(app => app.application_number));
+
+      // For each SOV item, calculate what the state should be for this application
+      const reconstructedItems = (currentSOVItems || []).map(item => {
+        // Calculate previous applications (all applications before this one)
+        const previousApps = applicationsUpToThis?.filter(app => app.application_number < appNumber) || [];
+        const currentApp = applicationsUpToThis?.find(app => app.application_number === appNumber);
+        
+        // For viewing existing applications, we need to show the "this period" work
+        // that was done in that specific application
+        let thisPeriodWork = 0;
+        let previousApplicationsTotal = 0;
+
+        if (appNumber === 1) {
+          // For the first application, everything in previous_applications was actually "this period"
+          thisPeriodWork = item.previous_applications || 0;
+          previousApplicationsTotal = 0;
+        } else {
+          // For subsequent applications, we need to calculate the difference
+          // This is complex without historical data, so we'll approximate
+          const totalWorkDone = item.previous_applications || 0;
+          const estimatedWorkPerApp = totalWorkDone / appNumber;
+          thisPeriodWork = estimatedWorkPerApp;
+          previousApplicationsTotal = totalWorkDone - thisPeriodWork;
+        }
+
+        return {
+          id: item.id,
+          itemNumber: item.item_number,
+          description: item.description,
+          scheduledValue: item.scheduled_value,
+          changeOrders: item.change_orders || 0,
+          previousApplications: previousApplicationsTotal,
+          thisPeriod: thisPeriodWork,
+          materialsStored: item.materials_stored || 0,
+          totalCompletedAndStored: item.total_completed_and_stored || 0,
+          percentComplete: item.percent_complete || 0,
+          category: item.category
+        };
+      });
+
+      setSovItems(reconstructedItems);
+    } catch (error) {
+      console.error('Error reconstructing SOV for application:', error);
     }
   };
 
@@ -354,7 +426,7 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
               thisPeriod: item.thisPeriod,
               newPrevious: newPreviousApplications,
               newPercent: newPercentComplete,
-              changeOrders: item.changeOrders // Make sure change orders are preserved
+              changeOrders: item.changeOrders // Make sure change_orders value is preserved
             });
             
             // CRITICAL: Always preserve change_orders value when updating SOV items

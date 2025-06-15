@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -172,6 +171,47 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
     setSelectedChangeOrders([]);
   };
 
+  const removeChangeOrderFromSOV = async (itemId: string) => {
+    if (!window.confirm("Are you sure you want to remove this change order from the SOV?")) {
+      return;
+    }
+
+    try {
+      // Find the item to remove
+      const itemToRemove = sovItems.find(item => item.id === itemId);
+      if (!itemToRemove || itemToRemove.changeOrders === 0) {
+        toast.error("No change order found to remove");
+        return;
+      }
+
+      // If it's a change order SOV item (created specifically for change orders)
+      if (itemId.startsWith('co-')) {
+        // Remove the entire item
+        setSovItems(sovItems.filter(item => item.id !== itemId));
+        toast.success("Change order removed from SOV");
+      } else {
+        // Just reset the change orders amount for existing items
+        const updatedItems = sovItems.map(item =>
+          item.id === itemId
+            ? { ...item, changeOrders: 0 }
+            : item
+        );
+        setSovItems(updatedItems);
+        
+        // Update in database
+        await supabase
+          .from('sov_items')
+          .update({ change_orders: 0 })
+          .eq('id', itemId);
+          
+        toast.success("Change order amount reset for this item");
+      }
+    } catch (error) {
+      console.error('Error removing change order:', error);
+      toast.error("Failed to remove change order");
+    }
+  };
+
   const updateSOVItemThisPeriod = useCallback(async (id: string, value: number) => {
     const updatedItems = sovItems.map(item => 
       item.id === id 
@@ -330,6 +370,7 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
   const changeOrderSummary = sovItems
     .filter(item => item.changeOrders > 0)
     .map(item => ({
+      id: item.id,
       itemNumber: item.itemNumber,
       description: item.description,
       amount: item.changeOrders,
@@ -400,8 +441,16 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
                           <div className="text-xs text-gray-600 truncate">{co.description}</div>
                           <div className="text-xs text-orange-600">{co.category}</div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right flex items-center gap-2">
                           <div className="font-semibold text-green-600">${co.amount.toLocaleString()}</div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeChangeOrderFromSOV(co.id)}
+                            className="text-red-500 hover:text-red-700 h-6 w-6 p-0"
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
                         </div>
                       </div>
                     ))}

@@ -50,6 +50,8 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
     }
 
     try {
+      setLoading(true);
+      
       // Check if this SOV item is linked to change orders
       const { data: changeOrderLinks } = await supabase
         .from('sov_item_change_orders')
@@ -88,10 +90,12 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
       if (error) throw error;
 
       setSovItems(sovItems.filter(item => item.id !== itemId));
-      toast.success("SOV item deleted.");
+      toast.success("SOV item deleted successfully");
     } catch (error) {
-      toast.error("Failed to delete SOV item.");
+      toast.error("Failed to delete SOV item");
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -257,6 +261,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                       size="icon" 
                       onClick={() => handleDeleteSOVItem(item.id)} 
                       className="text-red-500 hover:text-red-700 h-8 w-8"
+                      disabled={loading}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
