@@ -124,9 +124,9 @@ export default function ScheduleOfValues() {
     item.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalScheduledValue = sovItems.reduce((sum, item) => sum + (item.scheduled_value || 0), 0);
-  const totalWorkCompleted = sovItems.reduce((sum, item) => sum + (item.previous_applications || 0) + (item.this_period || 0), 0);
-  const totalMaterialsStored = sovItems.reduce((sum, item) => sum + (item.materials_stored || 0), 0);
+  const totalScheduledValue = sovItems.reduce((sum, item) => sum + (Number(item.scheduled_value) || 0), 0);
+  const totalWorkCompleted = sovItems.reduce((sum, item) => sum + (Number(item.previous_applications) || 0) + (Number(item.this_period) || 0), 0);
+  const totalMaterialsStored = sovItems.reduce((sum, item) => sum + (Number(item.materials_stored) || 0), 0);
   const totalCompletedAndStored = totalWorkCompleted + totalMaterialsStored;
   const overallPercentComplete = totalScheduledValue > 0 ? (totalCompletedAndStored / totalScheduledValue) * 100 : 0;
 
@@ -240,8 +240,8 @@ export default function ScheduleOfValues() {
                     </thead>
                     <tbody>
                       {filteredItems.map((item) => {
-                        const totalContract = (item.scheduled_value || 0) + (item.change_orders || 0);
-                        const totalCompleted = (item.previous_applications || 0) + (item.this_period || 0) + (item.materials_stored || 0);
+                        const totalContract = (Number(item.scheduled_value) || 0) + (Number(item.change_orders) || 0);
+                        const totalCompleted = (Number(item.previous_applications) || 0) + (Number(item.this_period) || 0) + (Number(item.materials_stored) || 0);
                         const percentComplete = totalContract > 0 ? (totalCompleted / totalContract) * 100 : 0;
                         
                         return (
@@ -252,19 +252,19 @@ export default function ScheduleOfValues() {
                               <Badge variant="outline">{item.category}</Badge>
                             </td>
                             <td className="border border-gray-200 px-4 py-2 text-right font-medium">
-                              ${(item.scheduled_value || 0).toLocaleString()}
+                              ${(Number(item.scheduled_value) || 0).toLocaleString()}
                             </td>
                             <td className="border border-gray-200 px-4 py-2 text-right text-green-600">
-                              ${(item.change_orders || 0).toLocaleString()}
+                              ${(Number(item.change_orders) || 0).toLocaleString()}
                             </td>
                             <td className="border border-gray-200 px-4 py-2 text-right">
-                              ${(item.previous_applications || 0).toLocaleString()}
+                              ${(Number(item.previous_applications) || 0).toLocaleString()}
                             </td>
                             <td className="border border-gray-200 px-4 py-2 text-right text-blue-600">
-                              ${(item.this_period || 0).toLocaleString()}
+                              ${(Number(item.this_period) || 0).toLocaleString()}
                             </td>
                             <td className="border border-gray-200 px-4 py-2 text-right">
-                              ${(item.materials_stored || 0).toLocaleString()}
+                              ${(Number(item.materials_stored) || 0).toLocaleString()}
                             </td>
                             <td className="border border-gray-200 px-4 py-2 text-right font-medium">
                               ${totalCompleted.toLocaleString()}
@@ -307,13 +307,13 @@ export default function ScheduleOfValues() {
                         <td colSpan="3" className="border border-gray-200 px-4 py-2 text-right">TOTALS:</td>
                         <td className="border border-gray-200 px-4 py-2 text-right">${totalScheduledValue.toLocaleString()}</td>
                         <td className="border border-gray-200 px-4 py-2 text-right text-green-600">
-                          ${sovItems.reduce((sum, item) => sum + (item.change_orders || 0), 0).toLocaleString()}
+                          ${sovItems.reduce((sum, item) => sum + (Number(item.change_orders) || 0), 0).toLocaleString()}
                         </td>
                         <td className="border border-gray-200 px-4 py-2 text-right">
-                          ${sovItems.reduce((sum, item) => sum + (item.previous_applications || 0), 0).toLocaleString()}
+                          ${sovItems.reduce((sum, item) => sum + (Number(item.previous_applications) || 0), 0).toLocaleString()}
                         </td>
                         <td className="border border-gray-200 px-4 py-2 text-right text-blue-600">
-                          ${sovItems.reduce((sum, item) => sum + (item.this_period || 0), 0).toLocaleString()}
+                          ${sovItems.reduce((sum, item) => sum + (Number(item.this_period) || 0), 0).toLocaleString()}
                         </td>
                         <td className="border border-gray-200 px-4 py-2 text-right">
                           ${totalMaterialsStored.toLocaleString()}
