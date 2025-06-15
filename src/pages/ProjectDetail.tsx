@@ -57,6 +57,7 @@ export default function ProjectDetail() {
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [showFilters, setShowFilters] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -76,34 +77,65 @@ export default function ProjectDetail() {
     if (id) {
       fetchProject();
       fetchTasks();
+    } else {
+      setError('No project ID provided');
+      setLoading(false);
     }
   }, [id]);
 
   const fetchProject = async () => {
     try {
+      console.log('Fetching project with ID:', id);
+      
+      if (!supabase) {
+        throw new Error('Supabase client not available');
+      }
+
       const { data, error } = await supabase
         .from('projects')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
+      if (!data) {
+        console.log('No project found with ID:', id);
+        setError('Project not found');
+        return;
+      }
+
+      console.log('Project data loaded:', data);
       setProject(data);
+      setError(null);
     } catch (error) {
       console.error('Error fetching project:', error);
+      setError('Failed to load project details');
       toast.error('Failed to load project details');
     }
   };
 
   const fetchTasks = async () => {
     try {
+      if (!supabase) {
+        console.warn('Supabase client not available for tasks');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
         .eq('project_id', id)
         .order('start_date');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching tasks:', error);
+        // Don't throw error for tasks, just log it
+        return;
+      }
       
       const formattedTasks: Task[] = (data || []).map(task => ({
         id: task.id,
@@ -125,7 +157,7 @@ export default function ProjectDetail() {
       setTasks(formattedTasks);
     } catch (error) {
       console.error('Error fetching tasks:', error);
-      toast.error('Failed to load project tasks');
+      // Don't show error toast for tasks, just log it
     } finally {
       setLoading(false);
     }
@@ -174,11 +206,13 @@ export default function ProjectDetail() {
     );
   }
 
-  if (!project) {
+  if (error || !project) {
     return (
       <Layout title="Project Not Found" subtitle="The requested project could not be found">
         <div className="text-center py-12">
-          <p className="text-gray-500 mb-4">Project not found</p>
+          <h1 className="text-4xl font-bold mb-4">Project Not Found</h1>
+          <p className="text-xl text-gray-600 mb-4">{error || 'The requested project could not be found'}</p>
+          <p className="text-gray-500 mb-6">Project ID: {id}</p>
           <Button onClick={() => navigate('/projects')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Projects

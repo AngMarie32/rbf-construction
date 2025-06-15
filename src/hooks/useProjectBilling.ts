@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -31,7 +32,15 @@ export function useProjectBilling(projectIds: string[]) {
       projectIds.forEach(id => {
         initialBilling[id] = { totalBilled: 0, totalReceived: 0 };
       });
+      
+      // Set initial values immediately to prevent glitchy display
       setBilling(initialBilling);
+
+      // Check if supabase client is available
+      if (!supabase) {
+        console.warn('Supabase client not available');
+        return;
+      }
 
       const { data, error } = await supabase
         .from('project_billing')
@@ -47,16 +56,18 @@ export function useProjectBilling(projectIds: string[]) {
       const billingByProject: ProjectBilling = { ...initialBilling };
 
       // Sum up billing by project
-      (data || []).forEach(billing => {
-        if (billing.project_id) {
-          billingByProject[billing.project_id].totalBilled += Number(billing.billed_amount || 0);
-          billingByProject[billing.project_id].totalReceived += Number(billing.paid_amount || 0);
-        }
-      });
+      if (data && Array.isArray(data)) {
+        data.forEach(billing => {
+          if (billing.project_id && billingByProject[billing.project_id]) {
+            billingByProject[billing.project_id].totalBilled += Number(billing.billed_amount || 0);
+            billingByProject[billing.project_id].totalReceived += Number(billing.paid_amount || 0);
+          }
+        });
+      }
 
       setBilling(billingByProject);
     } catch (error) {
-      console.error('Error fetching project billing:', error);
+      console.error('Network error fetching project billing:', error);
       // Set default values for all projects to prevent undefined errors
       const defaultBilling: ProjectBilling = {};
       projectIds.forEach(id => {
