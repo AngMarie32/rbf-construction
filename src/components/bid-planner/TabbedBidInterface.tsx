@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,38 +46,12 @@ export function TabbedBidInterface({
     return new Set(bidItems.map(item => item.category)).size;
   };
 
-  // Calculate breakdown by main categories
-  const calculateCategoryBreakdown = () => {
+  // Calculate profit and overhead
+  const calculateProfitAndOverhead = () => {
     const total = calculateTotalValue();
-    if (total === 0) return { generalConditions: 0, site: 0, building: 0 };
-
-    const generalConditionsTotal = bidItems
-      .filter(item => item.category?.toLowerCase().includes('general conditions') || 
-                     item.category?.toLowerCase().includes('labor/supervision') ||
-                     item.category?.toLowerCase().includes('project manager'))
-      .reduce((sum, item) => sum + (item.unit_cost * item.quantity || 0), 0);
-
-    const siteTotal = bidItems
-      .filter(item => item.category?.toLowerCase().includes('site') || 
-                     item.category?.toLowerCase().includes('excavation') ||
-                     item.category?.toLowerCase().includes('utilities') ||
-                     item.category?.toLowerCase().includes('landscaping'))
-      .reduce((sum, item) => sum + (item.unit_cost * item.quantity || 0), 0);
-
-    const buildingTotal = bidItems
-      .filter(item => item.category?.toLowerCase().includes('building') || 
-                     item.category?.toLowerCase().includes('concrete') ||
-                     item.category?.toLowerCase().includes('masonry') ||
-                     item.category?.toLowerCase().includes('metals') ||
-                     item.category?.toLowerCase().includes('doors') ||
-                     item.category?.toLowerCase().includes('finishes'))
-      .reduce((sum, item) => sum + (item.unit_cost * item.quantity || 0), 0);
-
-    return {
-      generalConditions: (generalConditionsTotal / total) * 100,
-      site: (siteTotal / total) * 100,
-      building: (buildingTotal / total) * 100
-    };
+    const profit = total * 0.15; // 15% profit
+    const overhead = total * 0.10; // 10% overhead
+    return { profit, overhead };
   };
 
   const handleAddItem = async () => {
@@ -154,7 +129,7 @@ export function TabbedBidInterface({
 
       if (itemsError) throw itemsError;
 
-      // Convert template items to bid items
+      // Convert template items to bid items (without pre-filled quantities)
       const newBidItems = templateItems.map(item => ({
         project_id: projectId,
         category: item.category,
@@ -162,7 +137,7 @@ export function TabbedBidInterface({
         description: item.description,
         unit: item.unit,
         unit_cost: item.unit_cost || 0,
-        quantity: 1
+        quantity: 0 // Start with 0 quantity so users can fill in their own
       }));
 
       if (newBidItems.length > 0) {
@@ -299,7 +274,7 @@ export function TabbedBidInterface({
     }
   };
 
-  const categoryBreakdown = calculateCategoryBreakdown();
+  const { profit, overhead } = calculateProfitAndOverhead();
 
   return (
     <div className="w-full">
@@ -394,20 +369,13 @@ export function TabbedBidInterface({
               <CardContent className="p-6">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-100 rounded">
-                    <span className="text-lg">🏗️</span>
+                    <span className="text-lg">💰</span>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600">General Conditions</div>
-                    <div className="text-2xl font-bold text-blue-600">
-                      {categoryBreakdown.generalConditions.toFixed(1)}%
-                    </div>
+                    <div className="text-sm text-gray-600">Profit</div>
+                    <div className="text-2xl font-bold text-blue-600">15%</div>
                     <div className="text-xs text-gray-500">
-                      ${bidItems
-                        .filter(item => item.category?.toLowerCase().includes('general conditions') || 
-                                       item.category?.toLowerCase().includes('labor/supervision') ||
-                                       item.category?.toLowerCase().includes('project manager'))
-                        .reduce((sum, item) => sum + (item.unit_cost * item.quantity || 0), 0)
-                        .toLocaleString()}
+                      ${profit.toLocaleString()}
                     </div>
                   </div>
                 </div>
@@ -417,22 +385,14 @@ export function TabbedBidInterface({
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded">
-                    <span className="text-lg">🏗️</span>
+                  <div className="p-2 bg-orange-100 rounded">
+                    <span className="text-lg">🏢</span>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600">Site Work</div>
-                    <div className="text-2xl font-bold text-green-600">
-                      {categoryBreakdown.site.toFixed(1)}%
-                    </div>
+                    <div className="text-sm text-gray-600">Overhead</div>
+                    <div className="text-2xl font-bold text-orange-600">10%</div>
                     <div className="text-xs text-gray-500">
-                      ${bidItems
-                        .filter(item => item.category?.toLowerCase().includes('site') || 
-                                       item.category?.toLowerCase().includes('excavation') ||
-                                       item.category?.toLowerCase().includes('utilities') ||
-                                       item.category?.toLowerCase().includes('landscaping'))
-                        .reduce((sum, item) => sum + (item.unit_cost * item.quantity || 0), 0)
-                        .toLocaleString()}
+                      ${overhead.toLocaleString()}
                     </div>
                   </div>
                 </div>
@@ -448,48 +408,29 @@ export function TabbedBidInterface({
             <CardContent>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="font-medium">🏗️ General Conditions</span>
+                  <span className="font-medium">🏗️ Direct Costs</span>
                   <div className="flex items-center gap-4">
-                    <span className="text-gray-600">{categoryBreakdown.generalConditions.toFixed(1)}%</span>
+                    <span className="text-gray-600">75%</span>
                     <span className="font-bold">
-                      ${bidItems
-                        .filter(item => item.category?.toLowerCase().includes('general conditions') || 
-                                       item.category?.toLowerCase().includes('labor/supervision') ||
-                                       item.category?.toLowerCase().includes('project manager'))
-                        .reduce((sum, item) => sum + (item.unit_cost * item.quantity || 0), 0)
-                        .toLocaleString()}
+                      ${(calculateTotalValue() - profit - overhead).toLocaleString()}
                     </span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="font-medium">🏗️ Site Work</span>
+                  <span className="font-medium">🏢 Overhead</span>
                   <div className="flex items-center gap-4">
-                    <span className="text-gray-600">{categoryBreakdown.site.toFixed(1)}%</span>
+                    <span className="text-gray-600">10%</span>
                     <span className="font-bold">
-                      ${bidItems
-                        .filter(item => item.category?.toLowerCase().includes('site') || 
-                                       item.category?.toLowerCase().includes('excavation') ||
-                                       item.category?.toLowerCase().includes('utilities') ||
-                                       item.category?.toLowerCase().includes('landscaping'))
-                        .reduce((sum, item) => sum + (item.unit_cost * item.quantity || 0), 0)
-                        .toLocaleString()}
+                      ${overhead.toLocaleString()}
                     </span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="font-medium">🏗️ Building</span>
+                  <span className="font-medium">💰 Profit</span>
                   <div className="flex items-center gap-4">
-                    <span className="text-gray-600">{categoryBreakdown.building.toFixed(1)}%</span>
+                    <span className="text-gray-600">15%</span>
                     <span className="font-bold">
-                      ${bidItems
-                        .filter(item => item.category?.toLowerCase().includes('building') || 
-                                       item.category?.toLowerCase().includes('concrete') ||
-                                       item.category?.toLowerCase().includes('masonry') ||
-                                       item.category?.toLowerCase().includes('metals') ||
-                                       item.category?.toLowerCase().includes('doors') ||
-                                       item.category?.toLowerCase().includes('finishes'))
-                        .reduce((sum, item) => sum + (item.unit_cost * item.quantity || 0), 0)
-                        .toLocaleString()}
+                      ${profit.toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -550,6 +491,15 @@ export function TabbedBidInterface({
                       <SelectItem value="Hour">Hour</SelectItem>
                       <SelectItem value="Day">Day</SelectItem>
                       <SelectItem value="Lot">Lot</SelectItem>
+                      <SelectItem value="Month">Month</SelectItem>
+                      <SelectItem value="MBF">MBF</SelectItem>
+                      <SelectItem value="Flight">Flight</SelectItem>
+                      <SelectItem value="Acre">Acre</SelectItem>
+                      <SelectItem value="Unit">Unit</SelectItem>
+                      <SelectItem value="Fixture">Fixture</SelectItem>
+                      <SelectItem value="Device">Device</SelectItem>
+                      <SelectItem value="Outlet">Outlet</SelectItem>
+                      <SelectItem value="Room">Room</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -598,39 +548,22 @@ export function TabbedBidInterface({
                   No bid items found. Add your first item above or use a template.
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {bidItems.map((item, index) => (
-                    <div key={item.id || index} className="border rounded-lg p-4">
-                      <div className="grid grid-cols-6 gap-4 text-sm">
+                    <div key={item.id || index} className="border rounded-lg p-3">
+                      <div className="grid grid-cols-8 gap-3 text-sm items-center">
                         <div>
-                          <div className="font-medium text-gray-600">Category</div>
-                          <div>{item.category}</div>
+                          <div className="font-medium">{item.category}</div>
+                          {item.subcategory && <div className="text-gray-500">{item.subcategory}</div>}
                         </div>
-                        <div>
-                          <div className="font-medium text-gray-600">Subcategory</div>
-                          <div>{item.subcategory || '-'}</div>
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-600">Description</div>
+                        <div className="col-span-2">
                           <div>{item.description}</div>
                         </div>
-                        <div>
-                          <div className="font-medium text-gray-600">Unit</div>
-                          <div>{item.unit}</div>
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-600">Unit Cost</div>
-                          <div>${item.unit_cost?.toFixed(2) || '0.00'}</div>
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-600">Quantity</div>
-                          <div>{item.quantity}</div>
-                        </div>
-                      </div>
-                      <div className="mt-2 pt-2 border-t flex justify-between items-center">
-                        <div className="text-sm text-gray-600">Total</div>
-                        <div className="flex items-center gap-2">
-                          <div className="font-bold">${((item.unit_cost || 0) * (item.quantity || 0)).toFixed(2)}</div>
+                        <div className="text-center">{item.unit}</div>
+                        <div className="text-right">${item.unit_cost?.toFixed(2) || '0.00'}</div>
+                        <div className="text-center">{item.quantity}</div>
+                        <div className="text-right font-bold">${((item.unit_cost || 0) * (item.quantity || 0)).toFixed(2)}</div>
+                        <div className="text-right">
                           <Button 
                             variant="ghost" 
                             size="sm" 
