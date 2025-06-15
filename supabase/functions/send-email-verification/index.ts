@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { Resend } from "npm:resend@2.0.0"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,8 +20,8 @@ serve(async (req) => {
     console.log(`Verification code: ${code}`)
     console.log(`User: ${userName}`)
 
-    // In a real implementation, you would integrate with an email service like Resend
-    // For now, we'll just log the email content
+    const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
+
     const emailContent = `
       <h2>Email Verification</h2>
       <p>Hello ${userName || 'User'},</p>
@@ -33,25 +34,20 @@ serve(async (req) => {
       <p>Best regards,<br/>BuildPro Construction</p>
     `
 
-    console.log('Email content:')
-    console.log(emailContent)
+    const emailResponse = await resend.emails.send({
+      from: 'BuildPro Construction <noreply@buildpro.construction>',
+      to: [email],
+      subject: 'Email Verification - BuildPro Construction',
+      html: emailContent
+    })
 
-    // TODO: Replace with actual email service integration
-    // Example with Resend:
-    // const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
-    // await resend.emails.send({
-    //   from: 'BuildPro <noreply@yourcompany.com>',
-    //   to: [email],
-    //   subject: 'Email Verification - BuildPro Construction',
-    //   html: emailContent
-    // })
+    console.log('Email sent successfully:', emailResponse)
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'Verification email sent successfully',
-        // Remove this in production - only for testing
-        debug: { code, email }
+        emailId: emailResponse.data?.id
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
