@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +15,17 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { 
   Search, 
   Plus, 
   FileText, 
@@ -23,13 +35,12 @@ import {
   Paperclip, 
   Edit, 
   DollarSign, 
-  MoreHorizontal,
   Eye,
-  Trash2
+  Trash2,
+  Clock
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
 import { CreateExpenseDialog } from '@/components/expenses/CreateExpenseDialog';
 
 interface Expense {
@@ -58,7 +69,6 @@ export default function Expenses() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
     fetchProjects();
@@ -123,7 +133,7 @@ export default function Expenses() {
 
       if (error) throw error;
 
-      toast.success(`Expense ${newStatus.toLowerCase()} successfully`);
+      toast.success(`Expense moved to ${newStatus}`);
       fetchExpenses();
     } catch (error) {
       console.error('Error updating expense:', error);
@@ -132,8 +142,6 @@ export default function Expenses() {
   };
 
   const deleteExpense = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this expense?')) return;
-
     try {
       const { error } = await supabase
         .from('expenses')
@@ -150,20 +158,16 @@ export default function Expenses() {
     }
   };
 
-  const viewExpense = (expense: Expense) => {
-    toast.info(`Viewing expense: ${expense.description}`);
+  const handleViewExpense = (expense: Expense) => {
+    toast.info(`Viewing: ${expense.description}`);
   };
 
-  const editExpense = (expense: Expense) => {
-    toast.info(`Edit functionality coming soon for: ${expense.description}`);
+  const handleEditExpense = (expense: Expense) => {
+    toast.info(`Edit feature coming soon for: ${expense.description}`);
   };
 
-  const attachReceipt = (expense: Expense) => {
-    toast.info(`Receipt attachment coming soon for: ${expense.description}`);
-  };
-
-  const processPayment = (expense: Expense) => {
-    toast.info(`Payment processing coming soon for: ${expense.description}`);
+  const handleAttachReceipt = (expense: Expense) => {
+    toast.info(`Receipt attachment feature coming soon`);
   };
 
   const filteredExpenses = expenses.filter(expense =>
@@ -173,38 +177,44 @@ export default function Expenses() {
     expense.receipt_number?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const fieldApprovalExpenses = filteredExpenses.filter(e => e.status === 'Field Approval').reduce((sum, expense) => sum + expense.amount, 0);
+  const officeApprovalExpenses = filteredExpenses.filter(e => e.status === 'Office Approval').reduce((sum, expense) => sum + expense.amount, 0);
+  const paidExpenses = filteredExpenses.filter(e => e.status === 'Paid').reduce((sum, expense) => sum + expense.amount, 0);
   const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const paidExpenses = filteredExpenses.filter(e => e.status === 'Approved').reduce((sum, expense) => sum + expense.amount, 0);
-  const pendingExpenses = filteredExpenses.filter(e => e.status === 'Pending Field Approval').reduce((sum, expense) => sum + expense.amount, 0);
-  const overdueExpenses = filteredExpenses.filter(e => {
-    const expenseDate = new Date(e.date);
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    return e.status === 'Pending Field Approval' && expenseDate < thirtyDaysAgo;
-  }).reduce((sum, expense) => sum + expense.amount, 0);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Approved': return 'bg-green-500';
+      case 'Field Approval': return 'bg-yellow-500';
+      case 'Office Approval': return 'bg-blue-500';
       case 'Paid': return 'bg-green-500';
-      case 'Pending Field Approval': return 'bg-yellow-500';
       case 'Rejected': return 'bg-red-500';
       default: return 'bg-gray-500';
     }
   };
 
+  const getNextStatus = (currentStatus: string) => {
+    switch (currentStatus) {
+      case 'Field Approval': return 'Office Approval';
+      case 'Office Approval': return 'Paid';
+      default: return null;
+    }
+  };
+
+  const canAdvanceStatus = (status: string) => {
+    return status === 'Field Approval' || status === 'Office Approval';
+  };
+
   const handleExport = () => {
     const csvContent = [
-      ['Invoice #', 'Date', 'Vendor', 'Project', 'Category', 'Amount', 'Status', 'Due Date'],
+      ['Date', 'Description', 'Category', 'Amount', 'Status', 'Vendor', 'Project'],
       ...filteredExpenses.map(expense => [
-        expense.receipt_number || expense.id,
         new Date(expense.date).toLocaleDateString(),
-        expense.vendor || '',
-        expense.projects.name,
+        expense.description,
         expense.category,
         expense.amount.toString(),
         expense.status,
-        new Date(expense.date).toLocaleDateString()
+        expense.vendor || '',
+        expense.projects.name
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -235,47 +245,47 @@ export default function Expenses() {
       <div className="space-y-6">
         {/* Summary Dashboard */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-blue-700">Total Expenses</CardTitle>
-              <FileText className="h-5 w-5 text-blue-600" />
+              <CardTitle className="text-sm font-medium text-yellow-700">Field Approval</CardTitle>
+              <Clock className="h-5 w-5 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-800">{filteredExpenses.length}</div>
-              <p className="text-xs text-blue-600 mt-1">Total entries</p>
+              <div className="text-2xl font-bold text-yellow-800">${fieldApprovalExpenses.toLocaleString()}</div>
+              <p className="text-xs text-yellow-600 mt-1">Awaiting field team</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-blue-700">Office Approval</CardTitle>
+              <AlertTriangle className="h-5 w-5 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-800">${officeApprovalExpenses.toLocaleString()}</div>
+              <p className="text-xs text-blue-600 mt-1">Awaiting office team</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-green-700">Paid Expenses</CardTitle>
+              <CardTitle className="text-sm font-medium text-green-700">Paid</CardTitle>
               <CheckCircle className="h-5 w-5 text-green-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-800">${paidExpenses.toLocaleString()}</div>
-              <p className="text-xs text-green-600 mt-1">Approved payments</p>
+              <p className="text-xs text-green-600 mt-1">Completed payments</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+          <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-yellow-700">Pending Expenses</CardTitle>
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              <CardTitle className="text-sm font-medium text-gray-700">Total Expenses</CardTitle>
+              <FileText className="h-5 w-5 text-gray-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-800">${pendingExpenses.toLocaleString()}</div>
-              <p className="text-xs text-yellow-600 mt-1">Awaiting approval</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-red-700">Overdue Expenses</CardTitle>
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-800">${overdueExpenses.toLocaleString()}</div>
-              <p className="text-xs text-red-600 mt-1">Needs attention</p>
+              <div className="text-2xl font-bold text-gray-800">${totalExpenses.toLocaleString()}</div>
+              <p className="text-xs text-gray-600 mt-1">All expenses</p>
             </CardContent>
           </Card>
         </div>
@@ -311,22 +321,10 @@ export default function Expenses() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="Pending Field Approval">Pending</SelectItem>
-                <SelectItem value="Approved">Paid</SelectItem>
+                <SelectItem value="Field Approval">Field Approval</SelectItem>
+                <SelectItem value="Office Approval">Office Approval</SelectItem>
+                <SelectItem value="Paid">Paid</SelectItem>
                 <SelectItem value="Rejected">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={timeFilter} onValueChange={setTimeFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Time" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-                <SelectItem value="year">This Year</SelectItem>
               </SelectContent>
             </Select>
 
@@ -343,18 +341,6 @@ export default function Expenses() {
                 ))}
               </SelectContent>
             </Select>
-
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Date (Newest first)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="date-newest">Date (Newest first)</SelectItem>
-                <SelectItem value="date-oldest">Date (Oldest first)</SelectItem>
-                <SelectItem value="amount-high">Amount (High to Low)</SelectItem>
-                <SelectItem value="amount-low">Amount (Low to High)</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </div>
 
@@ -364,104 +350,118 @@ export default function Expenses() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>INVOICE #</TableHead>
                   <TableHead>DATE</TableHead>
-                  <TableHead>VENDOR</TableHead>
-                  <TableHead>PROJECT</TableHead>
+                  <TableHead>DESCRIPTION</TableHead>
                   <TableHead>CATEGORY</TableHead>
                   <TableHead>AMOUNT</TableHead>
+                  <TableHead>VENDOR</TableHead>
+                  <TableHead>PROJECT</TableHead>
                   <TableHead>STATUS</TableHead>
-                  <TableHead>DUE DATE</TableHead>
                   <TableHead>ACTIONS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredExpenses.map((expense) => (
                   <TableRow key={expense.id} className="hover:bg-gray-50">
-                    <TableCell className="font-medium text-blue-600">
-                      {expense.receipt_number || expense.id.slice(0, 8)}
-                    </TableCell>
                     <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
-                    <TableCell>{expense.vendor || '-'}</TableCell>
-                    <TableCell>{expense.projects.name}</TableCell>
+                    <TableCell className="font-medium">{expense.description}</TableCell>
                     <TableCell>{expense.category}</TableCell>
                     <TableCell className="font-semibold">${expense.amount.toLocaleString()}</TableCell>
+                    <TableCell>{expense.vendor || '-'}</TableCell>
+                    <TableCell>{expense.projects.name}</TableCell>
                     <TableCell>
                       <Badge className={`${getStatusColor(expense.status)} text-white`}>
-                        {expense.status === 'Approved' ? 'Paid' : expense.status}
+                        {expense.status}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {new Date(new Date(expense.date).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
                       <div className="flex gap-1">
+                        {/* Approve/Advance Button */}
+                        {canAdvanceStatus(expense.status) && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => updateExpenseStatus(expense.id, getNextStatus(expense.status)!)}
+                            title={`Approve for ${getNextStatus(expense.status)}`}
+                            className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </Button>
+                        )}
+                        
+                        {/* Reject Button - only for pending statuses */}
+                        {(expense.status === 'Field Approval' || expense.status === 'Office Approval') && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => updateExpenseStatus(expense.id, 'Rejected')}
+                            title="Reject Expense"
+                            className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                          >
+                            <AlertTriangle className="w-4 h-4" />
+                          </Button>
+                        )}
+
+                        {/* Attach Receipt */}
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={() => attachReceipt(expense)}
+                          onClick={() => handleAttachReceipt(expense)}
                           title="Attach Receipt"
                         >
                           <Paperclip className="w-4 h-4" />
                         </Button>
+
+                        {/* Edit */}
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={() => editExpense(expense)}
+                          onClick={() => handleEditExpense(expense)}
                           title="Edit Expense"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
-                        {expense.status === 'Pending Field Approval' && (
-                          <>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => updateExpenseStatus(expense.id, 'Approved')}
-                              title="Approve Expense"
-                              className="text-green-600 hover:text-green-800 hover:bg-green-50"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => updateExpenseStatus(expense.id, 'Rejected')}
-                              title="Reject Expense"
-                              className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                            >
-                              <AlertTriangle className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                        {expense.status === 'Approved' && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => processPayment(expense)}
-                            title="Process Payment"
-                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                          >
-                            <DollarSign className="w-4 h-4" />
-                          </Button>
-                        )}
+
+                        {/* View Details */}
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={() => viewExpense(expense)}
+                          onClick={() => handleViewExpense(expense)}
                           title="View Details"
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => deleteExpense(expense.id)}
-                          title="Delete Expense"
-                          className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+
+                        {/* Delete */}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              title="Delete Expense"
+                              className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Expense</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this expense? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => deleteExpense(expense.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>

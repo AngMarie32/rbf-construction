@@ -26,19 +26,26 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
     date: new Date().toISOString().split('T')[0],
     vendor: '',
     receipt_number: '',
-    status: 'Pending Field Approval'
+    status: 'Field Approval'
   });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
       fetchProjects();
+      // Reset form when dialog opens
+      setFormData({
+        project_id: projectId || '',
+        category: '',
+        description: '',
+        amount: '',
+        date: new Date().toISOString().split('T')[0],
+        vendor: '',
+        receipt_number: '',
+        status: 'Field Approval'
+      });
     }
-  }, [open]);
-
-  useEffect(() => {
-    setFormData(prev => ({ ...prev, project_id: projectId || '' }));
-  }, [projectId]);
+  }, [open, projectId]);
 
   const fetchProjects = async () => {
     try {
@@ -63,24 +70,27 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
 
     setLoading(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('expenses')
         .insert({
           project_id: formData.project_id,
           category: formData.category,
           description: formData.description,
-          amount: Number(formData.amount),
+          amount: parseFloat(formData.amount),
           date: formData.date,
           vendor: formData.vendor || null,
           receipt_number: formData.receipt_number || null,
           status: formData.status
-        });
+        })
+        .select();
 
       if (error) throw error;
 
       toast.success('Expense created successfully');
       onExpenseCreated();
       onOpenChange(false);
+      
+      // Reset form
       setFormData({
         project_id: projectId || '',
         category: '',
@@ -89,7 +99,7 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
         date: new Date().toISOString().split('T')[0],
         vendor: '',
         receipt_number: '',
-        status: 'Pending Field Approval'
+        status: 'Field Approval'
       });
     } catch (error) {
       console.error('Error creating expense:', error);
@@ -109,7 +119,7 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
         <div className="space-y-4">
           <div>
             <Label htmlFor="project">Project *</Label>
-            <Select value={formData.project_id} onValueChange={(value) => setFormData({ ...formData, project_id: value })}>
+            <Select value={formData.project_id} onValueChange={(value) => setFormData(prev => ({ ...prev, project_id: value }))}>
               <SelectTrigger>
                 <SelectValue placeholder="Select project" />
               </SelectTrigger>
@@ -125,7 +135,7 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
 
           <div>
             <Label htmlFor="category">Category *</Label>
-            <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+            <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
               <SelectTrigger>
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
@@ -145,7 +155,7 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               placeholder="Enter expense description"
               rows={2}
             />
@@ -159,7 +169,7 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
                 type="number"
                 step="0.01"
                 value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
                 placeholder="0.00"
               />
             </div>
@@ -169,7 +179,7 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
                 id="date"
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
               />
             </div>
           </div>
@@ -179,7 +189,7 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
             <Input
               id="vendor"
               value={formData.vendor}
-              onChange={(e) => setFormData({ ...formData, vendor: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, vendor: e.target.value }))}
               placeholder="Enter vendor name"
             />
           </div>
@@ -189,7 +199,7 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
             <Input
               id="receipt_number"
               value={formData.receipt_number}
-              onChange={(e) => setFormData({ ...formData, receipt_number: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, receipt_number: e.target.value }))}
               placeholder="Enter receipt number"
             />
           </div>
