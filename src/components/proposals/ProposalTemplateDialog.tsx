@@ -1,13 +1,12 @@
 
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText, Plus } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface Template {
@@ -40,17 +39,42 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
   }, [open]);
 
   const fetchTemplates = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('proposal_templates')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-      setTemplates(data || []);
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-    }
+    // For now, we'll use mock data since the proposal_templates table doesn't exist yet
+    // This would normally fetch from supabase once the table is created
+    const mockTemplates: Template[] = [
+      {
+        id: '1',
+        name: 'Kitchen Remodel',
+        description: 'Standard kitchen renovation template',
+        items: [
+          { description: 'Cabinet installation', quantity: 1, unit: 'set', unitPrice: 5000, total: 5000 },
+          { description: 'Countertop installation', quantity: 25, unit: 'sq ft', unitPrice: 75, total: 1875 },
+          { description: 'Appliance installation', quantity: 1, unit: 'set', unitPrice: 2500, total: 2500 }
+        ]
+      },
+      {
+        id: '2',
+        name: 'Bathroom Renovation',
+        description: 'Complete bathroom renovation template',
+        items: [
+          { description: 'Tile installation', quantity: 100, unit: 'sq ft', unitPrice: 15, total: 1500 },
+          { description: 'Fixture installation', quantity: 1, unit: 'set', unitPrice: 1800, total: 1800 },
+          { description: 'Plumbing work', quantity: 1, unit: 'job', unitPrice: 1200, total: 1200 }
+        ]
+      },
+      {
+        id: '3',
+        name: 'Deck Construction',
+        description: 'Outdoor deck building template',
+        items: [
+          { description: 'Framing', quantity: 1, unit: 'job', unitPrice: 2000, total: 2000 },
+          { description: 'Decking material', quantity: 400, unit: 'sq ft', unitPrice: 8, total: 3200 },
+          { description: 'Railing installation', quantity: 80, unit: 'linear ft', unitPrice: 25, total: 2000 }
+        ]
+      }
+    ];
+    
+    setTemplates(mockTemplates);
   };
 
   const createTemplate = async () => {
@@ -61,20 +85,19 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('proposal_templates')
-        .insert({
-          name: newTemplate.name,
-          description: newTemplate.description,
-          template_items: []
-        });
+      // For now, we'll just add to the mock data
+      // This would normally save to supabase once the table is created
+      const newTemplateWithId: Template = {
+        id: Date.now().toString(),
+        name: newTemplate.name,
+        description: newTemplate.description,
+        items: []
+      };
 
-      if (error) throw error;
-
+      setTemplates(prev => [...prev, newTemplateWithId]);
       toast.success('Template created successfully');
       setNewTemplate({ name: '', description: '', items: [] });
       setShowCreateForm(false);
-      fetchTemplates();
     } catch (error) {
       console.error('Error creating template:', error);
       toast.error('Failed to create template');
@@ -117,6 +140,11 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-gray-600">{template.description}</p>
+                      {template.items && template.items.length > 0 && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          {template.items.length} items included
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
                 ))}

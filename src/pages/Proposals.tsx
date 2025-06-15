@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Filter, FileText, Edit, Trash2, Eye, Download, Template } from 'lucide-react';
+import { Search, Filter, FileText, Edit, Trash2, Eye, Download, Clipboard } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { generateProfessionalProposalPDF } from '@/utils/proposalPdfExport';
@@ -152,6 +152,12 @@ export default function Proposals() {
 
   const totalValue = proposals.reduce((sum, proposal) => sum + proposal.amount, 0);
 
+  const handleTemplateSelect = (template: any) => {
+    // For now, we'll just show a toast. This can be enhanced later to populate a new proposal
+    toast.success(`Template "${template.name}" selected. Feature coming soon!`);
+    setShowTemplateDialog(false);
+  };
+
   if (loading) {
     return (
       <Layout title="Proposals" subtitle="Manage your project proposals">
@@ -193,7 +199,7 @@ export default function Proposals() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setShowTemplateDialog(true)}>
-              <Template className="w-4 h-4 mr-2" />
+              <Clipboard className="w-4 h-4 mr-2" />
               Templates
             </Button>
             <EnhancedProposalDialog 
