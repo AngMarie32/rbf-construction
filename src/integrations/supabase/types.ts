@@ -408,6 +408,160 @@ export type Database = {
           },
         ]
       }
+      budget_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          created_at: string
+          current_percentage: number
+          id: string
+          is_acknowledged: boolean | null
+          message: string
+          project_id: string
+          severity: string | null
+          threshold_percentage: number
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          created_at?: string
+          current_percentage: number
+          id?: string
+          is_acknowledged?: boolean | null
+          message: string
+          project_id: string
+          severity?: string | null
+          threshold_percentage: number
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          created_at?: string
+          current_percentage?: number
+          id?: string
+          is_acknowledged?: boolean | null
+          message?: string
+          project_id?: string
+          severity?: string | null
+          threshold_percentage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_alerts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_forecasts: {
+        Row: {
+          confidence_level: number | null
+          created_at: string
+          forecast_date: string
+          forecast_method: string | null
+          forecast_month: string
+          id: string
+          predicted_spend: number
+          project_id: string
+        }
+        Insert: {
+          confidence_level?: number | null
+          created_at?: string
+          forecast_date: string
+          forecast_method?: string | null
+          forecast_month: string
+          id?: string
+          predicted_spend?: number
+          project_id: string
+        }
+        Update: {
+          confidence_level?: number | null
+          created_at?: string
+          forecast_date?: string
+          forecast_method?: string | null
+          forecast_month?: string
+          id?: string
+          predicted_spend?: number
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_forecasts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_variances: {
+        Row: {
+          actual_amount: number
+          category_id: string
+          created_at: string
+          id: string
+          period_end: string
+          period_start: string
+          planned_amount: number
+          project_id: string
+          risk_level: string | null
+          updated_at: string
+          variance_amount: number | null
+          variance_percentage: number | null
+          variance_reason: string | null
+        }
+        Insert: {
+          actual_amount?: number
+          category_id: string
+          created_at?: string
+          id?: string
+          period_end: string
+          period_start: string
+          planned_amount?: number
+          project_id: string
+          risk_level?: string | null
+          updated_at?: string
+          variance_amount?: number | null
+          variance_percentage?: number | null
+          variance_reason?: string | null
+        }
+        Update: {
+          actual_amount?: number
+          category_id?: string
+          created_at?: string
+          id?: string
+          period_end?: string
+          period_start?: string
+          planned_amount?: number
+          project_id?: string
+          risk_level?: string | null
+          updated_at?: string
+          variance_amount?: number | null
+          variance_percentage?: number | null
+          variance_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_variances_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_variances_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       burn_records: {
         Row: {
           actual_cost: number
@@ -713,6 +867,38 @@ export type Database = {
           year?: number | null
         }
         Relationships: []
+      }
+      expense_categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          parent_id: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expenses: {
         Row: {
