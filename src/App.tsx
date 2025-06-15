@@ -1,3 +1,4 @@
+
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -28,6 +29,7 @@ import BurnRateAnalysis from '@/pages/BurnRateAnalysis';
 import Settings from '@/pages/Settings';
 import NotFound from '@/pages/NotFound';
 import ProjectAnalyzer from '@/pages/ProjectAnalyzer';
+import AdminUsers from '@/pages/AdminUsers';
 
 import './App.css';
 
@@ -66,6 +68,7 @@ function App() {
               <Route path="/burn-analysis" element={<ProtectedRoute><BurnRateAnalysis /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/project-analyzer" element={<ProtectedRoute><ProjectAnalyzer /></ProtectedRoute>} />
+              <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

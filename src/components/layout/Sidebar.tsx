@@ -24,8 +24,11 @@ import {
   CreditCard,
   ChevronDown,
   ChevronUp,
-  BarChart3
+  BarChart3,
+  Shield
 } from 'lucide-react';
+import React from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 const menuSections = [
   {
@@ -61,14 +64,49 @@ const menuSections = [
   }
 ];
 
+const adminSection = {
+  title: 'Administration',
+  items: [
+    { name: 'User Management', href: '/admin/users', icon: Shield },
+  ]
+};
+
 interface SidebarProps {
   className?: string;
 }
 
 export function Sidebar({ className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<string[]>(['Company Dashboards', 'Tools', 'Project Management']);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['Company Dashboards', 'Tools', 'Project Management', 'Administration']);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const location = useLocation();
+  const { user } = useAuth();
+
+  React.useEffect(() => {
+    const checkUserRole = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error checking user role:', error);
+          setUserRole(null);
+        } else {
+          setUserRole(data?.role || null);
+        }
+      } catch (error) {
+        console.error('Error checking user role:', error);
+        setUserRole(null);
+      }
+    };
+
+    checkUserRole();
+  }, [user]);
 
   const toggleSection = (sectionTitle: string) => {
     setExpandedSections(prev => 
@@ -77,6 +115,10 @@ export function Sidebar({ className }: SidebarProps) {
         : [...prev, sectionTitle]
     );
   };
+
+  const sectionsToShow = userRole === 'Admin' 
+    ? [...menuSections, adminSection] 
+    : menuSections;
 
   return (
     <div className={cn(
@@ -110,7 +152,7 @@ export function Sidebar({ className }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 p-2 space-y-2 overflow-y-auto">
-        {menuSections.map((section) => (
+        {sectionsToShow.map((section) => (
           <div key={section.title} className="space-y-1">
             {!collapsed && (
               <button
