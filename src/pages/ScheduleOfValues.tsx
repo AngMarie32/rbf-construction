@@ -1,5 +1,4 @@
 
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,6 +47,32 @@ export default function ScheduleOfValues() {
     }
   }, [selectedProject]);
 
+  // Listen for payment application changes to update SOV data
+  useEffect(() => {
+    if (selectedProject) {
+      const channel = supabase
+        .channel('payment-application-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'payment_applications_g702',
+            filter: `project_id=eq.${selectedProject}`
+          },
+          () => {
+            // Refresh SOV items when payment applications change
+            fetchSOVItems();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [selectedProject]);
+
   const fetchProjects = async () => {
     try {
       const { data, error } = await supabase
@@ -90,7 +115,21 @@ export default function ScheduleOfValues() {
         .order('item_number', { ascending: true });
 
       if (error) throw error;
-      setSovItems(data || []);
+      
+      // Ensure all numeric fields are properly converted
+      const processedItems = (data || []).map(item => ({
+        ...item,
+        scheduled_value: Number(item.scheduled_value) || 0,
+        change_orders: Number(item.change_orders) || 0,
+        previous_applications: Number(item.previous_applications) || 0,
+        this_period: Number(item.this_period) || 0,
+        materials_stored: Number(item.materials_stored) || 0,
+        total_completed_and_stored: Number(item.total_completed_and_stored) || 0,
+        percent_complete: Number(item.percent_complete) || 0,
+        retainage_percentage: Number(item.retainage_percentage) || 10
+      }));
+      
+      setSovItems(processedItems);
     } catch (error) {
       console.error('Error fetching SOV items:', error);
       toast.error('Failed to load SOV items');
@@ -125,10 +164,10 @@ export default function ScheduleOfValues() {
     item.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalScheduledValue = sovItems.reduce((sum, item) => sum + (item.scheduled_value || 0), 0);
-  const totalWorkCompleted = sovItems.reduce((sum, item) => sum + (item.work_completed_to_date || 0), 0);
-  const totalMaterialsStored = sovItems.reduce((sum, item) => sum + (item.materials_stored || 0), 0);
-  const totalPercentComplete = sovItems.reduce((sum, item) => sum + (item.percent_complete || 0), 0) / sovItems.length || 0;
+  const totalScheduledValue = sovItems.reduce((sum, item) => sum + (Number(item.scheduled_value) || 0), 0);
+  const totalWorkCompleted = sovItems.reduce((sum, item) => sum + (Number(item.work_completed_to_date) || 0), 0);
+  const totalMaterialsStored = sovItems.reduce((sum, item) => sum + (Number(item.materials_stored) || 0), 0);
+  const totalPercentComplete = sovItems.length > 0 ? sovItems.reduce((sum, item) => sum + (Number(item.percent_complete) || 0), 0) / sovItems.length : 0;
 
   if (loading) {
     return (
@@ -244,16 +283,16 @@ export default function ScheduleOfValues() {
                             <Badge variant="outline">{item.category}</Badge>
                           </td>
                           <td className="border border-gray-200 px-4 py-2 text-right font-medium">
-                            ${(item.scheduled_value || 0).toLocaleString()}
+                            ${(Number(item.scheduled_value) || 0).toLocaleString()}
                           </td>
                           <td className="border border-gray-200 px-4 py-2 text-right">
-                            ${(item.work_completed_to_date || 0).toLocaleString()}
+                            ${(Number(item.work_completed_to_date) || 0).toLocaleString()}
                           </td>
                           <td className="border border-gray-200 px-4 py-2 text-right">
-                            ${(item.materials_stored || 0).toLocaleString()}
+                            ${(Number(item.materials_stored) || 0).toLocaleString()}
                           </td>
                           <td className="border border-gray-200 px-4 py-2 text-right">
-                            {((item.percent_complete || 0) * 100).toFixed(1)}%
+                            {((Number(item.percent_complete) || 0) * 100).toFixed(1)}%
                           </td>
                           <td className="border border-gray-200 px-4 py-2">
                             <div className="flex justify-center gap-2">
@@ -321,4 +360,3 @@ export default function ScheduleOfValues() {
     </Layout>
   );
 }
-

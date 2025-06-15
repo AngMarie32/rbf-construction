@@ -50,27 +50,34 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
 
     setLoading(true);
     try {
+      const updateData = {
+        item_number: formData.item_number,
+        description: formData.description,
+        category: formData.category,
+        scheduled_value: parseFloat(formData.scheduled_value) || 0,
+        work_completed_to_date: parseFloat(formData.work_completed_to_date) || 0,
+        materials_stored: parseFloat(formData.materials_stored) || 0,
+        retainage_percentage: parseFloat(formData.retainage_percentage) || 10
+      };
+
+      console.log('Updating SOV item with data:', updateData);
+
       const { error } = await supabase
         .from('sov_items')
-        .update({
-          item_number: formData.item_number,
-          description: formData.description,
-          category: formData.category,
-          scheduled_value: parseFloat(formData.scheduled_value),
-          work_completed_to_date: parseFloat(formData.work_completed_to_date) || 0,
-          materials_stored: parseFloat(formData.materials_stored) || 0,
-          retainage_percentage: parseFloat(formData.retainage_percentage) || 10
-        })
+        .update(updateData)
         .eq('id', sovItem.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       toast.success('SOV item updated successfully');
       onOpenChange(false);
       onSave();
     } catch (error) {
       console.error('Error updating SOV item:', error);
-      toast.error('Failed to update SOV item');
+      toast.error(`Failed to update SOV item: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }

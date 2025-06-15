@@ -25,7 +25,7 @@ export function SOVReportDialog({ open, onOpenChange, projectData, sovItems }: S
     setLoading(true);
     try {
       const reportElement = document.createElement('div');
-      reportElement.id = 'sov-professional-report';
+      reportElement.id = 'sov-report';
       reportElement.style.position = 'absolute';
       reportElement.style.left = '-9999px';
       reportElement.style.background = 'white';
@@ -111,10 +111,10 @@ export function SOVReportDialog({ open, onOpenChange, projectData, sovItems }: S
 
       document.body.appendChild(reportElement);
       
-      await exportToPDF('sov-professional-report', `SOV-Report-${projectData?.name?.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`);
+      await exportToPDF('sov-report', `SOV-Report-${projectData?.name?.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`);
       
       document.body.removeChild(reportElement);
-      toast.success('Professional SOV report generated successfully');
+      toast.success('SOV report generated successfully');
       onOpenChange(false);
     } catch (error) {
       console.error('Error generating report:', error);
@@ -185,7 +185,7 @@ export function SOVReportDialog({ open, onOpenChange, projectData, sovItems }: S
             </div>
 
             <div className="text-center text-sm text-gray-600">
-              <p>Preview of professional SOV report with {sovItems.length} line items</p>
+              <p>Preview of SOV report with {sovItems.length} line items</p>
             </div>
           </div>
 
@@ -194,7 +194,7 @@ export function SOVReportDialog({ open, onOpenChange, projectData, sovItems }: S
               Cancel
             </Button>
             <Button onClick={handleExportPDF} disabled={loading}>
-              {loading ? 'Generating PDF...' : 'Export Professional Report'}
+              {loading ? 'Generating PDF...' : 'Export Report'}
             </Button>
           </div>
         </div>
