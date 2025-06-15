@@ -23,7 +23,6 @@ import {
   Eye,
   Users,
   Clock,
-  Template,
   Grid3X3,
   List,
   Star,
@@ -394,7 +393,7 @@ export default function Documents() {
             </div>
             <div className="flex items-center space-x-3">
               <Button variant="outline" onClick={() => setShowTemplatesDialog(true)}>
-                <Template className="w-4 h-4 mr-2" />
+                <FileText className="w-4 h-4 mr-2" />
                 Templates
               </Button>
               <Button onClick={() => setShowUploadDialog(true)}>

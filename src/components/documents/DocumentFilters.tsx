@@ -20,6 +20,7 @@ import {
   Clock
 } from 'lucide-react';
 import { format } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 
 interface DocumentFiltersProps {
   searchTerm: string;
@@ -227,8 +228,8 @@ export function DocumentFilters({
                       initialFocus
                       mode="range"
                       defaultMonth={dateRange.from}
-                      selected={dateRange}
-                      onSelect={(range) => {
+                      selected={dateRange as DateRange}
+                      onSelect={(range: DateRange | undefined) => {
                         onDateRangeChange(range || {});
                         if (range?.from && range?.to) {
                           setCalendarOpen(false);
