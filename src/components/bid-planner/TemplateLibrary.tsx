@@ -7,14 +7,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { 
-  Wrench, 
-  Zap, 
-  Droplets, 
-  Flame, 
   Building, 
-  HardHat, 
   Search,
-  Star
+  Star,
+  Trash2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -23,7 +19,7 @@ interface Template {
   id: string;
   name: string;
   description: string;
-  isDefault: boolean;
+  is_default: boolean;
   itemCount?: number;
 }
 
@@ -59,16 +55,22 @@ export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: Temp
 
       if (error) throw error;
 
-      // Properly map the Supabase data to match the Template interface
-      const enhancedTemplates: Template[] = (data || []).map(template => ({
-        id: template.id,
-        name: template.name,
-        description: template.description || '',
-        isDefault: template.is_default || false,
-        itemCount: Math.floor(Math.random() * 50) + 10 // Mock item count
-      }));
+      // Get item counts for each template
+      const templatesWithCounts = await Promise.all(
+        (data || []).map(async (template) => {
+          const { data: items } = await supabase
+            .from('bid_template_items')
+            .select('id')
+            .eq('template_id', template.id);
+          
+          return {
+            ...template,
+            itemCount: items?.length || 0
+          };
+        })
+      );
 
-      setTemplates(enhancedTemplates);
+      setTemplates(templatesWithCounts);
     } catch (error) {
       console.error('Error fetching templates:', error);
       toast.error('Failed to load templates');
@@ -88,6 +90,37 @@ export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: Temp
     }
 
     setFilteredTemplates(filtered);
+  };
+
+  const handleDeleteTemplate = async (templateId: string, templateName: string) => {
+    if (!confirm(`Are you sure you want to delete the template "${templateName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      // Delete template items first
+      const { error: itemsError } = await supabase
+        .from('bid_template_items')
+        .delete()
+        .eq('template_id', templateId);
+
+      if (itemsError) throw itemsError;
+
+      // Delete template
+      const { error: templateError } = await supabase
+        .from('bid_templates')
+        .delete()
+        .eq('id', templateId);
+
+      if (templateError) throw templateError;
+
+      // Update local state
+      setTemplates(templates.filter(t => t.id !== templateId));
+      toast.success(`Template "${templateName}" deleted successfully`);
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      toast.error('Failed to delete template');
+    }
   };
 
   return (
@@ -121,20 +154,33 @@ export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: Temp
               <div className="col-span-full text-center py-8">Loading templates...</div>
             ) : filteredTemplates.length === 0 ? (
               <div className="col-span-full text-center py-8 text-gray-500">
-                No templates found matching your criteria.
+                {searchTerm ? 'No templates match your search.' : 'No templates found.'}
               </div>
             ) : (
               filteredTemplates.map((template) => (
-                <Card key={template.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                <Card key={template.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-1">
                         <Building className="w-5 h-5" />
-                        <CardTitle className="text-sm">{template.name}</CardTitle>
+                        <CardTitle className="text-sm truncate">{template.name}</CardTitle>
                       </div>
-                      {template.isDefault && (
-                        <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                      )}
+                      <div className="flex items-center gap-1">
+                        {template.is_default && (
+                          <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTemplate(template.id, template.name);
+                          }}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-auto"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">
@@ -142,9 +188,9 @@ export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: Temp
                       {template.description || 'No description available'}
                     </p>
                     <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500">
+                      <Badge variant="outline">
                         {template.itemCount} items
-                      </span>
+                      </Badge>
                       <Button
                         size="sm"
                         onClick={() => {

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Download, FileText, Save, Upload, PaperclipIcon, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { TemplateLibrary } from './TemplateLibrary';
 
 interface TabbedBidInterfaceProps {
   projectId: string;
@@ -25,6 +26,7 @@ export function TabbedBidInterface({
   onExportReport 
 }: TabbedBidInterfaceProps) {
   const [activeTab, setActiveTab] = useState('overview');
+  const [templateLibraryOpen, setTemplateLibraryOpen] = useState(false);
   const [newItem, setNewItem] = useState({
     category: '',
     subcategory: '',
@@ -122,50 +124,17 @@ export function TabbedBidInterface({
     }
   };
 
-  const handleDeleteAllBidItems = async () => {
-    if (!confirm('Are you sure you want to delete all bid items? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('bid_items')
-        .delete()
-        .eq('project_id', projectId);
-
-      if (error) throw error;
-
-      onItemsChange([]);
-      toast.success('All bid items deleted successfully');
-    } catch (error) {
-      console.error('Error deleting all bid items:', error);
-      toast.error('Failed to delete all bid items');
-    }
+  const handleUseTemplate = () => {
+    setTemplateLibraryOpen(true);
   };
 
-  const handleUseTemplate = async () => {
+  const handleTemplateSelected = async (templateId: string) => {
     try {
-      // Fetch available templates
-      const { data: templates, error } = await supabase
-        .from('bid_templates')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-
-      if (templates.length === 0) {
-        toast.error('No bid templates available');
-        return;
-      }
-
-      // For now, use the first template or show a selection dialog
-      const template = templates[0];
-      
       // Fetch template items
       const { data: templateItems, error: itemsError } = await supabase
         .from('bid_template_items')
         .select('*')
-        .eq('template_id', template.id);
+        .eq('template_id', templateId);
 
       if (itemsError) throw itemsError;
 
@@ -189,7 +158,7 @@ export function TabbedBidInterface({
         if (insertError) throw insertError;
 
         onItemsChange([...bidItems, ...data]);
-        toast.success(`Applied template "${template.name}" with ${data.length} items`);
+        toast.success(`Applied template with ${data.length} items`);
       }
     } catch (error) {
       console.error('Error using template:', error);
@@ -318,12 +287,6 @@ export function TabbedBidInterface({
                   <PaperclipIcon className="w-4 h-4 mr-2" />
                   Create Proposal
                 </Button>
-                {bidItems.length > 0 && (
-                  <Button variant="ghost" className="text-red-600 hover:text-red-700" onClick={handleDeleteAllBidItems}>
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete All Items
-                  </Button>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -652,6 +615,12 @@ export function TabbedBidInterface({
           </Card>
         </TabsContent>
       </Tabs>
+
+      <TemplateLibrary
+        open={templateLibraryOpen}
+        onOpenChange={setTemplateLibraryOpen}
+        onTemplateSelected={handleTemplateSelected}
+      />
     </div>
   );
 }
