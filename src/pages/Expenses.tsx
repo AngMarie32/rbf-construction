@@ -22,7 +22,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   DropdownMenu,
@@ -31,6 +30,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   Search, 
   Plus, 
@@ -76,6 +83,8 @@ export default function Expenses() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -178,17 +187,20 @@ export default function Expenses() {
 
   const handleViewExpense = (expense: Expense) => {
     console.log('Viewing expense:', expense);
-    toast.info(`Viewing: ${expense.description}`);
+    setSelectedExpense(expense);
+    setViewDialogOpen(true);
   };
 
   const handleEditExpense = (expense: Expense) => {
     console.log('Editing expense:', expense);
-    toast.info(`Edit feature coming soon for: ${expense.description}`);
+    // For now, just show a message - this would open an edit dialog
+    toast.info(`Edit functionality will be implemented soon for: ${expense.description}`);
   };
 
   const handleAttachReceipt = (expense: Expense) => {
     console.log('Attaching receipt for expense:', expense);
-    toast.info(`Receipt attachment feature coming soon`);
+    // For now, just show a message - this would open a file upload dialog
+    toast.info(`Receipt attachment functionality will be implemented soon`);
   };
 
   const handleDeleteClick = (expenseId: string) => {
@@ -425,7 +437,7 @@ export default function Expenses() {
                                 updateExpenseStatus(expense.id, nextStatus);
                               }
                             }}
-                            className="bg-green-600 hover:bg-green-700 text-white h-6 px-2 text-xs"
+                            className="bg-green-600 hover:bg-green-700 text-white h-7 px-2 text-xs"
                           >
                             <Check className="w-3 h-3 mr-1" />
                             Approve
@@ -438,7 +450,7 @@ export default function Expenses() {
                             size="sm"
                             variant="destructive"
                             onClick={() => updateExpenseStatus(expense.id, 'Rejected')}
-                            className="h-6 px-2 text-xs"
+                            className="h-7 px-2 text-xs"
                           >
                             <X className="w-3 h-3 mr-1" />
                             Reject
@@ -450,34 +462,25 @@ export default function Expenses() {
                       {/* Nested Actions Menu */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" className="h-6 w-6 p-0">
+                          <Button variant="outline" size="sm" className="h-7 w-7 p-0">
                             <MoreHorizontal className="w-3 h-3" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewExpense(expense);
-                            }}
+                            onClick={() => handleViewExpense(expense)}
                           >
                             <Eye className="w-4 h-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
                           <DropdownMenuItem 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditExpense(expense);
-                            }}
+                            onClick={() => handleEditExpense(expense)}
                           >
                             <Edit className="w-4 h-4 mr-2" />
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAttachReceipt(expense);
-                            }}
+                            onClick={() => handleAttachReceipt(expense)}
                           >
                             <Paperclip className="w-4 h-4 mr-2" />
                             Attach Receipt
@@ -485,10 +488,7 @@ export default function Expenses() {
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
                             className="text-red-600 focus:text-red-600"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteClick(expense.id);
-                            }}
+                            onClick={() => handleDeleteClick(expense.id)}
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
                             Delete
@@ -521,7 +521,66 @@ export default function Expenses() {
           onExpenseCreated={fetchExpenses}
         />
 
-        {/* Separate Delete Confirmation Dialog */}
+        {/* View Expense Dialog */}
+        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Expense Details</DialogTitle>
+              <DialogDescription>
+                Detailed information about this expense.
+              </DialogDescription>
+            </DialogHeader>
+            {selectedExpense && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-500">Description:</span>
+                    <p className="font-medium">{selectedExpense.description}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-500">Amount:</span>
+                    <p className="font-medium">${selectedExpense.amount.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-500">Category:</span>
+                    <p>{selectedExpense.category}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-500">Date:</span>
+                    <p>{new Date(selectedExpense.date).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-500">Vendor:</span>
+                    <p>{selectedExpense.vendor || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-500">Status:</span>
+                    <Badge className={`${getStatusColor(selectedExpense.status)} text-white`}>
+                      {selectedExpense.status}
+                    </Badge>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="font-medium text-gray-500">Project:</span>
+                    <p>{selectedExpense.projects.name}</p>
+                  </div>
+                  {selectedExpense.receipt_number && (
+                    <div className="col-span-2">
+                      <span className="font-medium text-gray-500">Receipt Number:</span>
+                      <p>{selectedExpense.receipt_number}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
