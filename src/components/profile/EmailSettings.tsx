@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,7 +39,13 @@ export const EmailSettings: React.FC = () => {
       if (data) {
         setEmail(data.email || '');
         setIsVerified(data.email_verified || false);
-        setVerificationStatus(data.email_verification_status || 'none');
+        // Ensure the status is one of the expected values
+        const status = data.email_verification_status;
+        if (status === 'pending' || status === 'verified') {
+          setVerificationStatus(status);
+        } else {
+          setVerificationStatus('none');
+        }
       }
     } catch (error) {
       console.error('Error fetching email settings:', error);
