@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -297,3 +296,13 @@ export interface BillingLineItem {
   sovItemId?: string;
   createdAt: Date;
 }
+
+// Re-export equipment types
+export type { 
+  Equipment, 
+  EquipmentReservation, 
+  EquipmentUsageLog, 
+  EquipmentAlert, 
+  EquipmentFilters, 
+  EquipmentAnalytics 
+} from './equipment';

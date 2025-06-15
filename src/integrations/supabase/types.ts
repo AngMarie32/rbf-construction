@@ -830,12 +830,21 @@ export type Database = {
         Row: {
           category: string | null
           created_at: string | null
+          depreciation_rate: number | null
           description: string | null
           hourly_rate: number
           id: string
           image: string | null
+          insurance_expiry: string | null
+          last_inspection_date: string | null
+          location: string | null
           name: string
+          project_assignment_id: string | null
+          purchase_date: string | null
+          qr_code: string | null
+          specifications: Json | null
           status: string | null
+          total_hours_used: number | null
           updated_at: string | null
           value: number | null
           year: number | null
@@ -843,12 +852,21 @@ export type Database = {
         Insert: {
           category?: string | null
           created_at?: string | null
+          depreciation_rate?: number | null
           description?: string | null
           hourly_rate?: number
           id?: string
           image?: string | null
+          insurance_expiry?: string | null
+          last_inspection_date?: string | null
+          location?: string | null
           name: string
+          project_assignment_id?: string | null
+          purchase_date?: string | null
+          qr_code?: string | null
+          specifications?: Json | null
           status?: string | null
+          total_hours_used?: number | null
           updated_at?: string | null
           value?: number | null
           year?: number | null
@@ -856,17 +874,180 @@ export type Database = {
         Update: {
           category?: string | null
           created_at?: string | null
+          depreciation_rate?: number | null
           description?: string | null
           hourly_rate?: number
           id?: string
           image?: string | null
+          insurance_expiry?: string | null
+          last_inspection_date?: string | null
+          location?: string | null
           name?: string
+          project_assignment_id?: string | null
+          purchase_date?: string | null
+          qr_code?: string | null
+          specifications?: Json | null
           status?: string | null
+          total_hours_used?: number | null
           updated_at?: string | null
           value?: number | null
           year?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "equipment_project_assignment_id_fkey"
+            columns: ["project_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          alert_type: string
+          created_at: string
+          due_date: string | null
+          equipment_id: string
+          id: string
+          is_acknowledged: boolean | null
+          message: string
+          severity: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          alert_type: string
+          created_at?: string
+          due_date?: string | null
+          equipment_id: string
+          id?: string
+          is_acknowledged?: boolean | null
+          message: string
+          severity?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          alert_type?: string
+          created_at?: string
+          due_date?: string | null
+          equipment_id?: string
+          id?: string
+          is_acknowledged?: boolean | null
+          message?: string
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_alerts_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_reservations: {
+        Row: {
+          created_at: string
+          end_date: string
+          equipment_id: string
+          id: string
+          notes: string | null
+          project_id: string
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          equipment_id: string
+          id?: string
+          notes?: string | null
+          project_id: string
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          equipment_id?: string
+          id?: string
+          notes?: string | null
+          project_id?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_reservations_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_reservations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_usage_logs: {
+        Row: {
+          created_at: string
+          end_time: string | null
+          equipment_id: string
+          fuel_consumed: number | null
+          hours_used: number | null
+          id: string
+          operator_name: string | null
+          project_id: string | null
+          start_time: string
+        }
+        Insert: {
+          created_at?: string
+          end_time?: string | null
+          equipment_id: string
+          fuel_consumed?: number | null
+          hours_used?: number | null
+          id?: string
+          operator_name?: string | null
+          project_id?: string | null
+          start_time: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string | null
+          equipment_id?: string
+          fuel_consumed?: number | null
+          hours_used?: number | null
+          id?: string
+          operator_name?: string | null
+          project_id?: string | null
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_usage_logs_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_usage_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expense_categories: {
         Row: {
@@ -1918,6 +2099,10 @@ export type Database = {
     Functions: {
       approve_role_change: {
         Args: { request_id: string; admin_notes?: string }
+        Returns: undefined
+      }
+      generate_equipment_alerts: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
     }

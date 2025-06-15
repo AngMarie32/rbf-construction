@@ -1,32 +1,27 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Plus, 
-  Search, 
-  Settings2, 
   Calendar,
-  DollarSign,
-  Clock,
-  Truck,
-  Wrench,
-  Building,
-  Edit2,
-  Trash2,
-  Upload,
-  X
+  AlertTriangle,
+  Grid3X3,
+  List
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { EquipmentCard } from '@/components/equipment/EquipmentCard';
+import { EquipmentFilters } from '@/components/equipment/EquipmentFilters';
+import { BulkOperationsToolbar } from '@/components/equipment/BulkOperationsToolbar';
+import { EquipmentAnalyticsModal } from '@/components/equipment/EquipmentAnalyticsModal';
 import { NewEquipmentDialog } from '@/components/equipment/NewEquipmentDialog';
 import { MaintenanceDialog } from '@/components/equipment/MaintenanceDialog';
 import { AllMaintenanceView } from '@/components/equipment/AllMaintenanceView';
 import { EquipmentEstimator } from '@/components/equipment/EquipmentEstimator';
 import { EditEquipmentDialog } from '@/components/equipment/EditEquipmentDialog';
-import type { Equipment } from '@/types';
+import { useEquipment } from '@/hooks/useEquipment';
+import { EquipmentService } from '@/services/equipmentService';
+import type { Equipment, EquipmentUsageLog, EquipmentAlert } from '@/types/equipment';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface EstimatorItem {
@@ -36,123 +31,58 @@ interface EstimatorItem {
 }
 
 export default function Equipment() {
-  const [equipment, setEquipment] = useState<Equipment[]>([]);
-  const [filteredEquipment, setFilteredEquipment] = useState<Equipment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const {
+    equipment,
+    loading,
+    selectedItems,
+    filters,
+    fetchEquipment,
+    updateEquipment,
+    deleteEquipment,
+    bulkUpdateStatus,
+    updateFilters,
+    clearFilters,
+    toggleSelection,
+    selectAll,
+    clearSelection
+  } = useEquipment();
+
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
+  const [analyticsEquipment, setAnalyticsEquipment] = useState<Equipment | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<{
+    usageLogs: EquipmentUsageLog[];
+    alerts: EquipmentAlert[];
+  }>({ usageLogs: [], alerts: [] });
+  
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
   const [allMaintenanceOpen, setAllMaintenanceOpen] = useState(false);
   const [estimatorOpen, setEstimatorOpen] = useState(false);
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  
   const [selectedEstimatorEquipment, setSelectedEstimatorEquipment] = useState<EstimatorItem[]>([]);
-  const [viewMode, setViewMode] = useState<'equipment' | 'maintenance' | 'estimator'>('equipment');
+  const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([]);
+  
+  const locations = Array.from(new Set(
+    equipment.map(eq => eq.location).filter(Boolean)
+  )) as string[];
 
   useEffect(() => {
-    fetchEquipment();
+    fetchProjects();
   }, []);
 
-  useEffect(() => {
-    filterEquipment();
-  }, [equipment, searchTerm, statusFilter, categoryFilter]);
-
-  const fetchEquipment = async () => {
-    setLoading(true);
+  const fetchProjects = async () => {
     try {
       const { data, error } = await supabase
-        .from('equipment')
-        .select('*')
+        .from('projects')
+        .select('id, name')
         .order('name');
 
       if (error) throw error;
-      
-      const typedData = (data || []).map(item => ({
-        ...item,
-        category: item.category as Equipment['category'],
-        status: item.status as Equipment['status']
-      })) as Equipment[];
-      
-      setEquipment(typedData);
+      setProjects(data || []);
     } catch (error) {
-      console.error('Error fetching equipment:', error);
-      toast.error('Failed to fetch equipment');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterEquipment = () => {
-    let filtered = equipment;
-
-    if (searchTerm) {
-      filtered = filtered.filter(eq =>
-        eq.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        eq.category.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(eq => eq.status === statusFilter);
-    }
-
-    if (categoryFilter !== 'all') {
-      filtered = filtered.filter(eq => eq.category === categoryFilter);
-    }
-
-    setFilteredEquipment(filtered);
-  };
-
-  const handleDeleteEquipment = async (equipmentId: string) => {
-    try {
-      const { error } = await supabase
-        .from('equipment')
-        .delete()
-        .eq('id', equipmentId);
-
-      if (error) throw error;
-
-      fetchEquipment();
-    } catch (error) {
-      console.error('Error deleting equipment:', error);
-    }
-  };
-
-  const handleImageUpload = async (file: File, equipmentId: string) => {
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${equipmentId}-${Date.now()}.${fileExt}`;
-      
-      // For now, we'll just show a toast. In a real app, you'd upload to Supabase Storage
-      toast.success('Image upload functionality will be implemented with Supabase Storage');
-      
-      // TODO: Implement actual file upload to Supabase Storage
-      // const { data, error } = await supabase.storage
-      //   .from('equipment-images')
-      //   .upload(fileName, file);
-      
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      toast.error('Failed to upload image');
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Available': return 'bg-green-500';
-      case 'In Use': return 'bg-blue-500';
-      case 'Maintenance': return 'bg-yellow-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'Heavy Machinery': return <Building className="w-4 h-4" />;
-      case 'Vehicles': return <Truck className="w-4 h-4" />;
-      case 'Trailers': return <Truck className="w-4 h-4" />;
-      default: return <Wrench className="w-4 h-4" />;
+      console.error('Error fetching projects:', error);
     }
   };
 
@@ -165,6 +95,21 @@ export default function Equipment() {
     setEditingEquipment(eq);
   };
 
+  const handleViewAnalytics = async (eq: Equipment) => {
+    try {
+      const data = await EquipmentService.fetchEquipmentWithAnalytics(eq.id);
+      setAnalyticsEquipment(eq);
+      setAnalyticsData({
+        usageLogs: data.usageLogs,
+        alerts: data.alerts
+      });
+      setAnalyticsOpen(true);
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+      toast.error('Failed to load analytics');
+    }
+  };
+
   const handleAddToEstimator = (eq: Equipment) => {
     const existingItem = selectedEstimatorEquipment.find(item => item.equipment.id === eq.id);
     if (!existingItem) {
@@ -175,7 +120,6 @@ export default function Equipment() {
       }]);
     }
     setEstimatorOpen(true);
-    setViewMode('estimator');
   };
 
   const handleRemoveFromEstimator = (equipmentId: string) => {
@@ -204,7 +148,47 @@ export default function Equipment() {
 
   const handleCloseEstimator = () => {
     setEstimatorOpen(false);
-    setViewMode('equipment');
+  };
+
+  const handleBulkDelete = async () => {
+    if (confirm(`Are you sure you want to delete ${selectedItems.length} equipment items?`)) {
+      try {
+        await Promise.all(selectedItems.map(id => EquipmentService.deleteEquipment(id)));
+        await fetchEquipment();
+        clearSelection();
+        toast.success(`Deleted ${selectedItems.length} equipment items`);
+      } catch (error) {
+        console.error('Error deleting equipment:', error);
+        toast.error('Failed to delete equipment');
+      }
+    }
+  };
+
+  const handleBulkMaintenance = () => {
+    // In a real app, this would open a bulk maintenance scheduling dialog
+    toast.info('Bulk maintenance scheduling coming soon');
+  };
+
+  const handleExport = () => {
+    // Simple CSV export
+    const headers = ['Name', 'Category', 'Status', 'Hourly Rate', 'Value', 'Location'];
+    const rows = equipment.map(eq => [
+      eq.name,
+      eq.category,
+      eq.status,
+      eq.hourly_rate,
+      eq.value || '',
+      eq.location || ''
+    ]);
+
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'equipment.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -220,207 +204,100 @@ export default function Equipment() {
   return (
     <Layout title="Equipment" subtitle="Manage equipment and maintenance">
       <div className="flex">
-        {/* Main Content */}
         <div className={`transition-all duration-300 ${estimatorOpen ? 'mr-96' : 'mr-0'} flex-1`}>
           <div className="space-y-6">
-            {/* View Toggle */}
+            {/* Header */}
             <div className="flex justify-between items-center">
               <div className="flex gap-2">
                 <Button 
-                  variant={viewMode === 'equipment' ? 'default' : 'outline'}
-                  onClick={() => setViewMode('equipment')}
+                  variant="outline"
+                  onClick={() => setAllMaintenanceOpen(true)}
                 >
-                  Equipment
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Maintenance Calendar
                 </Button>
                 <Button 
-                  variant={viewMode === 'maintenance' ? 'default' : 'outline'}
-                  onClick={() => {
-                    setViewMode('maintenance');
-                    setAllMaintenanceOpen(true);
-                  }}
-                >
-                  Maintenance Log
-                </Button>
-                <Button 
-                  variant={viewMode === 'estimator' ? 'default' : 'outline'}
-                  onClick={() => {
-                    setViewMode('estimator');
-                    setEstimatorOpen(true);
-                  }}
+                  variant="outline"
+                  onClick={() => setEstimatorOpen(true)}
                 >
                   Equipment Estimator
                 </Button>
               </div>
               
-              {viewMode === 'equipment' && (
+              <div className="flex items-center gap-2">
+                <div className="flex border rounded">
+                  <Button
+                    variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('grid')}
+                  >
+                    <Grid3X3 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'list' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('list')}
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
+                </div>
                 <NewEquipmentDialog onEquipmentCreated={fetchEquipment} />
-              )}
+              </div>
             </div>
 
-            {viewMode === 'equipment' && (
-              <>
-                {/* Controls */}
-                <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
-                  <div className="flex gap-4 flex-1">
-                    <div className="relative max-w-md">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      <Input
-                        placeholder="Search equipment..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                    
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="All Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="Available">Available</SelectItem>
-                        <SelectItem value="In Use">In Use</SelectItem>
-                        <SelectItem value="Maintenance">Maintenance</SelectItem>
-                      </SelectContent>
-                    </Select>
+            {/* Filters */}
+            <EquipmentFilters
+              filters={filters}
+              onFiltersChange={updateFilters}
+              onClearFilters={clearFilters}
+              onExport={handleExport}
+              locations={locations}
+              projects={projects}
+            />
 
-                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="All Categories" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Categories</SelectItem>
-                        <SelectItem value="Heavy Machinery">Heavy Machinery</SelectItem>
-                        <SelectItem value="Vehicles">Vehicles</SelectItem>
-                        <SelectItem value="Trailers">Trailers</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+            {/* Bulk Operations */}
+            <BulkOperationsToolbar
+              selectedCount={selectedItems.length}
+              totalCount={equipment.length}
+              onSelectAll={selectAll}
+              onClearSelection={clearSelection}
+              onBulkStatusUpdate={bulkUpdateStatus}
+              onBulkDelete={handleBulkDelete}
+              onBulkMaintenance={handleBulkMaintenance}
+            />
+
+            {/* Equipment Grid/List */}
+            <div className={
+              viewMode === 'grid' 
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                : "space-y-4"
+            }>
+              {equipment.map((eq) => (
+                <EquipmentCard
+                  key={eq.id}
+                  equipment={eq}
+                  isSelected={selectedItems.includes(eq.id)}
+                  onSelect={toggleSelection}
+                  onEdit={handleEditClick}
+                  onDelete={deleteEquipment}
+                  onMaintenance={handleMaintenanceClick}
+                  onAddToEstimator={handleAddToEstimator}
+                  onViewAnalytics={handleViewAnalytics}
+                />
+              ))}
+
+              {equipment.length === 0 && (
+                <div className="col-span-full text-center py-12 text-gray-500">
+                  <AlertTriangle className="w-12 h-12 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No equipment found</h3>
+                  <p>No equipment matches your current filters.</p>
                 </div>
-
-                {/* Equipment Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredEquipment.map((eq) => (
-                    <Card key={eq.id} className="overflow-hidden">
-                      {eq.image && (
-                        <div className="h-48 overflow-hidden">
-                          <img 
-                            src={eq.image} 
-                            alt={eq.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      )}
-                      <CardHeader className="pb-3">
-                        <div className="flex justify-between items-start">
-                          <CardTitle className="text-lg">{eq.name}</CardTitle>
-                          <div className="flex items-center gap-2">
-                            <Badge className={`${getStatusColor(eq.status)} text-white`}>
-                              {eq.status}
-                            </Badge>
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleEditClick(eq)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleDeleteEquipment(eq.id)}
-                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          {getCategoryIcon(eq.category)}
-                          <span>{eq.category}</span>
-                          {eq.year && <span>• {eq.year}</span>}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {eq.description && (
-                          <p className="text-sm text-gray-600">{eq.description}</p>
-                        )}
-                        
-                        <div className="flex justify-between items-center text-sm">
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4 text-blue-600" />
-                            <span>${eq.hourly_rate}/hr</span>
-                          </div>
-                          {eq.value && (
-                            <div className="flex items-center gap-1">
-                              <DollarSign className="w-4 h-4 text-green-600" />
-                              <span>${eq.value.toLocaleString()}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Image Upload */}
-                        <div className="flex justify-center">
-                          <label className="cursor-pointer">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleImageUpload(file, eq.id);
-                              }}
-                            />
-                            <Button variant="outline" size="sm" className="w-full">
-                              <Upload className="w-4 h-4 mr-2" />
-                              Upload Image
-                            </Button>
-                          </label>
-                        </div>
-
-                        <div className="flex gap-2 pt-2 justify-center">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="flex-1"
-                            onClick={() => handleMaintenanceClick(eq)}
-                          >
-                            <Settings2 className="w-4 h-4 mr-1" />
-                            Maintenance
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="flex-1"
-                            onClick={() => handleAddToEstimator(eq)}
-                          >
-                            <Plus className="w-4 h-4 mr-1" />
-                            Add to Estimate
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-
-                  {filteredEquipment.length === 0 && (
-                    <div className="col-span-full text-center py-12 text-gray-500">
-                      No equipment found matching your criteria
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Equipment Estimator - Fixed Right Panel */}
+        {/* Equipment Estimator Panel */}
         {estimatorOpen && (
           <EquipmentEstimator
             selectedEquipment={selectedEstimatorEquipment}
@@ -433,7 +310,7 @@ export default function Equipment() {
         )}
       </div>
 
-      {/* Maintenance Dialog */}
+      {/* Dialogs */}
       {selectedEquipment && (
         <MaintenanceDialog
           equipmentId={selectedEquipment.id}
@@ -443,7 +320,6 @@ export default function Equipment() {
         />
       )}
 
-      {/* Edit Equipment Dialog */}
       {editingEquipment && (
         <EditEquipmentDialog
           equipment={editingEquipment}
@@ -453,10 +329,17 @@ export default function Equipment() {
         />
       )}
 
-      {/* All Maintenance View */}
       <AllMaintenanceView
         open={allMaintenanceOpen}
         onOpenChange={setAllMaintenanceOpen}
+      />
+
+      <EquipmentAnalyticsModal
+        equipment={analyticsEquipment}
+        open={analyticsOpen}
+        onOpenChange={setAnalyticsOpen}
+        usageLogs={analyticsData.usageLogs}
+        alerts={analyticsData.alerts}
       />
     </Layout>
   );
