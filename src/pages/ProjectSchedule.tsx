@@ -1,40 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { QuickPlanner } from '@/components/schedule/QuickPlanner';
 import { TemplateManager } from '@/components/schedule/TemplateManager';
 import { GanttChart } from '@/components/schedule/GanttChart';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
-import { ProjectSelector } from '@/components/schedule/ProjectSelector';
 import { CriticalPath } from '@/components/schedule/CriticalPath';
+import { CollapsibleFilterSection } from '@/components/schedule/CollapsibleFilterSection';
+import { EnhancedTaskList } from '@/components/schedule/EnhancedTaskList';
 import { exportToPDF, exportCSV } from '@/utils/pdfExport';
 import { 
   Plus, 
-  Calendar as CalendarIcon, 
   Download, 
-  Filter, 
-  Search,
   Clock,
-  Target,
-  Link,
   File,
-  Settings,
-  Info,
-  ChevronLeft,
-  ChevronRight
+  Info
 } from 'lucide-react';
 import { format, addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
-import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Task } from '@/types';
@@ -84,10 +67,11 @@ export default function ProjectSchedule() {
     projectId: '',
     startDate: new Date(),
     duration: 1,
-    useDuration: true // Toggle between duration and end date
+    useDuration: true
   });
 
   const [loading, setLoading] = useState(true);
+  const [templateTasks, setTemplateTasks] = useState<any[]>([]);
 
   // For template integration with QuickPlanner
   const [templateTasks, setTemplateTasks] = useState<any[]>([]);
@@ -403,178 +387,73 @@ export default function ProjectSchedule() {
   return (
     <Layout title="Project Schedule" subtitle="Manage project timelines and dependencies">
       <div className="space-y-6">
-        {/* Header Controls */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setNewTaskDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Task
-            </Button>
-            <Button variant="outline" onClick={() => setQuickPlannerOpen(true)}>
-              <Clock className="w-4 h-4 mr-2" />
-              Quick Planner
-            </Button>
-            <Button variant="outline" onClick={() => setTemplateManagerOpen(true)}>
-              <File className="w-4 h-4 mr-2" />
-              Templates
-            </Button>
-            <Button variant="outline" onClick={handleExport}>
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
+        {/* Enhanced Header with better visual hierarchy */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Project Schedule</h1>
+              <p className="text-gray-600">Manage project timelines, dependencies, and track progress</p>
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setNewTaskDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Task
+              </Button>
+              <Button variant="outline" onClick={() => setQuickPlannerOpen(true)}>
+                <Clock className="w-4 h-4 mr-2" />
+                Quick Planner
+              </Button>
+              <Button variant="outline" onClick={() => setTemplateManagerOpen(true)}>
+                <File className="w-4 h-4 mr-2" />
+                Templates
+              </Button>
+              <Button variant="outline" onClick={handleExport}>
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Filters and Search */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="w-5 h-5" />
-                Filters & Search
-              </CardTitle>
-              
-              {/* View Mode Toggle */}
-              <div className="flex items-center gap-2">
-                <Label>View:</Label>
-                <div className="flex border rounded-lg">
-                  {['week', 'month', 'quarter'].map((mode) => (
-                    <Button
-                      key={mode}
-                      variant={viewMode === mode ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setViewMode(mode as 'week' | 'month' | 'quarter')}
-                      className="capitalize rounded-none first:rounded-l-lg last:rounded-r-lg"
-                    >
-                      {mode}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Search */}
-              <div className="space-y-2">
-                <Label>Search Tasks</Label>
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <Input
-                    placeholder="Search by task name..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-full"
-                  />
-                </div>
-              </div>
+        {/* Enhanced Filters Section */}
+        <CollapsibleFilterSection
+          projects={projects}
+          selectedProjects={selectedProjects}
+          onSelectionChange={setSelectedProjects}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          showDependencies={showDependencies}
+          onShowDependenciesChange={setShowDependencies}
+          showCriticalPath={showCriticalPath}
+          onShowCriticalPathChange={setShowCriticalPath}
+          showMilestones={showMilestones}
+          onShowMilestonesChange={setShowMilestones}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          dateRange={dateRange}
+          onNavigateDate={navigateDate}
+          currentDate={currentDate}
+        />
 
-              {/* Project Filter */}
-              <div className="space-y-2">
-                <Label>Projects</Label>
-                <ProjectSelector
-                  projects={projects}
-                  selectedProjects={selectedProjects}
-                  onSelectionChange={setSelectedProjects}
-                />
-              </div>
-
-              {/* Date Navigation - Fixed Layout */}
-              <div className="space-y-2">
-                <Label>Date Range</Label>
-                <div className="flex items-center gap-1 bg-gray-50 rounded-lg p-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigateDate('prev')}
-                    className="h-8 w-8 p-0 hover:bg-white"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <div className="text-sm font-medium flex-1 text-center px-2">
-                    {viewMode === 'week' && format(dateRange.from, 'MMM dd')}
-                    {viewMode === 'month' && format(dateRange.from, 'MMM yyyy')}
-                    {viewMode === 'quarter' && `Q${Math.ceil((dateRange.from.getMonth() + 1) / 3)} ${format(dateRange.from, 'yyyy')}`}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigateDate('next')}
-                    className="h-8 w-8 p-0 hover:bg-white"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Feature Toggles */}
-              <div className="space-y-3">
-                <Label>Display Options</Label>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="dependencies"
-                      checked={showDependencies}
-                      onCheckedChange={setShowDependencies}
-                    />
-                    <Label htmlFor="dependencies" className="text-sm">Dependencies</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="critical-path"
-                      checked={showCriticalPath}
-                      onCheckedChange={setShowCriticalPath}
-                    />
-                    <Label htmlFor="critical-path" className="text-sm">Critical Path</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="milestones"
-                      checked={showMilestones}
-                      onCheckedChange={setShowMilestones}
-                    />
-                    <Label htmlFor="milestones" className="text-sm">Milestones</Label>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Active Filters Display */}
-            {(selectedProjects.length > 0 || searchQuery) && (
-              <div className="flex flex-wrap gap-2 pt-2 border-t">
-                <span className="text-sm font-medium">Active filters:</span>
-                {selectedProjects.map(projectId => {
-                  const project = projects.find(p => p.id === projectId);
-                  return project ? (
-                    <Badge key={projectId} variant="secondary" className="flex items-center gap-1">
-                      <div 
-                        className="w-2 h-2 rounded-full" 
-                        style={{ backgroundColor: project.color }}
-                      />
-                      {project.name}
-                    </Badge>
-                  ) : null;
-                })}
-                {searchQuery && (
-                  <Badge variant="secondary">
-                    Search: "{searchQuery}"
-                  </Badge>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Schedule Views */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="gantt">Gantt Chart</TabsTrigger>
-            <TabsTrigger value="calendar">Calendar</TabsTrigger>
-            <TabsTrigger value="critical-path">Critical Path</TabsTrigger>
-            <TabsTrigger value="list">Task List</TabsTrigger>
+        {/* Enhanced Schedule Views */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4 bg-gray-100 p-1 rounded-lg">
+            <TabsTrigger value="gantt" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              Gantt Chart
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              Calendar
+            </TabsTrigger>
+            <TabsTrigger value="critical-path" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              Critical Path
+            </TabsTrigger>
+            <TabsTrigger value="list" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              Task List
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="gantt">
+          <TabsContent value="gantt" className="mt-6">
             <div id="gantt-chart">
               <GanttChart
                 tasks={filteredTasks}
@@ -590,7 +469,7 @@ export default function ProjectSchedule() {
             </div>
           </TabsContent>
 
-          <TabsContent value="calendar">
+          <TabsContent value="calendar" className="mt-6">
             <div id="schedule-calendar">
               <ScheduleCalendar
                 tasks={filteredTasks}
@@ -602,7 +481,7 @@ export default function ProjectSchedule() {
             </div>
           </TabsContent>
 
-          <TabsContent value="critical-path">
+          <TabsContent value="critical-path" className="mt-6">
             <div id="critical-path-view">
               <CriticalPath
                 tasks={filteredTasks}
@@ -611,85 +490,47 @@ export default function ProjectSchedule() {
             </div>
           </TabsContent>
 
-          <TabsContent value="list">
-            <Card>
-              <CardHeader>
-                <CardTitle>Task List</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="text-center py-8">Loading tasks...</div>
-                ) : filteredTasks.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    No tasks found. Try adjusting your filters or add some tasks.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {filteredTasks.map((task) => {
-                      const project = projects.find(p => p.id === task.projectId);
-                      return (
-                        <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div 
-                              className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: project?.color || '#gray' }}
-                            />
-                            <div>
-                              <div className="font-medium">{task.title}</div>
-                              <div className="text-sm text-gray-500">
-                                {project?.name} • {format(task.startDate, 'MMM dd')} - {format(task.endDate, 'MMM dd')}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge 
-                              variant={task.status === 'Completed' ? 'default' : 'secondary'}
-                            >
-                              {task.status}
-                            </Badge>
-                            <span className="text-sm text-gray-500">{task.progress}%</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          <TabsContent value="list" className="mt-6">
+            <EnhancedTaskList
+              tasks={filteredTasks}
+              projects={projects}
+              loading={loading}
+              onTaskUpdate={handleTaskUpdate}
+              onTaskDelete={handleTaskDelete}
+              onTaskEdit={(task) => console.log('Edit task:', task)} // TODO: Implement edit dialog
+            />
           </TabsContent>
         </Tabs>
 
-        {/* Instructions Panel */}
-        <Card className="bg-blue-50 border-blue-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-800">
-              <Info className="w-5 h-5" />
-              Quick Start Guide
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-blue-700">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h4 className="font-medium mb-2">Getting Started:</h4>
-                <ul className="text-sm space-y-1">
-                  <li>• Use "Add Task" for individual tasks</li>
-                  <li>• Use "Quick Planner" for bulk task entry</li>
-                  <li>• Create templates for reusable task sets</li>
-                  <li>• Filter by project and date range</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-medium mb-2">Features:</h4>
-                <ul className="text-sm space-y-1">
-                  <li>• Toggle dependencies, critical path, and milestones</li>
-                  <li>• Click tasks in Gantt chart to update progress</li>
-                  <li>• Export current view as PDF or CSV</li>
-                  <li>• Switch between week, month, and quarter views</li>
-                </ul>
+        {/* Enhanced Instructions Panel */}
+        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200 p-6">
+          <div className="flex items-start gap-3">
+            <Info className="w-6 h-6 text-blue-600 mt-1 flex-shrink-0" />
+            <div>
+              <h3 className="text-lg font-semibold text-blue-900 mb-3">Quick Start Guide</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-medium text-blue-800 mb-2">Getting Started:</h4>
+                  <ul className="text-sm space-y-1 text-blue-700">
+                    <li>• Use "Add Task" for individual tasks</li>
+                    <li>• Use "Quick Planner" for bulk task entry</li>
+                    <li>• Create templates for reusable task sets</li>
+                    <li>• Filter by project and date range</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-medium text-blue-800 mb-2">Advanced Features:</h4>
+                  <ul className="text-sm space-y-1 text-blue-700">
+                    <li>• Toggle dependencies, critical path, and milestones</li>
+                    <li>• Select multiple tasks for bulk operations</li>
+                    <li>• Export current view as PDF or CSV</li>
+                    <li>• Switch between week, month, and quarter views</li>
+                  </ul>
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       {/* Dialogs */}
