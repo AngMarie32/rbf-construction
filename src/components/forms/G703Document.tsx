@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface G703DocumentProps {
@@ -75,29 +76,29 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
       </div>
 
       {/* SOV Table */}
-      <div className="border border-black">
+      <div className="border-l border-r border-b border-black">
         <table className="w-full border-collapse text-xs">
           <thead>
             {/* Row 1: Grouping Header */}
             <tr className="text-center font-bold text-xs">
               <th className="p-1" colSpan={5}></th>
-              <th className="p-1" colSpan={3}>WORK COMPLETED</th>
+              <th className="p-1 border-b-0" colSpan={3}>WORK COMPLETED</th>
               <th className="p-1" colSpan={4}></th>
             </tr>
             {/* Row 2: Column letters A through L */}
-            <tr className="bg-gray-100 text-center font-bold">
-              <th className="border-t border-r border-b border-black p-1" style={{ width: '6%' }}>A</th>
-              <th className="border-t border-r border-b border-black p-1" style={{ width: '22%' }}>B</th>
-              <th className="border-t border-r border-b border-black p-1" style={{ width: '8%' }}>C</th>
-              <th className="border-t border-r border-b border-black p-1" style={{ width: '8%' }}>D</th>
-              <th className="border-t border-r border-b border-black p-1" style={{ width: '8%' }}>E</th>
-              <th className="border-t border-r border-b border-black p-1" style={{ width: '8%' }}>F</th>
-              <th className="border-t border-r border-b border-black p-1" style={{ width: '8%' }}>G</th>
-              <th className="border-t border-r border-b border-black p-1" style={{ width: '8%' }}>H</th>
-              <th className="border-t border-r border-b border-black p-1" style={{ width: '8%' }}>I</th>
-              <th className="border-t border-r border-b border-black p-1" style={{ width: '6%' }}>J</th>
-              <th className="border-t border-r border-b border-black p-1" style={{ width: '8%' }}>K</th>
-              <th className="border-t border-b border-black p-1" style={{ width: '8%' }}>L</th>
+            <tr className="bg-gray-100 text-center font-bold border-t border-black">
+              <th className="border-r border-b border-black p-1" style={{ width: '6%' }}>A</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '22%' }}>B</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>C</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>D</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>E</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>F</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>G</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>H</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>I</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '6%' }}>J</th>
+              <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>K</th>
+              <th className="border-b border-black p-1" style={{ width: '8%' }}>L</th>
             </tr>
             {/* Row 3: Column Descriptions */}
             <tr className="bg-gray-100 text-center text-xs">
