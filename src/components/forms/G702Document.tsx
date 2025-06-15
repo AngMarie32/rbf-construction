@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface G702DocumentProps {
@@ -7,6 +8,10 @@ interface G702DocumentProps {
 }
 
 export function G702Document({ project, formData, totals }: G702DocumentProps) {
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   return (
     <div className="bg-white p-4 mx-auto text-black" style={{ width: '11in', minHeight: '8.5in' }}>
       {/* Header */}
@@ -37,20 +42,20 @@ export function G702Document({ project, formData, totals }: G702DocumentProps) {
           {/* Center Column - Application details */}
           <div className="col-span-4 text-left space-y-2">
             <div className="flex justify-between items-center">
-              <span className="font-bold">APPLICATION NO:</span>
-              <span className="text-lg font-bold px-2 min-w-[60px] text-center">{formData.applicationNumber}</span>
+              <span className="font-bold text-sm">APPLICATION NO:</span>
+              <span className="text-sm px-2 min-w-[60px] text-right">{formData.applicationNumber}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="font-bold">PERIOD TO:</span>
-              <span className="px-2 min-w-[100px] text-center">{new Date(formData.periodTo).toLocaleDateString()}</span>
+              <span className="font-bold text-sm">PERIOD TO:</span>
+              <span className="text-sm px-2 min-w-[100px] text-right">{new Date(formData.periodTo).toLocaleDateString()}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="font-bold">PROJECT:</span>
-              <span className="px-2 flex-1 ml-2 text-center">{project.name}</span>
+              <span className="font-bold text-sm">PROJECT:</span>
+              <span className="text-sm px-2 flex-1 ml-2 text-right">{project.name}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="font-bold">PROJECT NO:</span>
-              <span className="px-2 min-w-[80px] text-center">{project.projectCode}</span>
+              <span className="font-bold text-sm">PROJECT NO:</span>
+              <span className="text-sm px-2 min-w-[80px] text-right">{project.projectCode}</span>
             </div>
           </div>
           
@@ -79,7 +84,6 @@ export function G702Document({ project, formData, totals }: G702DocumentProps) {
       <div className="grid grid-cols-3 gap-6">
         {/* Left Column - Payment Summary Table */}
         <div className="col-span-2">
-          {/* ... keep existing code (payment summary table and description) */}
           <div className="mb-4">
             <h3 className="font-bold mb-3 text-sm">CONTRACTOR'S APPLICATION FOR PAYMENT</h3>
             <p className="text-sm mb-2">Application is made for payment, as shown below, in connection with the Contract.</p>
@@ -90,22 +94,22 @@ export function G702Document({ project, formData, totals }: G702DocumentProps) {
                 <tr>
                   <td className="border border-black p-2 font-medium">1. ORIGINAL CONTRACT SUM</td>
                   <td className="border border-black p-2 text-right w-8">$</td>
-                  <td className="border border-black p-2 text-right w-32 font-medium">{totals.originalContractSum.toLocaleString()}</td>
+                  <td className="border border-black p-2 text-right w-32 font-medium">{formatCurrency(totals.originalContractSum)}</td>
                 </tr>
                 <tr>
                   <td className="border border-black p-2">2. NET CHANGE BY CHANGE ORDERS</td>
                   <td className="border border-black p-2 text-right">$</td>
-                  <td className="border border-black p-2 text-right">{totals.netChangeOrders.toLocaleString()}</td>
+                  <td className="border border-black p-2 text-right">{formatCurrency(totals.netChangeOrders)}</td>
                 </tr>
                 <tr className="bg-gray-100">
                   <td className="border border-black p-2 font-bold">3. CONTRACT SUM TO DATE</td>
                   <td className="border border-black p-2 text-right font-bold">$</td>
-                  <td className="border border-black p-2 text-right font-bold">{totals.contractSumToDate.toLocaleString()}</td>
+                  <td className="border border-black p-2 text-right font-bold">{formatCurrency(totals.contractSumToDate)}</td>
                 </tr>
                 <tr>
                   <td className="border border-black p-2">4. TOTAL COMPLETED & STORED TO DATE</td>
                   <td className="border border-black p-2 text-right">$</td>
-                  <td className="border border-black p-2 text-right">{totals.totalCompletedAndStored.toLocaleString()}</td>
+                  <td className="border border-black p-2 text-right">{formatCurrency(totals.totalCompletedAndStored)}</td>
                 </tr>
                 <tr>
                   <td className="border border-black p-2 font-medium">5. RETAINAGE:</td>
@@ -115,37 +119,37 @@ export function G702Document({ project, formData, totals }: G702DocumentProps) {
                 <tr>
                   <td className="border border-black p-2 pl-6">a. {formData.retainagePercentage}% of Completed Work</td>
                   <td className="border border-black p-2 text-right">$</td>
-                  <td className="border border-black p-2 text-right">{(totals.totalRetainage * 0.9).toLocaleString()}</td>
+                  <td className="border border-black p-2 text-right">{formatCurrency(totals.totalRetainage * 0.9)}</td>
                 </tr>
                 <tr>
                   <td className="border border-black p-2 pl-6">b. {formData.retainagePercentage}% of Stored Material</td>
                   <td className="border border-black p-2 text-right">$</td>
-                  <td className="border border-black p-2 text-right">{(totals.totalRetainage * 0.1).toLocaleString()}</td>
+                  <td className="border border-black p-2 text-right">{formatCurrency(totals.totalRetainage * 0.1)}</td>
                 </tr>
                 <tr>
                   <td className="border border-black p-2 pl-6 font-medium">TOTAL RETAINED</td>
                   <td className="border border-black p-2 text-right font-medium">$</td>
-                  <td className="border border-black p-2 text-right font-medium">{totals.totalRetainage.toLocaleString()}</td>
+                  <td className="border border-black p-2 text-right font-medium">{formatCurrency(totals.totalRetainage)}</td>
                 </tr>
                 <tr className="bg-gray-100">
                   <td className="border border-black p-2 font-bold">6. TOTAL EARNED LESS RETAINAGE</td>
                   <td className="border border-black p-2 text-right font-bold">$</td>
-                  <td className="border border-black p-2 text-right font-bold">{totals.totalEarnedLessRetainage.toLocaleString()}</td>
+                  <td className="border border-black p-2 text-right font-bold">{formatCurrency(totals.totalEarnedLessRetainage)}</td>
                 </tr>
                 <tr>
                   <td className="border border-black p-2">7. LESS PREVIOUS CERTIFICATES FOR PAYMENT</td>
                   <td className="border border-black p-2 text-right">$</td>
-                  <td className="border border-black p-2 text-right">{totals.lessPreviousPayments.toLocaleString()}</td>
+                  <td className="border border-black p-2 text-right">{formatCurrency(totals.lessPreviousPayments)}</td>
                 </tr>
                 <tr className="bg-yellow-100">
                   <td className="border border-black p-2 font-bold">8. CURRENT PAYMENT DUE</td>
                   <td className="border border-black p-2 text-right font-bold">$</td>
-                  <td className="border border-black p-2 text-right font-bold">{totals.currentPaymentDue.toLocaleString()}</td>
+                  <td className="border border-black p-2 text-right font-bold">{formatCurrency(totals.currentPaymentDue)}</td>
                 </tr>
                 <tr>
                   <td className="border border-black p-2">9. BALANCE TO FINISH, INCLUDING RETAINAGE</td>
                   <td className="border border-black p-2 text-right">$</td>
-                  <td className="border border-black p-2 text-right">{totals.balanceToFinish.toLocaleString()}</td>
+                  <td className="border border-black p-2 text-right">{formatCurrency(totals.balanceToFinish)}</td>
                 </tr>
               </tbody>
             </table>
@@ -159,34 +163,30 @@ export function G702Document({ project, formData, totals }: G702DocumentProps) {
                   <th className="border border-black p-2 text-left bg-gray-200 font-bold" colSpan={4}>CHANGE ORDER SUMMARY</th>
                 </tr>
                 <tr className="bg-gray-100">
-                  <th className="border border-black p-2 text-center font-medium">Total changes approved in previous months by Owner</th>
+                  <th className="border border-black p-2 text-center font-medium">Changes approved in previous months by Owner</th>
                   <th className="border border-black p-2 text-center font-medium">ADDITIONS</th>
                   <th className="border border-black p-2 text-center font-medium">DEDUCTIONS</th>
-                  <th className="border border-black p-2 text-center font-medium">Total approved this Month</th>
+                  <th className="border border-black p-2 text-center font-medium">NET CHANGES by Change Order</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td className="border border-black p-2 text-center">${totals.netChangeOrders.toLocaleString()}</td>
+                  <td className="border border-black p-2 text-center">${formatCurrency(totals.netChangeOrders)}</td>
                   <td className="border border-black p-2 text-center">$0.00</td>
                   <td className="border border-black p-2 text-center">$0.00</td>
-                  <td className="border border-black p-2 text-center">$0.00</td>
+                  <td className="border border-black p-2 text-center">${formatCurrency(totals.netChangeOrders)}</td>
                 </tr>
                 <tr>
-                  <td className="border border-black p-2 text-center">$0.00</td>
+                  <td className="border border-black p-2 font-medium">Total approved this Month</td>
                   <td className="border border-black p-2 text-center">$0.00</td>
                   <td className="border border-black p-2 text-center">$0.00</td>
                   <td className="border border-black p-2 text-center">$0.00</td>
                 </tr>
                 <tr className="bg-gray-100">
                   <td className="border border-black p-2 font-bold">TOTALS</td>
-                  <td className="border border-black p-2 text-center font-bold">${totals.netChangeOrders.toLocaleString()}</td>
+                  <td className="border border-black p-2 text-center font-bold">${formatCurrency(totals.netChangeOrders)}</td>
                   <td className="border border-black p-2 text-center font-bold">$0.00</td>
-                  <td className="border border-black p-2 text-center font-bold">$0.00</td>
-                </tr>
-                <tr>
-                  <td className="border border-black p-2 font-medium" colSpan={2}>NET CHANGES by Change Order</td>
-                  <td className="border border-black p-2 text-center font-bold" colSpan={2}>${totals.netChangeOrders.toLocaleString()}</td>
+                  <td className="border border-black p-2 text-center font-bold">${formatCurrency(totals.netChangeOrders)}</td>
                 </tr>
               </tbody>
             </table>
@@ -229,7 +229,7 @@ export function G702Document({ project, formData, totals }: G702DocumentProps) {
             
             <div className="mb-3 p-2 bg-yellow-100 border border-black">
               <span className="font-bold text-sm">AMOUNT CERTIFIED: </span>
-              <span className="font-bold">$ {totals.currentPaymentDue.toLocaleString()}</span>
+              <span className="font-bold text-sm">$ {formatCurrency(totals.currentPaymentDue)}</span>
             </div>
             
             <p className="text-xs mb-3 italic">(Attach explanation if amount certified differs from the amount applied. Initial all figures on this Application and on the Continuation Sheet that are changed to conform with the amount certified.)</p>
