@@ -135,17 +135,7 @@ export function Sidebar({
   const sectionsToShow = userRole === 'Admin' ? [...menuSections, adminSection] : menuSections;
   return <div className={cn("bg-white border-r border-gray-200 transition-all duration-300 flex flex-col", collapsed ? "w-16" : "w-64", className)}>
       {/* Logo and Toggle */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        {!collapsed && <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              
-            </div>
-            <span className="font-bold text-lg text-gray-900"></span>
-          </div>}
-        <Button variant="ghost" size="sm" onClick={() => setCollapsed(!collapsed)} className="p-1 h-8 w-8">
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </Button>
-      </div>
+      
 
       {/* Navigation */}
       <nav className="flex-1 p-2 space-y-2 overflow-y-auto">
