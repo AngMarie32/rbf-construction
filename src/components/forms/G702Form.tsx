@@ -268,8 +268,6 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
         period_to: formData.periodTo,
         contractor_name: formData.contractorName,
         contractor_address: formData.contractorAddress,
-        contractor_signatory: formData.contractorSignatory,
-        contractor_title: formData.contractorTitle,
         contractor_signature: formData.contractorSignature,
         project_name: project.name,
         project_number: formData.projectNumber || project.projectCode,

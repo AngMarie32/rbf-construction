@@ -28,7 +28,7 @@ export const exportToPDF = async (elementId: string, filename: string = 'export.
 
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF({
-      orientation: 'landscape',
+      orientation: 'portrait',
       unit: 'mm',
       format: 'letter'
     });
@@ -38,13 +38,17 @@ export const exportToPDF = async (elementId: string, filename: string = 'export.
     const imgWidth = canvas.width;
     const imgHeight = canvas.height;
     
-    // Calculate scaling to fit the page
-    const ratio = Math.min(pdfWidth / (imgWidth * 0.264583), pdfHeight / (imgHeight * 0.264583));
+    // Calculate scaling to fit the page with margins
+    const margin = 10;
+    const availableWidth = pdfWidth - (margin * 2);
+    const availableHeight = pdfHeight - (margin * 2);
+    
+    const ratio = Math.min(availableWidth / (imgWidth * 0.264583), availableHeight / (imgHeight * 0.264583));
     const scaledWidth = imgWidth * 0.264583 * ratio;
     const scaledHeight = imgHeight * 0.264583 * ratio;
     
     const imgX = (pdfWidth - scaledWidth) / 2;
-    const imgY = 10;
+    const imgY = margin;
 
     pdf.addImage(imgData, 'PNG', imgX, imgY, scaledWidth, scaledHeight);
     pdf.save(filename);
@@ -59,13 +63,16 @@ export const exportToPDF = async (elementId: string, filename: string = 'export.
 export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Application.pdf') => {
   try {
     const pdf = new jsPDF({
-      orientation: 'landscape',
+      orientation: 'portrait',
       unit: 'mm',
       format: 'letter'
     });
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    const availableWidth = pdfWidth - (margin * 2);
+    const availableHeight = pdfHeight - (margin * 2);
 
     // Export G702 first
     const g702Element = document.getElementById('g702-document');
@@ -97,8 +104,8 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
         backgroundColor: '#ffffff',
         width: g702Element.scrollWidth,
         height: g702Element.scrollHeight,
-        windowWidth: 1400,
-        windowHeight: 900
+        windowWidth: 1200,
+        windowHeight: 800
       });
 
       // Restore original styles safely
@@ -110,12 +117,12 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       g702Element.style.visibility = originalStyles.visibility;
 
       const g702ImgData = g702Canvas.toDataURL('image/png');
-      const ratio = Math.min(pdfWidth / (g702Canvas.width * 0.264583), pdfHeight / (g702Canvas.height * 0.264583));
+      const ratio = Math.min(availableWidth / (g702Canvas.width * 0.264583), availableHeight / (g702Canvas.height * 0.264583));
       const scaledWidth = g702Canvas.width * 0.264583 * ratio;
       const scaledHeight = g702Canvas.height * 0.264583 * ratio;
       
       const imgX = (pdfWidth - scaledWidth) / 2;
-      pdf.addImage(g702ImgData, 'PNG', imgX, 5, scaledWidth, scaledHeight);
+      pdf.addImage(g702ImgData, 'PNG', imgX, margin, scaledWidth, scaledHeight);
     }
 
     // Add new page for G703
@@ -151,8 +158,8 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
         backgroundColor: '#ffffff',
         width: g703Element.scrollWidth,
         height: g703Element.scrollHeight,
-        windowWidth: 1400,
-        windowHeight: 900
+        windowWidth: 1200,
+        windowHeight: 800
       });
 
       // Restore original styles safely
@@ -164,12 +171,12 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703-Applicat
       g703Element.style.visibility = originalStyles.visibility;
 
       const g703ImgData = g703Canvas.toDataURL('image/png');
-      const ratio = Math.min(pdfWidth / (g703Canvas.width * 0.264583), pdfHeight / (g703Canvas.height * 0.264583));
+      const ratio = Math.min(availableWidth / (g703Canvas.width * 0.264583), availableHeight / (g703Canvas.height * 0.264583));
       const scaledWidth = g703Canvas.width * 0.264583 * ratio;
       const scaledHeight = g703Canvas.height * 0.264583 * ratio;
       
       const imgX = (pdfWidth - scaledWidth) / 2;
-      pdf.addImage(g703ImgData, 'PNG', imgX, 5, scaledWidth, scaledHeight);
+      pdf.addImage(g703ImgData, 'PNG', imgX, margin, scaledWidth, scaledHeight);
     }
 
     pdf.save(filename);
