@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { PenTool, Type, X, Upload, Download, Settings, FileText } from 'lucide-react';
+import { PenTool, Type, X, Upload, Download, Settings, FileText, TrendingUp, AlertTriangle } from 'lucide-react';
 
 // Import new components
 import { SOVTable } from './sov/SOVTable';
@@ -299,7 +299,19 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
     const totalChangeOrders = sovItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
     const totalContract = totalScheduledValue + totalChangeOrders;
     const totalThisPeriod = sovItems.reduce((sum, item) => sum + (item.thisPeriod || 0), 0);
-    const totalCompleted = sovItems.reduce((sum, item) => sum + (item.totalCompletedAndStored || 0), 0);
+    
+    // Fix: Only calculate total completed if there are actual applications or this period work
+    const hasApplications = applications.length > 0;
+    const hasCurrentWork = totalThisPeriod > 0;
+    
+    let totalCompleted = 0;
+    if (hasApplications || hasCurrentWork) {
+      totalCompleted = sovItems.reduce((sum, item) => {
+        // Use the actual values from the item, not calculated ones
+        return sum + (item.previousApplications || 0) + (item.thisPeriod || 0) + (item.materialsStored || 0);
+      }, 0);
+    }
+    
     const balanceToFinish = totalContract - totalCompleted;
 
     return {
@@ -313,6 +325,18 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
   };
 
   const totals = calculateTotals();
+
+  // Enhanced change order summary
+  const changeOrderSummary = sovItems
+    .filter(item => item.changeOrders > 0)
+    .map(item => ({
+      itemNumber: item.itemNumber,
+      description: item.description,
+      amount: item.changeOrders,
+      category: item.category
+    }));
+
+  const totalChangeOrderAmount = changeOrderSummary.reduce((sum, co) => sum + co.amount, 0);
 
   return (
     <div className="space-y-6">
@@ -351,7 +375,53 @@ export function G702Builder({ projectId, formData, setFormData, sovItems, setSov
             </CardContent>
           </Card>
 
-          {/* Change Orders */}
+          {/* Enhanced Change Orders Overview */}
+          <Card className="border-orange-200 bg-orange-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-800">
+                <TrendingUp className="w-5 h-5" />
+                Change Orders Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {changeOrderSummary.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center p-3 bg-orange-100 rounded-lg">
+                    <span className="font-semibold text-orange-900">Total Change Orders</span>
+                    <span className="text-lg font-bold text-orange-900">${totalChangeOrderAmount.toLocaleString()}</span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-orange-800">Active Change Orders:</h4>
+                    {changeOrderSummary.map((co, index) => (
+                      <div key={index} className="flex justify-between items-center p-2 bg-white rounded border border-orange-200">
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{co.itemNumber}</div>
+                          <div className="text-xs text-gray-600 truncate">{co.description}</div>
+                          <div className="text-xs text-orange-600">{co.category}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-semibold text-green-600">${co.amount.toLocaleString()}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="text-xs text-orange-700 mt-2">
+                    {changeOrderSummary.length} change order{changeOrderSummary.length !== 1 ? 's' : ''} affecting this project
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <AlertTriangle className="w-8 h-8 text-orange-400 mx-auto mb-2" />
+                  <p className="text-orange-600">No change orders found in Schedule of Values</p>
+                  <p className="text-xs text-orange-500 mt-1">Add change orders below to include them in payment applications</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Change Orders Selection */}
           <ChangeOrderSelection
             changeOrders={changeOrders}
             selectedChangeOrders={selectedChangeOrders}
