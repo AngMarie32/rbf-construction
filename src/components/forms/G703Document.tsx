@@ -89,50 +89,46 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               <th className="border-r border-b border-black p-1 w-16">F</th>
               <th className="border-r border-b border-black p-1 w-16">G</th>
               <th className="border-r border-b border-black p-1 w-16">H</th>
-              <th className="border-r border-b border-black p-1 w-16">I</th>
-              <th className="border-r border-b border-black p-1 w-12">J</th>
+              <th className="border-r border-b border-black p-1 w-24" colSpan={2}>I</th>
+              <th className="border-r border-b border-black p-1 w-16">J</th>
               <th className="border-b border-black p-1 w-16">K</th>
             </tr>
             {/* Second row - Main headers with "WORK COMPLETED" spanning F, G, H */}
             <tr className="bg-gray-100 text-center font-bold">
-              <th className="border-r border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal text-xs">ITEM<br />NO.</div>
+              <th className="border-r border-b border-black p-1 h-16 align-bottom">
+                <div className="text-xs">ITEM<br />NO.</div>
               </th>
-              <th className="border-r border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal text-xs">DESCRIPTION OF WORK</div>
+              <th className="border-r border-b border-black p-1 h-16 align-bottom">
+                <div className="text-xs">DESCRIPTION OF WORK</div>
               </th>
-              <th className="border-r border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal text-xs">SCHEDULED<br />VALUE</div>
+              <th className="border-r border-b border-black p-1 h-16 align-bottom">
+                <div className="text-xs">SCHEDULED<br />VALUE</div>
               </th>
-              <th className="border-r border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal text-xs">CHANGE<br />ORDERS</div>
+              <th className="border-r border-b border-black p-1 h-16 align-bottom">
+                <div className="text-xs">CHANGE<br />ORDERS</div>
               </th>
-              <th className="border-r border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal text-xs">TOTAL<br />CONTRACT</div>
+              <th className="border-r border-b border-black p-1 h-16 align-bottom">
+                <div className="text-xs">TOTAL<br />CONTRACT</div>
               </th>
               <th className="border-r border-b border-black p-1 font-bold" colSpan={3}>
-                WORK COMPLETED
+                <div className="border-b border-black pb-1 mb-1">WORK COMPLETED</div>
+                <div className="grid grid-cols-3 gap-0 text-xs font-normal">
+                  <div className="border-r border-black pr-1 align-bottom">FROM<br />PREVIOUS<br />APPLICATION</div>
+                  <div className="border-r border-black px-1 align-bottom">THIS PERIOD</div>
+                  <div className="align-bottom">MATERIALS<br />PRESENTLY<br />STORED</div>
+                </div>
               </th>
-              <th className="border-r border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal text-xs">TOTAL<br />COMPLETED<br />AND STORED TO</div>
+              <th className="border-r border-b border-black p-1 h-16 align-bottom">
+                <div className="text-xs">TOTAL<br />COMPLETED<br />AND STORED TO</div>
               </th>
-              <th className="border-r border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal text-xs">% COMPLETE</div>
+              <th className="border-r border-b border-black p-1 h-16 align-bottom">
+                <div className="text-xs">% COMPLETE</div>
               </th>
-              <th className="border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal text-xs">BALANCE TO<br />FINISH</div>
+              <th className="border-r border-b border-black p-1 h-16 align-bottom">
+                <div className="text-xs">BALANCE TO<br />FINISH</div>
               </th>
-            </tr>
-            {/* Third row - Individual column descriptions under WORK COMPLETED */}
-            <tr className="bg-gray-100 text-center">
-              <th className="border-r border-b border-black p-1 align-top">
-                <div className="font-normal text-xs">FROM<br />PREVIOUS<br />APPLICATION</div>
-              </th>
-              <th className="border-r border-b border-black p-1 align-top">
-                <div className="font-normal text-xs">THIS PERIOD</div>
-              </th>
-              <th className="border-r border-b border-black p-1 align-top">
-                <div className="font-normal text-xs">MATERIALS<br />PRESENTLY<br />STORED</div>
+              <th className="border-b border-black p-1 h-16 align-bottom">
+                <div className="text-xs">RETAINAGE</div>
               </th>
             </tr>
           </thead>
@@ -156,7 +152,8 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
                   <td className="border-r border-black p-1 text-right">${(item.materialsStored || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className="border-r border-black p-1 text-right">${totalCompleted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className="border-r border-black p-1 text-right">{percentComplete.toFixed(2)}%</td>
-                  <td className="p-1 text-right">${balanceToFinish.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="border-r border-black p-1 text-right">${balanceToFinish.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="p-1 text-right">${retainage.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
               );
             })}
@@ -172,7 +169,8 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               <td className="border-r border-black p-1 text-right">${totals.totalMaterials.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               <td className="border-r border-black p-1 text-right">${totals.totalCompleted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               <td className="border-r border-black p-1 text-right">{totals.percentComplete.toFixed(2)}%</td>
-              <td className="p-1 text-right">${totals.balanceToFinish.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td className="border-r border-black p-1 text-right">${totals.balanceToFinish.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td className="p-1 text-right">${totals.totalRetainage.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           </tbody>
         </table>
