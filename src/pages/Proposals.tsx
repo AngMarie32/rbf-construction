@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { EnhancedProposalDialog } from '@/components/proposals/EnhancedProposalDialog';
@@ -44,6 +45,7 @@ export default function Proposals() {
   const [viewingProposal, setViewingProposal] = useState<Proposal | null>(null);
   const [editingProposal, setEditingProposal] = useState<any>(null);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   useEffect(() => {
     fetchProposals();
@@ -152,8 +154,6 @@ export default function Proposals() {
     }
   };
 
-  const totalValue = proposals.reduce((sum, proposal) => sum + proposal.amount, 0);
-
   const handleSort = (field: 'projectName' | 'client' | 'amount' | 'status' | 'createdAt') => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -199,7 +199,7 @@ export default function Proposals() {
   });
 
   const handleTemplateSelect = (template: any) => {
-    // Create a new proposal from the selected template
+    console.log('Template selected:', template);
     const newProposal = {
       projectName: `${template.name} Project`,
       client: '',
@@ -217,6 +217,7 @@ export default function Proposals() {
     
     setEditingProposal(newProposal);
     setShowTemplateDialog(false);
+    setShowCreateDialog(true);
     toast.success(`New proposal created from template "${template.name}"`);
   };
 
@@ -269,45 +270,11 @@ export default function Proposals() {
               <Clipboard className="w-4 h-4 mr-2" />
               Templates
             </Button>
-            <EnhancedProposalDialog 
-              onProposalCreated={fetchProposals}
-              proposal={editingProposal}
-            />
+            <Button onClick={() => setShowCreateDialog(true)}>
+              <FileText className="w-4 h-4 mr-2" />
+              New Proposal
+            </Button>
           </div>
-        </div>
-
-        {/* Stats Cards - keeping existing structure */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold">{proposals.length}</div>
-              <p className="text-sm text-gray-600">Total Proposals</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-green-600">
-                {proposals.filter(p => p.status === 'Approved').length}
-              </div>
-              <p className="text-sm text-gray-600">Approved</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-blue-600">
-                {proposals.filter(p => p.status === 'Sent').length}
-              </div>
-              <p className="text-sm text-gray-600">Pending</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold">
-                ${totalValue.toLocaleString()}
-              </div>
-              <p className="text-sm text-gray-600">Total Value</p>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Proposals Table */}
@@ -325,7 +292,10 @@ export default function Proposals() {
                     : 'No proposals found. Create your first proposal to get started!'}
                 </p>
                 {!searchTerm && statusFilter === 'all' && (
-                  <EnhancedProposalDialog onProposalCreated={fetchProposals} />
+                  <Button onClick={() => setShowCreateDialog(true)}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Create Proposal
+                  </Button>
                 )}
               </div>
             ) : (
@@ -412,7 +382,10 @@ export default function Proposals() {
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={() => setEditingProposal(proposal)}
+                              onClick={() => {
+                                setEditingProposal(proposal);
+                                setShowCreateDialog(true);
+                              }}
                               title="Edit proposal"
                             >
                               <Edit className="w-4 h-4" />
@@ -460,14 +433,22 @@ export default function Proposals() {
           onTemplateSelect={handleTemplateSelect}
         />
 
-        {editingProposal && (
+        {showCreateDialog && (
           <EnhancedProposalDialog
             onProposalCreated={() => {
               fetchProposals();
               setEditingProposal(null);
+              setShowCreateDialog(false);
             }}
             proposal={editingProposal}
             trigger={<div />}
+            onOpenChange={(open) => {
+              if (!open) {
+                setShowCreateDialog(false);
+                setEditingProposal(null);
+              }
+            }}
+            open={showCreateDialog}
           />
         )}
       </div>

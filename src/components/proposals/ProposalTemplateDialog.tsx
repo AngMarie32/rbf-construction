@@ -49,74 +49,104 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      // Mock data with realistic construction templates
-      const mockTemplates: Template[] = [
-        {
-          id: '1',
-          name: 'Kitchen Remodel',
-          description: 'Complete kitchen renovation including cabinets, countertops, appliances, and flooring',
-          projectType: 'Residential',
-          createdAt: new Date('2024-01-15'),
-          items: [
-            { description: 'Cabinet removal and installation', quantity: 1, unit: 'job', unitPrice: 8500, total: 8500 },
-            { description: 'Granite countertop installation', quantity: 30, unit: 'sq ft', unitPrice: 85, total: 2550 },
-            { description: 'Appliance installation package', quantity: 1, unit: 'set', unitPrice: 1200, total: 1200 },
-            { description: 'Tile flooring installation', quantity: 150, unit: 'sq ft', unitPrice: 12, total: 1800 },
-            { description: 'Plumbing and electrical updates', quantity: 1, unit: 'job', unitPrice: 2500, total: 2500 }
-          ]
-        },
-        {
-          id: '2',
-          name: 'Bathroom Renovation',
-          description: 'Full bathroom remodel with modern fixtures and tile work',
-          projectType: 'Residential',
-          createdAt: new Date('2024-02-01'),
-          items: [
-            { description: 'Demolition and prep work', quantity: 1, unit: 'job', unitPrice: 1500, total: 1500 },
-            { description: 'Ceramic tile installation', quantity: 120, unit: 'sq ft', unitPrice: 18, total: 2160 },
-            { description: 'Vanity and mirror installation', quantity: 1, unit: 'set', unitPrice: 2200, total: 2200 },
-            { description: 'Shower/tub installation', quantity: 1, unit: 'unit', unitPrice: 3500, total: 3500 },
-            { description: 'Plumbing fixture installation', quantity: 1, unit: 'job', unitPrice: 1800, total: 1800 }
-          ]
-        },
-        {
-          id: '3',
-          name: 'Office Build-out',
-          description: 'Commercial office space construction with modern amenities',
-          projectType: 'Commercial',
-          createdAt: new Date('2024-01-20'),
-          items: [
-            { description: 'Framing and drywall', quantity: 2000, unit: 'sq ft', unitPrice: 8, total: 16000 },
-            { description: 'Electrical rough-in and finishing', quantity: 1, unit: 'job', unitPrice: 12000, total: 12000 },
-            { description: 'HVAC installation', quantity: 1, unit: 'system', unitPrice: 8500, total: 8500 },
-            { description: 'Flooring installation', quantity: 1800, unit: 'sq ft', unitPrice: 15, total: 27000 },
-            { description: 'Paint and finishing work', quantity: 1, unit: 'job', unitPrice: 6000, total: 6000 }
-          ]
-        },
-        {
-          id: '4',
-          name: 'Deck Construction',
-          description: 'Outdoor deck construction with railings and stairs',
-          projectType: 'Residential',
-          createdAt: new Date('2024-02-10'),
-          items: [
-            { description: 'Foundation and footings', quantity: 8, unit: 'piers', unitPrice: 150, total: 1200 },
-            { description: 'Pressure treated lumber framing', quantity: 400, unit: 'sq ft', unitPrice: 12, total: 4800 },
-            { description: 'Composite decking installation', quantity: 350, unit: 'sq ft', unitPrice: 25, total: 8750 },
-            { description: 'Railing installation', quantity: 80, unit: 'linear ft', unitPrice: 45, total: 3600 },
-            { description: 'Stairs and finishing', quantity: 1, unit: 'set', unitPrice: 1800, total: 1800 }
-          ]
-        }
-      ];
-      
-      setTemplates(mockTemplates);
+      // Fetch real templates from Supabase bid_templates table
+      const { data: bidTemplates, error } = await supabase
+        .from('bid_templates')
+        .select(`
+          *,
+          bid_template_items (*)
+        `);
+
+      if (error) {
+        console.error('Error fetching templates:', error);
+        // Fall back to mock data if real data fails
+        setTemplates(getMockTemplates());
+      } else if (bidTemplates && bidTemplates.length > 0) {
+        const mappedTemplates: Template[] = bidTemplates.map((template: any) => ({
+          id: template.id,
+          name: template.name,
+          description: template.description || 'No description available',
+          projectType: template.is_default ? 'Default' : 'Custom',
+          createdAt: new Date(template.created_at),
+          items: template.bid_template_items?.map((item: any) => ({
+            description: item.description,
+            quantity: 1,
+            unit: item.unit || 'each',
+            unitPrice: item.unit_cost || 0,
+            total: item.unit_cost || 0
+          })) || []
+        }));
+        setTemplates(mappedTemplates);
+      } else {
+        // No templates found in database, use mock data
+        setTemplates(getMockTemplates());
+      }
     } catch (error) {
       console.error('Error fetching templates:', error);
-      toast.error('Failed to load templates');
+      setTemplates(getMockTemplates());
     } finally {
       setLoading(false);
     }
   };
+
+  const getMockTemplates = (): Template[] => [
+    {
+      id: '1',
+      name: 'Kitchen Remodel',
+      description: 'Complete kitchen renovation including cabinets, countertops, appliances, and flooring',
+      projectType: 'Residential',
+      createdAt: new Date('2024-01-15'),
+      items: [
+        { description: 'Cabinet removal and installation', quantity: 1, unit: 'job', unitPrice: 8500, total: 8500 },
+        { description: 'Granite countertop installation', quantity: 30, unit: 'sq ft', unitPrice: 85, total: 2550 },
+        { description: 'Appliance installation package', quantity: 1, unit: 'set', unitPrice: 1200, total: 1200 },
+        { description: 'Tile flooring installation', quantity: 150, unit: 'sq ft', unitPrice: 12, total: 1800 },
+        { description: 'Plumbing and electrical updates', quantity: 1, unit: 'job', unitPrice: 2500, total: 2500 }
+      ]
+    },
+    {
+      id: '2',
+      name: 'Bathroom Renovation',
+      description: 'Full bathroom remodel with modern fixtures and tile work',
+      projectType: 'Residential',
+      createdAt: new Date('2024-02-01'),
+      items: [
+        { description: 'Demolition and prep work', quantity: 1, unit: 'job', unitPrice: 1500, total: 1500 },
+        { description: 'Ceramic tile installation', quantity: 120, unit: 'sq ft', unitPrice: 18, total: 2160 },
+        { description: 'Vanity and mirror installation', quantity: 1, unit: 'set', unitPrice: 2200, total: 2200 },
+        { description: 'Shower/tub installation', quantity: 1, unit: 'unit', unitPrice: 3500, total: 3500 },
+        { description: 'Plumbing fixture installation', quantity: 1, unit: 'job', unitPrice: 1800, total: 1800 }
+      ]
+    },
+    {
+      id: '3',
+      name: 'Office Build-out',
+      description: 'Commercial office space construction with modern amenities',
+      projectType: 'Commercial',
+      createdAt: new Date('2024-01-20'),
+      items: [
+        { description: 'Framing and drywall', quantity: 2000, unit: 'sq ft', unitPrice: 8, total: 16000 },
+        { description: 'Electrical rough-in and finishing', quantity: 1, unit: 'job', unitPrice: 12000, total: 12000 },
+        { description: 'HVAC installation', quantity: 1, unit: 'system', unitPrice: 8500, total: 8500 },
+        { description: 'Flooring installation', quantity: 1800, unit: 'sq ft', unitPrice: 15, total: 27000 },
+        { description: 'Paint and finishing work', quantity: 1, unit: 'job', unitPrice: 6000, total: 6000 }
+      ]
+    },
+    {
+      id: '4',
+      name: 'Deck Construction',
+      description: 'Outdoor deck construction with railings and stairs',
+      projectType: 'Residential',
+      createdAt: new Date('2024-02-10'),
+      items: [
+        { description: 'Foundation and footings', quantity: 8, unit: 'piers', unitPrice: 150, total: 1200 },
+        { description: 'Pressure treated lumber framing', quantity: 400, unit: 'sq ft', unitPrice: 12, total: 4800 },
+        { description: 'Composite decking installation', quantity: 350, unit: 'sq ft', unitPrice: 25, total: 8750 },
+        { description: 'Railing installation', quantity: 80, unit: 'linear ft', unitPrice: 45, total: 3600 },
+        { description: 'Stairs and finishing', quantity: 1, unit: 'set', unitPrice: 1800, total: 1800 }
+      ]
+    }
+  ];
 
   const handleSort = (field: 'name' | 'projectType' | 'createdAt') => {
     if (sortField === field) {
@@ -229,9 +259,9 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
   };
 
   const selectTemplate = (template: Template) => {
+    console.log('Selecting template:', template);
     onTemplateSelect(template);
     onOpenChange(false);
-    toast.success(`Template "${template.name}" selected`);
   };
 
   const startEdit = (template: Template) => {
@@ -254,7 +284,6 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
   const importFromBidPlanner = async () => {
     setLoading(true);
     try {
-      // Fetch data from bid_templates table
       const { data: bidTemplates, error } = await supabase
         .from('bid_templates')
         .select(`
