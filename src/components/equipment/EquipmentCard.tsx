@@ -14,8 +14,7 @@ import {
   Clock,
   MapPin,
   AlertTriangle,
-  QrCode,
-  BarChart3
+  QrCode
 } from 'lucide-react';
 import type { Equipment } from '@/types/equipment';
 import { EquipmentService } from '@/services/equipmentService';
@@ -28,7 +27,6 @@ interface EquipmentCardProps {
   onDelete: (id: string) => void;
   onMaintenance: (equipment: Equipment) => void;
   onAddToEstimator: (equipment: Equipment) => void;
-  onViewAnalytics: (equipment: Equipment) => void;
 }
 
 export function EquipmentCard({
@@ -38,8 +36,7 @@ export function EquipmentCard({
   onEdit,
   onDelete,
   onMaintenance,
-  onAddToEstimator,
-  onViewAnalytics
+  onAddToEstimator
 }: EquipmentCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -91,14 +88,6 @@ export function EquipmentCard({
               {equipment.status}
             </Badge>
             <div className="flex gap-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => onViewAnalytics(equipment)}
-                className="h-8 w-8 p-0"
-              >
-                <BarChart3 className="w-4 h-4" />
-              </Button>
               <Button
                 size="sm"
                 variant="ghost"
@@ -197,7 +186,6 @@ export function EquipmentCard({
             variant="outline"
             className="w-full"
             onClick={() => {
-              // In a real app, this would show a QR code modal
               navigator.clipboard.writeText(equipment.qr_code!);
             }}
           >

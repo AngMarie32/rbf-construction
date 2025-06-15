@@ -13,10 +13,10 @@ export class EquipmentService {
       .order('name');
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as Equipment[];
   }
 
-  static async fetchEquipmentWithAnalytics(equipmentId: string) {
+  static async fetchEquipmentWithUsage(equipmentId: string) {
     const [equipment, usageLogs, maintenanceLogs, alerts] = await Promise.all([
       supabase.from('equipment').select('*').eq('id', equipmentId).single(),
       supabase.from('equipment_usage_logs').select('*').eq('equipment_id', equipmentId),
@@ -113,7 +113,7 @@ export class EquipmentService {
       .order('due_date', { ascending: true });
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as EquipmentAlert[];
   }
 
   static async acknowledgeAlert(alertId: string) {
@@ -148,5 +148,19 @@ export class EquipmentService {
     
     const potentialHours = daysSincePurchase * 8; // 8 hours per day potential
     return totalHours / potentialHours * 100;
+  }
+
+  static async uploadImage(file: File, equipmentId: string): Promise<string> {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${equipmentId}-${Date.now()}.${fileExt}`;
+    
+    // Convert file to base64 for storage
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    });
   }
 }

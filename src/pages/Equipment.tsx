@@ -12,7 +12,6 @@ import {
 import { EquipmentCard } from '@/components/equipment/EquipmentCard';
 import { EquipmentFilters } from '@/components/equipment/EquipmentFilters';
 import { BulkOperationsToolbar } from '@/components/equipment/BulkOperationsToolbar';
-import { EquipmentAnalyticsModal } from '@/components/equipment/EquipmentAnalyticsModal';
 import { NewEquipmentDialog } from '@/components/equipment/NewEquipmentDialog';
 import { MaintenanceDialog } from '@/components/equipment/MaintenanceDialog';
 import { AllMaintenanceView } from '@/components/equipment/AllMaintenanceView';
@@ -20,7 +19,7 @@ import { EquipmentEstimator } from '@/components/equipment/EquipmentEstimator';
 import { EditEquipmentDialog } from '@/components/equipment/EditEquipmentDialog';
 import { useEquipment } from '@/hooks/useEquipment';
 import { EquipmentService } from '@/services/equipmentService';
-import type { Equipment, EquipmentUsageLog, EquipmentAlert } from '@/types/equipment';
+import type { Equipment } from '@/types/equipment';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -50,16 +49,10 @@ export default function Equipment() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
-  const [analyticsEquipment, setAnalyticsEquipment] = useState<Equipment | null>(null);
-  const [analyticsData, setAnalyticsData] = useState<{
-    usageLogs: EquipmentUsageLog[];
-    alerts: EquipmentAlert[];
-  }>({ usageLogs: [], alerts: [] });
   
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
   const [allMaintenanceOpen, setAllMaintenanceOpen] = useState(false);
   const [estimatorOpen, setEstimatorOpen] = useState(false);
-  const [analyticsOpen, setAnalyticsOpen] = useState(false);
   
   const [selectedEstimatorEquipment, setSelectedEstimatorEquipment] = useState<EstimatorItem[]>([]);
   const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([]);
@@ -93,21 +86,6 @@ export default function Equipment() {
 
   const handleEditClick = (eq: Equipment) => {
     setEditingEquipment(eq);
-  };
-
-  const handleViewAnalytics = async (eq: Equipment) => {
-    try {
-      const data = await EquipmentService.fetchEquipmentWithAnalytics(eq.id);
-      setAnalyticsEquipment(eq);
-      setAnalyticsData({
-        usageLogs: data.usageLogs,
-        alerts: data.alerts
-      });
-      setAnalyticsOpen(true);
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
-      toast.error('Failed to load analytics');
-    }
   };
 
   const handleAddToEstimator = (eq: Equipment) => {
@@ -165,7 +143,6 @@ export default function Equipment() {
   };
 
   const handleBulkMaintenance = () => {
-    // In a real app, this would open a bulk maintenance scheduling dialog
     toast.info('Bulk maintenance scheduling coming soon');
   };
 
@@ -282,7 +259,6 @@ export default function Equipment() {
                   onDelete={deleteEquipment}
                   onMaintenance={handleMaintenanceClick}
                   onAddToEstimator={handleAddToEstimator}
-                  onViewAnalytics={handleViewAnalytics}
                 />
               ))}
 
@@ -332,14 +308,6 @@ export default function Equipment() {
       <AllMaintenanceView
         open={allMaintenanceOpen}
         onOpenChange={setAllMaintenanceOpen}
-      />
-
-      <EquipmentAnalyticsModal
-        equipment={analyticsEquipment}
-        open={analyticsOpen}
-        onOpenChange={setAnalyticsOpen}
-        usageLogs={analyticsData.usageLogs}
-        alerts={analyticsData.alerts}
       />
     </Layout>
   );

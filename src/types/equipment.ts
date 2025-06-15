@@ -2,7 +2,7 @@
 export interface Equipment {
   id: string;
   name: string;
-  category: 'Heavy Machinery' | 'Vehicles' | 'Trailers' | 'Other';
+  category: string; // Changed from union type to string for flexibility
   hourly_rate: number;
   year?: number;
   value?: number;
@@ -49,9 +49,9 @@ export interface EquipmentUsageLog {
 export interface EquipmentAlert {
   id: string;
   equipment_id: string;
-  alert_type: 'maintenance_due' | 'insurance_expiry' | 'inspection_due';
+  alert_type: string; // Changed from union type to string for flexibility
   message: string;
-  severity: 'low' | 'medium' | 'high';
+  severity: string; // Changed from union type to string for flexibility
   due_date?: string;
   is_acknowledged: boolean;
   acknowledged_at?: string;
@@ -66,12 +66,4 @@ export interface EquipmentFilters {
   project: string;
   maintenanceDue: boolean;
   availableOnly: boolean;
-}
-
-export interface EquipmentAnalytics {
-  totalRevenue: number;
-  utilizationRate: number;
-  maintenanceCost: number;
-  depreciation: number;
-  roi: number;
 }

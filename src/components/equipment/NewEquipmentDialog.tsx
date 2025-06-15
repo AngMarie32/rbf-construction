@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { EquipmentService } from '@/services/equipmentService';
 import { toast } from 'sonner';
 
 interface NewEquipmentDialogProps {
@@ -31,20 +32,9 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
 
   const handleImageUpload = async (file: File) => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      
-      // For now, we'll just show a toast. In a real app, you'd upload to Supabase Storage
-      toast.success('Image upload functionality will be implemented with Supabase Storage');
-      
-      // TODO: Implement actual file upload to Supabase Storage
-      // const { data, error } = await supabase.storage
-      //   .from('equipment-images')
-      //   .upload(fileName, file);
-      
-      // For now, just set a placeholder URL
-      setFormData(prev => ({ ...prev, image: `placeholder-${fileName}` }));
-      
+      const imageData = await EquipmentService.uploadImage(file, 'temp');
+      setFormData(prev => ({ ...prev, image: imageData }));
+      toast.success('Image uploaded successfully');
     } catch (error) {
       console.error('Error uploading image:', error);
       toast.error('Failed to upload image');
@@ -227,7 +217,7 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
               <label className="cursor-pointer flex-1">
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/jpg,image/png"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -236,12 +226,18 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
                 />
                 <Button type="button" variant="outline" className="w-full">
                   <Upload className="w-4 h-4 mr-2" />
-                  Upload Image
+                  Upload JPEG Image
                 </Button>
               </label>
             </div>
             {formData.image && (
-              <p className="text-sm text-green-600 mt-1">Image uploaded successfully</p>
+              <div className="mt-2">
+                <img 
+                  src={formData.image} 
+                  alt="Preview" 
+                  className="w-full h-32 object-cover rounded border"
+                />
+              </div>
             )}
           </div>
 

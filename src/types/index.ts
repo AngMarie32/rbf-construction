@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   email: string;
@@ -130,20 +131,6 @@ export interface Proposal {
   amount: number;
   status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
   createdAt: Date;
-}
-
-export interface Equipment {
-  id: string;
-  name: string;
-  category: 'Heavy Machinery' | 'Vehicles' | 'Trailers' | 'Other';
-  hourly_rate: number;
-  year?: number;
-  value?: number;
-  status: 'Available' | 'In Use' | 'Maintenance';
-  image?: string;
-  description?: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface MaintenanceLog {
@@ -303,6 +290,5 @@ export type {
   EquipmentReservation, 
   EquipmentUsageLog, 
   EquipmentAlert, 
-  EquipmentFilters, 
-  EquipmentAnalytics 
+  EquipmentFilters
 } from './equipment';
