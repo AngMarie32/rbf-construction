@@ -134,6 +134,7 @@ export default function ProjectBilling() {
   };
 
   const handleEdit = (billing: any) => {
+    console.log('Editing billing:', billing);
     setEditingBilling(billing);
     setEditDialogOpen(true);
   };
@@ -144,7 +145,6 @@ export default function ProjectBilling() {
         .from('project_billing')
         .update({
           paid_amount: billing.billed_amount,
-          remaining_amount: 0,
           status: 'Paid',
           payment_date: new Date().toISOString().split('T')[0]
         })
@@ -312,9 +312,6 @@ export default function ProjectBilling() {
             <Button onClick={() => setNewBillingDialogOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Add New Billing
-            </Button>
-            <Button onClick={createBillingFromPayApp} variant="outline">
-              Auto-Create from Pay Apps
             </Button>
             <Button onClick={exportToCSV} variant="outline" size="sm">
               <Download className="w-4 h-4 mr-2" />

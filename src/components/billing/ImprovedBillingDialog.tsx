@@ -57,22 +57,57 @@ export function ImprovedBillingDialog({
   onSuccess
 }: ImprovedBillingDialogProps) {
   const [formData, setFormData] = useState({
-    project_id: billing?.project_id || '',
-    billing_period_start: billing?.billing_period_start ? new Date(billing.billing_period_start) : new Date(),
-    billing_period_end: billing?.billing_period_end ? new Date(billing.billing_period_end) : new Date(),
-    billed_amount: billing?.billed_amount || 0,
-    paid_amount: billing?.paid_amount || 0,
-    status: billing?.status || 'Draft',
-    invoice_number: billing?.invoice_number || '',
-    invoice_date: billing?.invoice_date ? new Date(billing.invoice_date) : undefined,
-    due_date: billing?.due_date ? new Date(billing.due_date) : undefined,
-    notes: billing?.notes || ''
+    project_id: '',
+    billing_period_start: new Date(),
+    billing_period_end: new Date(),
+    billed_amount: 0,
+    paid_amount: 0,
+    status: 'Draft',
+    invoice_number: '',
+    invoice_date: undefined as Date | undefined,
+    due_date: undefined as Date | undefined,
+    notes: ''
   });
 
   const [loading, setLoading] = useState(false);
   const [paymentApps, setPaymentApps] = useState<PaymentApp[]>([]);
   const [selectedPaymentApps, setSelectedPaymentApps] = useState<string[]>([]);
   const [showPaymentApps, setShowPaymentApps] = useState(false);
+
+  // Reset form data when billing prop changes or dialog opens/closes
+  useEffect(() => {
+    if (open) {
+      if (billing) {
+        console.log('Setting form data from billing:', billing);
+        setFormData({
+          project_id: billing.project_id || '',
+          billing_period_start: billing.billing_period_start ? new Date(billing.billing_period_start) : new Date(),
+          billing_period_end: billing.billing_period_end ? new Date(billing.billing_period_end) : new Date(),
+          billed_amount: billing.billed_amount || 0,
+          paid_amount: billing.paid_amount || 0,
+          status: billing.status || 'Draft',
+          invoice_number: billing.invoice_number || '',
+          invoice_date: billing.invoice_date ? new Date(billing.invoice_date) : undefined,
+          due_date: billing.due_date ? new Date(billing.due_date) : undefined,
+          notes: billing.notes || ''
+        });
+      } else {
+        // Reset to default values for new billing
+        setFormData({
+          project_id: '',
+          billing_period_start: new Date(),
+          billing_period_end: new Date(),
+          billed_amount: 0,
+          paid_amount: 0,
+          status: 'Draft',
+          invoice_number: '',
+          invoice_date: undefined,
+          due_date: undefined,
+          notes: ''
+        });
+      }
+    }
+  }, [billing, open]);
 
   useEffect(() => {
     if (formData.project_id && showPaymentApps) {
@@ -201,75 +236,6 @@ export function ImprovedBillingDialog({
         </DialogHeader>
 
         <div className="space-y-6">
-          {!billing?.id && (
-            <Card className="border-blue-200 bg-blue-50">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg text-blue-800">Import from Payment Applications</CardTitle>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setShowPaymentApps(!showPaymentApps)}
-                    disabled={!formData.project_id}
-                  >
-                    {showPaymentApps ? 'Hide' : 'Show'} Payment Apps
-                  </Button>
-                </div>
-              </CardHeader>
-              {showPaymentApps && formData.project_id && (
-                <CardContent>
-                  <div className="space-y-4">
-                    {paymentApps.length > 0 ? (
-                      <>
-                        <div className="grid gap-3 max-h-60 overflow-y-auto">
-                          {paymentApps.map((app) => (
-                            <div key={app.id} className="flex items-center space-x-3 p-3 border rounded-lg bg-white">
-                              <Checkbox
-                                id={app.id}
-                                checked={selectedPaymentApps.includes(app.id)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setSelectedPaymentApps([...selectedPaymentApps, app.id]);
-                                  } else {
-                                    setSelectedPaymentApps(selectedPaymentApps.filter(id => id !== app.id));
-                                  }
-                                }}
-                              />
-                              <div className="flex-1">
-                                <div className="flex justify-between items-center">
-                                  <span className="font-medium">Application #{app.application_number}</span>
-                                  <span className="font-bold text-green-600">
-                                    ${app.current_payment_due.toLocaleString()}
-                                  </span>
-                                </div>
-                                <div className="text-sm text-gray-600">
-                                  Period ending: {format(new Date(app.period_to), 'MMM dd, yyyy')}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        {selectedPaymentApps.length > 0 && (
-                          <div className="flex justify-between items-center pt-4 border-t">
-                            <span className="font-medium text-blue-800">
-                              Selected: {selectedPaymentApps.length} application(s)
-                            </span>
-                            <Button onClick={handleImportFromPaymentApps} className="bg-blue-600 hover:bg-blue-700">
-                              <Download className="w-4 h-4 mr-2" />
-                              Import Selected
-                            </Button>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-gray-500 text-center py-6">No payment applications found for this project.</p>
-                    )}
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
