@@ -30,14 +30,14 @@ import {
   Plus, 
   FileText, 
   CheckCircle, 
-  AlertTriangle, 
+  X, 
   Download, 
   Paperclip, 
   Edit, 
-  DollarSign, 
   Eye,
   Trash2,
-  Clock
+  Clock,
+  ArrowRight
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -64,8 +64,6 @@ export default function Expenses() {
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [timeFilter, setTimeFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('date-newest');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -77,7 +75,7 @@ export default function Expenses() {
 
   useEffect(() => {
     fetchExpenses();
-  }, [selectedProject, statusFilter, timeFilter]);
+  }, [selectedProject, statusFilter]);
 
   const fetchProjects = async () => {
     try {
@@ -115,6 +113,7 @@ export default function Expenses() {
       const { data, error } = await query;
 
       if (error) throw error;
+      console.log('Fetched expenses:', data);
       setExpenses(data || []);
     } catch (error) {
       console.error('Error fetching expenses:', error);
@@ -125,19 +124,27 @@ export default function Expenses() {
   };
 
   const updateExpenseStatus = async (id: string, newStatus: string) => {
+    console.log('Updating expense status:', { id, newStatus });
+    
     try {
       const { error } = await supabase
         .from('expenses')
         .update({ status: newStatus })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
+      console.log('Status updated successfully');
       toast.success(`Expense moved to ${newStatus}`);
-      fetchExpenses();
+      
+      // Refresh the expenses list
+      await fetchExpenses();
     } catch (error) {
       console.error('Error updating expense:', error);
-      toast.error('Failed to update expense');
+      toast.error('Failed to update expense status');
     }
   };
 
@@ -259,7 +266,7 @@ export default function Expenses() {
           <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-blue-700">Office Approval</CardTitle>
-              <AlertTriangle className="h-5 w-5 text-blue-600" />
+              <FileText className="h-5 w-5 text-blue-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-800">${officeApprovalExpenses.toLocaleString()}</div>
@@ -379,55 +386,59 @@ export default function Expenses() {
                         {/* Approve/Advance Button */}
                         {canAdvanceStatus(expense.status) && (
                           <Button 
-                            variant="ghost" 
+                            variant="outline" 
                             size="sm"
-                            onClick={() => updateExpenseStatus(expense.id, getNextStatus(expense.status)!)}
-                            title={`Approve for ${getNextStatus(expense.status)}`}
-                            className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                            onClick={() => {
+                              console.log('Approve button clicked for expense:', expense.id);
+                              updateExpenseStatus(expense.id, getNextStatus(expense.status)!);
+                            }}
+                            className="text-green-600 hover:text-green-800 hover:bg-green-50 border-green-200"
                           >
-                            <CheckCircle className="w-4 h-4" />
+                            <ArrowRight className="w-4 h-4" />
                           </Button>
                         )}
                         
                         {/* Reject Button - only for pending statuses */}
                         {(expense.status === 'Field Approval' || expense.status === 'Office Approval') && (
                           <Button 
-                            variant="ghost" 
+                            variant="outline" 
                             size="sm"
-                            onClick={() => updateExpenseStatus(expense.id, 'Rejected')}
-                            title="Reject Expense"
-                            className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                            onClick={() => {
+                              console.log('Reject button clicked for expense:', expense.id);
+                              updateExpenseStatus(expense.id, 'Rejected');
+                            }}
+                            className="text-red-600 hover:text-red-800 hover:bg-red-50 border-red-200"
                           >
-                            <AlertTriangle className="w-4 h-4" />
+                            <X className="w-4 h-4" />
                           </Button>
                         )}
 
                         {/* Attach Receipt */}
                         <Button 
-                          variant="ghost" 
+                          variant="outline" 
                           size="sm"
                           onClick={() => handleAttachReceipt(expense)}
-                          title="Attach Receipt"
+                          className="text-gray-600 hover:text-gray-800 hover:bg-gray-50"
                         >
                           <Paperclip className="w-4 h-4" />
                         </Button>
 
                         {/* Edit */}
                         <Button 
-                          variant="ghost" 
+                          variant="outline" 
                           size="sm"
                           onClick={() => handleEditExpense(expense)}
-                          title="Edit Expense"
+                          className="text-gray-600 hover:text-gray-800 hover:bg-gray-50"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
 
                         {/* View Details */}
                         <Button 
-                          variant="ghost" 
+                          variant="outline" 
                           size="sm"
                           onClick={() => handleViewExpense(expense)}
-                          title="View Details"
+                          className="text-gray-600 hover:text-gray-800 hover:bg-gray-50"
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
@@ -436,10 +447,9 @@ export default function Expenses() {
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button 
-                              variant="ghost" 
+                              variant="outline" 
                               size="sm"
-                              title="Delete Expense"
-                              className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                              className="text-red-600 hover:text-red-800 hover:bg-red-50 border-red-200"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
