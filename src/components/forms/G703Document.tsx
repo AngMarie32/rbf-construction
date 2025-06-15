@@ -86,50 +86,50 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               <th className="border-r border-b border-black p-1 w-20">C</th>
               <th className="border-r border-b border-black p-1 w-20">D</th>
               <th className="border-r border-b border-black p-1 w-20">E</th>
-              <th className="border-r border-b border-black p-1 w-18">F</th>
-              <th className="border-r border-b border-black p-1 w-18">G</th>
-              <th className="border-r border-b border-black p-1 w-18">H</th>
+              <th className="border-r border-b border-black p-1 w-16">F</th>
+              <th className="border-r border-b border-black p-1 w-16">G</th>
+              <th className="border-r border-b border-black p-1 w-16">H</th>
               <th className="border-r border-b border-black p-1 w-20">I</th>
-              <th className="border-r border-b border-black p-1 w-16">I</th>
+              <th className="border-r border-b border-black p-1 w-14">I</th>
               <th className="border-r border-b border-black p-1 w-20">J</th>
               <th className="border-b border-black p-1 w-20">K</th>
             </tr>
             {/* Second row - Main headers with proper alignment */}
             <tr className="bg-gray-100 text-center">
-              <th className="border-r border-b border-black p-1 h-16 align-top">
-                <div className="text-xs font-bold">ITEM<br />NO.</div>
+              <th className="border-r border-b border-black p-1 h-20 align-bottom">
+                <div className="text-xs">ITEM<br />NO.</div>
               </th>
-              <th className="border-r border-b border-black p-1 h-16 align-top">
-                <div className="text-xs font-bold">DESCRIPTION OF WORK</div>
+              <th className="border-r border-b border-black p-1 h-20 align-bottom">
+                <div className="text-xs">DESCRIPTION OF WORK</div>
               </th>
-              <th className="border-r border-b border-black p-1 h-16 align-top">
-                <div className="text-xs font-bold">SCHEDULED<br />VALUE</div>
+              <th className="border-r border-b border-black p-1 h-20 align-bottom">
+                <div className="text-xs">SCHEDULED<br />VALUE</div>
               </th>
-              <th className="border-r border-b border-black p-1 h-16 align-top">
-                <div className="text-xs font-bold">CHANGE<br />ORDERS</div>
+              <th className="border-r border-b border-black p-1 h-20 align-bottom">
+                <div className="text-xs">CHANGE<br />ORDERS</div>
               </th>
-              <th className="border-r border-b border-black p-1 h-16 align-top">
-                <div className="text-xs font-bold">TOTAL<br />CONTRACT</div>
+              <th className="border-r border-b border-black p-1 h-20 align-bottom">
+                <div className="text-xs">TOTAL<br />CONTRACT</div>
               </th>
-              <th className="border-r border-b border-black p-1 font-bold" colSpan={3}>
-                <div className="border-b border-black pb-1 mb-1">WORK COMPLETED</div>
-                <div className="grid grid-cols-3 gap-0 text-xs font-normal">
-                  <div className="border-r border-black pr-1 align-top">FROM<br />PREVIOUS<br />APPLICATION</div>
-                  <div className="border-r border-black px-1 align-top">THIS PERIOD</div>
-                  <div className="align-top">MATERIALS<br />PRESENTLY<br />STORED</div>
+              <th className="border-r border-b border-black p-1 font-bold relative" colSpan={3}>
+                <div className="absolute top-1 left-0 right-0 text-center border-b border-black pb-1 mx-1">WORK COMPLETED</div>
+                <div className="grid grid-cols-3 gap-0 text-xs font-normal mt-6">
+                  <div className="border-r border-black pr-1 text-center">FROM<br />PREVIOUS<br />APPLICATION</div>
+                  <div className="border-r border-black px-1 text-center">THIS PERIOD</div>
+                  <div className="text-center">MATERIALS<br />PRESENTLY<br />STORED</div>
                 </div>
               </th>
-              <th className="border-r border-b border-black p-1 h-16 align-top">
-                <div className="text-xs font-bold">TOTAL<br />COMPLETED<br />AND STORED TO<br />DATE</div>
+              <th className="border-r border-b border-black p-1 h-20 align-bottom">
+                <div className="text-xs">TOTAL<br />COMPLETED<br />AND STORED TO<br />DATE</div>
               </th>
-              <th className="border-r border-b border-black p-1 h-16 align-top">
-                <div className="text-xs font-bold">%<br />COMPLETE</div>
+              <th className="border-r border-b border-black p-1 h-20 align-bottom">
+                <div className="text-xs">%<br />COMPLETE</div>
               </th>
-              <th className="border-r border-b border-black p-1 h-16 align-top">
-                <div className="text-xs font-bold">BALANCE TO<br />FINISH</div>
+              <th className="border-r border-b border-black p-1 h-20 align-bottom">
+                <div className="text-xs">BALANCE TO<br />FINISH</div>
               </th>
-              <th className="border-b border-black p-1 h-16 align-top">
-                <div className="text-xs font-bold">RETAINAGE</div>
+              <th className="border-b border-black p-1 h-20 align-bottom">
+                <div className="text-xs">RETAINAGE</div>
               </th>
             </tr>
           </thead>
