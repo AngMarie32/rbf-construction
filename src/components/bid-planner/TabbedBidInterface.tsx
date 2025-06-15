@@ -46,6 +46,47 @@ export function TabbedBidInterface({
     return new Set(bidItems.map(item => item.category)).size;
   };
 
+  // Calculate breakdown by division
+  const calculateDivisionBreakdown = () => {
+    const generalConditions = bidItems
+      .filter(item => item.category?.toLowerCase().includes('general') || 
+                     item.category?.toLowerCase().includes('conditions') ||
+                     item.category?.toLowerCase().includes('overhead') ||
+                     item.category?.toLowerCase().includes('supervision'))
+      .reduce((sum, item) => sum + (item.unit_cost * item.quantity || 0), 0);
+
+    const siteWork = bidItems
+      .filter(item => item.category?.toLowerCase().includes('site') || 
+                     item.category?.toLowerCase().includes('earthwork') ||
+                     item.category?.toLowerCase().includes('excavation') ||
+                     item.category?.toLowerCase().includes('grading') ||
+                     item.category?.toLowerCase().includes('utilities'))
+      .reduce((sum, item) => sum + (item.unit_cost * item.quantity || 0), 0);
+
+    const building = bidItems
+      .filter(item => !item.category?.toLowerCase().includes('general') && 
+                     !item.category?.toLowerCase().includes('conditions') &&
+                     !item.category?.toLowerCase().includes('overhead') &&
+                     !item.category?.toLowerCase().includes('supervision') &&
+                     !item.category?.toLowerCase().includes('site') &&
+                     !item.category?.toLowerCase().includes('earthwork') &&
+                     !item.category?.toLowerCase().includes('excavation') &&
+                     !item.category?.toLowerCase().includes('grading') &&
+                     !item.category?.toLowerCase().includes('utilities'))
+      .reduce((sum, item) => sum + (item.unit_cost * item.quantity || 0), 0);
+
+    const total = calculateTotalValue();
+    
+    return {
+      generalConditions,
+      siteWork,
+      building,
+      generalConditionsPercent: total > 0 ? (generalConditions / total * 100) : 0,
+      siteWorkPercent: total > 0 ? (siteWork / total * 100) : 0,
+      buildingPercent: total > 0 ? (building / total * 100) : 0
+    };
+  };
+
   // Calculate profit and overhead
   const calculateProfitAndOverhead = () => {
     const total = calculateTotalValue();
@@ -129,11 +170,11 @@ export function TabbedBidInterface({
 
       if (itemsError) throw itemsError;
 
-      // Convert template items to bid items (without pre-filled quantities)
+      // Convert template items to bid items (without pre-filled quantities or totals)
       const newBidItems = templateItems.map(item => ({
         project_id: projectId,
         category: item.category,
-        subcategory: item.subcategory,
+        subcategory: item.subcategory || '',
         description: item.description,
         unit: item.unit,
         unit_cost: item.unit_cost || 0,
@@ -275,6 +316,7 @@ export function TabbedBidInterface({
   };
 
   const { profit, overhead } = calculateProfitAndOverhead();
+  const divisionBreakdown = calculateDivisionBreakdown();
 
   return (
     <div className="w-full">
@@ -400,7 +442,7 @@ export function TabbedBidInterface({
             </Card>
           </div>
 
-          {/* Bid Breakdown */}
+          {/* Bid Breakdown by Division */}
           <Card>
             <CardHeader>
               <CardTitle>Bid Breakdown by Division</CardTitle>
@@ -408,29 +450,29 @@ export function TabbedBidInterface({
             <CardContent>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="font-medium">🏗️ Direct Costs</span>
+                  <span className="font-medium">🏗️ General Conditions</span>
                   <div className="flex items-center gap-4">
-                    <span className="text-gray-600">75%</span>
+                    <span className="text-gray-600">{divisionBreakdown.generalConditionsPercent.toFixed(1)}%</span>
                     <span className="font-bold">
-                      ${(calculateTotalValue() - profit - overhead).toLocaleString()}
+                      ${divisionBreakdown.generalConditions.toLocaleString()}
                     </span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="font-medium">🏢 Overhead</span>
+                  <span className="font-medium">🚧 Site Work</span>
                   <div className="flex items-center gap-4">
-                    <span className="text-gray-600">10%</span>
+                    <span className="text-gray-600">{divisionBreakdown.siteWorkPercent.toFixed(1)}%</span>
                     <span className="font-bold">
-                      ${overhead.toLocaleString()}
+                      ${divisionBreakdown.siteWork.toLocaleString()}
                     </span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="font-medium">💰 Profit</span>
+                  <span className="font-medium">🏢 Building</span>
                   <div className="flex items-center gap-4">
-                    <span className="text-gray-600">15%</span>
+                    <span className="text-gray-600">{divisionBreakdown.buildingPercent.toFixed(1)}%</span>
                     <span className="font-bold">
-                      ${profit.toLocaleString()}
+                      ${divisionBreakdown.building.toLocaleString()}
                     </span>
                   </div>
                 </div>
