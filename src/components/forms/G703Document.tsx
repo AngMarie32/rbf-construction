@@ -79,69 +79,65 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
       <div className="border border-black">
         <table className="w-full border-collapse text-xs">
           <thead>
-            {/* First row - Column letters */}
+            {/* First row - Column letters A through K */}
             <tr className="bg-gray-100 text-center font-bold">
-              <th className="border-r border-b border-black p-1 w-8 align-top">A</th>
-              <th className="border-r border-b border-black p-1 w-32 align-top">B</th>
-              <th className="border-r border-b border-black p-1 w-16 align-top">C</th>
-              <th className="border-r border-b border-black p-1 w-16 align-top">D</th>
-              <th className="border-r border-b border-black p-1 w-16 align-top">E</th>
-              <th className="border-r border-black p-1 w-16 align-top">F</th>
-              <th className="border-r border-black p-1 w-16 align-top">G</th>
-              <th className="border-r border-b border-black p-1 w-16 align-top">H</th>
-              <th className="border-r border-b border-black p-1 w-16 align-top">I</th>
-              <th className="border-r border-b border-black p-1 w-12 align-top">J</th>
-              <th className="border-r border-b border-black p-1 w-16 align-top">K</th>
-              <th className="border-b border-black p-1 w-16 align-top">L</th>
+              <th className="border-r border-b border-black p-1 w-8">A</th>
+              <th className="border-r border-b border-black p-1 w-32">B</th>
+              <th className="border-r border-b border-black p-1 w-16">C</th>
+              <th className="border-r border-b border-black p-1 w-16">D</th>
+              <th className="border-r border-b border-black p-1 w-16">E</th>
+              <th className="border-r border-b border-black p-1 w-16">F</th>
+              <th className="border-r border-b border-black p-1 w-16">G</th>
+              <th className="border-r border-b border-black p-1 w-16">H</th>
+              <th className="border-r border-b border-black p-1 w-16">I</th>
+              <th className="border-r border-b border-black p-1 w-12">J</th>
+              <th className="border-b border-black p-1 w-16">K</th>
             </tr>
-            {/* Second row - "WORK COMPLETED" spanning F, G, H */}
+            {/* Second row - Main headers with "WORK COMPLETED" spanning F, G, H */}
             <tr className="bg-gray-100 text-center font-bold">
               <th className="border-r border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal">ITEM<br />NO.</div>
+                <div className="font-normal text-xs">ITEM<br />NO.</div>
               </th>
               <th className="border-r border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal">DESCRIPTION OF WORK</div>
+                <div className="font-normal text-xs">DESCRIPTION OF WORK</div>
               </th>
               <th className="border-r border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal">SCHEDULED<br />VALUE</div>
+                <div className="font-normal text-xs">SCHEDULED<br />VALUE</div>
               </th>
               <th className="border-r border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal">CHANGE<br />ORDERS</div>
+                <div className="font-normal text-xs">CHANGE<br />ORDERS</div>
               </th>
               <th className="border-r border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal">TOTAL<br />CONTRACT</div>
+                <div className="font-normal text-xs">TOTAL<br />CONTRACT</div>
               </th>
               <th className="border-r border-b border-black p-1 font-bold" colSpan={3}>
                 WORK COMPLETED
               </th>
-              <th className="border-r border-b border-black p-1 align-middle" rowSpan={2}>
-                <div className="font-normal">TOTAL<br />COMPLETED<br />AND STORED<br />TO</div>
+              <th className="border-r border-b border-black p-1 align-top" rowSpan={2}>
+                <div className="font-normal text-xs">TOTAL<br />COMPLETED<br />AND STORED TO</div>
               </th>
               <th className="border-r border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal">%<br />COMPLETE</div>
-              </th>
-              <th className="border-r border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal">BALANCE TO<br />FINISH</div>
+                <div className="font-normal text-xs">% COMPLETE</div>
               </th>
               <th className="border-b border-black p-1 align-top" rowSpan={2}>
-                <div className="font-normal">RETAINAGE<br />HELD</div>
+                <div className="font-normal text-xs">BALANCE TO<br />FINISH</div>
               </th>
             </tr>
             {/* Third row - Individual column descriptions under WORK COMPLETED */}
             <tr className="bg-gray-100 text-center">
               <th className="border-r border-b border-black p-1 align-top">
-                <div className="font-normal">FROM<br />PREVIOUS<br />APPLICATION</div>
+                <div className="font-normal text-xs">FROM<br />PREVIOUS<br />APPLICATION</div>
               </th>
               <th className="border-r border-b border-black p-1 align-top">
-                <div className="font-normal">THIS PERIOD</div>
+                <div className="font-normal text-xs">THIS PERIOD</div>
               </th>
               <th className="border-r border-b border-black p-1 align-top">
-                <div className="font-normal">MATERIALS<br />PRESENTLY<br />STORED</div>
+                <div className="font-normal text-xs">MATERIALS<br />PRESENTLY<br />STORED</div>
               </th>
             </tr>
           </thead>
           <tbody>
-            {sovItems.filter(item => item.description || item.scheduledValue > 0).map((item, index) => {
+            {sovItems.filter(item => item.description?.trim() || (item.scheduledValue > 0)).map((item, index) => {
               const totalContract = (item.scheduledValue || 0) + (item.changeOrders || 0);
               const totalCompleted = (item.previousApplications || 0) + (item.thisPeriod || 0) + (item.materialsStored || 0);
               const percentComplete = totalContract > 0 ? ((totalCompleted / totalContract) * 100) : 0;
@@ -160,8 +156,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
                   <td className="border-r border-black p-1 text-right">${(item.materialsStored || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className="border-r border-black p-1 text-right">${totalCompleted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className="border-r border-black p-1 text-right">{percentComplete.toFixed(2)}%</td>
-                  <td className="border-r border-black p-1 text-right">${balanceToFinish.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className="p-1 text-right">${retainage.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="p-1 text-right">${balanceToFinish.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
               );
             })}
@@ -177,8 +172,7 @@ export function G703Document({ project, formData, sovItems }: G703DocumentProps)
               <td className="border-r border-black p-1 text-right">${totals.totalMaterials.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               <td className="border-r border-black p-1 text-right">${totals.totalCompleted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               <td className="border-r border-black p-1 text-right">{totals.percentComplete.toFixed(2)}%</td>
-              <td className="border-r border-black p-1 text-right">${totals.balanceToFinish.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td className="p-1 text-right">${totals.totalRetainage.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td className="p-1 text-right">${totals.balanceToFinish.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           </tbody>
         </table>
