@@ -203,6 +203,7 @@ export type Database = {
           category: string
           created_at: string | null
           description: string
+          document_id: string | null
           estimated_cost: number | null
           id: string
           quantity: number
@@ -213,6 +214,7 @@ export type Database = {
           category: string
           created_at?: string | null
           description: string
+          document_id?: string | null
           estimated_cost?: number | null
           id?: string
           quantity?: number
@@ -223,6 +225,7 @@ export type Database = {
           category?: string
           created_at?: string | null
           description?: string
+          document_id?: string | null
           estimated_cost?: number | null
           id?: string
           quantity?: number
@@ -234,6 +237,13 @@ export type Database = {
             columns: ["bid_package_id"]
             isOneToOne: false
             referencedRelation: "bid_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bid_package_items_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
         ]

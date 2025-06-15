@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -108,21 +109,57 @@ export const CreateBidInvitationDialog: React.FC<CreateBidInvitationDialogProps>
   const fetchDocuments = async () => {
     try {
       const packageId = bidPackageId || selectedBidPackage;
-      const { data, error } = await supabase
+      
+      // First get documents that are directly linked to bid package items
+      const { data: itemDocuments, error: itemError } = await supabase
         .from('bid_package_items')
-        .select('document_id, documents(id, name)')
+        .select(`
+          document_id,
+          documents!inner(id, name)
+        `)
         .eq('bid_package_id', packageId)
         .not('document_id', 'is', null);
-  
-      if (error) throw error;
-  
-      // Extract document details from the nested structure
-      const extractedDocuments = data
-        .map(item => item.documents)
-        .filter(doc => doc !== null) // Filter out any null documents
-        .map(({ id, name }) => ({ id, name })); // Map to the desired format
-  
-      setDocuments(extractedDocuments);
+
+      if (itemError) throw itemError;
+
+      // Also get documents that belong to the same project as the bid package
+      const { data: packageData, error: packageError } = await supabase
+        .from('bid_packages')
+        .select('project_id')
+        .eq('id', packageId)
+        .single();
+
+      if (packageError) throw packageError;
+
+      const { data: projectDocuments, error: projectError } = await supabase
+        .from('documents')
+        .select('id, name')
+        .eq('project_id', packageData.project_id);
+
+      if (projectError) throw projectError;
+
+      // Combine and deduplicate documents
+      const allDocuments = new Map<string, Document>();
+      
+      // Add documents from bid package items
+      itemDocuments?.forEach(item => {
+        if (item.documents) {
+          allDocuments.set(item.documents.id, {
+            id: item.documents.id,
+            name: item.documents.name
+          });
+        }
+      });
+
+      // Add project documents
+      projectDocuments?.forEach(doc => {
+        allDocuments.set(doc.id, {
+          id: doc.id,
+          name: doc.name
+        });
+      });
+
+      setDocuments(Array.from(allDocuments.values()));
     } catch (error) {
       console.error('Error fetching documents:', error);
       toast({
