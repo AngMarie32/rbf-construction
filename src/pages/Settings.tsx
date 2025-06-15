@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, User, Mail } from 'lucide-react';
+import { Building, User, Mail, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Layout } from '@/components/layout/Layout';
@@ -18,8 +18,11 @@ const Settings = () => {
     company_address: '',
     company_phone: '',
     company_email: '',
+    logo_url: '',
   });
   const [loading, setLoading] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,6 +47,7 @@ const Settings = () => {
           company_address: data.company_address || '',
           company_phone: data.company_phone || '',
           company_email: data.company_email || '',
+          logo_url: data.logo_url || '',
         });
       }
     } catch (error) {
@@ -56,16 +60,66 @@ const Settings = () => {
     }
   };
 
+  const handleLogoUpload = async () => {
+    if (!logoFile) return null;
+
+    setUploadingLogo(true);
+    try {
+      const fileExt = logoFile.name.split('.').pop();
+      const fileName = `company-logo-${Date.now()}.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from('company-assets')
+        .upload(fileName, logoFile);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('company-assets')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload logo",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
   const handleSaveCompanySettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      let logoUrl = companySettings.logo_url;
+
+      // Upload new logo if selected
+      if (logoFile) {
+        const uploadedUrl = await handleLogoUpload();
+        if (uploadedUrl) {
+          logoUrl = uploadedUrl;
+        }
+      }
+
+      const settingsToSave = {
+        ...companySettings,
+        logo_url: logoUrl,
+      };
+
       const { error } = await supabase
         .from('company_settings')
-        .upsert(companySettings);
+        .upsert(settingsToSave);
 
       if (error) throw error;
+
+      setCompanySettings(prev => ({ ...prev, logo_url: logoUrl }));
+      setLogoFile(null);
 
       toast({
         title: "Success",
@@ -80,6 +134,13 @@ const Settings = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
     }
   };
 
@@ -154,8 +215,33 @@ const Settings = () => {
                     />
                   </div>
 
-                  <Button type="submit" disabled={loading}>
-                    {loading ? 'Saving...' : 'Save Company Settings'}
+                  <div className="space-y-2">
+                    <Label htmlFor="company_logo">Company Logo</Label>
+                    <div className="flex items-center gap-4">
+                      {companySettings.logo_url && (
+                        <img 
+                          src={companySettings.logo_url} 
+                          alt="Company logo preview"
+                          className="h-16 w-auto object-contain border rounded"
+                        />
+                      )}
+                      <div className="flex-1">
+                        <Input
+                          id="company_logo"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoFileChange}
+                          className="cursor-pointer"
+                        />
+                        <p className="text-sm text-gray-500 mt-1">
+                          Upload a logo image (PNG, JPG, GIF)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button type="submit" disabled={loading || uploadingLogo}>
+                    {loading || uploadingLogo ? 'Saving...' : 'Save Company Settings'}
                   </Button>
                 </form>
               </CardContent>
