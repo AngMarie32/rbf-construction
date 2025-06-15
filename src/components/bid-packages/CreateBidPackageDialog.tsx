@@ -9,7 +9,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CalendarIcon, Package, Plus, FileText } from 'lucide-react';
+import { CalendarIcon, Package, Plus, FileText, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -33,7 +33,6 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [estimatedValue, setEstimatedValue] = useState('');
   const [estimatedStartDate, setEstimatedStartDate] = useState<Date>();
   const [selectedProject, setSelectedProject] = useState('');
   const [status, setStatus] = useState('Draft');
@@ -115,7 +114,6 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
         .insert({
           name,
           description,
-          estimated_value: estimatedValue ? parseFloat(estimatedValue) : null,
           due_date: estimatedStartDate?.toISOString().split('T')[0],
           project_id: selectedProject,
           status
@@ -171,7 +169,6 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
   const resetForm = () => {
     setName('');
     setDescription('');
-    setEstimatedValue('');
     setEstimatedStartDate(undefined);
     setSelectedProject('');
     setStatus('Draft');
@@ -245,19 +242,7 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="estimatedValue">Estimated Budget</Label>
-              <Input
-                id="estimatedValue"
-                type="number"
-                value={estimatedValue}
-                onChange={(e) => setEstimatedValue(e.target.value)}
-                placeholder="0.00"
-                step="0.01"
-              />
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="estimatedStartDate">Estimated Project Start Date</Label>
               <Popover>
@@ -296,19 +281,34 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
 
           {/* Document Selection */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              <Label className="text-base font-medium">Include Documents</Label>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                <Label className="text-base font-medium">Include Documents</Label>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => window.open('/documents', '_blank')}>
+                <Upload className="w-4 h-4 mr-2" />
+                Upload New Documents
+              </Button>
             </div>
             <p className="text-sm text-gray-600">
               Select project plans, agreements, and other documents to include in this bid package
             </p>
             
             {documents.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
                 <FileText className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                <p>No documents available</p>
-                <p className="text-xs">Upload documents to include them in bid packages</p>
+                <p className="font-medium">No documents available</p>
+                <p className="text-sm">Upload documents to include them in bid packages</p>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="mt-3"
+                  onClick={() => window.open('/documents', '_blank')}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Go to Documents
+                </Button>
               </div>
             ) : (
               <div className="max-h-64 overflow-y-auto border rounded-lg p-4 space-y-4">
@@ -340,8 +340,8 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
             )}
             
             {selectedDocuments.length > 0 && (
-              <div className="text-sm text-blue-600">
-                {selectedDocuments.length} document{selectedDocuments.length !== 1 ? 's' : ''} selected
+              <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                ✓ {selectedDocuments.length} document{selectedDocuments.length !== 1 ? 's' : ''} selected
               </div>
             )}
           </div>
