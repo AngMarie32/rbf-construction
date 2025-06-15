@@ -37,7 +37,7 @@ import {
   Eye,
   Trash2,
   Clock,
-  ArrowRight
+  Check
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -138,7 +138,7 @@ export default function Expenses() {
       }
 
       console.log('Status updated successfully');
-      toast.success(`Expense moved to ${newStatus}`);
+      toast.success(`Expense ${newStatus.toLowerCase()}`);
       
       // Refresh the expenses list
       await fetchExpenses();
@@ -199,6 +199,14 @@ export default function Expenses() {
     }
   };
 
+  const canApprove = (status: string) => {
+    return status === 'Field Approval' || status === 'Office Approval';
+  };
+
+  const canReject = (status: string) => {
+    return status === 'Field Approval' || status === 'Office Approval';
+  };
+
   const getNextStatus = (currentStatus: string) => {
     switch (currentStatus) {
       case 'Field Approval': return 'Office Approval';
@@ -207,8 +215,12 @@ export default function Expenses() {
     }
   };
 
-  const canAdvanceStatus = (status: string) => {
-    return status === 'Field Approval' || status === 'Office Approval';
+  const getApprovalButtonText = (status: string) => {
+    switch (status) {
+      case 'Field Approval': return 'Approve for Office';
+      case 'Office Approval': return 'Mark as Paid';
+      default: return 'Approve';
+    }
   };
 
   const handleExport = () => {
@@ -382,96 +394,94 @@ export default function Expenses() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        {/* Approve/Advance Button */}
-                        {canAdvanceStatus(expense.status) && (
+                      <div className="flex gap-2 flex-wrap">
+                        {/* Approval Actions */}
+                        {canApprove(expense.status) && (
                           <Button 
-                            variant="outline" 
                             size="sm"
                             onClick={() => {
-                              console.log('Approve button clicked for expense:', expense.id);
-                              updateExpenseStatus(expense.id, getNextStatus(expense.status)!);
+                              const nextStatus = getNextStatus(expense.status);
+                              if (nextStatus) {
+                                updateExpenseStatus(expense.id, nextStatus);
+                              }
                             }}
-                            className="text-green-600 hover:text-green-800 hover:bg-green-50 border-green-200"
+                            className="bg-green-600 hover:bg-green-700 text-white"
                           >
-                            <ArrowRight className="w-4 h-4" />
+                            <Check className="w-4 h-4 mr-1" />
+                            {getApprovalButtonText(expense.status)}
                           </Button>
                         )}
                         
-                        {/* Reject Button - only for pending statuses */}
-                        {(expense.status === 'Field Approval' || expense.status === 'Office Approval') && (
+                        {/* Reject Button */}
+                        {canReject(expense.status) && (
                           <Button 
-                            variant="outline" 
                             size="sm"
-                            onClick={() => {
-                              console.log('Reject button clicked for expense:', expense.id);
-                              updateExpenseStatus(expense.id, 'Rejected');
-                            }}
-                            className="text-red-600 hover:text-red-800 hover:bg-red-50 border-red-200"
+                            variant="destructive"
+                            onClick={() => updateExpenseStatus(expense.id, 'Rejected')}
                           >
-                            <X className="w-4 h-4" />
+                            <X className="w-4 h-4 mr-1" />
+                            Reject
                           </Button>
                         )}
 
-                        {/* Attach Receipt */}
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleAttachReceipt(expense)}
-                          className="text-gray-600 hover:text-gray-800 hover:bg-gray-50"
-                        >
-                          <Paperclip className="w-4 h-4" />
-                        </Button>
+                        {/* Secondary Actions */}
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleAttachReceipt(expense)}
+                            className="text-gray-600 hover:text-gray-800"
+                          >
+                            <Paperclip className="w-4 h-4" />
+                          </Button>
 
-                        {/* Edit */}
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleEditExpense(expense)}
-                          className="text-gray-600 hover:text-gray-800 hover:bg-gray-50"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEditExpense(expense)}
+                            className="text-gray-600 hover:text-gray-800"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
 
-                        {/* View Details */}
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleViewExpense(expense)}
-                          className="text-gray-600 hover:text-gray-800 hover:bg-gray-50"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleViewExpense(expense)}
+                            className="text-gray-600 hover:text-gray-800"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
 
-                        {/* Delete */}
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="text-red-600 hover:text-red-800 hover:bg-red-50 border-red-200"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Expense</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete this expense? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={() => deleteExpense(expense.id)}
-                                className="bg-red-600 hover:bg-red-700"
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="text-red-600 hover:text-red-800 hover:bg-red-50"
                               >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Expense</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this expense? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => deleteExpense(expense.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </div>
                     </TableCell>
                   </TableRow>
