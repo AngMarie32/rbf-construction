@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -619,28 +620,38 @@ export function TabbedBidInterface({
                 </div>
               ) : (
                 <div className="space-y-3">
+                  {/* Header row matching the add form */}
+                  <div className="grid grid-cols-6 gap-4 items-center py-2 border-b font-medium text-sm text-gray-700">
+                    <div>Category / Subcategory</div>
+                    <div>Description</div>
+                    <div className="text-center">Unit</div>
+                    <div className="text-right">Unit Cost ($)</div>
+                    <div className="text-center">Quantity</div>
+                    <div className="text-right">Total</div>
+                  </div>
+                  
                   {bidItems.map((item, index) => (
                     <div key={item.id || index} className="border rounded-lg p-3">
-                      <div className="grid grid-cols-9 gap-3 text-sm items-center">
+                      <div className="grid grid-cols-6 gap-4 items-center">
                         <div>
                           <Input
                             value={item.category}
                             onChange={(e) => handleUpdateItem(item.id, 'category', e.target.value)}
-                            className="text-xs"
+                            className="text-sm mb-2"
                             placeholder="Category"
                           />
                           <Input
                             value={item.subcategory || ''}
                             onChange={(e) => handleUpdateItem(item.id, 'subcategory', e.target.value)}
-                            className="text-xs mt-1"
+                            className="text-sm"
                             placeholder="Subcategory"
                           />
                         </div>
-                        <div className="col-span-2">
+                        <div>
                           <Input
                             value={item.description}
                             onChange={(e) => handleUpdateItem(item.id, 'description', e.target.value)}
-                            className="text-xs"
+                            className="text-sm"
                             placeholder="Description"
                           />
                         </div>
@@ -649,7 +660,7 @@ export function TabbedBidInterface({
                             value={item.unit} 
                             onValueChange={(value) => handleUpdateItem(item.id, 'unit', value)}
                           >
-                            <SelectTrigger className="text-xs">
+                            <SelectTrigger className="text-sm">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -679,7 +690,7 @@ export function TabbedBidInterface({
                             type="number"
                             value={item.unit_cost}
                             onChange={(e) => handleUpdateItem(item.id, 'unit_cost', e.target.value)}
-                            className="text-xs text-right"
+                            className="text-sm text-right"
                             step="0.01"
                             placeholder="0.00"
                           />
@@ -689,23 +700,25 @@ export function TabbedBidInterface({
                             type="number"
                             value={item.quantity}
                             onChange={(e) => handleUpdateItem(item.id, 'quantity', e.target.value)}
-                            className="text-xs text-center"
+                            className="text-sm text-center"
                             step="0.01"
                             placeholder="0"
                           />
                         </div>
-                        <div className="text-right font-bold">
-                          ${formatCurrency((item.unit_cost || 0) * (item.quantity || 0))}
-                        </div>
-                        <div className="text-right flex gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => handleDeleteItem(item.id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                        <div className="text-right">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold">
+                              ${formatCurrency((item.unit_cost || 0) * (item.quantity || 0))}
+                            </span>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleDeleteItem(item.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 ml-2"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
