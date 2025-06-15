@@ -103,13 +103,6 @@ export function ChangeOrderSOVDialog({
 
       if (insertError) throw insertError;
 
-      // Create change order linkages
-      const linkages = selectedCOs.map((co, index) => ({
-        sov_item_id: null, // Will be updated after SOV items are created
-        change_order_id: co.id,
-        amount: co.amount
-      }));
-
       // Get the newly created SOV items to link them
       const { data: newSovItems } = await supabase
         .from('sov_items')
