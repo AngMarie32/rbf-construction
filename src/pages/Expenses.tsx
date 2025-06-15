@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +13,20 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Search, Plus, DollarSign, Receipt, AlertTriangle, CheckCircle, FileText, Download } from 'lucide-react';
+import { 
+  Search, 
+  Plus, 
+  FileText, 
+  CheckCircle, 
+  AlertTriangle, 
+  Download, 
+  Paperclip, 
+  Edit, 
+  DollarSign, 
+  MoreHorizontal,
+  Eye,
+  Trash2
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -102,6 +114,58 @@ export default function Expenses() {
     }
   };
 
+  const updateExpenseStatus = async (id: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success(`Expense ${newStatus.toLowerCase()} successfully`);
+      fetchExpenses();
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      toast.error('Failed to update expense');
+    }
+  };
+
+  const deleteExpense = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this expense?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Expense deleted successfully');
+      fetchExpenses();
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      toast.error('Failed to delete expense');
+    }
+  };
+
+  const viewExpense = (expense: Expense) => {
+    toast.info(`Viewing expense: ${expense.description}`);
+  };
+
+  const editExpense = (expense: Expense) => {
+    toast.info(`Edit functionality coming soon for: ${expense.description}`);
+  };
+
+  const attachReceipt = (expense: Expense) => {
+    toast.info(`Receipt attachment coming soon for: ${expense.description}`);
+  };
+
+  const processPayment = (expense: Expense) => {
+    toast.info(`Payment processing coming soon for: ${expense.description}`);
+  };
+
   const filteredExpenses = expenses.filter(expense =>
     expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     expense.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -153,6 +217,7 @@ export default function Expenses() {
     a.click();
     window.URL.revokeObjectURL(url);
     window.document.body.removeChild(a);
+    toast.success('Expenses exported successfully');
   };
 
   if (loading) {
@@ -195,7 +260,7 @@ export default function Expenses() {
           <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-yellow-700">Pending Expenses</CardTitle>
-              <Receipt className="h-5 w-5 text-yellow-600" />
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-800">${pendingExpenses.toLocaleString()}</div>
@@ -234,7 +299,7 @@ export default function Expenses() {
               </Button>
               <Button onClick={() => setCreateDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
                 <Plus className="w-4 h-4 mr-2" />
-                Create Invoice
+                Create Expense
               </Button>
             </div>
           </div>
@@ -307,7 +372,7 @@ export default function Expenses() {
                   <TableHead>AMOUNT</TableHead>
                   <TableHead>STATUS</TableHead>
                   <TableHead>DUE DATE</TableHead>
-                  <TableHead>APPROVAL / ACTIONS</TableHead>
+                  <TableHead>ACTIONS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -330,18 +395,72 @@ export default function Expenses() {
                       {new Date(new Date(expense.date).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm">
-                          📎
+                      <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => attachReceipt(expense)}
+                          title="Attach Receipt"
+                        >
+                          <Paperclip className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
-                          📝
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => editExpense(expense)}
+                          title="Edit Expense"
+                        >
+                          <Edit className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
-                          💲
+                        {expense.status === 'Pending Field Approval' && (
+                          <>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => updateExpenseStatus(expense.id, 'Approved')}
+                              title="Approve Expense"
+                              className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => updateExpenseStatus(expense.id, 'Rejected')}
+                              title="Reject Expense"
+                              className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                            >
+                              <AlertTriangle className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                        {expense.status === 'Approved' && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => processPayment(expense)}
+                            title="Process Payment"
+                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                          >
+                            <DollarSign className="w-4 h-4" />
+                          </Button>
+                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => viewExpense(expense)}
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
-                          ⋯
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => deleteExpense(expense.id)}
+                          title="Delete Expense"
+                          className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -352,7 +471,7 @@ export default function Expenses() {
             
             {filteredExpenses.length === 0 && (
               <div className="text-center py-12">
-                <Receipt className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No expenses found</h3>
                 <p className="text-gray-500 mb-6">Start tracking your project expenses.</p>
                 <Button onClick={() => setCreateDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">

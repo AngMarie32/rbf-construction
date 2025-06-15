@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ interface CreateExpenseDialogProps {
 }
 
 export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCreated }: CreateExpenseDialogProps) {
+  const [projects, setProjects] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     project_id: projectId || '',
     category: '',
@@ -28,6 +29,31 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
     status: 'Pending Field Approval'
   });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      fetchProjects();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    setFormData(prev => ({ ...prev, project_id: projectId || '' }));
+  }, [projectId]);
+
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast.error('Failed to load projects');
+    }
+  };
 
   const handleSave = async () => {
     if (!formData.project_id || !formData.category || !formData.description || !formData.amount) {
@@ -81,6 +107,22 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
         </DialogHeader>
 
         <div className="space-y-4">
+          <div>
+            <Label htmlFor="project">Project *</Label>
+            <Select value={formData.project_id} onValueChange={(value) => setFormData({ ...formData, project_id: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div>
             <Label htmlFor="category">Category *</Label>
             <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
