@@ -384,6 +384,7 @@ export default function Expenses() {
                   <TableHead>VENDOR</TableHead>
                   <TableHead>PROJECT</TableHead>
                   <TableHead>STATUS</TableHead>
+                  <TableHead>APPROVAL</TableHead>
                   <TableHead>ACTIONS</TableHead>
                 </TableRow>
               </TableHeader>
@@ -402,7 +403,7 @@ export default function Expenses() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1">
                         {/* Approval Actions - Only show if can approve */}
                         {canApprove(expense.status) && (
                           <Button 
@@ -413,10 +414,10 @@ export default function Expenses() {
                                 updateExpenseStatus(expense.id, nextStatus);
                               }
                             }}
-                            className="bg-green-600 hover:bg-green-700 text-white"
+                            className="bg-green-600 hover:bg-green-700 text-white h-7 px-2 text-xs"
                           >
-                            <Check className="w-4 h-4 mr-1" />
-                            {getApprovalButtonText(expense.status)}
+                            <Check className="w-3 h-3 mr-1" />
+                            Approve
                           </Button>
                         )}
                         
@@ -426,64 +427,66 @@ export default function Expenses() {
                             size="sm"
                             variant="destructive"
                             onClick={() => updateExpenseStatus(expense.id, 'Rejected')}
+                            className="h-7 px-2 text-xs"
                           >
-                            <X className="w-4 h-4 mr-1" />
+                            <X className="w-3 h-3 mr-1" />
                             Reject
                           </Button>
                         )}
-
-                        {/* Nested Actions Menu */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewExpense(expense)}>
-                              <Eye className="w-4 h-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEditExpense(expense)}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleAttachReceipt(expense)}>
-                              <Paperclip className="w-4 h-4 mr-2" />
-                              Attach Receipt
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem 
-                                  className="text-red-600 focus:text-red-600"
-                                  onSelect={(e) => e.preventDefault()}
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Expense</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete this expense? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => deleteExpense(expense.id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {/* Nested Actions Menu */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-7 w-7 p-0">
+                            <MoreHorizontal className="w-3 h-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewExpense(expense)}>
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditExpense(expense)}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleAttachReceipt(expense)}>
+                            <Paperclip className="w-4 h-4 mr-2" />
+                            Attach Receipt
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem 
+                                className="text-red-600 focus:text-red-600"
+                                onSelect={(e) => e.preventDefault()}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Expense</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this expense? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => deleteExpense(expense.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
