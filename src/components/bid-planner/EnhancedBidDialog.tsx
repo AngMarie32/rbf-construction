@@ -1,0 +1,481 @@
+
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Plus, Trash2, X } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+interface LineItem {
+  id: string;
+  category: string;
+  subcategory: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  markup: number;
+  total: number;
+}
+
+interface EnhancedBidDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onBidCreated: () => void;
+  projects: any[];
+}
+
+export function EnhancedBidDialog({ open, onOpenChange, onBidCreated, projects }: EnhancedBidDialogProps) {
+  const [bidInfo, setBidInfo] = useState({
+    title: '',
+    project: '',
+    client: '',
+    dueDate: '',
+    description: '',
+    taxRate: 0,
+    contingency: 0,
+    defaultMarkup: 0,
+    notes: '',
+    saveAsTemplate: false
+  });
+
+  const [lineItems, setLineItems] = useState<LineItem[]>([
+    {
+      id: '1',
+      category: '',
+      subcategory: '',
+      description: '',
+      quantity: 0,
+      unit: 'Unit',
+      unitPrice: 0,
+      markup: 0,
+      total: 0
+    }
+  ]);
+
+  const calculateLineItemTotal = (item: LineItem) => {
+    const baseTotal = item.quantity * item.unitPrice;
+    const markupAmount = (baseTotal * item.markup) / 100;
+    return baseTotal + markupAmount;
+  };
+
+  const updateLineItem = (id: string, field: keyof LineItem, value: any) => {
+    setLineItems(items => 
+      items.map(item => {
+        if (item.id === id) {
+          const updated = { ...item, [field]: value };
+          updated.total = calculateLineItemTotal(updated);
+          return updated;
+        }
+        return item;
+      })
+    );
+  };
+
+  const addLineItem = () => {
+    const newItem: LineItem = {
+      id: Date.now().toString(),
+      category: '',
+      subcategory: '',
+      description: '',
+      quantity: 0,
+      unit: 'Unit',
+      unitPrice: 0,
+      markup: bidInfo.defaultMarkup,
+      total: 0
+    };
+    setLineItems([...lineItems, newItem]);
+  };
+
+  const removeLineItem = (id: string) => {
+    if (lineItems.length > 1) {
+      setLineItems(lineItems.filter(item => item.id !== id));
+    }
+  };
+
+  const calculateSubtotal = () => {
+    return lineItems.reduce((sum, item) => sum + item.total, 0);
+  };
+
+  const calculateTaxAmount = () => {
+    const subtotal = calculateSubtotal();
+    return (subtotal * bidInfo.taxRate) / 100;
+  };
+
+  const calculateContingencyAmount = () => {
+    const subtotal = calculateSubtotal();
+    return (subtotal * bidInfo.contingency) / 100;
+  };
+
+  const calculateGrandTotal = () => {
+    return calculateSubtotal() + calculateTaxAmount() + calculateContingencyAmount();
+  };
+
+  const handleSaveBid = async () => {
+    if (!bidInfo.title.trim()) {
+      toast.error('Please enter a bid title');
+      return;
+    }
+
+    if (!bidInfo.project) {
+      toast.error('Please select a project');
+      return;
+    }
+
+    try {
+      // Save bid items to database
+      const itemsToSave = lineItems
+        .filter(item => item.description.trim())
+        .map(item => ({
+          project_id: bidInfo.project,
+          category: item.category || 'General',
+          subcategory: item.subcategory || '',
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit,
+          unit_cost: item.unitPrice,
+          total: item.total
+        }));
+
+      if (itemsToSave.length === 0) {
+        toast.error('Please add at least one line item with a description');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('bid_items')
+        .insert(itemsToSave);
+
+      if (error) throw error;
+
+      // Save as template if requested
+      if (bidInfo.saveAsTemplate) {
+        const { error: templateError } = await supabase
+          .from('bid_templates')
+          .insert({
+            name: bidInfo.title,
+            description: bidInfo.description || 'Bid template'
+          });
+
+        if (templateError) {
+          console.warn('Could not save template:', templateError);
+        }
+      }
+
+      toast.success(`Bid "${bidInfo.title}" created successfully with ${itemsToSave.length} items`);
+      onBidCreated();
+      onOpenChange(false);
+      
+      // Reset form
+      setBidInfo({
+        title: '',
+        project: '',
+        client: '',
+        dueDate: '',
+        description: '',
+        taxRate: 0,
+        contingency: 0,
+        defaultMarkup: 0,
+        notes: '',
+        saveAsTemplate: false
+      });
+      setLineItems([{
+        id: '1',
+        category: '',
+        subcategory: '',
+        description: '',
+        quantity: 0,
+        unit: 'Unit',
+        unitPrice: 0,
+        markup: 0,
+        total: 0
+      }]);
+    } catch (error) {
+      console.error('Error saving bid:', error);
+      toast.error('Failed to save bid');
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <DialogTitle>Create New Bid</DialogTitle>
+          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+            <X className="w-4 h-4" />
+          </Button>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Basic Information */}
+          <div>
+            <h3 className="text-lg font-medium mb-4">Basic Information</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="bidTitle">Bid Title</Label>
+                <Input
+                  id="bidTitle"
+                  value={bidInfo.title}
+                  onChange={(e) => setBidInfo({ ...bidInfo, title: e.target.value })}
+                  placeholder="Enter bid title"
+                />
+              </div>
+              <div>
+                <Label htmlFor="project">Project</Label>
+                <Select value={bidInfo.project} onValueChange={(value) => setBidInfo({ ...bidInfo, project: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="client">Client</Label>
+                <Input
+                  id="client"
+                  value={bidInfo.client}
+                  onChange={(e) => setBidInfo({ ...bidInfo, client: e.target.value })}
+                  placeholder="Enter client name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="dueDate">Due Date</Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={bidInfo.dueDate}
+                  onChange={(e) => setBidInfo({ ...bidInfo, dueDate: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="mt-4">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={bidInfo.description}
+                onChange={(e) => setBidInfo({ ...bidInfo, description: e.target.value })}
+                placeholder="Enter bid description"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          {/* Line Items */}
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Line Items</h3>
+              <Button onClick={addLineItem} size="sm">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Item
+              </Button>
+            </div>
+            
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[120px]">CATEGORY</TableHead>
+                    <TableHead className="w-[120px]">SUBCATEGORY</TableHead>
+                    <TableHead className="w-[200px]">DESCRIPTION</TableHead>
+                    <TableHead className="w-[80px]">QUANTITY</TableHead>
+                    <TableHead className="w-[80px]">UNIT</TableHead>
+                    <TableHead className="w-[100px]">UNIT PRICE</TableHead>
+                    <TableHead className="w-[80px]">MARKUP (%)</TableHead>
+                    <TableHead className="w-[100px]">TOTAL</TableHead>
+                    <TableHead className="w-[80px]">ACTIONS</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lineItems.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <Input
+                          value={item.category}
+                          onChange={(e) => updateLineItem(item.id, 'category', e.target.value)}
+                          placeholder="Category"
+                          className="h-8"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={item.subcategory}
+                          onChange={(e) => updateLineItem(item.id, 'subcategory', e.target.value)}
+                          placeholder="Subcategory"
+                          className="h-8"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={item.description}
+                          onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                          placeholder="Description"
+                          className="h-8"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                          className="h-8"
+                          min="0"
+                          step="0.01"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={item.unit}
+                          onChange={(e) => updateLineItem(item.id, 'unit', e.target.value)}
+                          className="h-8"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={item.unitPrice}
+                          onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                          className="h-8"
+                          min="0"
+                          step="0.01"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={item.markup}
+                          onChange={(e) => updateLineItem(item.id, 'markup', parseFloat(e.target.value) || 0)}
+                          className="h-8"
+                          min="0"
+                          step="0.1"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">${item.total.toFixed(2)}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeLineItem(item.id)}
+                          disabled={lineItems.length === 1}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Totals */}
+            <div className="mt-4 flex justify-end">
+              <div className="w-64 space-y-2">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>${calculateSubtotal().toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tax ({bidInfo.taxRate}%):</span>
+                  <span>${calculateTaxAmount().toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Contingency ({bidInfo.contingency}%):</span>
+                  <span>${calculateContingencyAmount().toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-lg border-t pt-2">
+                  <span>Total:</span>
+                  <span>${calculateGrandTotal().toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Settings */}
+          <div>
+            <h3 className="text-lg font-medium mb-4">Additional Settings</h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="taxRate">Tax Rate (%)</Label>
+                <Input
+                  id="taxRate"
+                  type="number"
+                  value={bidInfo.taxRate}
+                  onChange={(e) => setBidInfo({ ...bidInfo, taxRate: parseFloat(e.target.value) || 0 })}
+                  min="0"
+                  step="0.1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="contingency">Contingency (%)</Label>
+                <Input
+                  id="contingency"
+                  type="number"
+                  value={bidInfo.contingency}
+                  onChange={(e) => setBidInfo({ ...bidInfo, contingency: parseFloat(e.target.value) || 0 })}
+                  min="0"
+                  step="0.1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="defaultMarkup">Default Markup (%)</Label>
+                <Input
+                  id="defaultMarkup"
+                  type="number"
+                  value={bidInfo.defaultMarkup}
+                  onChange={(e) => setBidInfo({ ...bidInfo, defaultMarkup: parseFloat(e.target.value) || 0 })}
+                  min="0"
+                  step="0.1"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              value={bidInfo.notes}
+              onChange={(e) => setBidInfo({ ...bidInfo, notes: e.target.value })}
+              placeholder="Enter any additional notes or terms"
+              rows={4}
+            />
+          </div>
+
+          {/* Save as Template */}
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="saveAsTemplate"
+              checked={bidInfo.saveAsTemplate}
+              onCheckedChange={(checked) => setBidInfo({ ...bidInfo, saveAsTemplate: !!checked })}
+            />
+            <Label htmlFor="saveAsTemplate">Save as template for future use</Label>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveBid}>
+              Create Bid
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
