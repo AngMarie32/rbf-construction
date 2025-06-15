@@ -31,15 +31,31 @@ export function ChangeOrderSOVDialog({
 
   const fetchApprovedChangeOrders = async () => {
     try {
-      const { data, error } = await supabase
+      // Get approved change orders that haven't been added to SOV yet
+      const { data: changeOrdersData, error: coError } = await supabase
         .from('change_orders')
         .select('*')
         .eq('project_id', projectId)
         .eq('status', 'Approved')
         .order('number');
 
-      if (error) throw error;
-      setChangeOrders(data || []);
+      if (coError) throw coError;
+
+      // Get existing SOV item linkages to filter out already added change orders
+      const { data: existingLinks, error: linkError } = await supabase
+        .from('sov_item_change_orders')
+        .select('change_order_id');
+
+      if (linkError) throw linkError;
+
+      const linkedChangeOrderIds = new Set(existingLinks?.map(link => link.change_order_id) || []);
+      
+      // Filter out change orders already linked to SOV items
+      const availableChangeOrders = (changeOrdersData || []).filter(co => 
+        !linkedChangeOrderIds.has(co.id)
+      );
+
+      setChangeOrders(availableChangeOrders);
     } catch (error) {
       console.error('Error fetching change orders:', error);
       toast.error('Failed to load change orders');
@@ -85,7 +101,8 @@ export function ChangeOrderSOVDialog({
         item_number: (nextItemNumber + index).toString().padStart(3, '0'),
         category: 'Change Orders',
         description: `CO-${co.number}: ${co.description}`,
-        scheduled_value: co.amount,
+        scheduled_value: 0, // Change orders are additions, not part of original scheduled value
+        change_orders: co.amount, // This is the key - set the change_orders field
         previous_applications: 0,
         this_period: 0,
         materials_stored: 0,
@@ -93,24 +110,17 @@ export function ChangeOrderSOVDialog({
         materials_presently_stored: 0,
         total_completed_and_stored: 0,
         percent_complete: 0,
-        retainage_percentage: 10,
-        change_orders: co.amount
+        retainage_percentage: 10
       }));
 
-      const { error: insertError } = await supabase
+      const { data: newSovItems, error: insertError } = await supabase
         .from('sov_items')
-        .insert(sovItemsToInsert);
+        .insert(sovItemsToInsert)
+        .select();
 
       if (insertError) throw insertError;
 
-      // Get the newly created SOV items to link them
-      const { data: newSovItems } = await supabase
-        .from('sov_items')
-        .select('id, item_number')
-        .eq('project_id', projectId)
-        .gte('item_number', nextItemNumber.toString().padStart(3, '0'))
-        .order('item_number');
-
+      // Create linkages between SOV items and change orders
       if (newSovItems) {
         const linkagesToInsert = selectedCOs.map((co, index) => ({
           sov_item_id: newSovItems[index]?.id,
@@ -118,10 +128,30 @@ export function ChangeOrderSOVDialog({
           amount: co.amount
         }));
 
-        await supabase
+        const { error: linkError } = await supabase
           .from('sov_item_change_orders')
           .insert(linkagesToInsert);
+
+        if (linkError) throw linkError;
       }
+
+      // Update project's net_change_orders total
+      const totalChangeOrderAmount = selectedCOs.reduce((sum, co) => sum + co.amount, 0);
+      
+      const { data: projectData } = await supabase
+        .from('projects')
+        .select('net_change_orders')
+        .eq('id', projectId)
+        .single();
+
+      const currentNetChange = projectData?.net_change_orders || 0;
+      
+      await supabase
+        .from('projects')
+        .update({ 
+          net_change_orders: currentNetChange + totalChangeOrderAmount 
+        })
+        .eq('id', projectId);
 
       toast.success(`Added ${selectedChangeOrders.length} change orders to SOV`);
       onSuccess();

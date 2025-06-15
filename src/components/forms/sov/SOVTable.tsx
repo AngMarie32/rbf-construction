@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +50,40 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
     }
 
     try {
+      // Check if this SOV item is linked to change orders
+      const { data: changeOrderLinks } = await supabase
+        .from('sov_item_change_orders')
+        .select('*')
+        .eq('sov_item_id', itemId);
+
+      // If linked to change orders, remove the linkages and update project net change orders
+      if (changeOrderLinks && changeOrderLinks.length > 0) {
+        const totalChangeOrderAmount = changeOrderLinks.reduce((sum, link) => sum + link.amount, 0);
+        
+        // Update project net_change_orders
+        const { data: projectData } = await supabase
+          .from('projects')
+          .select('net_change_orders')
+          .eq('id', projectId)
+          .single();
+
+        const currentNetChange = projectData?.net_change_orders || 0;
+        
+        await supabase
+          .from('projects')
+          .update({ 
+            net_change_orders: Math.max(0, currentNetChange - totalChangeOrderAmount)
+          })
+          .eq('id', projectId);
+
+        // Delete the linkages
+        await supabase
+          .from('sov_item_change_orders')
+          .delete()
+          .eq('sov_item_id', itemId);
+      }
+
+      // Delete the SOV item
       const { error } = await supabase.from('sov_items').delete().eq('id', itemId);
       if (error) throw error;
 
@@ -219,16 +252,14 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                   </div>
                   <div className="font-mono">${balanceToFinish.toLocaleString()}</div>
                   <div>
-                    {!item.id.startsWith('co-') && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleDeleteSOVItem(item.id)} 
-                        className="text-red-500 hover:text-red-700 h-8 w-8"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleDeleteSOVItem(item.id)} 
+                      className="text-red-500 hover:text-red-700 h-8 w-8"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               );

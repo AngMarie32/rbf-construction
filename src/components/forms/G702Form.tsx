@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -167,7 +168,8 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
 
       setFormData(prev => ({
         ...prev,
-        originalContractSum: data.original_contract_sum || data.contract_value
+        originalContractSum: data.original_contract_sum || data.contract_value,
+        netChangeOrders: data.net_change_orders || 0
       }));
     } catch (error) {
       console.error('Error fetching project:', error);
@@ -190,7 +192,7 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
         itemNumber: item.item_number,
         description: item.description,
         scheduledValue: item.scheduled_value,
-        changeOrders: item.change_orders || 0,
+        changeOrders: item.change_orders || 0, // Ensure this is properly mapped
         previousApplications: item.previous_applications || 0,
         thisPeriod: item.this_period || 0,
         materialsStored: item.materials_stored || 0,
@@ -214,11 +216,13 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
       .eq('project_id', projectId)
       .lt('application_number', formData.applicationNumber);
 
-    // Calculate from G703 data
+    // Use form data values if available, otherwise calculate from SOV
     const originalContractSum = formData.originalContractSum || project?.originalContractSum || 0;
     
-    // Net Change by Change Orders - from all current and previous change orders from G703
-    const netChangeOrders = sovItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
+    // Net Change by Change Orders - use project value or calculate from SOV items
+    const netChangeOrders = formData.netChangeOrders || 
+                           project?.netChangeOrders || 
+                           sovItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
     
     // Contract Sum to Date = Original Contract Sum + Net Change by Change Orders
     const contractSumToDate = originalContractSum + netChangeOrders;
