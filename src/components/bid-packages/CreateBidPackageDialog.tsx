@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +9,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CalendarIcon, Package, Plus, FileText, Upload } from 'lucide-react';
+import { CalendarIcon, Package, Plus, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +23,7 @@ interface Document {
   id: string;
   name: string;
   category: string;
+  project_id: string;
 }
 
 interface CreateBidPackageDialogProps {
@@ -31,7 +31,6 @@ interface CreateBidPackageDialogProps {
 }
 
 export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ onPackageCreated }) => {
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -49,9 +48,17 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
   useEffect(() => {
     if (open) {
       fetchProjects();
-      fetchDocuments();
     }
   }, [open]);
+
+  useEffect(() => {
+    if (selectedProject) {
+      fetchProjectDocuments();
+    } else {
+      setDocuments([]);
+      setSelectedDocuments([]);
+    }
+  }, [selectedProject]);
 
   const fetchProjects = async () => {
     try {
@@ -72,20 +79,21 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
     }
   };
 
-  const fetchDocuments = async () => {
+  const fetchProjectDocuments = async () => {
     try {
       const { data, error } = await supabase
         .from('documents')
-        .select('id, name, category')
+        .select('id, name, category, project_id')
+        .eq('project_id', selectedProject)
         .order('name');
       
       if (error) throw error;
       setDocuments(data || []);
     } catch (error) {
-      console.error('Error fetching documents:', error);
+      console.error('Error fetching project documents:', error);
       toast({
         title: "Error",
-        description: "Failed to load documents",
+        description: "Failed to load project documents",
         variant: "destructive",
       });
     }
@@ -99,7 +107,11 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
     );
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+
     if (!name || !selectedProject) {
       toast({
         title: "Missing Information",
@@ -185,11 +197,6 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
     })).filter(group => group.documents.length > 0);
   };
 
-  const handleNavigateToDocuments = () => {
-    setOpen(false);
-    navigate('/documents');
-  };
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -209,7 +216,7 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
           </p>
         </DialogHeader>
         
-        <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Package Name *</Label>
@@ -218,12 +225,13 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter package name"
+                required
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="project">Project *</Label>
-              <Select value={selectedProject} onValueChange={setSelectedProject}>
+              <Select value={selectedProject} onValueChange={setSelectedProject} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
@@ -254,7 +262,7 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
               <Label htmlFor="estimatedStartDate">Estimated Project Start Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                  <Button type="button" variant="outline" className="w-full justify-start text-left font-normal">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {estimatedStartDate ? format(estimatedStartDate, "PPP") : "Select date"}
                   </Button>
@@ -287,81 +295,68 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
           </div>
 
           {/* Document Selection */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
+          {selectedProject && (
+            <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4" />
-                <Label className="text-base font-medium">Include Documents</Label>
+                <Label className="text-base font-medium">Include Project Documents</Label>
               </div>
-              <Button size="sm" variant="outline" onClick={handleNavigateToDocuments}>
-                <Upload className="w-4 h-4 mr-2" />
-                Upload New Documents
-              </Button>
-            </div>
-            <p className="text-sm text-gray-600">
-              Select project plans, agreements, and other documents to include in this bid package
-            </p>
-            
-            {documents.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
-                <FileText className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                <p className="font-medium">No documents available</p>
-                <p className="text-sm">Upload documents to include them in bid packages</p>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="mt-3"
-                  onClick={handleNavigateToDocuments}
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Go to Documents
-                </Button>
-              </div>
-            ) : (
-              <div className="max-h-64 overflow-y-auto border rounded-lg p-4 space-y-4">
-                {getDocumentsByCategory().map(({ category, documents: categoryDocs }) => (
-                  <div key={category} className="space-y-2">
-                    <h4 className="font-medium text-sm text-gray-700 border-b pb-1">
-                      {category}
-                    </h4>
-                    <div className="grid grid-cols-1 gap-2">
-                      {categoryDocs.map((doc) => (
-                        <div key={doc.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`doc-${doc.id}`}
-                            checked={selectedDocuments.includes(doc.id)}
-                            onCheckedChange={() => handleDocumentToggle(doc.id)}
-                          />
-                          <Label 
-                            htmlFor={`doc-${doc.id}`}
-                            className="text-sm cursor-pointer flex-1"
-                          >
-                            {doc.name}
-                          </Label>
-                        </div>
-                      ))}
+              <p className="text-sm text-gray-600">
+                Select documents from the selected project to include in this bid package
+              </p>
+              
+              {documents.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
+                  <FileText className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                  <p className="font-medium">No documents found for this project</p>
+                  <p className="text-sm">Upload documents to the selected project first</p>
+                </div>
+              ) : (
+                <div className="max-h-64 overflow-y-auto border rounded-lg p-4 space-y-4">
+                  {getDocumentsByCategory().map(({ category, documents: categoryDocs }) => (
+                    <div key={category} className="space-y-2">
+                      <h4 className="font-medium text-sm text-gray-700 border-b pb-1">
+                        {category}
+                      </h4>
+                      <div className="grid grid-cols-1 gap-2">
+                        {categoryDocs.map((doc) => (
+                          <div key={doc.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`doc-${doc.id}`}
+                              checked={selectedDocuments.includes(doc.id)}
+                              onCheckedChange={() => handleDocumentToggle(doc.id)}
+                            />
+                            <Label 
+                              htmlFor={`doc-${doc.id}`}
+                              className="text-sm cursor-pointer flex-1"
+                            >
+                              {doc.name}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {selectedDocuments.length > 0 && (
-              <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
-                ✓ {selectedDocuments.length} document{selectedDocuments.length !== 1 ? 's' : ''} selected
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+              
+              {selectedDocuments.length > 0 && (
+                <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                  ✓ {selectedDocuments.length} document{selectedDocuments.length !== 1 ? 's' : ''} selected
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-end space-x-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={loading}>
+            <Button type="submit" disabled={loading}>
               {loading ? 'Creating...' : 'Create Bid Package'}
             </Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
