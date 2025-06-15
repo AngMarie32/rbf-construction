@@ -17,6 +17,7 @@ export const ProfileSettings: React.FC = () => {
     role: 'Field',
   });
   const [loading, setLoading] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(true);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -27,19 +28,30 @@ export const ProfileSettings: React.FC = () => {
   }, [user]);
 
   const fetchProfileData = async () => {
+    if (!user?.id) return;
+    
+    setFetchLoading(true);
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('name, email, role')
-        .eq('id', user?.id)
+        .eq('id', user.id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching profile data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load profile data",
+          variant: "destructive",
+        });
+        return;
+      }
 
       if (data) {
         setProfileData({
           name: data.name || '',
-          email: data.email || '',
+          email: data.email || user.email || '',
           role: data.role || 'Field',
         });
       }
@@ -50,11 +62,22 @@ export const ProfileSettings: React.FC = () => {
         description: "Failed to load profile data",
         variant: "destructive",
       });
+    } finally {
+      setFetchLoading(false);
     }
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User not authenticated",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -65,9 +88,17 @@ export const ProfileSettings: React.FC = () => {
           email: profileData.email,
           role: profileData.role,
         })
-        .eq('id', user?.id);
+        .eq('id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error saving profile:', error);
+        toast({
+          title: "Error",
+          description: `Failed to update profile: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
 
       toast({
         title: "Success",
@@ -84,6 +115,22 @@ export const ProfileSettings: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (fetchLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="w-5 h-5" />
+            Profile Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4">Loading profile data...</div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -106,6 +153,7 @@ export const ProfileSettings: React.FC = () => {
                 value={profileData.name}
                 onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
                 placeholder="Enter your full name"
+                required
               />
             </div>
             <div className="space-y-2">
@@ -116,6 +164,7 @@ export const ProfileSettings: React.FC = () => {
                 value={profileData.email}
                 onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
                 placeholder="Enter your email address"
+                required
               />
             </div>
           </div>
@@ -138,6 +187,9 @@ export const ProfileSettings: React.FC = () => {
                 <SelectItem value="Admin">Admin</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-sm text-gray-500">
+              Note: Role changes may require admin approval depending on your organization's settings.
+            </p>
           </div>
 
           <Button type="submit" disabled={loading}>
