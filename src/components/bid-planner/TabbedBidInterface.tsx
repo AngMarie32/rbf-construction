@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -315,7 +316,7 @@ export function TabbedBidInterface({
         console.log('Successfully deleted existing SOV items');
       }
 
-      // Convert bid items to SOV items
+      // Convert bid items to SOV items - excluding generated columns
       const sovItems = bidItems.map((item, index) => ({
         project_id: projectId,
         item_number: String(index + 1).padStart(3, '0'),
@@ -327,9 +328,9 @@ export function TabbedBidInterface({
         materials_stored: 0,
         work_completed_from_previous: 0,
         materials_presently_stored: 0,
-        total_completed_and_stored: 0,
         percent_complete: 0,
         retainage_percentage: 10
+        // Removed total_completed_and_stored as it's a generated column
       }));
 
       console.log('SOV items to insert:', sovItems);
