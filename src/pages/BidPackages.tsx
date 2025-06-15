@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CreateBidInvitationDialog } from '@/components/bid-packages/CreateBidInvitationDialog';
 import { SubcontractorGroupsDialog } from '@/components/bid-packages/SubcontractorGroupsDialog';
 import { BidInvitationsList } from '@/components/bid-packages/BidInvitationsList';
+import { CreateBidPackageDialog } from '@/components/bid-packages/CreateBidPackageDialog';
 
 interface BidPackage {
   id: string;
@@ -63,6 +63,10 @@ const BidPackages = () => {
     setRefreshTrigger(prev => prev + 1);
   };
 
+  const handlePackageCreated = () => {
+    fetchBidPackages();
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Draft': return 'bg-gray-100 text-gray-800';
@@ -112,8 +116,11 @@ const BidPackages = () => {
         <TabsContent value="packages" className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-800">Active Bid Packages</h2>
-            <div className="text-sm text-gray-500">
-              {bidPackages.length} package{bidPackages.length !== 1 ? 's' : ''} found
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-500">
+                {bidPackages.length} package{bidPackages.length !== 1 ? 's' : ''} found
+              </div>
+              <CreateBidPackageDialog onPackageCreated={handlePackageCreated} />
             </div>
           </div>
 
@@ -123,9 +130,9 @@ const BidPackages = () => {
                 <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No bid packages found</h3>
                 <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                  Bid packages will appear here once they are created. You can create bid invitations to send to subcontractors.
+                  Create your first bid package to get started. You can then send bid invitations to subcontractors.
                 </p>
-                <CreateBidInvitationDialog onInvitationCreated={handleInvitationCreated} />
+                <CreateBidPackageDialog onPackageCreated={handlePackageCreated} />
               </CardContent>
             </Card>
           ) : (
@@ -216,3 +223,13 @@ const BidPackages = () => {
 };
 
 export default BidPackages;
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'Draft': return 'bg-gray-100 text-gray-800';
+    case 'Active': return 'bg-blue-100 text-blue-800';
+    case 'Closed': return 'bg-green-100 text-green-800';
+    case 'Cancelled': return 'bg-red-100 text-red-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+};
