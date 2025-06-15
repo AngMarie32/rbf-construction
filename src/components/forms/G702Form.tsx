@@ -187,16 +187,16 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
 
       if (error) throw error;
 
-      console.log('Fetched SOV items:', data); // Debug log
+      console.log('Fetched SOV items:', data);
 
       const mappedItems = (data || []).map(item => {
-        console.log(`Item ${item.item_number}: change_orders = ${item.change_orders}`); // Debug log
+        console.log(`Item ${item.item_number}: change_orders = ${item.change_orders}`);
         return {
           id: item.id,
           itemNumber: item.item_number,
           description: item.description,
           scheduledValue: item.scheduled_value,
-          changeOrders: item.change_orders || 0, // Make sure this is properly mapped
+          changeOrders: item.change_orders || 0,
           previousApplications: item.previous_applications || 0,
           thisPeriod: item.this_period || 0,
           materialsStored: item.materials_stored || 0,
@@ -208,7 +208,6 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
 
       setSovItems(mappedItems);
       
-      // Log the total change orders for debugging
       const totalChangeOrders = mappedItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
       console.log('Total change orders from SOV items:', totalChangeOrders);
     } catch (error) {
@@ -234,7 +233,7 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
     console.log('Previous applications found:', previousApps?.length || 0);
     console.log('Previous applications:', previousApps);
 
-    // Calculate from SOV items - this ensures we get the most up-to-date values
+    // Calculate from SOV items - this ensures we get the most up-to-date values including change orders
     const originalContractSum = sovItems.reduce((sum, item) => sum + (item.scheduledValue || 0), 0);
     const netChangeOrders = sovItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
     
@@ -341,7 +340,8 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
           .insert(applicationData);
         error = insertError;
 
-        // Update SOV items with this period amounts for new applications only
+        // For NEW applications only, update SOV items with cumulative progress
+        // This moves "this period" amounts to "previous applications" for future applications
         for (const item of sovItems) {
           if (item.thisPeriod > 0 || item.materialsStored > 0) {
             const newPreviousApplications = item.previousApplications + item.thisPeriod;
@@ -353,15 +353,19 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
               oldPrevious: item.previousApplications,
               thisPeriod: item.thisPeriod,
               newPrevious: newPreviousApplications,
-              newPercent: newPercentComplete
+              newPercent: newPercentComplete,
+              changeOrders: item.changeOrders // Make sure change orders are preserved
             });
             
+            // CRITICAL: Always preserve change_orders value when updating SOV items
             await supabase
               .from('sov_items')
               .update({
                 previous_applications: newPreviousApplications,
-                this_period: 0, // Reset this period to 0
-                percent_complete: Math.min(newPercentComplete, 100)
+                this_period: 0, // Reset this period to 0 for next application
+                percent_complete: Math.min(newPercentComplete, 100),
+                // Explicitly preserve change_orders - this is crucial!
+                change_orders: item.changeOrders
               })
               .eq('id', item.id);
           }
