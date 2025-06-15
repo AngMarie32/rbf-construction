@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface G702DocumentProps {
@@ -167,22 +168,22 @@ export function G702Document({ project, formData, totals }: G702DocumentProps) {
               <tbody>
                 <tr>
                   <td className="border border-black p-2">Total changes approved in previous months by Owner</td>
-                  <td className="border border-black p-2 text-center">${formatCurrency(0)}</td>
+                  <td className="border border-black p-2 text-center">${formatCurrency(Math.max(0, totals.netChangeOrders - totals.netChangeOrders))}</td>
                   <td className="border border-black p-2 text-center">${formatCurrency(0)}</td>
                 </tr>
                 <tr>
                   <td className="border border-black p-2">Total approved this Month</td>
-                  <td className="border border-black p-2 text-center">${formatCurrency(4780)}</td>
+                  <td className="border border-black p-2 text-center">${formatCurrency(Math.max(0, totals.netChangeOrders))}</td>
                   <td className="border border-black p-2 text-center">${formatCurrency(0)}</td>
                 </tr>
                 <tr className="bg-gray-100">
                   <td className="border border-black p-2 font-bold">TOTALS</td>
-                  <td className="border border-black p-2 text-center font-bold">${formatCurrency(4780)}</td>
+                  <td className="border border-black p-2 text-center font-bold">${formatCurrency(Math.max(0, totals.netChangeOrders))}</td>
                   <td className="border border-black p-2 text-center font-bold">${formatCurrency(0)}</td>
                 </tr>
                 <tr>
                   <td className="border border-black p-2 font-bold">NET CHANGES by Change Order</td>
-                  <td className="border border-black p-2 text-center font-bold" colSpan={2}>${formatCurrency(4780)}</td>
+                  <td className="border border-black p-2 text-center font-bold" colSpan={2}>${formatCurrency(totals.netChangeOrders)}</td>
                 </tr>
               </tbody>
             </table>
