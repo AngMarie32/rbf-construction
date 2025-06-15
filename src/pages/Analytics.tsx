@@ -26,7 +26,7 @@ export default function Analytics() {
     from: undefined,
     to: undefined
   });
-  const [selectedProjectManager, setSelectedProjectManager] = useState<string>('');
+  const [selectedProjectManager, setSelectedProjectManager] = useState<string>('all');
   const [projectManagers, setProjectManagers] = useState<ProjectManager[]>([]);
   const [reportData, setReportData] = useState<any>({});
   const [loading, setLoading] = useState(false);
@@ -255,7 +255,7 @@ export default function Analytics() {
           onClearFilters={() => {
             setSelectedCategory('all');
             setDateRange({ from: undefined, to: undefined });
-            setSelectedProjectManager('');
+            setSelectedProjectManager('all');
           }}
         />
 

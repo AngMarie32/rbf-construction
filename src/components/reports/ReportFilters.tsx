@@ -35,7 +35,7 @@ export function ReportFilters({
   const activeFiltersCount = [
     selectedCategory !== 'all',
     dateRange.from || dateRange.to,
-    selectedProjectManager
+    selectedProjectManager && selectedProjectManager !== 'all'
   ].filter(Boolean).length;
 
   return (
@@ -78,12 +78,12 @@ export function ReportFilters({
             {onProjectManagerChange && (
               <div>
                 <label className="text-sm font-medium mb-2 block">Project Manager</label>
-                <Select value={selectedProjectManager || ''} onValueChange={onProjectManagerChange}>
+                <Select value={selectedProjectManager || 'all'} onValueChange={onProjectManagerChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="All Managers" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Managers</SelectItem>
+                    <SelectItem value="all">All Managers</SelectItem>
                     {projectManagers.map((pm) => (
                       <SelectItem key={pm.id} value={pm.id}>
                         {pm.name}
