@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -217,18 +218,27 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
   };
 
   const calculateTotals = async () => {
-    // Get all previous applications for this project
-    const { data: previousApps } = await supabase
+    console.log('Calculating totals for application number:', formData.applicationNumber);
+    
+    // Get only EXISTING previous applications for this project (excluding current if editing)
+    const { data: previousApps, error: prevError } = await supabase
       .from('payment_applications_g702')
       .select('*')
       .eq('project_id', projectId)
       .lt('application_number', formData.applicationNumber);
 
+    if (prevError) {
+      console.error('Error fetching previous applications:', prevError);
+    }
+
+    console.log('Previous applications found:', previousApps?.length || 0);
+    console.log('Previous applications:', previousApps);
+
     // Calculate from SOV items - this ensures we get the most up-to-date values
     const originalContractSum = sovItems.reduce((sum, item) => sum + (item.scheduledValue || 0), 0);
     const netChangeOrders = sovItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
     
-    console.log('Calculated totals:', {
+    console.log('Calculated totals from SOV:', {
       originalContractSum,
       netChangeOrders,
       sovItemsCount: sovItems.length
@@ -237,11 +247,13 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
     // Contract Sum to Date = Original Contract Sum + Net Change by Change Orders
     const contractSumToDate = originalContractSum + netChangeOrders;
     
-    // Total Completed & Stored to Date = Sum of all SOV item totals
+    // Total Completed & Stored to Date = Sum of all SOV item totals for THIS period
     const totalCompletedAndStored = sovItems.reduce((sum, item) => {
       const itemTotal = (item.previousApplications || 0) + (item.thisPeriod || 0) + (item.materialsStored || 0);
       return sum + itemTotal;
     }, 0);
+    
+    console.log('Total completed and stored calculation:', totalCompletedAndStored);
     
     // Retainage calculations
     const retainageRate = formData.retainagePercentage / 100;
@@ -250,14 +262,19 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
     // Total Earned Less Retainage = Total Completed & Stored to Date - Total Retainage
     const totalEarnedLessRetainage = totalCompletedAndStored - totalRetainage;
     
-    // Less Previous Certificates for Payment = Grand total from all previous payment totals
-    const lessPreviousPayments = (previousApps || []).reduce((sum, app) => sum + (app.current_payment_due || 0), 0);
+    // Less Previous Certificates for Payment = Sum ONLY from existing previous applications
+    const lessPreviousPayments = (previousApps || []).reduce((sum, app) => {
+      console.log(`Previous app ${app.application_number}: payment = ${app.current_payment_due}`);
+      return sum + (app.current_payment_due || 0);
+    }, 0);
+    
+    console.log('Less previous payments total:', lessPreviousPayments);
     
     // Current Payment Due = Total Earned Less Retainage - Less Previous Applications
     const currentPaymentDue = Math.max(totalEarnedLessRetainage - lessPreviousPayments, 0);
     
-    // Balance to Finish = Contract Sum to Date - Less Previous Certificates - Current Payment Due
-    const balanceToFinish = contractSumToDate - lessPreviousPayments - currentPaymentDue;
+    // Balance to Finish = Contract Sum to Date - Total Completed & Stored to Date
+    const balanceToFinish = contractSumToDate - totalCompletedAndStored;
 
     const totals = {
       originalContractSum,
@@ -281,6 +298,10 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
     try {
       setLoading(true);
 
+      // Recalculate totals to ensure fresh data
+      const freshTotals = await calculateTotals();
+      console.log('Saving with fresh totals:', freshTotals);
+
       const applicationData = {
         project_id: projectId,
         application_number: formData.applicationNumber,
@@ -290,18 +311,20 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
         contractor_signature: formData.contractorSignature,
         project_name: project.name,
         project_number: formData.projectNumber || project.projectCode,
-        original_contract_sum: calculatedTotals.originalContractSum,
-        net_change_by_change_orders: calculatedTotals.netChangeOrders,
-        contract_sum_to_date: calculatedTotals.contractSumToDate,
-        total_completed_and_stored: calculatedTotals.totalCompletedAndStored,
-        retainage_completed_work: calculatedTotals.totalRetainage * 0.9,
-        retainage_stored_materials: calculatedTotals.totalRetainage * 0.1,
-        total_retainage: calculatedTotals.totalRetainage,
-        total_earned_less_retainage: calculatedTotals.totalEarnedLessRetainage,
-        less_previous_certificates: calculatedTotals.lessPreviousPayments,
-        current_payment_due: calculatedTotals.currentPaymentDue,
-        balance_to_finish: calculatedTotals.balanceToFinish
+        original_contract_sum: freshTotals.originalContractSum,
+        net_change_by_change_orders: freshTotals.netChangeOrders,
+        contract_sum_to_date: freshTotals.contractSumToDate,
+        total_completed_and_stored: freshTotals.totalCompletedAndStored,
+        retainage_completed_work: freshTotals.totalRetainage * 0.9,
+        retainage_stored_materials: freshTotals.totalRetainage * 0.1,
+        total_retainage: freshTotals.totalRetainage,
+        total_earned_less_retainage: freshTotals.totalEarnedLessRetainage,
+        less_previous_certificates: freshTotals.lessPreviousPayments,
+        current_payment_due: freshTotals.currentPaymentDue,
+        balance_to_finish: freshTotals.balanceToFinish
       };
+
+      console.log('Application data to save:', applicationData);
 
       let error;
       if (applicationId) {
@@ -321,15 +344,23 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
         // Update SOV items with this period amounts for new applications only
         for (const item of sovItems) {
           if (item.thisPeriod > 0 || item.materialsStored > 0) {
-            const newTotalCompleted = item.previousApplications + item.thisPeriod + item.materialsStored;
+            const newPreviousApplications = item.previousApplications + item.thisPeriod;
+            const newTotalCompleted = newPreviousApplications + item.materialsStored;
             const totalContract = item.scheduledValue + item.changeOrders;
             const newPercentComplete = totalContract > 0 ? (newTotalCompleted / totalContract) * 100 : 0;
+            
+            console.log(`Updating SOV item ${item.itemNumber}:`, {
+              oldPrevious: item.previousApplications,
+              thisPeriod: item.thisPeriod,
+              newPrevious: newPreviousApplications,
+              newPercent: newPercentComplete
+            });
             
             await supabase
               .from('sov_items')
               .update({
-                previous_applications: item.previousApplications + item.thisPeriod,
-                this_period: 0,
+                previous_applications: newPreviousApplications,
+                this_period: 0, // Reset this period to 0
                 percent_complete: Math.min(newPercentComplete, 100)
               })
               .eq('id', item.id);
