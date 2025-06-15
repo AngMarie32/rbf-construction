@@ -1,26 +1,34 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
+import { EnhancedProposalDialog } from '@/components/proposals/EnhancedProposalDialog';
 import { ProposalViewModal } from '@/components/proposals/ProposalViewModal';
+import { ProposalTemplateDialog } from '@/components/proposals/ProposalTemplateDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Filter, FileText, Edit, Trash2, Eye, Download } from 'lucide-react';
+import { Search, Filter, FileText, Edit, Trash2, Eye, Download, Template } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { generateProfessionalProposalPDF } from '@/utils/proposalPdfExport';
 import { Proposal } from '@/types';
 
 interface DatabaseProposal {
   id: string;
   project_name: string;
   client: string;
+  client_address?: string;
+  client_phone?: string;
+  client_email?: string;
+  project_address?: string;
   scope: string | null;
   amount: number;
   status: string;
+  valid_days?: number;
+  notes?: string;
+  proposal_items?: any[];
   created_at: string;
   updated_at: string;
 }
@@ -32,6 +40,8 @@ export default function Proposals() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [viewingProposal, setViewingProposal] = useState<Proposal | null>(null);
+  const [editingProposal, setEditingProposal] = useState<any>(null);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
 
   useEffect(() => {
     fetchProposals();
@@ -54,9 +64,16 @@ export default function Proposals() {
         id: dbProposal.id,
         projectName: dbProposal.project_name,
         client: dbProposal.client,
+        clientAddress: dbProposal.client_address,
+        clientPhone: dbProposal.client_phone,
+        clientEmail: dbProposal.client_email,
+        projectAddress: dbProposal.project_address,
         scope: dbProposal.scope || '',
         amount: dbProposal.amount,
         status: dbProposal.status as Proposal['status'],
+        validDays: dbProposal.valid_days || 30,
+        notes: dbProposal.notes,
+        proposalItems: dbProposal.proposal_items || [],
         createdAt: new Date(dbProposal.created_at)
       }));
       
@@ -104,34 +121,23 @@ export default function Proposals() {
   };
 
   const downloadProposalPDF = (proposal: Proposal) => {
-    // Create a simple PDF content
-    const content = `
-PROPOSAL
-
-Project: ${proposal.projectName}
-Client: ${proposal.client}
-Amount: $${proposal.amount.toLocaleString()}
-Status: ${proposal.status}
-Created: ${proposal.createdAt.toLocaleDateString()}
-
-Scope of Work:
-${proposal.scope || 'No scope defined'}
-
-This proposal is valid for 30 days from the date above.
-    `;
-
-    // Create a blob and download
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${proposal.projectName}-proposal.txt`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+    generateProfessionalProposalPDF({
+      projectName: proposal.projectName,
+      client: proposal.client,
+      clientAddress: proposal.clientAddress,
+      clientPhone: proposal.clientPhone,
+      clientEmail: proposal.clientEmail,
+      projectAddress: proposal.projectAddress,
+      amount: proposal.amount,
+      status: proposal.status,
+      createdAt: proposal.createdAt,
+      scope: proposal.scope,
+      notes: proposal.notes,
+      validDays: proposal.validDays,
+      proposalItems: proposal.proposalItems
+    });
     
-    toast.success('Proposal downloaded successfully');
+    toast.success('Proposal PDF downloaded successfully');
   };
 
   const getStatusColor = (status: string) => {
@@ -185,7 +191,16 @@ This proposal is valid for 30 days from the date above.
               </SelectContent>
             </Select>
           </div>
-          <NewProposalDialog onProposalCreated={fetchProposals} />
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowTemplateDialog(true)}>
+              <Template className="w-4 h-4 mr-2" />
+              Templates
+            </Button>
+            <EnhancedProposalDialog 
+              onProposalCreated={fetchProposals}
+              proposal={editingProposal}
+            />
+          </div>
         </div>
 
         {/* Stats */}
@@ -237,7 +252,7 @@ This proposal is valid for 30 days from the date above.
                     : 'No proposals found. Create your first proposal to get started!'}
                 </p>
                 {!searchTerm && statusFilter === 'all' && (
-                  <NewProposalDialog onProposalCreated={fetchProposals} />
+                  <EnhancedProposalDialog onProposalCreated={fetchProposals} />
                 )}
               </div>
             ) : (
@@ -280,7 +295,11 @@ This proposal is valid for 30 days from the date above.
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setEditingProposal(proposal)}
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
                             <Button 
@@ -310,12 +329,29 @@ This proposal is valid for 30 days from the date above.
           </CardContent>
         </Card>
 
-        {/* Proposal View Modal */}
+        {/* Modals */}
         {viewingProposal && (
           <ProposalViewModal
             proposal={viewingProposal}
             open={!!viewingProposal}
             onOpenChange={(open) => !open && setViewingProposal(null)}
+          />
+        )}
+
+        <ProposalTemplateDialog
+          open={showTemplateDialog}
+          onOpenChange={setShowTemplateDialog}
+          onTemplateSelect={handleTemplateSelect}
+        />
+
+        {editingProposal && (
+          <EnhancedProposalDialog
+            onProposalCreated={() => {
+              fetchProposals();
+              setEditingProposal(null);
+            }}
+            proposal={editingProposal}
+            trigger={<div />}
           />
         )}
       </div>

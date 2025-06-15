@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -127,9 +126,22 @@ export interface Proposal {
   id: string;
   projectName: string;
   client: string;
+  clientAddress?: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  projectAddress?: string;
   scope: string;
   amount: number;
   status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
+  validDays?: number;
+  notes?: string;
+  proposalItems?: Array<{
+    description: string;
+    quantity: number;
+    unit: string;
+    unitPrice: number;
+    total: number;
+  }>;
   createdAt: Date;
 }
 
