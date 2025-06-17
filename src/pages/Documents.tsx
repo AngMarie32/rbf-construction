@@ -218,20 +218,30 @@ export default function Documents() {
 
   const handleUpload = async (documentData: any) => {
     try {
+      console.log('Uploading document:', documentData);
+      
       const { error } = await supabase
         .from('documents')
         .insert({
           name: documentData.name,
           description: documentData.description || null,
-          category: documentData.folder || 'General',
-          project_id: documentData.project_id || null,
-          tags: documentData.tags.length > 0 ? documentData.tags : null,
-          is_current_version: true
+          category: documentData.folder || 'general',
+          project_id: documentData.project_id === 'no-project' ? null : documentData.project_id || null,
+          tags: documentData.tags && documentData.tags.length > 0 ? documentData.tags : null,
+          is_current_version: true,
+          uploaded_by: null, // Will be set when auth is implemented
+          file_path: null, // Will be set when file storage is implemented
+          mime_type: documentData.file?.type || null,
+          file_size: documentData.file?.size || null
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
       toast.success('Document uploaded successfully');
-      fetchDocuments();
+      await fetchDocuments(); // Refresh the documents list
     } catch (error) {
       console.error('Error uploading document:', error);
       toast.error('Failed to upload document');
@@ -373,13 +383,33 @@ export default function Documents() {
 
   const filteredDocuments = getFilteredDocuments();
 
+  const deleteFolder = (folderId: string) => {
+    if (folderId === 'all' || folderId === 'recent' || folderId === 'favorites' || folderId === 'archived') {
+      toast.error('Cannot delete system folders');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete this folder? Documents in this folder will be moved to General.')) return;
+
+    // Move documents from deleted folder to general
+    const updatedDocuments = documents.map(doc => 
+      doc.category.toLowerCase().replace(/\s+/g, '-') === folderId 
+        ? { ...doc, category: 'General' }
+        : doc
+    );
+    setDocuments(updatedDocuments);
+
+    toast.success('Folder deleted and documents moved to General');
+  };
+
   return (
     <Layout title="Document Management" subtitle="Store, organize, and share project documents">
       <div className="flex h-[calc(100vh-200px)]">
         <FolderSidebar 
           selectedFolder={selectedFolder}
           onFolderSelect={setSelectedFolder}
-          documentCount={documents.length}
+          documentCount={documents.filter(d => !archivedDocuments.includes(d.id)).length}
+          onDeleteFolder={deleteFolder}
         />
         
         <div className="flex-1 p-6 overflow-hidden flex flex-col">

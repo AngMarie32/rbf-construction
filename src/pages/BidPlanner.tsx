@@ -1,57 +1,58 @@
 
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ProjectSelector } from '@/components/layout/ProjectSelector';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Calculator, 
-  Target,
-  Building2
-} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Calculator, FileText, Download, Upload } from 'lucide-react';
+import { BidCreationView } from '@/components/bid-planner/BidCreationView';
+import { BidOverview } from '@/components/bid-planner/BidOverview';
+import { BidAnalysis } from '@/components/bid-planner/BidAnalysis';
+import { TemplateLibrary } from '@/components/bid-planner/TemplateLibrary';
+import { CreateBidDialog } from '@/components/bid-planner/CreateBidDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { TabbedBidInterface } from '@/components/bid-planner/TabbedBidInterface';
-import { EnhancedBidDialog } from '@/components/bid-planner/EnhancedBidDialog';
-import { initializeBidTemplates } from '@/utils/initializeBidTemplates';
+
+interface Project {
+  id: string;
+  name: string;
+  status: string;
+}
+
+interface CompanySettings {
+  profit_margin: number;
+  overhead_percentage: number;
+  default_tax_rate: number;
+  default_retainage_rate: number;
+}
 
 export default function BidPlanner() {
-  const [projects, setProjects] = useState<any[]>([]);
-  const [bidItems, setBidItems] = useState<any[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [selectedProject, setSelectedProject] = useState('');
+  const [activeTab, setActiveTab] = useState('overview');
+  const [showCreateBid, setShowCreateBid] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [companySettings, setCompanySettings] = useState<CompanySettings>({
+    profit_margin: 0,
+    overhead_percentage: 0,
+    default_tax_rate: 0,
+    default_retainage_rate: 10
+  });
   const [loading, setLoading] = useState(true);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchProjects();
-    initializeBidTemplates();
+    fetchCompanySettings();
   }, []);
-
-  useEffect(() => {
-    if (selectedProject) {
-      fetchBidItems();
-    } else {
-      setBidItems([]);
-    }
-  }, [selectedProject]);
 
   const fetchProjects = async () => {
     try {
-      setLoading(true);
-      console.log('Fetching projects for bid planner...');
-      
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, status, contract_value')
+        .select('id, name, status')
         .order('name');
 
-      if (error) {
-        console.error('Error fetching projects:', error);
-        throw error;
-      }
-
-      console.log('Projects loaded for bid planner:', data?.length || 0);
+      if (error) throw error;
       setProjects(data || []);
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -61,153 +62,142 @@ export default function BidPlanner() {
     }
   };
 
-  const fetchBidItems = async () => {
+  const fetchCompanySettings = async () => {
     try {
-      console.log('Fetching bid items for project:', selectedProject);
-      
       const { data, error } = await supabase
-        .from('bid_items')
-        .select('*')
-        .eq('project_id', selectedProject)
-        .order('category', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching bid items:', error);
-        throw error;
-      }
-
-      console.log('Bid items loaded:', data?.length || 0);
-      setBidItems(data || []);
-    } catch (error) {
-      console.error('Error fetching bid items:', error);
-      toast.error('Failed to load bid items');
-    }
-  };
-
-  const handleExportReport = async () => {
-    try {
-      const { data: companyData } = await supabase
         .from('company_settings')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
+        .select('profit_margin, overhead_percentage, default_tax_rate, default_retainage_rate')
+        .single();
 
-      const selectedProjectData = projects.find(p => p.id === selectedProject);
+      if (error) throw error;
       
-      // Calculate total before profit and overhead
-      const subtotal = bidItems.reduce((sum, item) => sum + ((item.unit_cost || 0) * (item.quantity || 0)), 0);
-      
-      // Note: Profit and overhead should be calculated from actual inputs in settings
-      // Total budget = subtotal + profit + overhead
-      
-      const exportData = {
-        projectName: selectedProjectData?.name || 'Unnamed Project',
-        client: selectedProjectData?.client || 'N/A',
-        date: new Date().toLocaleDateString(),
-        companyName: companyData?.company_name || 'BuildPro Construction',
-        companyAddress: companyData?.company_address || '',
-        companyPhone: companyData?.company_phone || '',
-        companyEmail: companyData?.company_email || '',
-        logoUrl: companyData?.logo_url || '',
-        bidItems: bidItems,
-        subtotal: subtotal,
-        totalAmount: subtotal // This should include profit and overhead from settings
-      };
-
-      const { generateBidReport } = await import('@/utils/pdfExport');
-      await generateBidReport(exportData);
-      
-      toast.success('Bid report exported successfully');
+      if (data) {
+        setCompanySettings({
+          profit_margin: data.profit_margin || 0,
+          overhead_percentage: data.overhead_percentage || 0,
+          default_tax_rate: data.default_tax_rate || 0,
+          default_retainage_rate: data.default_retainage_rate || 10
+        });
+      }
     } catch (error) {
-      console.error('Error exporting bid report:', error);
-      toast.error('Failed to export bid report');
+      console.error('Error fetching company settings:', error);
+      toast.error('Failed to load company settings');
     }
   };
 
-  const handleProjectSelect = (projectId: string) => {
-    console.log('Project selected in bid planner:', projectId);
-    setSelectedProject(projectId);
-  };
-
-  if (loading) {
+  if (!selectedProject) {
     return (
-      <Layout title="Bid Planner" subtitle="Create and manage construction bids">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-        </div>
+      <Layout title="Bid Planner" subtitle="Create and manage project bids">
+        <ProjectSelector
+          selectedProject={selectedProject}
+          onProjectSelect={setSelectedProject}
+          title="Select Project for Bid Planning"
+          subtitle="Choose a project to create or manage bids"
+        />
       </Layout>
     );
   }
 
+  const selectedProjectData = projects.find(p => p.id === selectedProject);
+
   return (
-    <Layout title="Bid Planner" subtitle="Create and manage construction bids">
-      <div className="space-y-8">
-        {/* Project Selection */}
-        <Card className="border-2 border-dashed border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="w-5 h-5 text-primary" />
-              Project Selection
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-4 items-center">
-              <Select value={selectedProject} onValueChange={handleProjectSelect}>
-                <SelectTrigger className="w-full max-w-md bg-background">
-                  <SelectValue placeholder="Choose a project for bid planning" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      <div className="flex items-center justify-between w-full">
-                        <span>{project.name}</span>
-                        <Badge variant="outline" className="ml-2">
-                          {project.status}
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+    <Layout title="Bid Planner" subtitle={`Bid Planning - ${selectedProjectData?.name || 'Unknown Project'}`}>
+      <div className="space-y-6">
+        {/* Project Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Bid Planning</h1>
+            <p className="text-gray-600">Project: {selectedProjectData?.name}</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button variant="outline" onClick={() => setSelectedProject('')}>
+              Change Project
+            </Button>
+            <Button onClick={() => setShowCreateBid(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Create New Bid
+            </Button>
+          </div>
+        </div>
+
+        {/* Company Settings Summary */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-4 gap-4 text-center">
+              <div>
+                <p className="text-sm text-gray-600">Profit Margin</p>
+                <p className="text-lg font-semibold">{companySettings.profit_margin}%</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Overhead</p>
+                <p className="text-lg font-semibold">{companySettings.overhead_percentage}%</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Tax Rate</p>
+                <p className="text-lg font-semibold">{companySettings.default_tax_rate}%</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Retainage</p>
+                <p className="text-lg font-semibold">{companySettings.default_retainage_rate}%</p>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {selectedProject ? (
-          <TabbedBidInterface
-            projectId={selectedProject}
-            bidItems={bidItems}
-            onItemsChange={setBidItems}
-            onExportReport={handleExportReport}
-          />
-        ) : (
-          <Card className="border-2 border-dashed border-gray-200">
-            <CardContent className="text-center py-16">
-              <Calculator className="w-20 h-20 text-gray-300 mx-auto mb-6" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Bid Planning</h3>
-              <p className="text-gray-500 mb-8 max-w-md mx-auto">
-                Select a project above to start creating detailed construction bids with accurate cost estimates.
-              </p>
-              {projects.length === 0 && (
-                <div className="mt-6">
-                  <p className="text-gray-400 mb-4">No projects found. Create a project first to start bid planning.</p>
-                  <Button onClick={() => window.location.href = '/projects'} variant="outline">
-                    <Building2 className="w-4 h-4 mr-2" />
-                    Go to Projects
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        {/* Main Content */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview">
+              <FileText className="w-4 h-4 mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="create">
+              <Plus className="w-4 h-4 mr-2" />
+              Create Bid
+            </TabsTrigger>
+            <TabsTrigger value="analysis">
+              <Calculator className="w-4 h-4 mr-2" />
+              Analysis
+            </TabsTrigger>
+            <TabsTrigger value="templates">
+              <Upload className="w-4 h-4 mr-2" />
+              Templates
+            </TabsTrigger>
+          </TabsList>
 
-        <EnhancedBidDialog
-          open={createDialogOpen}
-          onOpenChange={setCreateDialogOpen}
-          onBidCreated={fetchBidItems}
-          projects={projects}
-        />
+          <TabsContent value="overview" className="mt-6">
+            <BidOverview 
+              projectId={selectedProject} 
+              companySettings={companySettings}
+            />
+          </TabsContent>
+
+          <TabsContent value="create" className="mt-6">
+            <BidCreationView 
+              projectId={selectedProject}
+              companySettings={companySettings}
+            />
+          </TabsContent>
+
+          <TabsContent value="analysis" className="mt-6">
+            <BidAnalysis 
+              projectId={selectedProject}
+              companySettings={companySettings}
+            />
+          </TabsContent>
+
+          <TabsContent value="templates" className="mt-6">
+            <TemplateLibrary />
+          </TabsContent>
+        </Tabs>
       </div>
+
+      <CreateBidDialog
+        open={showCreateBid}
+        onOpenChange={setShowCreateBid}
+        projectId={selectedProject}
+        companySettings={companySettings}
+      />
     </Layout>
   );
 }
