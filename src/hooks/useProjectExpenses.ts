@@ -3,7 +3,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ProjectExpenses {
-  [projectId: string]: number;
+  [projectId: string]: {
+    totalExpenses: number;
+    approvedExpenses: number;
+    pendingExpenses: number;
+    expensesByCategory: Record<string, number>;
+  };
 }
 
 export function useProjectExpenses(projectIds: string[]) {
@@ -21,24 +26,49 @@ export function useProjectExpenses(projectIds: string[]) {
       setLoading(true);
       const { data, error } = await supabase
         .from('expenses')
-        .select('project_id, amount')
-        .in('project_id', projectIds)
-        .in('status', ['Approved', 'Paid']);
+        .select('project_id, amount, status, category')
+        .in('project_id', projectIds);
 
       if (error) throw error;
 
       const expensesByProject: ProjectExpenses = {};
       
-      // Initialize all project IDs with 0
+      // Initialize all project IDs
       projectIds.forEach(id => {
-        expensesByProject[id] = 0;
+        expensesByProject[id] = {
+          totalExpenses: 0,
+          approvedExpenses: 0,
+          pendingExpenses: 0,
+          expensesByCategory: {}
+        };
       });
 
-      // Sum up expenses by project
+      // Process expenses by project
       (data || []).forEach(expense => {
         if (expense.project_id && expense.amount) {
-          expensesByProject[expense.project_id] = 
-            (expensesByProject[expense.project_id] || 0) + Number(expense.amount);
+          const projectId = expense.project_id;
+          const amount = Number(expense.amount);
+          const category = expense.category || 'Other';
+          
+          if (!expensesByProject[projectId]) {
+            expensesByProject[projectId] = {
+              totalExpenses: 0,
+              approvedExpenses: 0,
+              pendingExpenses: 0,
+              expensesByCategory: {}
+            };
+          }
+
+          expensesByProject[projectId].totalExpenses += amount;
+          
+          if (expense.status === 'Approved' || expense.status === 'Paid') {
+            expensesByProject[projectId].approvedExpenses += amount;
+          } else {
+            expensesByProject[projectId].pendingExpenses += amount;
+          }
+
+          expensesByProject[projectId].expensesByCategory[category] = 
+            (expensesByProject[projectId].expensesByCategory[category] || 0) + amount;
         }
       });
 
@@ -47,7 +77,12 @@ export function useProjectExpenses(projectIds: string[]) {
       console.error('Error fetching project expenses:', error);
       const defaultExpenses: ProjectExpenses = {};
       projectIds.forEach(id => {
-        defaultExpenses[id] = 0;
+        defaultExpenses[id] = {
+          totalExpenses: 0,
+          approvedExpenses: 0,
+          pendingExpenses: 0,
+          expensesByCategory: {}
+        };
       });
       setExpenses(defaultExpenses);
     } finally {

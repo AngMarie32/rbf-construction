@@ -5,6 +5,9 @@ interface ProjectBilling {
   [projectId: string]: {
     totalBilled: number;
     totalReceived: number;
+    totalOutstanding: number;
+    billingByStatus: Record<string, number>;
+    recentBilling: any[];
   };
 }
 
@@ -25,13 +28,17 @@ export function useProjectBilling(projectIds: string[]) {
       // Initialize billing data with 0 values for all projects
       const initialBilling: ProjectBilling = {};
       projectIds.forEach(id => {
-        initialBilling[id] = { totalBilled: 0, totalReceived: 0 };
+        initialBilling[id] = { 
+          totalBilled: 0, 
+          totalReceived: 0, 
+          totalOutstanding: 0,
+          billingByStatus: {},
+          recentBilling: []
+        };
       });
       
-      // Set initial values immediately to prevent glitchy display
       setBilling(initialBilling);
 
-      // Check if supabase client is available
       if (!supabase) {
         console.warn('Supabase client not available');
         setLoading(false);
@@ -40,24 +47,38 @@ export function useProjectBilling(projectIds: string[]) {
 
       const { data, error } = await supabase
         .from('project_billing')
-        .select('project_id, billed_amount, paid_amount')
-        .in('project_id', projectIds);
+        .select('project_id, billed_amount, paid_amount, status, billing_period_start, billing_period_end, invoice_number')
+        .in('project_id', projectIds)
+        .order('billing_period_end', { ascending: false });
 
       if (error) {
         console.error('Error fetching project billing:', error);
-        // Keep the initialized values and don't throw
         setLoading(false);
         return;
       }
 
       const billingByProject: ProjectBilling = { ...initialBilling };
 
-      // Sum up billing by project
       if (data && Array.isArray(data)) {
         data.forEach(billing => {
           if (billing.project_id && billingByProject[billing.project_id]) {
-            billingByProject[billing.project_id].totalBilled += Number(billing.billed_amount || 0);
-            billingByProject[billing.project_id].totalReceived += Number(billing.paid_amount || 0);
+            const projectBilling = billingByProject[billing.project_id];
+            const billedAmount = Number(billing.billed_amount || 0);
+            const paidAmount = Number(billing.paid_amount || 0);
+            
+            projectBilling.totalBilled += billedAmount;
+            projectBilling.totalReceived += paidAmount;
+            projectBilling.totalOutstanding += (billedAmount - paidAmount);
+            
+            // Group by status
+            const status = billing.status || 'Draft';
+            projectBilling.billingByStatus[status] = 
+              (projectBilling.billingByStatus[status] || 0) + billedAmount;
+            
+            // Keep recent billing records (last 5)
+            if (projectBilling.recentBilling.length < 5) {
+              projectBilling.recentBilling.push(billing);
+            }
           }
         });
       }
@@ -65,10 +86,15 @@ export function useProjectBilling(projectIds: string[]) {
       setBilling(billingByProject);
     } catch (error) {
       console.error('Network error fetching project billing:', error);
-      // Set default values for all projects to prevent undefined errors
       const defaultBilling: ProjectBilling = {};
       projectIds.forEach(id => {
-        defaultBilling[id] = { totalBilled: 0, totalReceived: 0 };
+        defaultBilling[id] = { 
+          totalBilled: 0, 
+          totalReceived: 0, 
+          totalOutstanding: 0,
+          billingByStatus: {},
+          recentBilling: []
+        };
       });
       setBilling(defaultBilling);
     } finally {
