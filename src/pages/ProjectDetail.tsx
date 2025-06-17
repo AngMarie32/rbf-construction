@@ -606,7 +606,7 @@ export default function ProjectDetail() {
                       tasks={getFilteredTasks()}
                       onUpdateTask={handleUpdateTask}
                       onDeleteTask={handleDeleteTask}
-                      projects={projects}
+                      projects={ganttProjects}
                       selectedProjects={[project.id]}
                       dateRange={ganttDateRange}
                       showDependencies={showDependencies}
