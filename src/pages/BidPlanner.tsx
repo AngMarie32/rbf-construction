@@ -38,12 +38,20 @@ export default function BidPlanner() {
 
   const fetchProjects = async () => {
     try {
+      console.log('Fetching projects for bid planner...');
+      setLoading(true);
+      
       const { data, error } = await supabase
         .from('projects')
         .select('id, name, status, contract_value')
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching projects:', error);
+        throw error;
+      }
+      
+      console.log('Projects loaded for bid planner:', data?.length || 0);
       setProjects(data || []);
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -55,13 +63,20 @@ export default function BidPlanner() {
 
   const fetchBidItems = async () => {
     try {
+      console.log('Fetching bid items for project:', selectedProject);
+      
       const { data, error } = await supabase
         .from('bid_items')
         .select('*')
         .eq('project_id', selectedProject)
         .order('category', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching bid items:', error);
+        throw error;
+      }
+      
+      console.log('Bid items loaded:', data?.length || 0);
       setBidItems(data || []);
     } catch (error) {
       console.error('Error fetching bid items:', error);
@@ -102,11 +117,16 @@ export default function BidPlanner() {
     }
   };
 
+  const handleProjectSelect = (projectId: string) => {
+    console.log('Project selected for bid planner:', projectId);
+    setSelectedProject(projectId);
+  };
+
   if (loading) {
     return (
       <Layout title="Bid Planner" subtitle="Create and manage construction bids">
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </Layout>
     );
@@ -125,7 +145,7 @@ export default function BidPlanner() {
           </CardHeader>
           <CardContent>
             <div className="flex gap-4 items-center">
-              <Select value={selectedProject} onValueChange={setSelectedProject}>
+              <Select value={selectedProject} onValueChange={handleProjectSelect}>
                 <SelectTrigger className="w-full max-w-md bg-background">
                   <SelectValue placeholder="Choose a project for bid planning" />
                 </SelectTrigger>

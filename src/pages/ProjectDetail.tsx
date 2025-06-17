@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,265 +7,78 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { Calendar, DollarSign, Clock, FileText, TrendingUp, ArrowLeft, Brain, ExternalLink, MapPin, User, Building, Receipt, CreditCard, FileBarChart, BarChart3, Plus } from 'lucide-react';
+import { 
+  Edit, 
+  Calendar, 
+  DollarSign, 
+  Users, 
+  FileText, 
+  TrendingUp,
+  ArrowLeft,
+  Settings
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, differenceInDays, isWithinInterval } from 'date-fns';
-import { GanttChart } from '@/components/schedule/GanttChart';
-import { ScheduleDateFilter } from '@/components/schedule/ScheduleDateFilter';
-import { DateRange } from 'react-day-picker';
-import { PageChatWidget } from '@/components/chat/PageChatWidget';
-import { useProjectExpenses } from '@/hooks/useProjectExpenses';
-import { useProjectBilling } from '@/hooks/useProjectBilling';
-import { ProjectReportBuilder } from '@/components/reports/ProjectReportBuilder';
-import { ProfessionalProjectReport } from '@/components/reports/ProfessionalProjectReport';
+import { BurnAnalysisTab } from '@/components/projects/BurnAnalysisTab';
+import { EditProjectDialog } from '@/components/projects/EditProjectDialog';
 
 interface Project {
   id: string;
   name: string;
-  client: string;
+  description?: string;
+  type: string;
   status: string;
-  start_date: string;
-  due_date: string;
+  start_date?: string;
+  due_date?: string;
   contract_value: number;
   completion_percentage: number;
-  description?: string;
-  field_leader?: string;
+  client?: string;
   address?: string;
+  field_leader?: string;
   project_code?: string;
-  type?: string;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  name: string;
-  start: Date;
-  end: Date;
-  startDate: Date;
-  endDate: Date;
-  progress: number;
-  dependencies: string[];
-  type: 'task' | 'milestone' | 'project';
-  project?: string;
-  projectId: string;
-  isDisabled?: boolean;
-  status: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold';
 }
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('overview');
-  const [showFilters, setShowFilters] = useState(false);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [showDependencies, setShowDependencies] = useState(true);
-  const [showCriticalPath, setShowCriticalPath] = useState(false);
-  const [showMilestones, setShowMilestones] = useState(true);
-
-  // Get project expenses and billing data
-  const { expenses: projectExpenses } = useProjectExpenses(id ? [id] : []);
-  const { billing: projectBilling } = useProjectBilling(id ? [id] : []);
-
-  // Memoized calculations for better performance
-  const financialData = useMemo(() => {
-    if (!id) return { totalExpenses: 0, totalBilled: 0, totalReceived: 0 };
-    
-    const expenseData = projectExpenses[id];
-    const billingData = projectBilling[id];
-    
-    return {
-      totalExpenses: expenseData?.totalExpenses || 0,
-      totalBilled: billingData?.totalBilled || 0,
-      totalReceived: billingData?.totalReceived || 0
-    };
-  }, [id, projectExpenses, projectBilling]);
-
-  const { totalExpenses, totalBilled, totalReceived } = financialData;
-
-  const fetchProject = useCallback(async () => {
-    if (!id) {
-      setError('No project ID provided');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      console.log('Fetching project with ID:', id);
-      
-      if (!supabase) {
-        throw new Error('Supabase client not available');
-      }
-
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
-      }
-      
-      if (!data) {
-        console.log('No project found with ID:', id);
-        setError('Project not found');
-        return;
-      }
-
-      console.log('Project data loaded:', data);
-      setProject(data);
-      setError(null);
-    } catch (error) {
-      console.error('Error fetching project:', error);
-      setError('Failed to load project details');
-      toast.error('Failed to load project details');
-    }
-  }, [id]);
-
-  const fetchTasks = useCallback(async () => {
-    if (!id) return;
-
-    try {
-      if (!supabase) {
-        console.warn('Supabase client not available for tasks');
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('project_id', id)
-        .order('start_date');
-
-      if (error) {
-        console.error('Error fetching tasks:', error);
-        return;
-      }
-      
-      const formattedTasks: Task[] = (data || []).map(task => ({
-        id: task.id,
-        title: task.title,
-        name: task.title,
-        start: new Date(task.start_date),
-        end: new Date(task.end_date),
-        startDate: new Date(task.start_date),
-        endDate: new Date(task.end_date),
-        progress: task.progress || 0,
-        dependencies: task.dependencies || [],
-        type: 'task' as const,
-        project: task.project_id,
-        projectId: task.project_id,
-        isDisabled: false,
-        status: (task.status as 'Not Started' | 'In Progress' | 'Completed' | 'On Hold') || 'Not Started'
-      }));
-
-      setTasks(formattedTasks);
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
       fetchProject();
-      fetchTasks();
-    } else {
-      setError('No project ID provided');
+    }
+  }, [id]);
+
+  const fetchProject = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      setProject(data);
+    } catch (error) {
+      console.error('Error fetching project:', error);
+      toast.error('Failed to load project details');
+      navigate('/projects');
+    } finally {
       setLoading(false);
     }
-  }, [id, fetchProject, fetchTasks]);
+  };
 
-  const getFilteredTasks = useCallback(() => {
-    if (!dateRange || !dateRange.from || !dateRange.to) {
-      return tasks;
-    }
-
-    return tasks.filter(task => {
-      const taskStart = task.start;
-      const taskEnd = task.end;
-      const filterStart = dateRange.from!;
-      const filterEnd = dateRange.to!;
-
-      return (
-        isWithinInterval(taskStart, { start: filterStart, end: filterEnd }) ||
-        isWithinInterval(taskEnd, { start: filterStart, end: filterEnd }) ||
-        (taskStart <= filterStart && taskEnd >= filterEnd)
-      );
-    });
-  }, [tasks, dateRange]);
-
-  // Memoized calculations
-  const progressPercentage = useMemo(() => project?.completion_percentage || 0, [project?.completion_percentage]);
-  const remainingValue = useMemo(() => (project?.contract_value || 0) - totalBilled, [project?.contract_value, totalBilled]);
-  const daysRemaining = useMemo(() => 
-    project ? differenceInDays(new Date(project.due_date), new Date()) : 0,
-    [project]
-  );
-
-  const handleUpdateTask = useCallback((taskId: string, updates: Partial<Task>) => {
-    setTasks(prev => prev.map(task => 
-      task.id === taskId ? { ...task, ...updates } : task
-    ));
-  }, []);
-
-  const handleDeleteTask = useCallback((taskId: string) => {
-    setTasks(prev => prev.filter(task => task.id !== taskId));
-  }, []);
-
-  const handleOpenCustomGPT = useCallback(() => {
-    window.open('https://chatgpt.com/g/g-67ddca712ff48191a3343111439ac448-albus', '_blank');
-  }, []);
-
-  const getStatusColor = useCallback((status: string) => {
-    switch (status.toLowerCase()) {
-      case 'completed':
-        return 'bg-green-500';
-      case 'active':
-        return 'bg-blue-500';
-      case 'on hold':
-        return 'bg-yellow-500';
-      case 'planning':
-        return 'bg-purple-500';
-      case 'closed':
-        return 'bg-gray-500';
-      default:
-        return 'bg-gray-500';
-    }
-  }, []);
-
-  // Memoized project array and date range for GanttChart
-  const ganttProjects = useMemo(() => {
-    return project ? [{
-      id: project.id,
-      name: project.name,
-      color: '#3b82f6',
-      client: project.client,
-      contractValue: project.contract_value,
-      status: project.status
-    }] : [];
-  }, [project]);
-
-  const ganttDateRange = useMemo(() => {
-    return dateRange && dateRange.from && dateRange.to ? {
-      from: dateRange.from,
-      to: dateRange.to
-    } : {
-      from: new Date(),
-      to: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-    };
-  }, [dateRange]);
+  const handleProjectUpdate = () => {
+    fetchProject();
+    setEditDialogOpen(false);
+  };
 
   if (loading) {
     return (
-      <Layout title="Project Details" subtitle="Loading project information...">
+      <Layout title="Loading..." subtitle="Loading project details">
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
         </div>
@@ -273,13 +86,11 @@ export default function ProjectDetail() {
     );
   }
 
-  if (error || !project) {
+  if (!project) {
     return (
       <Layout title="Project Not Found" subtitle="The requested project could not be found">
         <div className="text-center py-12">
-          <h1 className="text-4xl font-bold mb-4">Project Not Found</h1>
-          <p className="text-xl text-gray-600 mb-4">{error || 'The requested project could not be found'}</p>
-          <p className="text-gray-500 mb-6">Project ID: {id}</p>
+          <h2 className="text-xl font-semibold mb-4">Project Not Found</h2>
           <Button onClick={() => navigate('/projects')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Projects
@@ -289,566 +100,237 @@ export default function ProjectDetail() {
     );
   }
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Active': return 'bg-green-500';
+      case 'Planning': return 'bg-blue-500';
+      case 'On Hold': return 'bg-yellow-500';
+      case 'Completed': return 'bg-gray-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
   return (
-    <Layout title={project?.name || 'Project Details'} subtitle={project ? `${project.client} • ${project.status}` : 'Loading...'}>
+    <Layout 
+      title={project.name} 
+      subtitle={`${project.type} Project • ${project.status}`}
+    >
       <div className="space-y-6">
-        {/* Navigation */}
-        <div className="flex items-center gap-4">
+        {/* Header Actions */}
+        <div className="flex items-center justify-between">
           <Button variant="outline" onClick={() => navigate('/projects')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Projects
           </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Project
+            </Button>
+            <Button variant="outline">
+              <Settings className="w-4 h-4 mr-2" />
+              Settings
+            </Button>
+          </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="financial">Financial</TabsTrigger>
-            <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="change-orders">Change Orders</TabsTrigger>
-            <TabsTrigger value="expenses">Expenses</TabsTrigger>
-            <TabsTrigger value="billing">Billing</TabsTrigger>
-            <TabsTrigger value="payment-apps">Payment Apps</TabsTrigger>
-            <TabsTrigger value="proposals">Proposals</TabsTrigger>
-            <TabsTrigger value="burn-analysis">Burn Analysis</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
+        {/* Project Overview Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Badge className={`${getStatusColor(project.status)} text-white`}>
+                {project.status}
+              </Badge>
+            </CardContent>
+          </Card>
 
-          <TabsContent value="overview" className="space-y-6">
-            {/* Project Header Card */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <h1 className="text-2xl font-bold">{project?.name}</h1>
-                      {project?.status && (
-                        <Badge className={`${getStatusColor(project.status)} text-white`}>
-                          {project.status}
-                        </Badge>
-                      )}
-                    </div>
-                    {project?.project_code && (
-                      <p className="text-sm text-gray-600">Project Code: {project.project_code}</p>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {/* Client Information */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-                      <Building className="w-4 h-4" />
-                      Client Details
-                    </div>
-                    <div className="space-y-1">
-                      <p className="font-medium">{project?.client}</p>
-                      {project?.address && (
-                        <div className="flex items-start gap-2">
-                          <MapPin className="w-3 h-3 mt-1 text-gray-400" />
-                          <p className="text-sm text-gray-600">{project.address}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Contract Value</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                ${project.contract_value?.toLocaleString() || '0'}
+              </div>
+            </CardContent>
+          </Card>
 
-                  {/* Timeline */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-                      <Calendar className="w-4 h-4" />
-                      Timeline
-                    </div>
-                    <div className="space-y-2">
-                      <div>
-                        <p className="text-xs text-gray-500">Start Date</p>
-                        <p className="text-sm font-medium">
-                          {project?.start_date ? format(new Date(project.start_date), 'MMM dd, yyyy') : 'Not set'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Due Date</p>
-                        <p className="text-sm font-medium">
-                          {project?.due_date ? format(new Date(project.due_date), 'MMM dd, yyyy') : 'Not set'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Days Remaining</p>
-                        <p className={`text-sm font-medium ${daysRemaining < 0 ? 'text-red-600' : daysRemaining <= 7 ? 'text-yellow-600' : 'text-green-600'}`}>
-                          {daysRemaining > 0 ? `${daysRemaining} days` : 'Overdue'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Progress</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold mb-2">
+                {project.completion_percentage || 0}%
+              </div>
+              <Progress value={project.completion_percentage || 0} className="h-2" />
+            </CardContent>
+          </Card>
 
-                  {/* Financial Summary */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-                      <DollarSign className="w-4 h-4" />
-                      Financial
-                    </div>
-                    <div className="space-y-2">
-                      <div>
-                        <p className="text-xs text-gray-500">Contract Value</p>
-                        <p className="text-sm font-medium">${(project?.contract_value || 0).toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Total Billed</p>
-                        <p className="text-sm font-medium text-green-600">${totalBilled.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Total Received</p>
-                        <p className="text-sm font-medium text-emerald-600">${totalReceived.toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Project Progress */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-                      <TrendingUp className="w-4 h-4" />
-                      Progress
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-xs text-gray-500">Completion</span>
-                        <span className="text-sm font-medium">{progressPercentage}%</span>
-                      </div>
-                      <Progress value={progressPercentage} className="w-full" />
-                      <div>
-                        <p className="text-xs text-gray-500">Tasks</p>
-                        <p className="text-sm font-medium">{tasks.length} total</p>
-                      </div>
-                      {project?.field_leader && (
-                        <div>
-                          <p className="text-xs text-gray-500">Field Leader</p>
-                          <div className="flex items-center gap-1">
-                            <User className="w-3 h-3 text-gray-400" />
-                            <p className="text-sm font-medium">{project.field_leader}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {project?.description && (
-                  <div className="mt-6 pt-6 border-t">
-                    <h3 className="font-medium mb-2">Project Description</h3>
-                    <p className="text-gray-600">{project.description}</p>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Timeline</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                {project.start_date && (
+                  <div className="text-sm">
+                    Start: {new Date(project.start_date).toLocaleDateString()}
                   </div>
                 )}
-              </CardContent>
-            </Card>
+                {project.due_date && (
+                  <div className="text-sm">
+                    Due: {new Date(project.due_date).toLocaleDateString()}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Project Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Project Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                {project.description && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Description</h4>
+                    <p className="text-muted-foreground">{project.description}</p>
+                  </div>
+                )}
+                {project.client && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Client</h4>
+                    <p className="text-muted-foreground">{project.client}</p>
+                  </div>
+                )}
+                {project.project_code && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Project Code</h4>
+                    <p className="text-muted-foreground">{project.project_code}</p>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-4">
+                {project.address && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Address</h4>
+                    <p className="text-muted-foreground">{project.address}</p>
+                  </div>
+                )}
+                {project.field_leader && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Field Leader</h4>
+                    <p className="text-muted-foreground">{project.field_leader}</p>
+                  </div>
+                )}
+                <div>
+                  <h4 className="font-semibold mb-2">Type</h4>
+                  <p className="text-muted-foreground">{project.type}</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tabbed Content */}
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="burn-analysis">Burn Analysis</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="team">Team</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Total Expenses</p>
-                      <p className="text-lg font-semibold text-red-600">${totalExpenses.toLocaleString()}</p>
+                <CardHeader>
+                  <CardTitle>Recent Activity</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1">
+                        <p className="text-sm">Project created</p>
+                        <p className="text-xs text-muted-foreground">
+                          {project.start_date ? new Date(project.start_date).toLocaleDateString() : 'N/A'}
+                        </p>
+                      </div>
                     </div>
-                    <DollarSign className="w-8 h-8 text-red-500" />
                   </div>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Remaining Value</p>
-                      <p className="text-lg font-semibold text-blue-600">${remainingValue.toLocaleString()}</p>
-                    </div>
-                    <TrendingUp className="w-8 h-8 text-blue-500" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Active Tasks</p>
-                      <p className="text-lg font-semibold">{tasks.filter(t => t.status === 'In Progress').length}</p>
-                    </div>
-                    <Clock className="w-8 h-8 text-orange-500" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Project Type</p>
-                      <p className="text-lg font-semibold">{project?.type || 'General'}</p>
-                    </div>
-                    <FileText className="w-8 h-8 text-purple-500" />
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <Button variant="outline" className="w-full" onClick={() => navigate(`/schedule?project=${project.id}`)}>
+                      <Calendar className="w-4 h-4 mr-2" />
+                      View Schedule
+                    </Button>
+                    <Button variant="outline" className="w-full" onClick={() => navigate(`/documents?project=${project.id}`)}>
+                      <FileText className="w-4 h-4 mr-2" />
+                      View Documents
+                    </Button>
+                    <Button variant="outline" className="w-full" onClick={() => navigate(`/expenses?project=${project.id}`)}>
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      View Expenses
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
-          <TabsContent value="financial" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="w-5 h-5" />
-                  Financial Overview
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">Contract Details</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Contract Value:</span>
-                        <span className="font-medium">${(project?.contract_value || 0).toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Total Billed:</span>
-                        <span className="font-medium text-green-600">${totalBilled.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Total Received:</span>
-                        <span className="font-medium text-emerald-600">${totalReceived.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Outstanding:</span>
-                        <span className="font-medium text-orange-600">${(totalBilled - totalReceived).toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">Project Costs</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Total Expenses:</span>
-                        <span className="font-medium text-red-600">${totalExpenses.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Remaining Budget:</span>
-                        <span className="font-medium">${remainingValue.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Profit Margin:</span>
-                        <span className="font-medium text-blue-600">
-                          {(project?.contract_value || 0) > 0 ? (((totalReceived - totalExpenses) / (project?.contract_value || 1)) * 100).toFixed(1) : 0}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">Performance</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Billing Progress:</span>
-                        <span className="font-medium">
-                          {(project?.contract_value || 0) > 0 ? ((totalBilled / (project?.contract_value || 1)) * 100).toFixed(1) : 0}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Collection Rate:</span>
-                        <span className="font-medium">
-                          {totalBilled > 0 ? ((totalReceived / totalBilled) * 100).toFixed(1) : 0}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="schedule" className="space-y-6">
-            {showFilters && (
-              <ScheduleDateFilter
-                dateRange={dateRange}
-                onDateRangeChange={setDateRange}
-                onBack={() => setShowFilters(false)}
-                showDependencies={showDependencies}
-                onShowDependenciesChange={setShowDependencies}
-                showCriticalPath={showCriticalPath}
-                onShowCriticalPathChange={setShowCriticalPath}
-                showMilestones={showMilestones}
-                onShowMilestonesChange={setShowMilestones}
-                tasks={getFilteredTasks()}
-                projects={[project]}
-                projectData={project}
-              />
-            )}
-
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5" />
-                    Project Schedule
-                  </CardTitle>
-                  {!showFilters && (
-                    <Button onClick={() => setShowFilters(true)}>
-                      Customize View
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                {tasks.length > 0 ? (
-                  <div className="w-full overflow-auto">
-                    <GanttChart
-                      tasks={getFilteredTasks()}
-                      onUpdateTask={handleUpdateTask}
-                      onDeleteTask={handleDeleteTask}
-                      projects={projects}
-                      selectedProjects={[project.id]}
-                      dateRange={ganttDateRange}
-                      showDependencies={showDependencies}
-                      showCriticalPath={showCriticalPath}
-                      showMilestones={showMilestones}
-                      projectData={project}
-                      compactMode={false}
-                    />
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">No tasks found for this project.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="change-orders">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Change Orders
-                  </CardTitle>
-                  <Button onClick={() => navigate('/change-orders', { state: { projectFilter: project.id } })}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Change Order
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-500">View and manage change orders for this project. Click "Create Change Order" to add new orders or visit the Change Orders page for full management.</p>
-                <div className="mt-4">
-                  <Button variant="outline" onClick={() => navigate('/change-orders', { state: { projectFilter: project.id } })}>
-                    View All Change Orders
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="expenses">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Receipt className="w-5 h-5" />
-                    Project Expenses
-                  </CardTitle>
-                  <Button onClick={() => navigate('/expenses', { state: { projectFilter: project.id } })}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Expense
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="text-center p-4 bg-red-50 rounded-lg">
-                    <p className="text-sm text-gray-600">Total Expenses</p>
-                    <p className="text-2xl font-bold text-red-600">${totalExpenses.toLocaleString()}</p>
-                  </div>
-                  <div className="text-center p-4 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-gray-600">Budget Remaining</p>
-                    <p className="text-2xl font-bold text-blue-600">${remainingValue.toLocaleString()}</p>
-                  </div>
-                  <div className="text-center p-4 bg-orange-50 rounded-lg">
-                    <p className="text-sm text-gray-600">Budget Utilization</p>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {project?.contract_value > 0 ? ((totalExpenses / project?.contract_value) * 100).toFixed(1) : 0}%
-                    </p>
-                  </div>
-                </div>
-                <Button variant="outline" onClick={() => navigate('/expenses', { state: { projectFilter: project.id } })}>
-                  View All Expenses
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="billing">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="w-5 h-5" />
-                    Project Billing
-                  </CardTitle>
-                  <Button onClick={() => navigate('/project-billing', { state: { projectFilter: project.id } })}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Invoice
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <p className="text-sm text-gray-600">Total Billed</p>
-                    <p className="text-2xl font-bold text-green-600">${totalBilled.toLocaleString()}</p>
-                  </div>
-                  <div className="text-center p-4 bg-emerald-50 rounded-lg">
-                    <p className="text-sm text-gray-600">Total Received</p>
-                    <p className="text-2xl font-bold text-emerald-600">${totalReceived.toLocaleString()}</p>
-                  </div>
-                  <div className="text-center p-4 bg-orange-50 rounded-lg">
-                    <p className="text-sm text-gray-600">Outstanding</p>
-                    <p className="text-2xl font-bold text-orange-600">${(totalBilled - totalReceived).toLocaleString()}</p>
-                  </div>
-                </div>
-                <Button variant="outline" onClick={() => navigate('/project-billing', { state: { projectFilter: project.id } })}>
-                  View All Billing Records
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="payment-apps">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <FileBarChart className="w-5 h-5" />
-                    Payment Applications
-                  </CardTitle>
-                  <Button onClick={() => navigate('/payment-applications', { state: { projectFilter: project.id } })}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Application
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-500">Manage G702/G703 payment applications for this project. Track application progress and payment status.</p>
-                <div className="mt-4">
-                  <Button variant="outline" onClick={() => navigate('/payment-applications', { state: { projectFilter: project.id } })}>
-                    View All Payment Applications
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="proposals">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Proposals
-                  </CardTitle>
-                  <Button onClick={() => navigate('/proposals', { state: { projectFilter: project.id } })}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Proposal
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-500">View and manage proposals related to this project. Track proposal status and client responses.</p>
-                <div className="mt-4">
-                  <Button variant="outline" onClick={() => navigate('/proposals', { state: { projectFilter: project.id } })}>
-                    View All Proposals
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="burn-analysis">
+            <BurnAnalysisTab projectId={project.id} />
+          </TabsContent>
+
+          <TabsContent value="documents">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5" />
-                  Burn Rate Analysis
-                </CardTitle>
+                <CardTitle>Project Documents</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-500">Analyze project burn rate and budget consumption over time.</p>
-                <div className="mt-4">
-                  <Button variant="outline" onClick={() => navigate('/burn-rate-analysis', { state: { projectFilter: project.id } })}>
-                    View Detailed Analysis
-                  </Button>
-                </div>
+                <p className="text-muted-foreground">Document management for this project will be displayed here.</p>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="analytics">
+          <TabsContent value="team">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Brain className="w-5 h-5" />
-                    Project Analytics & Reports
-                  </CardTitle>
-                </div>
+                <CardTitle>Project Team</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Professional Report */}
-                {project && (
-                  <ProfessionalProjectReport
-                    projects={[project]}
-                    totalExpenses={{ [project.id]: totalExpenses }}
-                    totalBilled={{ [project.id]: totalBilled }}
-                    totalReceived={{ [project.id]: totalReceived }}
-                  />
-                )}
-                
-                {project && <ProjectReportBuilder project={project} />}
-                
-                <div className="border-t pt-6">
-                  <div className="text-center py-8">
-                    <Brain className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold mb-2">AI-Powered Project Analysis</h3>
-                    <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                      Get intelligent insights about your project using our custom AI assistant, Albus. 
-                      Analyze plans, scope of work, measurements, and get expert construction advice.
-                    </p>
-                    
-                    <Button 
-                      onClick={handleOpenCustomGPT}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg"
-                    >
-                      <Brain className="w-5 h-5 mr-2" />
-                      Open Albus AI Assistant
-                      <ExternalLink className="w-4 h-4 ml-2" />
-                    </Button>
-                  </div>
-                </div>
+              <CardContent>
+                <p className="text-muted-foreground">Team management for this project will be displayed here.</p>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
-
-        {/* Project-specific Chat Widget */}
-        {project && (
-          <PageChatWidget
-            contextId={project.id}
-            contextType="project"
-            pageName={`${project.name} Chat`}
-          />
-        )}
       </div>
+
+      <EditProjectDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        project={project}
+        onProjectUpdated={handleProjectUpdate}
+      />
     </Layout>
   );
 }

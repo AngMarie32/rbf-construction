@@ -84,80 +84,6 @@ export default function Documents() {
   // Mock data for enhanced features
   const [favoriteDocuments, setFavoriteDocuments] = useState<string[]>([]);
   const [archivedDocuments, setArchivedDocuments] = useState<string[]>([]);
-  
-  const mockVersions = [
-    {
-      id: '1',
-      version: 3,
-      name: 'Document v3.pdf',
-      uploadedBy: 'John Smith',
-      uploadedAt: new Date('2024-01-15'),
-      fileSize: 2048000,
-      comment: 'Updated project specifications',
-      isCurrent: true
-    },
-    {
-      id: '2',
-      version: 2,
-      name: 'Document v2.pdf',
-      uploadedBy: 'Sarah Johnson',
-      uploadedAt: new Date('2024-01-10'),
-      fileSize: 1875000,
-      comment: 'Added safety requirements',
-      isCurrent: false
-    }
-  ];
-
-  const mockCollaborators = [
-    {
-      id: '1',
-      name: 'John Smith',
-      email: 'john@company.com',
-      role: 'owner' as const,
-      addedAt: new Date('2024-01-01'),
-      lastAccess: new Date('2024-01-15')
-    },
-    {
-      id: '2',
-      name: 'Sarah Johnson',
-      email: 'sarah@company.com',
-      role: 'editor' as const,
-      addedAt: new Date('2024-01-05'),
-      lastAccess: new Date('2024-01-14')
-    }
-  ];
-
-  const mockComments = [
-    {
-      id: '1',
-      author: 'Mike Davis',
-      content: 'Please review the specifications on page 3',
-      createdAt: new Date('2024-01-14'),
-      resolved: false
-    },
-    {
-      id: '2',
-      author: 'Lisa Chen',
-      content: 'Timeline looks good, approved',
-      createdAt: new Date('2024-01-13'),
-      resolved: true
-    }
-  ];
-
-  const mockActivities = [
-    {
-      id: '1',
-      user: 'John Smith',
-      action: 'uploaded a new version',
-      timestamp: new Date('2024-01-15')
-    },
-    {
-      id: '2',
-      user: 'Sarah Johnson',
-      action: 'added a comment',
-      timestamp: new Date('2024-01-14')
-    }
-  ];
 
   const availableTags = ['urgent', 'review', 'approved', 'pending', 'contract', 'safety', 'inspection'];
   const uploaders = ['John Smith', 'Sarah Johnson', 'Mike Davis', 'Lisa Chen'];
@@ -185,18 +111,25 @@ export default function Documents() {
   const fetchDocuments = async () => {
     try {
       setLoading(true);
+      console.log('Fetching documents...');
+      
       const { data, error } = await supabase
         .from('documents')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching documents:', error);
+        throw error;
+      }
+
+      console.log('Documents fetched:', data?.length || 0);
 
       const mappedDocuments = (data || []).map(doc => ({
         id: doc.id,
         projectId: doc.project_id,
         name: doc.name,
-        category: doc.category || 'General',
+        category: doc.category || 'general',
         filePath: doc.file_path,
         fileSize: doc.file_size,
         mimeType: doc.mime_type,
@@ -218,20 +151,26 @@ export default function Documents() {
 
   const handleUpload = async (documentData: any) => {
     try {
+      console.log('Uploading document:', documentData);
+      
       const { error } = await supabase
         .from('documents')
         .insert({
           name: documentData.name,
           description: documentData.description || null,
-          category: documentData.folder || 'General',
+          category: documentData.folder || 'general',
           project_id: documentData.project_id || null,
           tags: documentData.tags.length > 0 ? documentData.tags : null,
           is_current_version: true
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error inserting document:', error);
+        throw error;
+      }
+      
       toast.success('Document uploaded successfully');
-      fetchDocuments();
+      await fetchDocuments(); // Refresh the document list
     } catch (error) {
       console.error('Error uploading document:', error);
       toast.error('Failed to upload document');
@@ -249,7 +188,7 @@ export default function Documents() {
 
       if (error) throw error;
       toast.success('Document deleted successfully');
-      fetchDocuments();
+      await fetchDocuments();
     } catch (error) {
       console.error('Error deleting document:', error);
       toast.error('Failed to delete document');
@@ -469,7 +408,10 @@ export default function Documents() {
             <Card className="h-full">
               <CardContent className="p-0 h-full">
                 {loading ? (
-                  <div className="text-center py-12">Loading documents...</div>
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                    Loading documents...
+                  </div>
                 ) : filteredDocuments.length === 0 ? (
                   <div className="text-center py-12">
                     <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -707,7 +649,7 @@ export default function Documents() {
         open={showVersionDialog}
         onOpenChange={setShowVersionDialog}
         documentName={versionDocument?.name || ''}
-        versions={mockVersions}
+        versions={[]} // Removed mock versions
         onUploadNewVersion={() => toast.info('Upload new version functionality coming soon')}
         onRestoreVersion={(versionId) => toast.success('Version restored successfully')}
         onDownloadVersion={(versionId) => toast.success('Version downloaded')}
@@ -724,9 +666,9 @@ export default function Documents() {
         open={showCollaborationDialog}
         onOpenChange={setShowCollaborationDialog}
         documentName={collaborationDocument?.name || ''}
-        collaborators={mockCollaborators}
-        comments={mockComments}
-        activities={mockActivities}
+        collaborators={[]} // Removed mock collaborators
+        comments={[]} // Removed mock comments
+        activities={[]} // Removed mock activities
         onAddCollaborator={(email, role) => toast.success(`Added ${email} as ${role}`)}
         onRemoveCollaborator={(id) => toast.success('Collaborator removed')}
         onUpdateRole={(id, role) => toast.success(`Role updated to ${role}`)}

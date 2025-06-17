@@ -34,12 +34,20 @@ export function ProjectSelector({
 
   const fetchProjects = async () => {
     try {
+      console.log('Fetching projects for selector...');
+      setLoading(true);
+      
       const { data, error } = await supabase
         .from('projects')
         .select('id, name')
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching projects:', error);
+        throw error;
+      }
+      
+      console.log('Projects loaded for selector:', data?.length || 0);
       setProjects(data || []);
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -47,6 +55,11 @@ export function ProjectSelector({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleProjectChange = (value: string) => {
+    console.log('Project selected:', value);
+    onProjectSelect(value);
   };
 
   if (showTitle) {
@@ -58,7 +71,7 @@ export function ProjectSelector({
             <p className="text-gray-600">{subtitle}</p>
           </CardHeader>
           <CardContent>
-            <Select value={selectedProject} onValueChange={onProjectSelect} disabled={loading}>
+            <Select value={selectedProject} onValueChange={handleProjectChange} disabled={loading}>
               <SelectTrigger>
                 <SelectValue placeholder={loading ? "Loading projects..." : "Choose a project"} />
               </SelectTrigger>
@@ -77,7 +90,7 @@ export function ProjectSelector({
   }
 
   return (
-    <Select value={selectedProject} onValueChange={onProjectSelect} disabled={loading}>
+    <Select value={selectedProject} onValueChange={handleProjectChange} disabled={loading}>
       <SelectTrigger>
         <SelectValue placeholder={loading ? "Loading projects..." : "Choose a project"} />
       </SelectTrigger>
