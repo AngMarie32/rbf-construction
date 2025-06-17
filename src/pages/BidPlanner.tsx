@@ -67,9 +67,14 @@ export default function BidPlanner() {
       const { data, error } = await supabase
         .from('company_settings')
         .select('profit_margin, overhead_percentage, default_tax_rate, default_retainage_rate')
+        .limit(1)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching company settings:', error);
+        // Continue with default settings if fetch fails
+        return;
+      }
       
       if (data) {
         setCompanySettings({
@@ -81,7 +86,7 @@ export default function BidPlanner() {
       }
     } catch (error) {
       console.error('Error fetching company settings:', error);
-      toast.error('Failed to load company settings');
+      // Continue with default settings
     }
   };
 
@@ -187,7 +192,11 @@ export default function BidPlanner() {
           </TabsContent>
 
           <TabsContent value="templates" className="mt-6">
-            <TemplateLibrary />
+            <TemplateLibrary 
+              open={true}
+              onOpenChange={() => {}}
+              onTemplateSelected={() => {}}
+            />
           </TabsContent>
         </Tabs>
       </div>

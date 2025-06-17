@@ -12,16 +12,32 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+interface CompanySettings {
+  profit_margin: number;
+  overhead_percentage: number;
+  default_tax_rate: number;
+  default_retainage_rate: number;
+}
+
 interface BidOverviewProps {
-  totalEstimate: number;
-  itemCount: number;
-  categoryCount: number;
+  projectId: string;
+  companySettings: CompanySettings;
+  totalEstimate?: number;
+  itemCount?: number;
+  categoryCount?: number;
   projectName?: string;
 }
 
-export function BidOverview({ totalEstimate, itemCount, categoryCount, projectName }: BidOverviewProps) {
-  const profit = totalEstimate * 0.15; // 15% profit margin
-  const overhead = totalEstimate * 0.10; // 10% overhead
+export function BidOverview({ 
+  projectId, 
+  companySettings, 
+  totalEstimate = 0, 
+  itemCount = 0, 
+  categoryCount = 0, 
+  projectName 
+}: BidOverviewProps) {
+  const profit = totalEstimate * (companySettings.profit_margin / 100);
+  const overhead = totalEstimate * (companySettings.overhead_percentage / 100);
   const directCosts = totalEstimate - profit - overhead;
 
   const handleExportToPDF = () => {
@@ -31,7 +47,7 @@ export function BidOverview({ totalEstimate, itemCount, categoryCount, projectNa
 
   const handleScheduleReview = () => {
     const reviewDate = new Date();
-    reviewDate.setDate(reviewDate.getDate() + 7); // Schedule for next week
+    reviewDate.setDate(reviewDate.getDate() + 7);
     toast.success(`Review scheduled for ${reviewDate.toLocaleDateString()}`);
   };
 
@@ -96,7 +112,7 @@ export function BidOverview({ totalEstimate, itemCount, categoryCount, projectNa
               ${directCosts.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              75% of total bid
+              {totalEstimate > 0 ? Math.round((directCosts / totalEstimate) * 100) : 0}% of total bid
             </p>
           </CardContent>
         </Card>
@@ -107,7 +123,7 @@ export function BidOverview({ totalEstimate, itemCount, categoryCount, projectNa
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">15%</div>
+            <div className="text-2xl font-bold text-blue-600">{companySettings.profit_margin}%</div>
             <p className="text-xs text-muted-foreground">
               ${profit.toLocaleString()} profit
             </p>
@@ -125,21 +141,23 @@ export function BidOverview({ totalEstimate, itemCount, categoryCount, projectNa
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Direct Costs</span>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary">75%</Badge>
+                <Badge variant="secondary">
+                  {totalEstimate > 0 ? Math.round((directCosts / totalEstimate) * 100) : 0}%
+                </Badge>
                 <span className="font-medium">${directCosts.toLocaleString()}</span>
               </div>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Overhead</span>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary">10%</Badge>
+                <Badge variant="secondary">{companySettings.overhead_percentage}%</Badge>
                 <span className="font-medium">${overhead.toLocaleString()}</span>
               </div>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Profit</span>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary">15%</Badge>
+                <Badge variant="secondary">{companySettings.profit_margin}%</Badge>
                 <span className="font-medium">${profit.toLocaleString()}</span>
               </div>
             </div>

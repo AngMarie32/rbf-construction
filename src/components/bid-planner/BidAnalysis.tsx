@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,12 +17,20 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-interface BidAnalysisProps {
-  projectId: string;
-  onBack: () => void;
+interface CompanySettings {
+  profit_margin: number;
+  overhead_percentage: number;
+  default_tax_rate: number;
+  default_retainage_rate: number;
 }
 
-export function BidAnalysis({ projectId, onBack }: BidAnalysisProps) {
+interface BidAnalysisProps {
+  projectId: string;
+  companySettings: CompanySettings;
+  onBack?: () => void;
+}
+
+export function BidAnalysis({ projectId, companySettings, onBack }: BidAnalysisProps) {
   const [bidItems, setBidItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [projectData, setProjectData] = useState<any>(null);
@@ -69,7 +76,7 @@ export function BidAnalysis({ projectId, onBack }: BidAnalysisProps) {
     );
   }
 
-  // Calculate analysis metrics
+  // Calculate analysis metrics using actual company settings
   const totalBidValue = bidItems.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
   const categoryBreakdown = bidItems.reduce((acc, item) => {
     const category = item.category || 'Uncategorized';
@@ -81,9 +88,9 @@ export function BidAnalysis({ projectId, onBack }: BidAnalysisProps) {
   const categoryEntries = Object.entries(categoryBreakdown).sort(([,a], [,b]) => Number(b) - Number(a));
   const highestCategory = categoryEntries[0];
   const averageItemCost = totalBidValue / bidItems.length || 0;
-  const profitMargin = 0.15; // 15%
-  const overhead = 0.10; // 10%
-  const directCosts = totalBidValue * 0.75;
+  const profitMargin = companySettings.profit_margin / 100;
+  const overhead = companySettings.overhead_percentage / 100;
+  const directCosts = totalBidValue * (1 - profitMargin - overhead);
 
   // Risk assessment
   const highCostItems = bidItems.filter(item => (Number(item.total) || 0) > averageItemCost * 2);
@@ -93,10 +100,12 @@ export function BidAnalysis({ projectId, onBack }: BidAnalysisProps) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="outline" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Bid Planner
-        </Button>
+        {onBack && (
+          <Button variant="outline" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Bid Planner
+          </Button>
+        )}
         <div>
           <h1 className="text-2xl font-bold">Bid Analysis</h1>
           <p className="text-muted-foreground">{projectData?.name}</p>
@@ -122,7 +131,7 @@ export function BidAnalysis({ projectId, onBack }: BidAnalysisProps) {
             <TrendingUp className="h-5 w-5 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-800">{(profitMargin * 100).toFixed(1)}%</div>
+            <div className="text-2xl font-bold text-green-800">{companySettings.profit_margin}%</div>
             <p className="text-xs text-green-600 mt-1">${(totalBidValue * profitMargin).toLocaleString()}</p>
           </CardContent>
         </Card>
@@ -192,17 +201,17 @@ export function BidAnalysis({ projectId, onBack }: BidAnalysisProps) {
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <div className="text-2xl font-bold text-blue-600">${directCosts.toLocaleString()}</div>
               <div className="text-sm text-blue-700 font-medium">Direct Costs</div>
-              <div className="text-xs text-blue-500 mt-1">75% of total bid</div>
+              <div className="text-xs text-blue-500 mt-1">{((1 - profitMargin - overhead) * 100).toFixed(0)}% of total bid</div>
             </div>
             <div className="text-center p-4 bg-orange-50 rounded-lg">
               <div className="text-2xl font-bold text-orange-600">${(totalBidValue * overhead).toLocaleString()}</div>
               <div className="text-sm text-orange-700 font-medium">Overhead</div>
-              <div className="text-xs text-orange-500 mt-1">10% of total bid</div>
+              <div className="text-xs text-orange-500 mt-1">{companySettings.overhead_percentage}% of total bid</div>
             </div>
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <div className="text-2xl font-bold text-green-600">${(totalBidValue * profitMargin).toLocaleString()}</div>
               <div className="text-sm text-green-700 font-medium">Profit</div>
-              <div className="text-xs text-green-500 mt-1">15% of total bid</div>
+              <div className="text-xs text-green-500 mt-1">{companySettings.profit_margin}% of total bid</div>
             </div>
           </div>
         </CardContent>
@@ -296,7 +305,7 @@ export function BidAnalysis({ projectId, onBack }: BidAnalysisProps) {
               <div>
                 <div className="font-medium">Profit Margin Analysis</div>
                 <div className="text-sm text-muted-foreground">
-                  Current 15% profit margin is healthy. Consider market conditions and competition when finalizing pricing.
+                  Current {companySettings.profit_margin}% profit margin is configured. Consider market conditions and competition when finalizing pricing.
                 </div>
               </div>
             </div>
