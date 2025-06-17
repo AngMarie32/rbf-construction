@@ -69,7 +69,7 @@ export default function ProjectDetail() {
   const { expenses: projectExpenses } = useProjectExpenses(id ? [id] : []);
   const { billing: projectBilling } = useProjectBilling(id ? [id] : []);
 
-  const totalExpenses = id ? (projectExpenses[id] || 0) : 0;
+  const totalExpenses = id ? (projectExpenses[id]?.totalExpenses || 0) : 0;
   const totalBilled = id ? (projectBilling[id]?.totalBilled || 0) : 0;
   const totalReceived = id ? (projectBilling[id]?.totalReceived || 0) : 0;
 
@@ -222,9 +222,9 @@ export default function ProjectDetail() {
     );
   }
 
-  const progressPercentage = project.completion_percentage || 0;
-  const remainingValue = project.contract_value - totalBilled;
-  const daysRemaining = differenceInDays(new Date(project.due_date), new Date());
+  const progressPercentage = project?.completion_percentage || 0;
+  const remainingValue = (project?.contract_value || 0) - totalBilled;
+  const daysRemaining = project ? differenceInDays(new Date(project.due_date), new Date()) : 0;
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -263,7 +263,7 @@ export default function ProjectDetail() {
   };
 
   return (
-    <Layout title={project.name} subtitle={`${project.client} • ${project.status}`}>
+    <Layout title={project?.name || 'Project Details'} subtitle={project ? `${project.client} • ${project.status}` : 'Loading...'}>
       <div className="space-y-6">
         {/* Navigation */}
         <div className="flex items-center gap-4">
@@ -294,12 +294,14 @@ export default function ProjectDetail() {
                 <div className="flex items-center justify-between">
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                      <h1 className="text-2xl font-bold">{project.name}</h1>
-                      <Badge className={`${getStatusColor(project.status)} text-white`}>
-                        {project.status}
-                      </Badge>
+                      <h1 className="text-2xl font-bold">{project?.name}</h1>
+                      {project?.status && (
+                        <Badge className={`${getStatusColor(project.status)} text-white`}>
+                          {project.status}
+                        </Badge>
+                      )}
                     </div>
-                    {project.project_code && (
+                    {project?.project_code && (
                       <p className="text-sm text-gray-600">Project Code: {project.project_code}</p>
                     )}
                   </div>
@@ -314,8 +316,8 @@ export default function ProjectDetail() {
                       Client Details
                     </div>
                     <div className="space-y-1">
-                      <p className="font-medium">{project.client}</p>
-                      {project.address && (
+                      <p className="font-medium">{project?.client}</p>
+                      {project?.address && (
                         <div className="flex items-start gap-2">
                           <MapPin className="w-3 h-3 mt-1 text-gray-400" />
                           <p className="text-sm text-gray-600">{project.address}</p>
@@ -334,13 +336,13 @@ export default function ProjectDetail() {
                       <div>
                         <p className="text-xs text-gray-500">Start Date</p>
                         <p className="text-sm font-medium">
-                          {project.start_date ? format(new Date(project.start_date), 'MMM dd, yyyy') : 'Not set'}
+                          {project?.start_date ? format(new Date(project.start_date), 'MMM dd, yyyy') : 'Not set'}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Due Date</p>
                         <p className="text-sm font-medium">
-                          {format(new Date(project.due_date), 'MMM dd, yyyy')}
+                          {project?.due_date ? format(new Date(project.due_date), 'MMM dd, yyyy') : 'Not set'}
                         </p>
                       </div>
                       <div>
@@ -361,7 +363,7 @@ export default function ProjectDetail() {
                     <div className="space-y-2">
                       <div>
                         <p className="text-xs text-gray-500">Contract Value</p>
-                        <p className="text-sm font-medium">${project.contract_value.toLocaleString()}</p>
+                        <p className="text-sm font-medium">${(project?.contract_value || 0).toLocaleString()}</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Total Billed</p>
@@ -390,7 +392,7 @@ export default function ProjectDetail() {
                         <p className="text-xs text-gray-500">Tasks</p>
                         <p className="text-sm font-medium">{tasks.length} total</p>
                       </div>
-                      {project.field_leader && (
+                      {project?.field_leader && (
                         <div>
                           <p className="text-xs text-gray-500">Field Leader</p>
                           <div className="flex items-center gap-1">
@@ -403,7 +405,7 @@ export default function ProjectDetail() {
                   </div>
                 </div>
 
-                {project.description && (
+                {project?.description && (
                   <div className="mt-6 pt-6 border-t">
                     <h3 className="font-medium mb-2">Project Description</h3>
                     <p className="text-gray-600">{project.description}</p>
@@ -455,7 +457,7 @@ export default function ProjectDetail() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Project Type</p>
-                      <p className="text-lg font-semibold">{project.type || 'General'}</p>
+                      <p className="text-lg font-semibold">{project?.type || 'General'}</p>
                     </div>
                     <FileText className="w-8 h-8 text-purple-500" />
                   </div>
@@ -479,7 +481,7 @@ export default function ProjectDetail() {
                     <div className="space-y-3">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Contract Value:</span>
-                        <span className="font-medium">${project.contract_value.toLocaleString()}</span>
+                        <span className="font-medium">${(project?.contract_value || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total Billed:</span>
@@ -510,7 +512,7 @@ export default function ProjectDetail() {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Profit Margin:</span>
                         <span className="font-medium text-blue-600">
-                          {project.contract_value > 0 ? (((totalReceived - totalExpenses) / project.contract_value) * 100).toFixed(1) : 0}%
+                          {(project?.contract_value || 0) > 0 ? (((totalReceived - totalExpenses) / (project?.contract_value || 1)) * 100).toFixed(1) : 0}%
                         </span>
                       </div>
                     </div>
@@ -522,7 +524,7 @@ export default function ProjectDetail() {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Billing Progress:</span>
                         <span className="font-medium">
-                          {project.contract_value > 0 ? ((totalBilled / project.contract_value) * 100).toFixed(1) : 0}%
+                          {(project?.contract_value || 0) > 0 ? ((totalBilled / (project?.contract_value || 1)) * 100).toFixed(1) : 0}%
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -648,7 +650,7 @@ export default function ProjectDetail() {
                   <div className="text-center p-4 bg-orange-50 rounded-lg">
                     <p className="text-sm text-gray-600">Budget Utilization</p>
                     <p className="text-2xl font-bold text-orange-600">
-                      {project.contract_value > 0 ? ((totalExpenses / project.contract_value) * 100).toFixed(1) : 0}%
+                      {project?.contract_value > 0 ? ((totalExpenses / project?.contract_value) * 100).toFixed(1) : 0}%
                     </p>
                   </div>
                 </div>
@@ -775,7 +777,7 @@ export default function ProjectDetail() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                <ProjectReportBuilder project={project} />
+                {project && <ProjectReportBuilder project={project} />}
                 
                 <div className="border-t pt-6">
                   <div className="text-center py-8">
@@ -802,11 +804,13 @@ export default function ProjectDetail() {
         </Tabs>
 
         {/* Project-specific Chat Widget */}
-        <PageChatWidget
-          contextId={project.id}
-          contextType="project"
-          pageName={`${project.name} Chat`}
-        />
+        {project && (
+          <PageChatWidget
+            contextId={project.id}
+            contextType="project"
+            pageName={`${project.name} Chat`}
+          />
+        )}
       </div>
     </Layout>
   );
