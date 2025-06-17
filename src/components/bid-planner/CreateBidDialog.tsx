@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -10,22 +11,14 @@ import { Plus, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-interface CompanySettings {
-  profit_margin: number;
-  overhead_percentage: number;
-  default_tax_rate: number;
-  default_retainage_rate: number;
-}
-
 interface CreateBidDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onBidCreated?: () => void;
+  onBidCreated: () => void;
   projectId: string;
-  companySettings: CompanySettings;
 }
 
-export function CreateBidDialog({ open, onOpenChange, onBidCreated, projectId, companySettings }: CreateBidDialogProps) {
+export function CreateBidDialog({ open, onOpenChange, onBidCreated, projectId }: CreateBidDialogProps) {
   const [bidInfo, setBidInfo] = useState({
     name: '',
     description: '',
@@ -64,7 +57,7 @@ export function CreateBidDialog({ open, onOpenChange, onBidCreated, projectId, c
         notes: ''
       });
       onOpenChange(false);
-      if (onBidCreated) onBidCreated();
+      onBidCreated();
     } catch (error) {
       console.error('Error creating bid:', error);
       toast.error('Failed to create bid');

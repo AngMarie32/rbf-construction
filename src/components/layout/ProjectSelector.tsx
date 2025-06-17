@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 interface Project {
   id: string;
   name: string;
-  status: string;
 }
 
 interface ProjectSelectorProps {
@@ -35,20 +34,12 @@ export function ProjectSelector({
 
   const fetchProjects = async () => {
     try {
-      setLoading(true);
-      console.log('Fetching projects for selector...');
-      
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, status')
+        .select('id, name')
         .order('name');
 
-      if (error) {
-        console.error('Error fetching projects:', error);
-        throw error;
-      }
-
-      console.log('Projects loaded for selector:', data?.length || 0);
+      if (error) throw error;
       setProjects(data || []);
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -56,11 +47,6 @@ export function ProjectSelector({
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleProjectChange = (value: string) => {
-    console.log('Project selected:', value);
-    onProjectSelect(value);
   };
 
   if (showTitle) {
@@ -72,26 +58,18 @@ export function ProjectSelector({
             <p className="text-gray-600">{subtitle}</p>
           </CardHeader>
           <CardContent>
-            <Select value={selectedProject} onValueChange={handleProjectChange} disabled={loading}>
+            <Select value={selectedProject} onValueChange={onProjectSelect} disabled={loading}>
               <SelectTrigger>
                 <SelectValue placeholder={loading ? "Loading projects..." : "Choose a project"} />
               </SelectTrigger>
               <SelectContent>
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
-                    <div className="flex items-center justify-between w-full">
-                      <span>{project.name}</span>
-                      <span className="text-sm text-gray-500 ml-2">({project.status})</span>
-                    </div>
+                    {project.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {projects.length === 0 && !loading && (
-              <p className="text-sm text-gray-500 mt-2 text-center">
-                No projects found. Create a project first.
-              </p>
-            )}
           </CardContent>
         </Card>
       </div>
@@ -99,17 +77,14 @@ export function ProjectSelector({
   }
 
   return (
-    <Select value={selectedProject} onValueChange={handleProjectChange} disabled={loading}>
+    <Select value={selectedProject} onValueChange={onProjectSelect} disabled={loading}>
       <SelectTrigger>
         <SelectValue placeholder={loading ? "Loading projects..." : "Choose a project"} />
       </SelectTrigger>
       <SelectContent>
         {projects.map((project) => (
           <SelectItem key={project.id} value={project.id}>
-            <div className="flex items-center justify-between w-full">
-              <span>{project.name}</span>
-              <span className="text-sm text-gray-500 ml-2">({project.status})</span>
-            </div>
+            {project.name}
           </SelectItem>
         ))}
       </SelectContent>

@@ -2,40 +2,37 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Folder, FolderOpen, Clock, Star, Archive, Trash2, MoreVertical } from 'lucide-react';
+import { Plus, Folder, FolderOpen, Clock, Star, Archive } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface Folder {
   id: string;
   name: string;
   count: number;
   isSelected?: boolean;
-  isDeletable?: boolean;
 }
 
 interface FolderSidebarProps {
   selectedFolder: string;
   onFolderSelect: (folderId: string) => void;
   documentCount: number;
-  onDeleteFolder?: (folderId: string) => void;
 }
 
-export function FolderSidebar({ selectedFolder, onFolderSelect, documentCount, onDeleteFolder }: FolderSidebarProps) {
+export function FolderSidebar({ selectedFolder, onFolderSelect, documentCount }: FolderSidebarProps) {
   const [folders, setFolders] = useState<Folder[]>([
-    { id: 'all', name: 'All Documents', count: documentCount, isDeletable: false },
-    { id: 'general', name: 'General', count: 0, isDeletable: false },
-    { id: 'contracts', name: 'Contracts', count: 0, isDeletable: true },
-    { id: 'plans', name: 'Plans & Drawings', count: 0, isDeletable: true },
-    { id: 'photos', name: 'Photos', count: 0, isDeletable: true },
-    { id: 'reports', name: 'Reports', count: 0, isDeletable: true },
-    { id: 'permits', name: 'Permits & Licenses', count: 0, isDeletable: true },
-    { id: 'invoices', name: 'Invoices & Billing', count: 0, isDeletable: true },
-    { id: 'change-orders', name: 'Change Orders', count: 0, isDeletable: true },
-    { id: 'safety', name: 'Safety Documents', count: 0, isDeletable: true },
-    { id: 'forms', name: 'Forms & Templates', count: 0, isDeletable: true },
-    { id: 'specifications', name: 'Specifications', count: 0, isDeletable: true },
-    { id: 'correspondence', name: 'Correspondence', count: 0, isDeletable: true },
+    { id: 'all', name: 'All Documents', count: documentCount },
+    { id: 'general', name: 'General', count: 0 },
+    { id: 'contracts', name: 'Contracts', count: 0 },
+    { id: 'plans', name: 'Plans & Drawings', count: 0 },
+    { id: 'photos', name: 'Photos', count: 0 },
+    { id: 'reports', name: 'Reports', count: 0 },
+    { id: 'permits', name: 'Permits & Licenses', count: 0 },
+    { id: 'invoices', name: 'Invoices & Billing', count: 0 },
+    { id: 'change-orders', name: 'Change Orders', count: 0 },
+    { id: 'safety', name: 'Safety Documents', count: 0 },
+    { id: 'forms', name: 'Forms & Templates', count: 0 },
+    { id: 'specifications', name: 'Specifications', count: 0 },
+    { id: 'correspondence', name: 'Correspondence', count: 0 },
   ]);
   const [newFolderName, setNewFolderName] = useState('');
   const [showNewFolder, setShowNewFolder] = useState(false);
@@ -45,19 +42,11 @@ export function FolderSidebar({ selectedFolder, onFolderSelect, documentCount, o
       const newFolder: Folder = {
         id: newFolderName.toLowerCase().replace(/\s+/g, '-'),
         name: newFolderName,
-        count: 0,
-        isDeletable: true
+        count: 0
       };
       setFolders([...folders, newFolder]);
       setNewFolderName('');
       setShowNewFolder(false);
-    }
-  };
-
-  const handleDeleteFolder = (folderId: string) => {
-    if (onDeleteFolder) {
-      onDeleteFolder(folderId);
-      setFolders(folders.filter(f => f.id !== folderId));
     }
   };
 
@@ -69,15 +58,13 @@ export function FolderSidebar({ selectedFolder, onFolderSelect, documentCount, o
           {folders.map((folder) => (
             <div
               key={folder.id}
+              onClick={() => onFolderSelect(folder.id)}
               className={cn(
-                "flex items-center justify-between p-2 rounded hover:bg-blue-50 transition-colors group",
+                "flex items-center justify-between p-2 rounded cursor-pointer hover:bg-blue-50 transition-colors",
                 selectedFolder === folder.id ? "bg-blue-100 text-blue-700" : "text-gray-700"
               )}
             >
-              <div 
-                className="flex items-center space-x-2 flex-1 cursor-pointer"
-                onClick={() => onFolderSelect(folder.id)}
-              >
+              <div className="flex items-center space-x-2">
                 {selectedFolder === folder.id ? (
                   <FolderOpen className="w-4 h-4" />
                 ) : (
@@ -85,33 +72,9 @@ export function FolderSidebar({ selectedFolder, onFolderSelect, documentCount, o
                 )}
                 <span className="text-sm font-medium">{folder.name}</span>
               </div>
-              <div className="flex items-center space-x-1">
-                <span className="text-xs bg-gray-200 px-2 py-1 rounded-full min-w-[24px] text-center">
-                  {folder.count}
-                </span>
-                {folder.isDeletable && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
-                      >
-                        <MoreVertical className="w-3 h-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem 
-                        onClick={() => handleDeleteFolder(folder.id)}
-                        className="text-red-600"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Folder
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </div>
+              <span className="text-xs bg-gray-200 px-2 py-1 rounded-full min-w-[24px] text-center">
+                {folder.count}
+              </span>
             </div>
           ))}
         </div>

@@ -739,8 +739,6 @@ export type Database = {
           default_tax_rate: number | null
           id: string
           logo_url: string | null
-          overhead_percentage: number | null
-          profit_margin: number | null
           updated_at: string | null
         }
         Insert: {
@@ -753,8 +751,6 @@ export type Database = {
           default_tax_rate?: number | null
           id?: string
           logo_url?: string | null
-          overhead_percentage?: number | null
-          profit_margin?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -767,8 +763,6 @@ export type Database = {
           default_tax_rate?: number | null
           id?: string
           logo_url?: string | null
-          overhead_percentage?: number | null
-          profit_margin?: number | null
           updated_at?: string | null
         }
         Relationships: []

@@ -4,10 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Download, Plus, Search, Trash2, Edit } from 'lucide-react';
+import { FileText, Download, Plus, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface DocumentTemplate {
   id: string;
@@ -24,7 +22,7 @@ interface DocumentTemplatesDialogProps {
   onUseTemplate: (template: DocumentTemplate) => void;
 }
 
-const initialTemplates: DocumentTemplate[] = [
+const mockTemplates: DocumentTemplate[] = [
   {
     id: '1',
     name: 'Project Proposal Template',
@@ -80,20 +78,12 @@ export function DocumentTemplatesDialog({
   onOpenChange,
   onUseTemplate
 }: DocumentTemplatesDialogProps) {
-  const [templates, setTemplates] = useState<DocumentTemplate[]>(initialTemplates);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newTemplate, setNewTemplate] = useState({
-    name: '',
-    description: '',
-    category: '',
-    tags: ''
-  });
 
-  const categories = Array.from(new Set(templates.map(t => t.category)));
+  const categories = Array.from(new Set(mockTemplates.map(t => t.category)));
 
-  const filteredTemplates = templates.filter(template => {
+  const filteredTemplates = mockTemplates.filter(template => {
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          template.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          template.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -103,88 +93,17 @@ export function DocumentTemplatesDialog({
     return matchesSearch && matchesCategory;
   });
 
-  const handleCreateTemplate = () => {
-    if (!newTemplate.name.trim() || !newTemplate.category.trim()) {
-      toast.error('Name and category are required');
-      return;
-    }
-
-    const template: DocumentTemplate = {
-      id: Date.now().toString(),
-      name: newTemplate.name,
-      description: newTemplate.description,
-      category: newTemplate.category,
-      downloadUrl: '#',
-      tags: newTemplate.tags.split(',').map(tag => tag.trim()).filter(Boolean)
-    };
-
-    setTemplates([...templates, template]);
-    setNewTemplate({ name: '', description: '', category: '', tags: '' });
-    setShowCreateForm(false);
-    toast.success('Template created successfully');
-  };
-
-  const handleDeleteTemplate = (templateId: string) => {
-    if (!confirm('Are you sure you want to delete this template?')) return;
-    
-    setTemplates(templates.filter(t => t.id !== templateId));
-    toast.success('Template deleted successfully');
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Document Templates
-            </DialogTitle>
-            <Button onClick={() => setShowCreateForm(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Template
-            </Button>
-          </div>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            Document Templates
+          </DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col space-y-4">
-          {/* Create Template Form */}
-          {showCreateForm && (
-            <Card className="border-2 border-blue-200">
-              <CardHeader>
-                <CardTitle className="text-lg">Create New Template</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    placeholder="Template name"
-                    value={newTemplate.name}
-                    onChange={(e) => setNewTemplate(prev => ({ ...prev, name: e.target.value }))}
-                  />
-                  <Input
-                    placeholder="Category"
-                    value={newTemplate.category}
-                    onChange={(e) => setNewTemplate(prev => ({ ...prev, category: e.target.value }))}
-                  />
-                </div>
-                <Input
-                  placeholder="Description"
-                  value={newTemplate.description}
-                  onChange={(e) => setNewTemplate(prev => ({ ...prev, description: e.target.value }))}
-                />
-                <Input
-                  placeholder="Tags (comma-separated)"
-                  value={newTemplate.tags}
-                  onChange={(e) => setNewTemplate(prev => ({ ...prev, tags: e.target.value }))}
-                />
-                <div className="flex gap-2">
-                  <Button onClick={handleCreateTemplate}>Create Template</Button>
-                  <Button variant="outline" onClick={() => setShowCreateForm(false)}>Cancel</Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Search and Filter */}
           <div className="flex gap-4">
             <div className="relative flex-1">
@@ -225,35 +144,9 @@ export function DocumentTemplatesDialog({
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <FileText className="w-8 h-8 text-blue-500 flex-shrink-0" />
-                      <div className="flex items-center gap-1">
-                        <Badge variant="secondary" className="text-xs">
-                          {template.category}
-                        </Badge>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                              <Plus className="w-3 h-3 rotate-45" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => onUseTemplate(template)}>
-                              <Plus className="w-4 h-4 mr-2" />
-                              Use Template
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => window.open(template.downloadUrl, '_blank')}>
-                              <Download className="w-4 h-4 mr-2" />
-                              Download
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteTemplate(template.id)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {template.category}
+                      </Badge>
                     </div>
                     <CardTitle className="text-lg">{template.name}</CardTitle>
                   </CardHeader>
@@ -301,7 +194,7 @@ export function DocumentTemplatesDialog({
               <div className="text-center py-12 text-gray-500">
                 <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                 <h3 className="text-lg font-semibold mb-2">No templates found</h3>
-                <p>Try adjusting your search criteria or create a new template</p>
+                <p>Try adjusting your search criteria</p>
               </div>
             )}
           </div>

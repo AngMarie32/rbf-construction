@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,18 +11,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BidItemForm } from './BidItemForm';
 
-interface CompanySettings {
-  profit_margin: number;
-  overhead_percentage: number;
-  default_tax_rate: number;
-  default_retainage_rate: number;
-}
-
 interface BidCreationViewProps {
   projectId: string;
-  companySettings: CompanySettings;
-  onBack?: () => void;
-  onBidCreated?: () => void;
+  onBack: () => void;
+  onBidCreated: () => void;
 }
 
 interface BidItem {
@@ -35,7 +28,7 @@ interface BidItem {
   total: number;
 }
 
-export function BidCreationView({ projectId, companySettings, onBack, onBidCreated }: BidCreationViewProps) {
+export function BidCreationView({ projectId, onBack, onBidCreated }: BidCreationViewProps) {
   const [saving, setSaving] = useState(false);
   const [bidInfo, setBidInfo] = useState({
     name: '',
@@ -115,8 +108,8 @@ export function BidCreationView({ projectId, companySettings, onBack, onBidCreat
       }
 
       toast.success(`Bid "${bidInfo.name}" created successfully with ${itemsToSave.length} items`);
-      if (onBidCreated) onBidCreated();
-      if (onBack) onBack();
+      onBidCreated();
+      onBack();
     } catch (error) {
       console.error('Error saving bid:', error);
       toast.error('Failed to save bid. Please try again.');
@@ -150,12 +143,10 @@ export function BidCreationView({ projectId, companySettings, onBack, onBidCreat
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        {onBack && (
-          <Button variant="outline" onClick={onBack}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Bid Planner
-          </Button>
-        )}
+        <Button variant="outline" onClick={onBack}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Bid Planner
+        </Button>
         <div>
           <h1 className="text-2xl font-bold">Create New Bid</h1>
           <p className="text-muted-foreground">Build a detailed construction bid with line items and pricing</p>
