@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -477,7 +476,7 @@ export default function ProjectBilling() {
           </CardContent>
         </Card>
 
-        {/* New Billing Dialog */}
+        {/* New Billing Dialog with Payment App Import */}
         <ImprovedBillingDialog
           open={newBillingDialogOpen}
           onOpenChange={setNewBillingDialogOpen}
