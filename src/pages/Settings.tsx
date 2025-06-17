@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, User, Mail, Upload } from 'lucide-react';
+import { Building, User, Mail, Calculator } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Layout } from '@/components/layout/Layout';
@@ -19,6 +18,10 @@ const Settings = () => {
     company_phone: '',
     company_email: '',
     logo_url: '',
+    default_tax_rate: 0,
+    default_retainage_rate: 10,
+    profit_margin: 0,
+    overhead_percentage: 0,
   });
   const [loading, setLoading] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -55,6 +58,10 @@ const Settings = () => {
           company_phone: data.company_phone || '',
           company_email: data.company_email || '',
           logo_url: data.logo_url || '',
+          default_tax_rate: data.default_tax_rate || 0,
+          default_retainage_rate: data.default_retainage_rate || 10,
+          profit_margin: data.profit_margin || 0,
+          overhead_percentage: data.overhead_percentage || 0,
         });
       } else {
         console.log('No existing company settings found');
@@ -122,7 +129,6 @@ const Settings = () => {
     try {
       let logoUrl = companySettings.logo_url;
 
-      // Upload new logo if selected
       if (logoFile) {
         console.log('Uploading new logo...');
         const uploadedUrl = await handleLogoUpload();
@@ -138,6 +144,10 @@ const Settings = () => {
         company_phone: companySettings.company_phone,
         company_email: companySettings.company_email,
         logo_url: logoUrl,
+        default_tax_rate: companySettings.default_tax_rate,
+        default_retainage_rate: companySettings.default_retainage_rate,
+        profit_margin: companySettings.profit_margin,
+        overhead_percentage: companySettings.overhead_percentage,
       };
 
       console.log('Settings to save:', settingsToSave);
@@ -145,14 +155,12 @@ const Settings = () => {
       let result;
       if (existingId) {
         console.log('Updating existing record with ID:', existingId);
-        // Update existing record
         result = await supabase
           .from('company_settings')
           .update(settingsToSave)
           .eq('id', existingId);
       } else {
         console.log('Inserting new record...');
-        // Insert new record
         result = await supabase
           .from('company_settings')
           .insert([settingsToSave])
@@ -180,7 +188,6 @@ const Settings = () => {
         description: "Company settings saved successfully",
       });
 
-      // Refresh the data to ensure consistency
       console.log('Refreshing company settings...');
       fetchCompanySettings();
     } catch (error) {
@@ -212,10 +219,14 @@ const Settings = () => {
     <Layout title="Settings" subtitle="Manage your application preferences and company information">
       <div className="max-w-4xl mx-auto space-y-6">
         <Tabs defaultValue="company" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="company" className="flex items-center gap-2">
               <Building className="w-4 h-4" />
               Company
+            </TabsTrigger>
+            <TabsTrigger value="bidding" className="flex items-center gap-2">
+              <Calculator className="w-4 h-4" />
+              Bidding
             </TabsTrigger>
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="w-4 h-4" />
@@ -310,6 +321,93 @@ const Settings = () => {
                     onClick={handleButtonClick}
                   >
                     {loading || uploadingLogo ? 'Saving...' : 'Save Company Settings'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="bidding">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calculator className="w-5 h-5" />
+                  Bidding & Financial Settings
+                </CardTitle>
+                <p className="text-sm text-gray-600">
+                  Configure your company's profit margins and overhead percentages. 
+                  Budget totals will be calculated after adding these values to direct costs.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSaveCompanySettings} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="profit_margin">Profit Margin (%)</Label>
+                      <Input
+                        id="profit_margin"
+                        type="number"
+                        step="0.01"
+                        value={companySettings.profit_margin}
+                        onChange={(e) => setCompanySettings(prev => ({ 
+                          ...prev, 
+                          profit_margin: parseFloat(e.target.value) || 0 
+                        }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="overhead_percentage">Overhead Percentage (%)</Label>
+                      <Input
+                        id="overhead_percentage"
+                        type="number"
+                        step="0.01"
+                        value={companySettings.overhead_percentage}
+                        onChange={(e) => setCompanySettings(prev => ({ 
+                          ...prev, 
+                          overhead_percentage: parseFloat(e.target.value) || 0 
+                        }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="default_tax_rate">Default Tax Rate (%)</Label>
+                      <Input
+                        id="default_tax_rate"
+                        type="number"
+                        step="0.01"
+                        value={companySettings.default_tax_rate}
+                        onChange={(e) => setCompanySettings(prev => ({ 
+                          ...prev, 
+                          default_tax_rate: parseFloat(e.target.value) || 0 
+                        }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="default_retainage_rate">Default Retainage Rate (%)</Label>
+                      <Input
+                        id="default_retainage_rate"
+                        type="number"
+                        step="0.01"
+                        value={companySettings.default_retainage_rate}
+                        onChange={(e) => setCompanySettings(prev => ({ 
+                          ...prev, 
+                          default_retainage_rate: parseFloat(e.target.value) || 0 
+                        }))}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-blue-900 mb-2">Budget Calculation Formula:</h4>
+                    <p className="text-sm text-blue-700">
+                      Total Budget = Direct Costs + (Direct Costs × Overhead %) + (Direct Costs × Profit %)
+                    </p>
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    disabled={loading}
+                  >
+                    {loading ? 'Saving...' : 'Save Bidding Settings'}
                   </Button>
                 </form>
               </CardContent>

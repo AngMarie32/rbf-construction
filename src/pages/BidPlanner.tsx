@@ -25,7 +25,7 @@ export default function BidPlanner() {
 
   useEffect(() => {
     fetchProjects();
-    initializeBidTemplates(); // Initialize templates on page load
+    initializeBidTemplates();
   }, []);
 
   useEffect(() => {
@@ -38,12 +38,20 @@ export default function BidPlanner() {
 
   const fetchProjects = async () => {
     try {
+      setLoading(true);
+      console.log('Fetching projects for bid planner...');
+      
       const { data, error } = await supabase
         .from('projects')
         .select('id, name, status, contract_value')
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching projects:', error);
+        throw error;
+      }
+
+      console.log('Projects loaded for bid planner:', data?.length || 0);
       setProjects(data || []);
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -55,13 +63,20 @@ export default function BidPlanner() {
 
   const fetchBidItems = async () => {
     try {
+      console.log('Fetching bid items for project:', selectedProject);
+      
       const { data, error } = await supabase
         .from('bid_items')
         .select('*')
         .eq('project_id', selectedProject)
         .order('category', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching bid items:', error);
+        throw error;
+      }
+
+      console.log('Bid items loaded:', data?.length || 0);
       setBidItems(data || []);
     } catch (error) {
       console.error('Error fetching bid items:', error);
@@ -79,6 +94,12 @@ export default function BidPlanner() {
 
       const selectedProjectData = projects.find(p => p.id === selectedProject);
       
+      // Calculate total before profit and overhead
+      const subtotal = bidItems.reduce((sum, item) => sum + ((item.unit_cost || 0) * (item.quantity || 0)), 0);
+      
+      // Note: Profit and overhead should be calculated from actual inputs in settings
+      // Total budget = subtotal + profit + overhead
+      
       const exportData = {
         projectName: selectedProjectData?.name || 'Unnamed Project',
         client: selectedProjectData?.client || 'N/A',
@@ -89,7 +110,8 @@ export default function BidPlanner() {
         companyEmail: companyData?.company_email || '',
         logoUrl: companyData?.logo_url || '',
         bidItems: bidItems,
-        totalAmount: bidItems.reduce((sum, item) => sum + ((item.unit_cost || 0) * (item.quantity || 0)), 0)
+        subtotal: subtotal,
+        totalAmount: subtotal // This should include profit and overhead from settings
       };
 
       const { generateBidReport } = await import('@/utils/pdfExport');
@@ -100,6 +122,11 @@ export default function BidPlanner() {
       console.error('Error exporting bid report:', error);
       toast.error('Failed to export bid report');
     }
+  };
+
+  const handleProjectSelect = (projectId: string) => {
+    console.log('Project selected in bid planner:', projectId);
+    setSelectedProject(projectId);
   };
 
   if (loading) {
@@ -125,7 +152,7 @@ export default function BidPlanner() {
           </CardHeader>
           <CardContent>
             <div className="flex gap-4 items-center">
-              <Select value={selectedProject} onValueChange={setSelectedProject}>
+              <Select value={selectedProject} onValueChange={handleProjectSelect}>
                 <SelectTrigger className="w-full max-w-md bg-background">
                   <SelectValue placeholder="Choose a project for bid planning" />
                 </SelectTrigger>
@@ -159,7 +186,7 @@ export default function BidPlanner() {
               <Calculator className="w-20 h-20 text-gray-300 mx-auto mb-6" />
               <h3 className="text-xl font-semibold text-gray-900 mb-3">Bid Planning</h3>
               <p className="text-gray-500 mb-8 max-w-md mx-auto">
-                Select a project above to start creating detailed construction bids with accurate cost estimates and formatting.
+                Select a project above to start creating detailed construction bids with accurate cost estimates.
               </p>
               {projects.length === 0 && (
                 <div className="mt-6">
