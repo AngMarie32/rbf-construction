@@ -10,7 +10,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CalendarIcon, Download, Import } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { CalendarIcon, Download, Import, Plus, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -40,6 +42,18 @@ interface BillingData {
   invoice_date?: string;
   due_date?: string;
   notes?: string;
+}
+
+interface BulkBillingEntry {
+  id: string;
+  project_id: string;
+  billing_period_start: Date;
+  billing_period_end: Date;
+  billed_amount: number;
+  paid_amount: number;
+  status: string;
+  invoice_number: string;
+  notes: string;
 }
 
 interface ImprovedBillingDialogProps {
@@ -74,6 +88,8 @@ export function ImprovedBillingDialog({
   const [paymentApps, setPaymentApps] = useState<PaymentApp[]>([]);
   const [selectedPaymentApps, setSelectedPaymentApps] = useState<string[]>([]);
   const [showPaymentApps, setShowPaymentApps] = useState(false);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkEntries, setBulkEntries] = useState<BulkBillingEntry[]>([]);
 
   // Reset form data when billing prop changes or dialog opens/closes
   useEffect(() => {
@@ -92,6 +108,7 @@ export function ImprovedBillingDialog({
           due_date: billing.due_date ? new Date(billing.due_date) : undefined,
           notes: billing.notes || ''
         });
+        setBulkMode(false);
       } else {
         // Reset to default values for new billing
         setFormData({
@@ -106,6 +123,8 @@ export function ImprovedBillingDialog({
           due_date: undefined,
           notes: ''
         });
+        setBulkMode(false);
+        setBulkEntries([]);
       }
     }
   }, [billing, open]);
@@ -164,9 +183,84 @@ export function ImprovedBillingDialog({
     toast.success('Payment applications imported successfully');
   };
 
+  const addBulkEntry = () => {
+    const newEntry: BulkBillingEntry = {
+      id: Math.random().toString(36).substr(2, 9),
+      project_id: '',
+      billing_period_start: new Date(),
+      billing_period_end: new Date(),
+      billed_amount: 0,
+      paid_amount: 0,
+      status: 'Draft',
+      invoice_number: '',
+      notes: ''
+    };
+    setBulkEntries([...bulkEntries, newEntry]);
+  };
+
+  const removeBulkEntry = (id: string) => {
+    setBulkEntries(bulkEntries.filter(entry => entry.id !== id));
+  };
+
+  const updateBulkEntry = (id: string, field: keyof BulkBillingEntry, value: any) => {
+    setBulkEntries(bulkEntries.map(entry => 
+      entry.id === id ? { ...entry, [field]: value } : entry
+    ));
+  };
+
+  const handleBulkSubmit = async () => {
+    if (bulkEntries.length === 0) {
+      toast.error('Please add at least one billing entry');
+      return;
+    }
+
+    const invalidEntries = bulkEntries.filter(entry => !entry.project_id || entry.billed_amount <= 0);
+    if (invalidEntries.length > 0) {
+      toast.error('Please fill in project and billed amount for all entries');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const billingData = bulkEntries.map(entry => ({
+        project_id: entry.project_id,
+        billing_period_start: entry.billing_period_start.toISOString().split('T')[0],
+        billing_period_end: entry.billing_period_end.toISOString().split('T')[0],
+        billed_amount: Number(entry.billed_amount),
+        paid_amount: Number(entry.paid_amount) || 0,
+        status: entry.status,
+        invoice_number: entry.invoice_number || null,
+        notes: entry.notes || null
+      }));
+
+      const { error } = await supabase
+        .from('project_billing')
+        .insert(billingData);
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      toast.success(`${bulkEntries.length} billing records created successfully`);
+      onSuccess();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Error saving bulk billing:', error);
+      toast.error(`Failed to save billing records: ${error.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (bulkMode) {
+      handleBulkSubmit();
+      return;
+    }
+
     if (!formData.project_id) {
       toast.error('Please select a project');
       return;
@@ -227,12 +321,154 @@ export function ImprovedBillingDialog({
   const selectedProject = projects.find(p => p.id === formData.project_id);
   const remainingAmount = formData.billed_amount - formData.paid_amount;
 
+  if (bulkMode) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center justify-between">
+              Bulk Billing Entry
+              <Button variant="outline" onClick={() => setBulkMode(false)}>
+                Switch to Single Entry
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-gray-600">Add multiple billing records at once</p>
+              <Button onClick={addBulkEntry} variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Entry
+              </Button>
+            </div>
+
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {bulkEntries.map((entry, index) => (
+                <Card key={entry.id}>
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-sm">Entry #{index + 1}</CardTitle>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => removeBulkEntry(entry.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label>Project</Label>
+                      <Select 
+                        value={entry.project_id} 
+                        onValueChange={(value) => updateBulkEntry(entry.id, 'project_id', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select project" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {projects.map((project) => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>Billed Amount</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={entry.billed_amount}
+                        onChange={(e) => updateBulkEntry(entry.id, 'billed_amount', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Paid Amount</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={entry.paid_amount}
+                        onChange={(e) => updateBulkEntry(entry.id, 'paid_amount', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Status</Label>
+                      <Select 
+                        value={entry.status} 
+                        onValueChange={(value) => updateBulkEntry(entry.id, 'status', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Draft">Draft</SelectItem>
+                          <SelectItem value="Sent">Sent</SelectItem>
+                          <SelectItem value="Paid">Paid</SelectItem>
+                          <SelectItem value="Overdue">Overdue</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>Invoice Number</Label>
+                      <Input
+                        value={entry.invoice_number}
+                        onChange={(e) => updateBulkEntry(entry.id, 'invoice_number', e.target.value)}
+                        placeholder="Optional"
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Notes</Label>
+                      <Input
+                        value={entry.notes}
+                        onChange={(e) => updateBulkEntry(entry.id, 'notes', e.target.value)}
+                        placeholder="Optional"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {bulkEntries.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No entries added yet. Click "Add Entry" to start.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleBulkSubmit} disabled={loading || bulkEntries.length === 0}>
+                {loading ? 'Saving...' : `Create ${bulkEntries.length} Billing Records`}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">
+          <DialogTitle className="text-xl font-bold flex items-center justify-between">
             {billing?.id ? 'Edit Billing Record' : 'Create New Billing Record'}
+            <Button variant="outline" onClick={() => setBulkMode(true)}>
+              Switch to Bulk Entry
+            </Button>
           </DialogTitle>
         </DialogHeader>
 
@@ -245,11 +481,10 @@ export function ImprovedBillingDialog({
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="project">Project *</Label>
+                    <Label htmlFor="project">Project</Label>
                     <Select 
                       value={formData.project_id} 
                       onValueChange={(value) => setFormData({ ...formData, project_id: value })}
-                      required
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select a project" />
@@ -343,7 +578,7 @@ export function ImprovedBillingDialog({
                   </div>
 
                   <div>
-                    <Label htmlFor="invoice_number">Invoice Number</Label>
+                    <Label htmlFor="invoice_number">Invoice Number (Optional)</Label>
                     <Input
                       id="invoice_number"
                       value={formData.invoice_number}
@@ -356,11 +591,11 @@ export function ImprovedBillingDialog({
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Financial Details</CardTitle>
+                  <CardTitle>Financial Summary</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="billed_amount">Billed Amount *</Label>
+                    <Label htmlFor="billed_amount">Billed Amount</Label>
                     <Input
                       id="billed_amount"
                       type="number"
@@ -368,12 +603,11 @@ export function ImprovedBillingDialog({
                       min="0"
                       value={formData.billed_amount}
                       onChange={(e) => setFormData({ ...formData, billed_amount: parseFloat(e.target.value) || 0 })}
-                      required
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="paid_amount">Paid Amount</Label>
+                    <Label htmlFor="paid_amount">Paid Amount (Optional)</Label>
                     <Input
                       id="paid_amount"
                       type="number"
@@ -384,13 +618,36 @@ export function ImprovedBillingDialog({
                     />
                   </div>
 
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">Remaining Amount:</span>
-                      <span className={`font-bold text-lg ${remainingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        ${remainingAmount.toLocaleString()}
-                      </span>
+                  <Separator />
+
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg space-y-3">
+                    <h4 className="font-semibold text-gray-800">Billing Summary</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Billed:</span>
+                        <span className="font-medium">${formData.billed_amount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Paid:</span>
+                        <span className="font-medium text-green-600">${formData.paid_amount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between col-span-2 pt-2 border-t">
+                        <span className="font-semibold">Outstanding:</span>
+                        <span className={`font-bold text-lg ${remainingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          ${remainingAmount.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
+                    {remainingAmount > 0 && (
+                      <Badge variant="destructive" className="w-fit">
+                        Payment Due
+                      </Badge>
+                    )}
+                    {remainingAmount <= 0 && formData.billed_amount > 0 && (
+                      <Badge className="w-fit bg-green-500">
+                        Fully Paid
+                      </Badge>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -398,12 +655,12 @@ export function ImprovedBillingDialog({
 
             <Card>
               <CardHeader>
-                <CardTitle>Date Information</CardTitle>
+                <CardTitle>Date Information (Optional)</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
-                    <Label>Billing Period Start *</Label>
+                    <Label>Billing Period Start</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -426,7 +683,7 @@ export function ImprovedBillingDialog({
                   </div>
 
                   <div>
-                    <Label>Billing Period End *</Label>
+                    <Label>Billing Period End</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -449,7 +706,7 @@ export function ImprovedBillingDialog({
                   </div>
 
                   <div>
-                    <Label>Invoice Date</Label>
+                    <Label>Invoice Date (Optional)</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -472,7 +729,7 @@ export function ImprovedBillingDialog({
                   </div>
 
                   <div>
-                    <Label>Due Date</Label>
+                    <Label>Due Date (Optional)</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -499,7 +756,7 @@ export function ImprovedBillingDialog({
 
             <Card>
               <CardHeader>
-                <CardTitle>Additional Notes</CardTitle>
+                <CardTitle>Additional Notes (Optional)</CardTitle>
               </CardHeader>
               <CardContent>
                 <Textarea
