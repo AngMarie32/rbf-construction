@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -210,6 +209,124 @@ export function CustomReportBuilder({ onClose }: CustomReportBuilderProps) {
     }));
   };
 
+  const fetchData = async (dataSourceId: string) => {
+    if (dataSourceId === 'projects') {
+      let query = supabase.from('projects').select('*');
+      
+      if (report.includeProjectFilter && report.selectedProjects.length > 0) {
+        query = query.in('id', report.selectedProjects);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    } else if (dataSourceId === 'expenses') {
+      let query = supabase.from('expenses').select('*');
+      
+      if (report.includeProjectFilter && report.selectedProjects.length > 0) {
+        query = query.in('project_id', report.selectedProjects);
+      }
+      
+      if (report.dateRange?.from && report.dateRange?.to) {
+        query = query
+          .gte('date', report.dateRange.from.toISOString().split('T')[0])
+          .lte('date', report.dateRange.to.toISOString().split('T')[0]);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    } else if (dataSourceId === 'project_billing') {
+      let query = supabase.from('project_billing').select('*');
+      
+      if (report.includeProjectFilter && report.selectedProjects.length > 0) {
+        query = query.in('project_id', report.selectedProjects);
+      }
+      
+      if (report.dateRange?.from && report.dateRange?.to) {
+        query = query
+          .gte('billing_period_end', report.dateRange.from.toISOString().split('T')[0])
+          .lte('billing_period_start', report.dateRange.to.toISOString().split('T')[0]);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    } else if (dataSourceId === 'change_orders') {
+      let query = supabase.from('change_orders').select('*');
+      
+      if (report.includeProjectFilter && report.selectedProjects.length > 0) {
+        query = query.in('project_id', report.selectedProjects);
+      }
+      
+      if (report.dateRange?.from && report.dateRange?.to) {
+        query = query
+          .gte('date', report.dateRange.from.toISOString().split('T')[0])
+          .lte('date', report.dateRange.to.toISOString().split('T')[0]);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    } else if (dataSourceId === 'payment_applications') {
+      let query = supabase.from('payment_applications').select('*');
+      
+      if (report.includeProjectFilter && report.selectedProjects.length > 0) {
+        query = query.in('project_id', report.selectedProjects);
+      }
+      
+      if (report.dateRange?.from && report.dateRange?.to) {
+        query = query
+          .gte('period_end_date', report.dateRange.from.toISOString().split('T')[0])
+          .lte('period_end_date', report.dateRange.to.toISOString().split('T')[0]);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    } else if (dataSourceId === 'sov_items') {
+      let query = supabase.from('sov_items').select('*');
+      
+      if (report.includeProjectFilter && report.selectedProjects.length > 0) {
+        query = query.in('project_id', report.selectedProjects);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    } else if (dataSourceId === 'equipment') {
+      const { data, error } = await supabase.from('equipment').select('*');
+      if (error) throw error;
+      return data || [];
+    } else if (dataSourceId === 'equipment_usage_logs') {
+      let query = supabase.from('equipment_usage_logs').select('*');
+      
+      if (report.includeProjectFilter && report.selectedProjects.length > 0) {
+        query = query.in('project_id', report.selectedProjects);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    } else if (dataSourceId === 'tasks') {
+      let query = supabase.from('tasks').select('*');
+      
+      if (report.includeProjectFilter && report.selectedProjects.length > 0) {
+        query = query.in('project_id', report.selectedProjects);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    } else if (dataSourceId === 'subcontractors') {
+      const { data, error } = await supabase.from('subcontractors').select('*');
+      if (error) throw error;
+      return data || [];
+    }
+    
+    return [];
+  };
+
   const generateReport = async () => {
     if (!report.name.trim()) {
       toast.error('Please enter a report name');
@@ -240,32 +357,8 @@ export function CustomReportBuilder({ onClose }: CustomReportBuilderProps) {
         const sectionData: any = {};
         
         for (const dataSourceId of section.dataSources) {
-          let query = supabase.from(dataSourceId).select('*');
-          
-          // Apply project filter if enabled
-          if (report.includeProjectFilter && report.selectedProjects.length > 0) {
-            if (['expenses', 'project_billing', 'change_orders', 'payment_applications', 'sov_items', 'tasks'].includes(dataSourceId)) {
-              query = query.in('project_id', report.selectedProjects);
-            }
-          }
-          
-          // Apply date range filter
-          if (report.dateRange?.from && report.dateRange?.to) {
-            const dateField = dataSourceId === 'expenses' ? 'date' : 
-                             dataSourceId === 'project_billing' ? 'billing_period_end' :
-                             dataSourceId === 'change_orders' ? 'date' :
-                             dataSourceId === 'payment_applications' ? 'period_to' :
-                             'created_at';
-                             
-            query = query
-              .gte(dateField, report.dateRange.from.toISOString().split('T')[0])
-              .lte(dateField, report.dateRange.to.toISOString().split('T')[0]);
-          }
-          
-          const { data, error } = await query;
-          if (error) throw error;
-          
-          sectionData[dataSourceId] = data || [];
+          const data = await fetchData(dataSourceId);
+          sectionData[dataSourceId] = data;
         }
         
         reportData.sections[section.name] = sectionData;

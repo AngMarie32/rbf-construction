@@ -202,7 +202,7 @@ export default function Projects() {
               showDeleteButton={true}
               onDelete={handleDeleteProject}
               onUpdate={fetchProjects}
-              totalExpenses={projectExpenses[project.id] || 0}
+              totalExpenses={projectExpenses[project.id]?.totalExpenses || 0}
               totalBilled={projectBilling[project.id]?.totalBilled || 0}
               totalReceived={projectBilling[project.id]?.totalReceived || 0}
             />

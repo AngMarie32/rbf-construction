@@ -143,7 +143,9 @@ export default function Dashboard() {
   const totalContractValue = projects.reduce((sum, p) => sum + p.contractValue, 0);
   const openProjects = projects.filter(p => p.status !== 'Closed');
   const remainingContractBalance = openProjects.reduce((sum, p) => sum + p.contractValue, 0);
-  const totalExpenses = Object.values(projectExpenses).reduce((sum, expense) => sum + expense, 0);
+  const totalExpenses = Object.values(projectExpenses).reduce((sum, expenseData) => {
+    return sum + (expenseData?.totalExpenses || 0);
+  }, 0);
 
   const handleDeleteProject = async (projectId: string) => {
     try {
@@ -329,7 +331,7 @@ export default function Dashboard() {
                     showDeleteButton={true}
                     onDelete={handleDeleteProject}
                     onUpdate={fetchProjects}
-                    totalExpenses={projectExpenses[project.id] || 0}
+                    totalExpenses={projectExpenses[project.id]?.totalExpenses || 0}
                     totalBilled={projectBilling[project.id]?.totalBilled || 0}
                     totalReceived={projectBilling[project.id]?.totalReceived || 0}
                   />
