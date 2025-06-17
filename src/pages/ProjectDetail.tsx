@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -20,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BurnAnalysisTab } from '@/components/projects/BurnAnalysisTab';
 import { EditProjectDialog } from '@/components/projects/EditProjectDialog';
+import { Project as GlobalProject } from '@/types';
 
 interface DatabaseProject {
   id: string;
@@ -35,28 +37,14 @@ interface DatabaseProject {
   address?: string;
   field_leader?: string;
   project_code?: string;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  type: string;
-  status: string;
-  startDate?: string;
-  dueDate?: string;
-  contractValue: number;
-  completionPercentage: number;
-  client?: string;
-  address?: string;
-  fieldLeader?: string;
-  projectCode?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [project, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<GlobalProject | null>(null);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
@@ -83,21 +71,23 @@ export default function ProjectDetail() {
       }
 
       if (data) {
-        // Map database fields to camelCase interface
-        const mappedProject: Project = {
+        // Map database fields to the GlobalProject interface
+        const mappedProject: GlobalProject = {
           id: data.id,
           name: data.name,
           description: data.description,
           type: data.type,
-          status: data.status,
-          startDate: data.start_date,
-          dueDate: data.due_date,
+          status: data.status as 'Planning' | 'Active' | 'On Hold' | 'Completed' | 'Closed',
+          startDate: data.start_date ? new Date(data.start_date) : new Date(),
+          dueDate: data.due_date ? new Date(data.due_date) : new Date(),
           contractValue: data.contract_value,
           completionPercentage: data.completion_percentage,
-          client: data.client,
-          address: data.address,
+          client: data.client || '',
+          address: data.address || '',
           fieldLeader: data.field_leader,
-          projectCode: data.project_code
+          projectCode: data.project_code || '',
+          createdAt: data.created_at ? new Date(data.created_at) : new Date(),
+          updatedAt: data.updated_at ? new Date(data.updated_at) : new Date()
         };
         
         console.log('Project data loaded and mapped:', mappedProject);
@@ -222,12 +212,12 @@ export default function ProjectDetail() {
               <div className="space-y-1">
                 {project.startDate && (
                   <div className="text-sm">
-                    Start: {new Date(project.startDate).toLocaleDateString()}
+                    Start: {project.startDate.toLocaleDateString()}
                   </div>
                 )}
                 {project.dueDate && (
                   <div className="text-sm">
-                    Due: {new Date(project.dueDate).toLocaleDateString()}
+                    Due: {project.dueDate.toLocaleDateString()}
                   </div>
                 )}
               </div>
@@ -306,7 +296,7 @@ export default function ProjectDetail() {
                       <div className="flex-1">
                         <p className="text-sm">Project created</p>
                         <p className="text-xs text-muted-foreground">
-                          {project.startDate ? new Date(project.startDate).toLocaleDateString() : 'N/A'}
+                          {project.startDate ? project.startDate.toLocaleDateString() : 'N/A'}
                         </p>
                       </div>
                     </div>
