@@ -8,8 +8,6 @@ import { Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { ProjectCard } from '@/components/projects/ProjectCard';
-import { useProjectExpenses } from '@/hooks/useProjectExpenses';
-import { useProjectBilling } from '@/hooks/useProjectBilling';
 import { ProfessionalProjectReport } from '@/components/reports/ProfessionalProjectReport';
 import type { Project } from '@/types';
 
@@ -22,13 +20,6 @@ export default function Projects() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [fieldLeaderFilter, setFieldLeaderFilter] = useState<string>('all');
   const [showReports, setShowReports] = useState(false);
-
-  // Get project expenses
-  const projectIds = projects.map(p => p.id);
-  const { expenses: projectExpenses } = useProjectExpenses(projectIds);
-
-  // Get project billing data
-  const { billing: projectBilling } = useProjectBilling(projectIds);
 
   // Get unique field leaders for filter
   const fieldLeaders = useMemo(() => {
@@ -152,34 +143,6 @@ export default function Projects() {
     }
   };
 
-  // Prepare data for professional reports
-  const expensesForReports = useMemo(() => {
-    const result: Record<string, number> = {};
-    filteredProjects.forEach(project => {
-      const expenseData = projectExpenses[project.id];
-      result[project.id] = expenseData?.totalExpenses || 0;
-    });
-    return result;
-  }, [filteredProjects, projectExpenses]);
-
-  const billedForReports = useMemo(() => {
-    const result: Record<string, number> = {};
-    filteredProjects.forEach(project => {
-      const billingData = projectBilling[project.id];
-      result[project.id] = billingData?.totalBilled || 0;
-    });
-    return result;
-  }, [filteredProjects, projectBilling]);
-
-  const receivedForReports = useMemo(() => {
-    const result: Record<string, number> = {};
-    filteredProjects.forEach(project => {
-      const billingData = projectBilling[project.id];
-      result[project.id] = billingData?.totalReceived || 0;
-    });
-    return result;
-  }, [filteredProjects, projectBilling]);
-
   if (loading) {
     return (
       <Layout title="Projects" subtitle="Manage your construction projects">
@@ -215,9 +178,9 @@ export default function Projects() {
               project_code: p.projectCode,
               type: p.type
             }))}
-            totalExpenses={expensesForReports}
-            totalBilled={billedForReports}
-            totalReceived={receivedForReports}
+            totalExpenses={{}}
+            totalBilled={{}}
+            totalReceived={{}}
           />
         </div>
       </Layout>
@@ -292,23 +255,18 @@ export default function Projects() {
 
         {/* Projects Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map((project) => {
-            const expenseData = projectExpenses[project.id];
-            const billingData = projectBilling[project.id];
-            
-            return (
-              <ProjectCard 
-                key={project.id} 
-                project={project} 
-                showDeleteButton={true}
-                onDelete={handleDeleteProject}
-                onUpdate={fetchProjects}
-                totalExpenses={expenseData?.totalExpenses || 0}
-                totalBilled={billingData?.totalBilled || 0}
-                totalReceived={billingData?.totalReceived || 0}
-              />
-            );
-          })}
+          {filteredProjects.map((project) => (
+            <ProjectCard 
+              key={project.id} 
+              project={project} 
+              showDeleteButton={true}
+              onDelete={handleDeleteProject}
+              onUpdate={fetchProjects}
+              totalExpenses={0}
+              totalBilled={0}
+              totalReceived={0}
+            />
+          ))}
 
           {filteredProjects.length === 0 && (
             <div className="col-span-full text-center py-12 text-gray-500">

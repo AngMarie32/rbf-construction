@@ -33,12 +33,9 @@ export const useOptimizedProject = (projectId: string | undefined) => {
 
     try {
       setLoading(true);
+      setError(null);
       console.log('Fetching project with ID:', projectId);
       
-      if (!supabase) {
-        throw new Error('Supabase client not available');
-      }
-
       const { data, error } = await supabase
         .from('projects')
         .select('*')
@@ -58,7 +55,6 @@ export const useOptimizedProject = (projectId: string | undefined) => {
 
       console.log('Project data loaded:', data);
       setProject(data);
-      setError(null);
     } catch (error) {
       console.error('Error fetching project:', error);
       setError('Failed to load project details');
