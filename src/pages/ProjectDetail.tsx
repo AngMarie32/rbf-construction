@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +18,7 @@ import { PageChatWidget } from '@/components/chat/PageChatWidget';
 import { useProjectExpenses } from '@/hooks/useProjectExpenses';
 import { useProjectBilling } from '@/hooks/useProjectBilling';
 import { ProjectReportBuilder } from '@/components/reports/ProjectReportBuilder';
+import { ProfessionalProjectReport } from '@/components/reports/ProfessionalProjectReport';
 
 interface Project {
   id: string;
@@ -69,21 +71,29 @@ export default function ProjectDetail() {
   const { expenses: projectExpenses } = useProjectExpenses(id ? [id] : []);
   const { billing: projectBilling } = useProjectBilling(id ? [id] : []);
 
-  const totalExpenses = id ? (projectExpenses[id]?.totalExpenses || 0) : 0;
-  const totalBilled = id ? (projectBilling[id]?.totalBilled || 0) : 0;
-  const totalReceived = id ? (projectBilling[id]?.totalReceived || 0) : 0;
+  // Memoized calculations for better performance
+  const financialData = useMemo(() => {
+    if (!id) return { totalExpenses: 0, totalBilled: 0, totalReceived: 0 };
+    
+    const expenseData = projectExpenses[id];
+    const billingData = projectBilling[id];
+    
+    return {
+      totalExpenses: expenseData?.totalExpenses || 0,
+      totalBilled: billingData?.totalBilled || 0,
+      totalReceived: billingData?.totalReceived || 0
+    };
+  }, [id, projectExpenses, projectBilling]);
 
-  useEffect(() => {
-    if (id) {
-      fetchProject();
-      fetchTasks();
-    } else {
+  const { totalExpenses, totalBilled, totalReceived } = financialData;
+
+  const fetchProject = useCallback(async () => {
+    if (!id) {
       setError('No project ID provided');
       setLoading(false);
+      return;
     }
-  }, [id]);
 
-  const fetchProject = async () => {
     try {
       console.log('Fetching project with ID:', id);
       
@@ -116,9 +126,11 @@ export default function ProjectDetail() {
       setError('Failed to load project details');
       toast.error('Failed to load project details');
     }
-  };
+  }, [id]);
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
+    if (!id) return;
+
     try {
       if (!supabase) {
         console.warn('Supabase client not available for tasks');
@@ -133,7 +145,6 @@ export default function ProjectDetail() {
 
       if (error) {
         console.error('Error fetching tasks:', error);
-        // Don't throw error for tasks, just log it
         return;
       }
       
@@ -157,13 +168,22 @@ export default function ProjectDetail() {
       setTasks(formattedTasks);
     } catch (error) {
       console.error('Error fetching tasks:', error);
-      // Don't show error toast for tasks, just log it
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  const getFilteredTasks = () => {
+  useEffect(() => {
+    if (id) {
+      fetchProject();
+      fetchTasks();
+    } else {
+      setError('No project ID provided');
+      setLoading(false);
+    }
+  }, [id, fetchProject, fetchTasks]);
+
+  const getFilteredTasks = useCallback(() => {
     if (!dateRange || !dateRange.from || !dateRange.to) {
       return tasks;
     }
@@ -180,21 +200,68 @@ export default function ProjectDetail() {
         (taskStart <= filterStart && taskEnd >= filterEnd)
       );
     });
-  };
+  }, [tasks, dateRange]);
 
-  const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {
+  // Memoized calculations
+  const progressPercentage = useMemo(() => project?.completion_percentage || 0, [project?.completion_percentage]);
+  const remainingValue = useMemo(() => (project?.contract_value || 0) - totalBilled, [project?.contract_value, totalBilled]);
+  const daysRemaining = useMemo(() => 
+    project ? differenceInDays(new Date(project.due_date), new Date()) : 0,
+    [project]
+  );
+
+  const handleUpdateTask = useCallback((taskId: string, updates: Partial<Task>) => {
     setTasks(prev => prev.map(task => 
       task.id === taskId ? { ...task, ...updates } : task
     ));
-  };
+  }, []);
 
-  const handleDeleteTask = (taskId: string) => {
+  const handleDeleteTask = useCallback((taskId: string) => {
     setTasks(prev => prev.filter(task => task.id !== taskId));
-  };
+  }, []);
 
-  const handleOpenCustomGPT = () => {
+  const handleOpenCustomGPT = useCallback(() => {
     window.open('https://chatgpt.com/g/g-67ddca712ff48191a3343111439ac448-albus', '_blank');
-  };
+  }, []);
+
+  const getStatusColor = useCallback((status: string) => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'bg-green-500';
+      case 'active':
+        return 'bg-blue-500';
+      case 'on hold':
+        return 'bg-yellow-500';
+      case 'planning':
+        return 'bg-purple-500';
+      case 'closed':
+        return 'bg-gray-500';
+      default:
+        return 'bg-gray-500';
+    }
+  }, []);
+
+  // Memoized project array and date range for GanttChart
+  const ganttProjects = useMemo(() => {
+    return project ? [{
+      id: project.id,
+      name: project.name,
+      color: '#3b82f6',
+      client: project.client,
+      contractValue: project.contract_value,
+      status: project.status
+    }] : [];
+  }, [project]);
+
+  const ganttDateRange = useMemo(() => {
+    return dateRange && dateRange.from && dateRange.to ? {
+      from: dateRange.from,
+      to: dateRange.to
+    } : {
+      from: new Date(),
+      to: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    };
+  }, [dateRange]);
 
   if (loading) {
     return (
@@ -221,46 +288,6 @@ export default function ProjectDetail() {
       </Layout>
     );
   }
-
-  const progressPercentage = project?.completion_percentage || 0;
-  const remainingValue = (project?.contract_value || 0) - totalBilled;
-  const daysRemaining = project ? differenceInDays(new Date(project.due_date), new Date()) : 0;
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'completed':
-        return 'bg-green-500';
-      case 'active':
-        return 'bg-blue-500';
-      case 'on hold':
-        return 'bg-yellow-500';
-      case 'planning':
-        return 'bg-purple-500';
-      case 'closed':
-        return 'bg-gray-500';
-      default:
-        return 'bg-gray-500';
-    }
-  };
-
-  // Create projects array for GanttChart
-  const projects = project ? [{
-    id: project.id,
-    name: project.name,
-    color: '#3b82f6',
-    client: project.client,
-    contractValue: project.contract_value,
-    status: project.status
-  }] : [];
-
-  // Create date range for GanttChart
-  const ganttDateRange = dateRange && dateRange.from && dateRange.to ? {
-    from: dateRange.from,
-    to: dateRange.to
-  } : {
-    from: new Date(),
-    to: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
-  };
 
   return (
     <Layout title={project?.name || 'Project Details'} subtitle={project ? `${project.client} • ${project.status}` : 'Loading...'}>
@@ -777,6 +804,16 @@ export default function ProjectDetail() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Professional Report */}
+                {project && (
+                  <ProfessionalProjectReport
+                    projects={[project]}
+                    totalExpenses={{ [project.id]: totalExpenses }}
+                    totalBilled={{ [project.id]: totalBilled }}
+                    totalReceived={{ [project.id]: totalReceived }}
+                  />
+                )}
+                
                 {project && <ProjectReportBuilder project={project} />}
                 
                 <div className="border-t pt-6">

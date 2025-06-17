@@ -1628,7 +1628,9 @@ export type Database = {
           completion_percentage: number | null
           contract_value: number
           created_at: string | null
+          description: string | null
           due_date: string | null
+          field_leader: string | null
           id: string
           name: string
           net_change_orders: number | null
@@ -1645,7 +1647,9 @@ export type Database = {
           completion_percentage?: number | null
           contract_value?: number
           created_at?: string | null
+          description?: string | null
           due_date?: string | null
+          field_leader?: string | null
           id?: string
           name: string
           net_change_orders?: number | null
@@ -1662,7 +1666,9 @@ export type Database = {
           completion_percentage?: number | null
           contract_value?: number
           created_at?: string | null
+          description?: string | null
           due_date?: string | null
+          field_leader?: string | null
           id?: string
           name?: string
           net_change_orders?: number | null

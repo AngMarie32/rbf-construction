@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useMemo } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,7 @@ import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { useProjectExpenses } from '@/hooks/useProjectExpenses';
 import { useProjectBilling } from '@/hooks/useProjectBilling';
+import { ProfessionalProjectReport } from '@/components/reports/ProfessionalProjectReport';
 import type { Project } from '@/types';
 
 export default function Projects() {
@@ -18,6 +20,8 @@ export default function Projects() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [fieldLeaderFilter, setFieldLeaderFilter] = useState<string>('all');
+  const [showReports, setShowReports] = useState(false);
 
   // Get project expenses
   const projectIds = projects.map(p => p.id);
@@ -26,13 +30,19 @@ export default function Projects() {
   // Get project billing data
   const { billing: projectBilling } = useProjectBilling(projectIds);
 
+  // Get unique field leaders for filter
+  const fieldLeaders = useMemo(() => {
+    const leaders = [...new Set(projects.map(p => p.fieldLeader).filter(Boolean))] as string[];
+    return leaders;
+  }, [projects]);
+
   useEffect(() => {
     fetchProjects();
   }, []);
 
   useEffect(() => {
     filterProjects();
-  }, [projects, searchTerm, statusFilter, typeFilter]);
+  }, [projects, searchTerm, statusFilter, typeFilter, fieldLeaderFilter]);
 
   const fetchProjects = async () => {
     setLoading(true);
@@ -56,6 +66,8 @@ export default function Projects() {
         address: item.address || '',
         projectCode: item.project_code || '',
         client: item.client || '',
+        fieldLeader: item.field_leader || '',
+        description: item.description || '',
         createdAt: new Date(item.created_at),
         updatedAt: new Date(item.updated_at)
       })) as Project[];
@@ -85,6 +97,10 @@ export default function Projects() {
 
     if (typeFilter !== 'all') {
       filtered = filtered.filter(project => project.type === typeFilter);
+    }
+
+    if (fieldLeaderFilter !== 'all') {
+      filtered = filtered.filter(project => project.fieldLeader === fieldLeaderFilter);
     }
 
     setFilteredProjects(filtered);
@@ -136,6 +152,34 @@ export default function Projects() {
     }
   };
 
+  // Prepare data for professional reports
+  const expensesForReports = useMemo(() => {
+    const result: Record<string, number> = {};
+    filteredProjects.forEach(project => {
+      const expenseData = projectExpenses[project.id];
+      result[project.id] = expenseData?.totalExpenses || 0;
+    });
+    return result;
+  }, [filteredProjects, projectExpenses]);
+
+  const billedForReports = useMemo(() => {
+    const result: Record<string, number> = {};
+    filteredProjects.forEach(project => {
+      const billingData = projectBilling[project.id];
+      result[project.id] = billingData?.totalBilled || 0;
+    });
+    return result;
+  }, [filteredProjects, projectBilling]);
+
+  const receivedForReports = useMemo(() => {
+    const result: Record<string, number> = {};
+    filteredProjects.forEach(project => {
+      const billingData = projectBilling[project.id];
+      result[project.id] = billingData?.totalReceived || 0;
+    });
+    return result;
+  }, [filteredProjects, projectBilling]);
+
   if (loading) {
     return (
       <Layout title="Projects" subtitle="Manage your construction projects">
@@ -146,12 +190,46 @@ export default function Projects() {
     );
   }
 
+  if (showReports) {
+    return (
+      <Layout title="Project Reports" subtitle="Professional project reports">
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" onClick={() => setShowReports(false)}>
+              Back to Projects
+            </Button>
+          </div>
+          <ProfessionalProjectReport
+            projects={filteredProjects.map(p => ({
+              id: p.id,
+              name: p.name,
+              client: p.client,
+              status: p.status,
+              start_date: p.startDate.toISOString(),
+              due_date: p.dueDate.toISOString(),
+              contract_value: p.contractValue,
+              completion_percentage: p.completionPercentage,
+              description: p.description,
+              field_leader: p.fieldLeader,
+              address: p.address,
+              project_code: p.projectCode,
+              type: p.type
+            }))}
+            totalExpenses={expensesForReports}
+            totalBilled={billedForReports}
+            totalReceived={receivedForReports}
+          />
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout title="Projects" subtitle="Manage your construction projects">
       <div className="space-y-6">
         {/* Controls */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
-          <div className="flex gap-4 flex-1">
+          <div className="flex gap-4 flex-1 flex-wrap">
             <div className="relative max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
@@ -188,25 +266,49 @@ export default function Projects() {
                 <SelectItem value="Industrial">Industrial</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={fieldLeaderFilter} onValueChange={setFieldLeaderFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="All Field Leaders" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Field Leaders</SelectItem>
+                {fieldLeaders.map(leader => (
+                  <SelectItem key={leader} value={leader}>
+                    {leader}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <NewProjectDialog onProjectCreated={fetchProjects} />
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowReports(true)}>
+              Professional Reports
+            </Button>
+            <NewProjectDialog onProjectCreated={fetchProjects} />
+          </div>
         </div>
 
         {/* Projects Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map((project) => (
-            <ProjectCard 
-              key={project.id} 
-              project={project} 
-              showDeleteButton={true}
-              onDelete={handleDeleteProject}
-              onUpdate={fetchProjects}
-              totalExpenses={projectExpenses[project.id]?.totalExpenses || 0}
-              totalBilled={projectBilling[project.id]?.totalBilled || 0}
-              totalReceived={projectBilling[project.id]?.totalReceived || 0}
-            />
-          ))}
+          {filteredProjects.map((project) => {
+            const expenseData = projectExpenses[project.id];
+            const billingData = projectBilling[project.id];
+            
+            return (
+              <ProjectCard 
+                key={project.id} 
+                project={project} 
+                showDeleteButton={true}
+                onDelete={handleDeleteProject}
+                onUpdate={fetchProjects}
+                totalExpenses={expenseData?.totalExpenses || 0}
+                totalBilled={billingData?.totalBilled || 0}
+                totalReceived={billingData?.totalReceived || 0}
+              />
+            );
+          })}
 
           {filteredProjects.length === 0 && (
             <div className="col-span-full text-center py-12 text-gray-500">
