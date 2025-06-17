@@ -322,23 +322,23 @@ export default function ProjectBilling() {
           </Card>
         </div>
 
-        {/* Filters */}
+        {/* Compact Filters - Side by Side */}
         <Card>
           <CardContent className="pt-6">
-            <div className="flex flex-col lg:flex-row gap-4 items-center">
-              <div className="relative flex-1 min-w-[300px]">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-center">
+              <div className="relative lg:col-span-2">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
                   placeholder="Search by project, invoice number, or notes..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full"
+                  className="pl-10"
                 />
               </div>
 
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Status" />
+                <SelectTrigger>
+                  <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
@@ -351,8 +351,8 @@ export default function ProjectBilling() {
               </Select>
 
               <Select value={projectFilter} onValueChange={setProjectFilter}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Project" />
+                <SelectTrigger>
+                  <SelectValue placeholder="All Projects" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Projects</SelectItem>
@@ -365,8 +365,8 @@ export default function ProjectBilling() {
               </Select>
 
               <Select value={dateFilter} onValueChange={setDateFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Period" />
+                <SelectTrigger>
+                  <SelectValue placeholder="All Time" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Time</SelectItem>

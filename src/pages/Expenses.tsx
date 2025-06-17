@@ -59,6 +59,7 @@ import { CreateExpenseDialog } from '@/components/expenses/CreateExpenseDialog';
 import { EditExpenseDialog } from '@/components/expenses/EditExpenseDialog';
 import { AttachInvoiceDialog } from '@/components/expenses/AttachInvoiceDialog';
 import { ViewInvoiceDialog } from '@/components/expenses/ViewInvoiceDialog';
+import { BulkExpenseDialog } from '@/components/expenses/BulkExpenseDialog';
 
 interface Expense {
   id: string;
@@ -94,6 +95,7 @@ export default function Expenses() {
   const [expenseForInvoice, setExpenseForInvoice] = useState<Expense | null>(null);
   const [viewInvoiceDialogOpen, setViewInvoiceDialogOpen] = useState(false);
   const [expenseForViewInvoice, setExpenseForViewInvoice] = useState<Expense | null>(null);
+  const [bulkExpenseDialogOpen, setBulkExpenseDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -355,59 +357,64 @@ export default function Expenses() {
           </Card>
         </div>
 
-        {/* Filters and Controls */}
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search expenses..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={handleExport}>
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
-              <Button onClick={() => setCreateDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Expense
-              </Button>
-            </div>
-          </div>
+        {/* Compact Filters and Controls - Side by Side */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search expenses..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
 
-          <div className="flex gap-4">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="Field Approval">Field Approval</SelectItem>
-                <SelectItem value="Office Approval">Office Approval</SelectItem>
-                <SelectItem value="Paid">Paid</SelectItem>
-                <SelectItem value="Rejected">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="Field Approval">Field Approval</SelectItem>
+                  <SelectItem value="Office Approval">Office Approval</SelectItem>
+                  <SelectItem value="Paid">Paid</SelectItem>
+                  <SelectItem value="Rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Projects" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Projects</SelectItem>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+              <Select value={selectedProject} onValueChange={setSelectedProject}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Projects" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Projects</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleExport} size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+                <Button onClick={() => setBulkExpenseDialogOpen(true)} variant="outline" size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Bulk Entry
+                </Button>
+                <Button onClick={() => setCreateDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700" size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Expense
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Expenses Table */}
         <Card>
@@ -540,6 +547,12 @@ export default function Expenses() {
           open={createDialogOpen}
           onOpenChange={setCreateDialogOpen}
           onExpenseCreated={fetchExpenses}
+        />
+
+        <BulkExpenseDialog
+          open={bulkExpenseDialogOpen}
+          onOpenChange={setBulkExpenseDialogOpen}
+          onExpensesCreated={fetchExpenses}
         />
 
         <EditExpenseDialog
