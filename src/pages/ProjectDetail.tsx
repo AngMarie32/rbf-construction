@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -370,16 +369,7 @@ export default function ProjectDetail() {
       <EditProjectDialog
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
-        project={{
-          ...project,
-          // Map back to database format for the edit dialog
-          start_date: project.startDate,
-          due_date: project.dueDate,
-          contract_value: project.contractValue,
-          completion_percentage: project.completionPercentage,
-          field_leader: project.fieldLeader,
-          project_code: project.projectCode
-        }}
+        project={project}
         onProjectUpdated={handleProjectUpdate}
       />
     </Layout>
