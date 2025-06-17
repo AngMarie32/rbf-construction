@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { BurnAnalysisTab } from '@/components/projects/BurnAnalysisTab';
 import { EditProjectDialog } from '@/components/projects/EditProjectDialog';
 
-interface Project {
+interface DatabaseProject {
   id: string;
   name: string;
   description?: string;
@@ -36,6 +36,22 @@ interface Project {
   address?: string;
   field_leader?: string;
   project_code?: string;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  type: string;
+  status: string;
+  startDate?: string;
+  dueDate?: string;
+  contractValue: number;
+  completionPercentage: number;
+  client?: string;
+  address?: string;
+  fieldLeader?: string;
+  projectCode?: string;
 }
 
 export default function ProjectDetail() {
@@ -54,14 +70,40 @@ export default function ProjectDetail() {
   const fetchProject = async () => {
     try {
       setLoading(true);
+      console.log('Fetching project details for ID:', id);
+      
       const { data, error } = await supabase
         .from('projects')
         .select('*')
         .eq('id', id)
         .single();
 
-      if (error) throw error;
-      setProject(data);
+      if (error) {
+        console.error('Error fetching project:', error);
+        throw error;
+      }
+
+      if (data) {
+        // Map database fields to camelCase interface
+        const mappedProject: Project = {
+          id: data.id,
+          name: data.name,
+          description: data.description,
+          type: data.type,
+          status: data.status,
+          startDate: data.start_date,
+          dueDate: data.due_date,
+          contractValue: data.contract_value,
+          completionPercentage: data.completion_percentage,
+          client: data.client,
+          address: data.address,
+          fieldLeader: data.field_leader,
+          projectCode: data.project_code
+        };
+        
+        console.log('Project data loaded and mapped:', mappedProject);
+        setProject(mappedProject);
+      }
     } catch (error) {
       console.error('Error fetching project:', error);
       toast.error('Failed to load project details');
@@ -154,7 +196,7 @@ export default function ProjectDetail() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ${project.contract_value?.toLocaleString() || '0'}
+                ${project.contractValue?.toLocaleString() || '0'}
               </div>
             </CardContent>
           </Card>
@@ -166,9 +208,9 @@ export default function ProjectDetail() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold mb-2">
-                {project.completion_percentage || 0}%
+                {project.completionPercentage || 0}%
               </div>
-              <Progress value={project.completion_percentage || 0} className="h-2" />
+              <Progress value={project.completionPercentage || 0} className="h-2" />
             </CardContent>
           </Card>
 
@@ -179,14 +221,14 @@ export default function ProjectDetail() {
             </CardHeader>
             <CardContent>
               <div className="space-y-1">
-                {project.start_date && (
+                {project.startDate && (
                   <div className="text-sm">
-                    Start: {new Date(project.start_date).toLocaleDateString()}
+                    Start: {new Date(project.startDate).toLocaleDateString()}
                   </div>
                 )}
-                {project.due_date && (
+                {project.dueDate && (
                   <div className="text-sm">
-                    Due: {new Date(project.due_date).toLocaleDateString()}
+                    Due: {new Date(project.dueDate).toLocaleDateString()}
                   </div>
                 )}
               </div>
@@ -214,10 +256,10 @@ export default function ProjectDetail() {
                     <p className="text-muted-foreground">{project.client}</p>
                   </div>
                 )}
-                {project.project_code && (
+                {project.projectCode && (
                   <div>
                     <h4 className="font-semibold mb-2">Project Code</h4>
-                    <p className="text-muted-foreground">{project.project_code}</p>
+                    <p className="text-muted-foreground">{project.projectCode}</p>
                   </div>
                 )}
               </div>
@@ -228,10 +270,10 @@ export default function ProjectDetail() {
                     <p className="text-muted-foreground">{project.address}</p>
                   </div>
                 )}
-                {project.field_leader && (
+                {project.fieldLeader && (
                   <div>
                     <h4 className="font-semibold mb-2">Field Leader</h4>
-                    <p className="text-muted-foreground">{project.field_leader}</p>
+                    <p className="text-muted-foreground">{project.fieldLeader}</p>
                   </div>
                 )}
                 <div>
@@ -265,7 +307,7 @@ export default function ProjectDetail() {
                       <div className="flex-1">
                         <p className="text-sm">Project created</p>
                         <p className="text-xs text-muted-foreground">
-                          {project.start_date ? new Date(project.start_date).toLocaleDateString() : 'N/A'}
+                          {project.startDate ? new Date(project.startDate).toLocaleDateString() : 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -328,7 +370,16 @@ export default function ProjectDetail() {
       <EditProjectDialog
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
-        project={project}
+        project={{
+          ...project,
+          // Map back to database format for the edit dialog
+          start_date: project.startDate,
+          due_date: project.dueDate,
+          contract_value: project.contractValue,
+          completion_percentage: project.completionPercentage,
+          field_leader: project.fieldLeader,
+          project_code: project.projectCode
+        }}
         onProjectUpdated={handleProjectUpdate}
       />
     </Layout>
