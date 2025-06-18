@@ -15,7 +15,9 @@ import {
   Trash2,
   TrendingUp,
   TrendingDown,
-  Clock
+  Clock,
+  Receipt,
+  CreditCard
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { EditProjectDialog } from './EditProjectDialog';
@@ -46,6 +48,8 @@ export function ProjectCard({
   const [paidExpenses, setPaidExpenses] = useState(0);
   const [pendingExpenses, setPendingExpenses] = useState(0);
   const [remainingAmount, setRemainingAmount] = useState(0);
+  const [billedAmount, setBilledAmount] = useState(0);
+  const [receivedAmount, setReceivedAmount] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -67,15 +71,28 @@ export function ProjectCard({
         .reduce((sum, exp) => sum + exp.amount, 0) || 0;
 
       const pending = expenses
-        ?.filter(exp => exp.status === 'Pending Field Approval' || exp.status ===
-'Pending Office Approval')
+        ?.filter(exp => exp.status === 'Pending Field Approval' || exp.status === 'Pending Office Approval')
         .reduce((sum, exp) => sum + exp.amount, 0) || 0;
 
       setPaidExpenses(paid);
       setPendingExpenses(pending);
 
+      // Get billing data
+      const { data: billing, error: billingError } = await supabase
+        .from('project_billing')
+        .select('billed_amount, paid_amount')
+        .eq('project_id', project.id);
+
+      if (billingError) throw billingError;
+
+      const totalBilledCalc = billing?.reduce((sum, bill) => sum + (bill.billed_amount || 0), 0) || 0;
+      const totalReceivedCalc = billing?.reduce((sum, bill) => sum + (bill.paid_amount || 0), 0) || 0;
+
+      setBilledAmount(totalBilledCalc);
+      setReceivedAmount(totalReceivedCalc);
+
       // Calculate remaining amount (contract value - total billed)
-      const remaining = project.contractValue - totalBilled;
+      const remaining = project.contractValue - totalBilledCalc;
       setRemainingAmount(remaining);
     } catch (error) {
       console.error('Error fetching project financials:', error);
@@ -170,44 +187,64 @@ export function ProjectCard({
             <Progress value={project.completionPercentage} className="h-2" />
           </div>
 
-          {/* Financial Snapshot */}
-          <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-            <div className="space-y-1">
-              <div className="flex items-center text-xs text-gray-500">
-                <DollarSign className="w-3 h-3 mr-1" />
-                Contract Value
+          {/* Financial Snapshot - Better formatted */}
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+            <div className="bg-blue-50 p-2 rounded-lg">
+              <div className="flex items-center gap-1 mb-1">
+                <DollarSign className="w-3 h-3 text-blue-600" />
+                <span className="text-xs font-medium text-blue-600">Contract</span>
               </div>
-              <div className="text-sm font-semibold">
+              <div className="text-sm font-bold text-gray-900">
                 ${project.contractValue.toLocaleString()}
               </div>
             </div>
             
-            <div className="space-y-1">
-              <div className="flex items-center text-xs text-gray-500">
-                <TrendingUp className="w-3 h-3 mr-1" />
-                Remaining
+            <div className="bg-green-50 p-2 rounded-lg">
+              <div className="flex items-center gap-1 mb-1">
+                <TrendingUp className="w-3 h-3 text-green-600" />
+                <span className="text-xs font-medium text-green-600">Remaining</span>
               </div>
-              <div className="text-sm font-semibold text-green-600">
+              <div className="text-sm font-bold text-green-600">
                 ${remainingAmount.toLocaleString()}
               </div>
             </div>
 
-            <div className="space-y-1">
-              <div className="flex items-center text-xs text-gray-500">
-                <TrendingDown className="w-3 h-3 mr-1" />
-                Expenses Paid
+            <div className="bg-purple-50 p-2 rounded-lg">
+              <div className="flex items-center gap-1 mb-1">
+                <Receipt className="w-3 h-3 text-purple-600" />
+                <span className="text-xs font-medium text-purple-600">Billed</span>
               </div>
-              <div className="text-sm font-semibold text-red-600">
+              <div className="text-sm font-bold text-purple-600">
+                ${billedAmount.toLocaleString()}
+              </div>
+            </div>
+
+            <div className="bg-emerald-50 p-2 rounded-lg">
+              <div className="flex items-center gap-1 mb-1">
+                <CreditCard className="w-3 h-3 text-emerald-600" />
+                <span className="text-xs font-medium text-emerald-600">Received</span>
+              </div>
+              <div className="text-sm font-bold text-emerald-600">
+                ${receivedAmount.toLocaleString()}
+              </div>
+            </div>
+
+            <div className="bg-red-50 p-2 rounded-lg">
+              <div className="flex items-center gap-1 mb-1">
+                <TrendingDown className="w-3 h-3 text-red-600" />
+                <span className="text-xs font-medium text-red-600">Paid Expenses</span>
+              </div>
+              <div className="text-sm font-bold text-red-600">
                 ${paidExpenses.toLocaleString()}
               </div>
             </div>
 
-            <div className="space-y-1">
-              <div className="flex items-center text-xs text-gray-500">
-                <Clock className="w-3 h-3 mr-1" />
-                Pending Expenses
+            <div className="bg-orange-50 p-2 rounded-lg">
+              <div className="flex items-center gap-1 mb-1">
+                <Clock className="w-3 h-3 text-orange-600" />
+                <span className="text-xs font-medium text-orange-600">Pending</span>
               </div>
-              <div className="text-sm font-semibold text-orange-600">
+              <div className="text-sm font-bold text-orange-600">
                 ${pendingExpenses.toLocaleString()}
               </div>
             </div>
