@@ -47,10 +47,15 @@ export default function ProjectDetail() {
   const [project, setProject] = useState<GlobalProject | null>(null);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [changeOrders, setChangeOrders] = useState<any[]>([]);
+  const [billing, setBilling] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
 
   useEffect(() => {
     if (id) {
       fetchProject();
+      fetchProjectData();
     }
   }, [id]);
 
@@ -102,6 +107,47 @@ export default function ProjectDetail() {
     }
   };
 
+  const fetchProjectData = async () => {
+    if (!id) return;
+
+    try {
+      // Fetch expenses
+      const { data: expensesData } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('project_id', id)
+        .order('created_at', { ascending: false });
+
+      // Fetch change orders
+      const { data: changeOrdersData } = await supabase
+        .from('change_orders')
+        .select('*')
+        .eq('project_id', id)
+        .order('created_at', { ascending: false });
+
+      // Fetch billing
+      const { data: billingData } = await supabase
+        .from('project_billing')
+        .select('*')
+        .eq('project_id', id)
+        .order('created_at', { ascending: false });
+
+      // Fetch tasks
+      const { data: tasksData } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('project_id', id)
+        .order('start_date', { ascending: true });
+
+      setExpenses(expensesData || []);
+      setChangeOrders(changeOrdersData || []);
+      setBilling(billingData || []);
+      setTasks(tasksData || []);
+    } catch (error) {
+      console.error('Error fetching project data:', error);
+    }
+  };
+
   const handleProjectUpdate = () => {
     fetchProject();
     setEditDialogOpen(false);
@@ -140,6 +186,10 @@ export default function ProjectDetail() {
       default: return 'bg-gray-500';
     }
   };
+
+  const totalExpenses = expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
+  const paidExpenses = expenses.filter(e => e.status === 'Paid').reduce((sum, expense) => sum + (expense.amount || 0), 0);
+  const pendingExpenses = totalExpenses - paidExpenses;
 
   return (
     <Layout 
@@ -192,166 +242,233 @@ export default function ProjectDetail() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Progress</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Expenses Paid</CardTitle>
+              <DollarSign className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold mb-2">
-                {project.completionPercentage || 0}%
+              <div className="text-2xl font-bold text-green-600">
+                ${paidExpenses.toLocaleString()}
               </div>
-              <Progress value={project.completionPercentage || 0} className="h-2" />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Timeline</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Pending Expenses</CardTitle>
+              <DollarSign className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="space-y-1">
-                {project.startDate && (
-                  <div className="text-sm">
-                    Start: {project.startDate.toLocaleDateString()}
-                  </div>
-                )}
-                {project.dueDate && (
-                  <div className="text-sm">
-                    Due: {project.dueDate.toLocaleDateString()}
-                  </div>
-                )}
+              <div className="text-2xl font-bold text-yellow-600">
+                ${pendingExpenses.toLocaleString()}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Project Details */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Project Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                {project.description && (
-                  <div>
-                    <h4 className="font-semibold mb-2">Description</h4>
-                    <p className="text-muted-foreground">{project.description}</p>
-                  </div>
-                )}
-                {project.client && (
-                  <div>
-                    <h4 className="font-semibold mb-2">Client</h4>
-                    <p className="text-muted-foreground">{project.client}</p>
-                  </div>
-                )}
-                {project.projectCode && (
-                  <div>
-                    <h4 className="font-semibold mb-2">Project Code</h4>
-                    <p className="text-muted-foreground">{project.projectCode}</p>
-                  </div>
-                )}
-              </div>
-              <div className="space-y-4">
-                {project.address && (
-                  <div>
-                    <h4 className="font-semibold mb-2">Address</h4>
-                    <p className="text-muted-foreground">{project.address}</p>
-                  </div>
-                )}
-                {project.fieldLeader && (
-                  <div>
-                    <h4 className="font-semibold mb-2">Field Leader</h4>
-                    <p className="text-muted-foreground">{project.fieldLeader}</p>
-                  </div>
-                )}
-                <div>
-                  <h4 className="font-semibold mb-2">Type</h4>
-                  <p className="text-muted-foreground">{project.type}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Tabbed Content */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            <TabsTrigger value="payment-apps">Payment Apps</TabsTrigger>
+            <TabsTrigger value="change-orders">Change Orders</TabsTrigger>
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="billing">Project Billing</TabsTrigger>
             <TabsTrigger value="burn-analysis">Burn Analysis</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="team">Team</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
+                  <CardTitle>Project Information</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex-1">
-                        <p className="text-sm">Project created</p>
-                        <p className="text-xs text-muted-foreground">
-                          {project.startDate ? project.startDate.toLocaleDateString() : 'N/A'}
-                        </p>
-                      </div>
+                <CardContent className="space-y-4">
+                  {project.description && (
+                    <div>
+                      <h4 className="font-semibold mb-2">Description</h4>
+                      <p className="text-muted-foreground">{project.description}</p>
                     </div>
-                  </div>
+                  )}
+                  {project.client && (
+                    <div>
+                      <h4 className="font-semibold mb-2">Client</h4>
+                      <p className="text-muted-foreground">{project.client}</p>
+                    </div>
+                  )}
+                  {project.address && (
+                    <div>
+                      <h4 className="font-semibold mb-2">Address</h4>
+                      <p className="text-muted-foreground">{project.address}</p>
+                    </div>
+                  )}
+                  {project.fieldLeader && (
+                    <div>
+                      <h4 className="font-semibold mb-2">Field Leader</h4>
+                      <p className="text-muted-foreground">{project.fieldLeader}</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
+                  <CardTitle>Progress</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full" onClick={() => navigate(`/schedule?project=${project.id}`)}>
-                      <Calendar className="w-4 h-4 mr-2" />
-                      View Schedule
-                    </Button>
-                    <Button variant="outline" className="w-full" onClick={() => navigate(`/documents?project=${project.id}`)}>
-                      <FileText className="w-4 h-4 mr-2" />
-                      View Documents
-                    </Button>
-                    <Button variant="outline" className="w-full" onClick={() => navigate(`/expenses?project=${project.id}`)}>
-                      <DollarSign className="w-4 h-4 mr-2" />
-                      View Expenses
-                    </Button>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span>Completion</span>
+                        <span>{project.completionPercentage || 0}%</span>
+                      </div>
+                      <Progress value={project.completionPercentage || 0} className="h-2" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Start Date</p>
+                        <p>{project.startDate?.toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Due Date</p>
+                        <p>{project.dueDate?.toLocaleDateString()}</p>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
+          <TabsContent value="schedule">
+            <Card>
+              <CardHeader>
+                <CardTitle>Project Schedule</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {tasks.length > 0 ? (
+                  <div className="space-y-4">
+                    {tasks.map((task) => (
+                      <div key={task.id} className="border rounded p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-semibold">{task.title}</h4>
+                          <Badge variant="outline">{task.status}</Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                          <div>Start: {new Date(task.start_date).toLocaleDateString()}</div>
+                          <div>End: {new Date(task.end_date).toLocaleDateString()}</div>
+                        </div>
+                        <Progress value={task.progress || 0} className="mt-2 h-2" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No tasks found for this project.</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="payment-apps">
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment Applications</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Payment application management will be displayed here.</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="change-orders">
+            <Card>
+              <CardHeader>
+                <CardTitle>Change Orders</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {changeOrders.length > 0 ? (
+                  <div className="space-y-4">
+                    {changeOrders.map((co) => (
+                      <div key={co.id} className="border rounded p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-semibold">{co.number}</h4>
+                          <Badge variant="outline">{co.status}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">{co.description}</p>
+                        <div className="flex justify-between text-sm">
+                          <span>Amount: ${co.amount?.toLocaleString()}</span>
+                          <span>Date: {new Date(co.date).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No change orders found for this project.</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="expenses">
+            <Card>
+              <CardHeader>
+                <CardTitle>Project Expenses</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {expenses.length > 0 ? (
+                  <div className="space-y-4">
+                    {expenses.slice(0, 10).map((expense) => (
+                      <div key={expense.id} className="border rounded p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-semibold">{expense.description}</h4>
+                          <Badge variant="outline">{expense.status}</Badge>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4 text-sm text-muted-foreground">
+                          <div>Category: {expense.category}</div>
+                          <div>Amount: ${expense.amount?.toLocaleString()}</div>
+                          <div>Date: {new Date(expense.date).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No expenses found for this project.</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="billing">
+            <Card>
+              <CardHeader>
+                <CardTitle>Project Billing</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {billing.length > 0 ? (
+                  <div className="space-y-4">
+                    {billing.map((bill) => (
+                      <div key={bill.id} className="border rounded p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-semibold">{bill.invoice_number || 'Draft Invoice'}</h4>
+                          <Badge variant="outline">{bill.status}</Badge>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4 text-sm text-muted-foreground">
+                          <div>Billed: ${bill.billed_amount?.toLocaleString()}</div>
+                          <div>Paid: ${bill.paid_amount?.toLocaleString()}</div>
+                          <div>Period: {new Date(bill.billing_period_start).toLocaleDateString()} - {new Date(bill.billing_period_end).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No billing records found for this project.</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="burn-analysis">
             <BurnAnalysisTab projectId={project.id} />
-          </TabsContent>
-
-          <TabsContent value="documents">
-            <Card>
-              <CardHeader>
-                <CardTitle>Project Documents</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Document management for this project will be displayed here.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="team">
-            <Card>
-              <CardHeader>
-                <CardTitle>Project Team</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Team management for this project will be displayed here.</p>
-              </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
       </div>

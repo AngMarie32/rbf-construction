@@ -34,6 +34,7 @@ import { useOptimisticUpdates } from '@/hooks/useOptimisticUpdates';
 import { BulkTaskOperations } from '@/components/schedule/BulkTaskOperations';
 import { EnhancedCriticalPath } from '@/components/schedule/EnhancedCriticalPath';
 import { EnhancedExportDialog } from '@/components/schedule/EnhancedExportDialog';
+import { TaskDependencyManager } from '@/components/schedule/TaskDependencyManager';
 
 interface Project {
   id: string;
@@ -73,6 +74,8 @@ export default function ProjectSchedule() {
   const [templateManagerOpen, setTemplateManagerOpen] = useState(false);
   const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
   const [enhancedExportOpen, setEnhancedExportOpen] = useState(false);
+  const [dependencyManagerOpen, setDependencyManagerOpen] = useState(false);
+  const [selectedTaskForDependency, setSelectedTaskForDependency] = useState<Task | null>(null);
   
   // New task form
   const [newTask, setNewTask] = useState({
@@ -152,6 +155,33 @@ export default function ProjectSchedule() {
       toast.error('Failed to update task');
       throw error;
     }
+  };
+
+  const handleTaskDependencyUpdate = async (taskId: string, dependencies: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ dependencies })
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      setTasks(prevTasks => 
+        prevTasks.map(task => 
+          task.id === taskId ? { ...task, dependencies } : task
+        )
+      );
+      
+      toast.success('Task dependencies updated');
+    } catch (error) {
+      console.error('Error updating task dependencies:', error);
+      toast.error('Failed to update task dependencies');
+    }
+  };
+
+  const openDependencyManager = (task: Task) => {
+    setSelectedTaskForDependency(task);
+    setDependencyManagerOpen(true);
   };
 
   const handleExport = async () => {
@@ -525,6 +555,7 @@ export default function ProjectSchedule() {
                 tasks={filteredTasks}
                 onUpdateTask={optimisticUpdate}
                 onDeleteTask={handleTaskDelete}
+                onEditDependencies={openDependencyManager}
                 projects={projects}
                 selectedProjects={selectedProjects}
                 dateRange={dateRange}
@@ -565,6 +596,7 @@ export default function ProjectSchedule() {
               onTaskUpdate={optimisticUpdate}
               onTaskDelete={handleTaskDelete}
               onTaskEdit={(task) => console.log('Edit task:', task)}
+              onEditDependencies={openDependencyManager}
               selectedTasks={selectedTaskIds}
               onSelectionChange={setSelectedTaskIds}
             />
@@ -635,6 +667,14 @@ export default function ProjectSchedule() {
         open={templateManagerOpen}
         onOpenChange={setTemplateManagerOpen}
         onTemplateApplied={handleTemplateApplied}
+      />
+
+      <TaskDependencyManager
+        open={dependencyManagerOpen}
+        onOpenChange={setDependencyManagerOpen}
+        task={selectedTaskForDependency}
+        tasks={tasks}
+        onUpdateDependencies={handleTaskDependencyUpdate}
       />
 
       <EnhancedExportDialog

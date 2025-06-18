@@ -62,7 +62,6 @@ export function BulkExpenseDialog({ open, onOpenChange, onExpensesCreated }: Bul
       const { data, error } = await supabase
         .from('projects')
         .select('id, name')
-        .eq('status', 'Active')
         .order('name');
 
       if (error) throw error;
@@ -99,34 +98,28 @@ export function BulkExpenseDialog({ open, onOpenChange, onExpensesCreated }: Bul
     ));
   };
 
-  const validateExpenses = () => {
-    for (const expense of expenses) {
-      if (!expense.project_id || !expense.description || !expense.amount) {
-        toast.error('Please fill in project, description, and amount for all expenses');
-        return false;
-      }
-      if (isNaN(Number(expense.amount)) || Number(expense.amount) <= 0) {
-        toast.error('Please enter valid amounts for all expenses');
-        return false;
-      }
-    }
-    return true;
-  };
-
   const handleSubmit = async () => {
-    if (!validateExpenses()) return;
+    // Filter out empty rows
+    const validExpenses = expenses.filter(expense => 
+      expense.project_id || expense.description || expense.amount
+    );
+
+    if (validExpenses.length === 0) {
+      toast.error('Please add at least one expense');
+      return;
+    }
 
     setLoading(true);
     try {
-      const expensesToCreate = expenses.map(expense => ({
-        project_id: expense.project_id,
-        description: expense.description,
+      const expensesToCreate = validExpenses.map(expense => ({
+        project_id: expense.project_id || null,
+        description: expense.description || 'No description',
         category: expense.category || 'Other',
-        amount: Number(expense.amount),
+        amount: Number(expense.amount) || 0,
         date: expense.date,
         vendor: expense.vendor || null,
         receipt_number: expense.receipt_number || null,
-        status: 'Field Approval'
+        status: 'Pending Field Approval'
       }));
 
       const { error } = await supabase
@@ -135,7 +128,7 @@ export function BulkExpenseDialog({ open, onOpenChange, onExpensesCreated }: Bul
 
       if (error) throw error;
 
-      toast.success(`${expenses.length} expenses created successfully`);
+      toast.success(`${validExpenses.length} expenses created successfully`);
       onExpensesCreated();
       onOpenChange(false);
       
@@ -167,9 +160,6 @@ export function BulkExpenseDialog({ open, onOpenChange, onExpensesCreated }: Bul
 
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <p className="text-sm text-gray-600">
-              Enter multiple expenses at once. Only project, description, and amount are required.
-            </p>
             <Button onClick={addExpenseRow} variant="outline" size="sm">
               <Plus className="w-4 h-4 mr-2" />
               Add Row
@@ -178,10 +168,10 @@ export function BulkExpenseDialog({ open, onOpenChange, onExpensesCreated }: Bul
 
           <div className="border rounded-lg overflow-hidden">
             <div className="bg-gray-50 grid grid-cols-8 gap-2 p-2 text-xs font-medium text-gray-700 border-b">
-              <div>Project *</div>
-              <div>Description *</div>
+              <div>Project</div>
+              <div>Description</div>
               <div>Category</div>
-              <div>Amount *</div>
+              <div>Amount</div>
               <div>Date</div>
               <div>Vendor</div>
               <div>Receipt #</div>
