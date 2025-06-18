@@ -3,9 +3,7 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Plus, Trash2, Save } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -28,16 +26,13 @@ interface ExpenseEntry {
 }
 
 const EXPENSE_CATEGORIES = [
-  'Materials',
   'Labor',
-  'Equipment',
-  'Transportation',
-  'Subcontractors',
-  'Permits',
-  'Utilities',
-  'Insurance',
-  'Office Expenses',
-  'Other'
+  'Materials', 
+  'Sub-contractor',
+  'Office',
+  'Other',
+  'General Conditions',
+  'Equipment'
 ];
 
 export function BulkExpenseDialog({ open, onOpenChange, onExpensesCreated }: BulkExpenseDialogProps) {
@@ -173,7 +168,7 @@ export function BulkExpenseDialog({ open, onOpenChange, onExpensesCreated }: Bul
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <p className="text-sm text-gray-600">
-              Enter multiple expenses at once. All fields are optional except project, description, and amount.
+              Enter multiple expenses at once. Only project, description, and amount are required.
             </p>
             <Button onClick={addExpenseRow} variant="outline" size="sm">
               <Plus className="w-4 h-4 mr-2" />

@@ -17,6 +17,16 @@ interface CreateExpenseDialogProps {
   onExpenseCreated: () => void;
 }
 
+const EXPENSE_CATEGORIES = [
+  'Labor',
+  'Materials', 
+  'Sub-contractor',
+  'Office',
+  'Other',
+  'General Conditions',
+  'Equipment'
+];
+
 export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCreated }: CreateExpenseDialogProps) {
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -100,8 +110,8 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
   };
 
   const handleSave = async () => {
-    if (!formData.project_id || !formData.category || !formData.description || !formData.amount) {
-      toast.error('Please fill in all required fields');
+    if (!formData.project_id || !formData.description || !formData.amount) {
+      toast.error('Please fill in project, description, and amount');
       return;
     }
 
@@ -111,7 +121,7 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
         .from('expenses')
         .insert({
           project_id: formData.project_id,
-          category: formData.category,
+          category: formData.category || 'Other',
           description: formData.description,
           amount: parseFloat(formData.amount),
           date: formData.date,
@@ -190,18 +200,17 @@ export function CreateExpenseDialog({ open, onOpenChange, projectId, onExpenseCr
           </div>
 
           <div>
-            <Label htmlFor="category">Category *</Label>
+            <Label htmlFor="category">Category</Label>
             <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
               <SelectTrigger>
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Materials">Materials</SelectItem>
-                <SelectItem value="Labor">Labor</SelectItem>
-                <SelectItem value="Equipment">Equipment</SelectItem>
-                <SelectItem value="Travel">Travel</SelectItem>
-                <SelectItem value="Office">Office</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
+                {EXPENSE_CATEGORIES.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

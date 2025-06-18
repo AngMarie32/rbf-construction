@@ -51,7 +51,8 @@ import {
   Trash2,
   Clock,
   Check,
-  MoreHorizontal
+  MoreHorizontal,
+  Undo
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -196,6 +197,18 @@ export default function Expenses() {
     }
   };
 
+  const undoApproval = async (id: string, currentStatus: string) => {
+    let previousStatus = 'Field Approval';
+    
+    if (currentStatus === 'Office Approval') {
+      previousStatus = 'Field Approval';
+    } else if (currentStatus === 'Paid') {
+      previousStatus = 'Office Approval';
+    }
+    
+    await updateExpenseStatus(id, previousStatus);
+  };
+
   const handleViewExpense = (expense: Expense) => {
     console.log('Viewing expense:', expense);
     setSelectedExpense(expense);
@@ -253,6 +266,10 @@ export default function Expenses() {
 
   const canReject = (status: string) => {
     return status === 'Field Approval' || status === 'Office Approval';
+  };
+
+  const canUndo = (status: string) => {
+    return status === 'Office Approval' || status === 'Paid';
   };
 
   const getNextStatus = (currentStatus: string) => {
@@ -476,6 +493,19 @@ export default function Expenses() {
                           >
                             <X className="w-3 h-3 mr-1" />
                             Reject
+                          </Button>
+                        )}
+
+                        {/* Undo Button - Only show if can undo */}
+                        {canUndo(expense.status) && (
+                          <Button 
+                            size="sm"
+                            variant="outline"
+                            onClick={() => undoApproval(expense.id, expense.status)}
+                            className="h-6 px-2 text-xs"
+                          >
+                            <Undo className="w-3 h-3 mr-1" />
+                            Undo
                           </Button>
                         )}
                       </div>

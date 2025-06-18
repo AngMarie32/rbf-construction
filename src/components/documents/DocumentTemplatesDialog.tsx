@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { FileText, Download, Plus, Search, Trash2, Edit } from 'lucide-react';
+import { FileText, Download, Plus, Search, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -123,6 +123,13 @@ export function DocumentTemplatesDialog({
     }
   };
 
+  const handleUseTemplate = (template: DocumentTemplate) => {
+    console.log('Using template:', template);
+    onUseTemplate(template);
+    toast.success(`Using template: ${template.name}`);
+    onOpenChange(false);
+  };
+
   const filteredTemplates = templates.filter(template =>
     template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     template.description.toLowerCase().includes(searchTerm.toLowerCase())
@@ -235,7 +242,7 @@ export function DocumentTemplatesDialog({
                       <div className="flex gap-2 pt-2">
                         <Button
                           size="sm"
-                          onClick={() => onUseTemplate(template)}
+                          onClick={() => handleUseTemplate(template)}
                           className="flex-1"
                         >
                           <Plus className="w-4 h-4 mr-1" />
