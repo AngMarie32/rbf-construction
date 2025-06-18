@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -28,16 +27,15 @@ import { SubcontractorImportDialog } from '@/components/subcontractors/Subcontra
 
 interface Subcontractor {
   id: string;
-  company_name: string;
-  contact_name?: string;
+  name: string;
+  company?: string;
   email?: string;
   phone?: string;
-  specialty: string;
+  specialties: string[];
   address?: string;
   city?: string;
   state?: string;
   zip_code?: string;
-  license_number?: string;
   rating?: number;
   notes?: string;
   created_at: string;
@@ -71,16 +69,15 @@ export default function Subcontractors() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSubcontractor, setEditingSubcontractor] = useState<Subcontractor | null>(null);
   const [formData, setFormData] = useState({
-    company_name: '',
-    contact_name: '',
+    name: '',
+    company: '',
     email: '',
     phone: '',
-    specialty: '',
+    specialties: [] as string[],
     address: '',
     city: '',
     state: '',
     zip_code: '',
-    license_number: '',
     rating: '',
     notes: ''
   });
@@ -98,7 +95,7 @@ export default function Subcontractors() {
       const { data, error } = await supabase
         .from('subcontractors')
         .select('*')
-        .order('company_name');
+        .order('name');
 
       if (error) throw error;
       setSubcontractors(data || []);
@@ -115,14 +112,14 @@ export default function Subcontractors() {
 
     if (searchTerm) {
       filtered = filtered.filter(sub =>
-        sub.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sub.contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sub.specialty.toLowerCase().includes(searchTerm.toLowerCase())
+        sub.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sub.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sub.specialties?.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
     if (specialtyFilter !== 'all') {
-      filtered = filtered.filter(sub => sub.specialty === specialtyFilter);
+      filtered = filtered.filter(sub => sub.specialties?.includes(specialtyFilter));
     }
 
     setFilteredSubcontractors(filtered);
@@ -130,16 +127,15 @@ export default function Subcontractors() {
 
   const resetForm = () => {
     setFormData({
-      company_name: '',
-      contact_name: '',
+      name: '',
+      company: '',
       email: '',
       phone: '',
-      specialty: '',
+      specialties: [],
       address: '',
       city: '',
       state: '',
       zip_code: '',
-      license_number: '',
       rating: '',
       notes: ''
     });
@@ -151,8 +147,17 @@ export default function Subcontractors() {
     
     try {
       const submitData = {
-        ...formData,
-        rating: formData.rating ? parseFloat(formData.rating) : null
+        name: formData.name,
+        company: formData.company,
+        email: formData.email,
+        phone: formData.phone,
+        specialties: formData.specialties,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        zip_code: formData.zip_code,
+        rating: formData.rating ? parseFloat(formData.rating) : null,
+        notes: formData.notes
       };
 
       if (editingSubcontractor) {
@@ -183,16 +188,15 @@ export default function Subcontractors() {
 
   const handleEdit = (subcontractor: Subcontractor) => {
     setFormData({
-      company_name: subcontractor.company_name,
-      contact_name: subcontractor.contact_name || '',
+      name: subcontractor.name || '',
+      company: subcontractor.company || '',
       email: subcontractor.email || '',
       phone: subcontractor.phone || '',
-      specialty: subcontractor.specialty,
+      specialties: subcontractor.specialties || ['Other'],
       address: subcontractor.address || '',
       city: subcontractor.city || '',
       state: subcontractor.state || '',
       zip_code: subcontractor.zip_code || '',
-      license_number: subcontractor.license_number || '',
       rating: subcontractor.rating?.toString() || '',
       notes: subcontractor.notes || ''
     });
@@ -289,21 +293,21 @@ export default function Subcontractors() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="company_name">Company Name</Label>
+                      <Label htmlFor="name">Contact Name</Label>
                       <Input
-                        id="company_name"
-                        value={formData.company_name}
-                        onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                        placeholder="Enter company name"
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Enter contact name"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="contact_name">Contact Name</Label>
+                      <Label htmlFor="company">Company Name</Label>
                       <Input
-                        id="contact_name"
-                        value={formData.contact_name}
-                        onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-                        placeholder="Enter contact name"
+                        id="company"
+                        value={formData.company}
+                        onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                        placeholder="Enter company name"
                       />
                     </div>
                   </div>
@@ -330,31 +334,23 @@ export default function Subcontractors() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="specialty">Specialty</Label>
-                      <Select value={formData.specialty} onValueChange={(value) => setFormData({ ...formData, specialty: value })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select specialty" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {specialties.map(specialty => (
-                            <SelectItem key={specialty} value={specialty}>
-                              {specialty}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="license_number">License Number</Label>
-                      <Input
-                        id="license_number"
-                        value={formData.license_number}
-                        onChange={(e) => setFormData({ ...formData, license_number: e.target.value })}
-                        placeholder="Enter license number"
-                      />
-                    </div>
+                  <div>
+                    <Label htmlFor="specialties">Specialties</Label>
+                    <Select 
+                      value={formData.specialties[0] || ''} 
+                      onValueChange={(value) => setFormData({ ...formData, specialties: [value] })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select specialty" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {specialties.map(specialty => (
+                          <SelectItem key={specialty} value={specialty}>
+                            {specialty}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div>
@@ -445,9 +441,11 @@ export default function Subcontractors() {
                   <div className="flex-1">
                     <CardTitle className="text-lg mb-1 flex items-center gap-2">
                       <Building className="w-5 h-5" />
-                      {subcontractor.company_name}
+                      {subcontractor.company || subcontractor.name}
                     </CardTitle>
-                    <Badge variant="secondary">{subcontractor.specialty}</Badge>
+                    <Badge variant="secondary">
+                      {subcontractor.specialties?.[0] || 'Other'}
+                    </Badge>
                   </div>
                   <div className="flex gap-1">
                     <Button
@@ -469,10 +467,10 @@ export default function Subcontractors() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                {subcontractor.contact_name && (
+                {subcontractor.name && subcontractor.company && (
                   <div className="flex items-center text-sm text-gray-600">
                     <User className="w-4 h-4 mr-2" />
-                    {subcontractor.contact_name}
+                    {subcontractor.name}
                   </div>
                 )}
                 
@@ -496,13 +494,6 @@ export default function Subcontractors() {
                     {[subcontractor.address, subcontractor.city, subcontractor.state]
                       .filter(Boolean)
                       .join(', ')}
-                  </div>
-                )}
-                
-                {subcontractor.license_number && (
-                  <div className="flex items-center text-sm text-gray-600">
-                    <FileText className="w-4 h-4 mr-2" />
-                    License: {subcontractor.license_number}
                   </div>
                 )}
                 

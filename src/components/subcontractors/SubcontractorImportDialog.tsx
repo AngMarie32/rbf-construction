@@ -59,16 +59,15 @@ export function SubcontractorImportDialog({ onImportComplete }: SubcontractorImp
     setIsLoading(true);
     try {
       const subcontractorData = previewData.map(row => ({
-        company_name: row['Company Name'] || row.company_name || '',
-        contact_name: row['Contact Name'] || row.contact_name || '',
+        name: row['Company Name'] || row.company_name || row['Company'] || '',
+        company: row['Company Name'] || row.company_name || row['Company'] || '',
         email: row['Email'] || row.email || '',
         phone: row['Phone'] || row.phone || '',
-        specialty: row['Specialty'] || row.specialty || 'Other',
+        specialties: [row['Specialty'] || row.specialty || 'Other'],
         address: row['Address'] || row.address || '',
         city: row['City'] || row.city || '',
         state: row['State'] || row.state || '',
         zip_code: row['Zip Code'] || row.zip_code || '',
-        license_number: row['License Number'] || row.license_number || '',
         rating: row['Rating'] ? parseFloat(row['Rating']) : null,
         notes: row['Notes'] || row.notes || ''
       }));
@@ -108,7 +107,7 @@ export function SubcontractorImportDialog({ onImportComplete }: SubcontractorImp
           <Alert>
             <FileSpreadsheet className="h-4 w-4" />
             <AlertDescription>
-              Upload a CSV file with columns: Company Name, Contact Name, Email, Phone, Specialty, Address, City, State, Zip Code, License Number, Rating, Notes
+              Upload a CSV file with columns: Company Name, Email, Phone, Specialty, Address, City, State, Zip Code, Rating, Notes
             </AlertDescription>
           </Alert>
 
@@ -131,7 +130,6 @@ export function SubcontractorImportDialog({ onImportComplete }: SubcontractorImp
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-2 py-1 text-left">Company</th>
-                      <th className="px-2 py-1 text-left">Contact</th>
                       <th className="px-2 py-1 text-left">Email</th>
                       <th className="px-2 py-1 text-left">Phone</th>
                       <th className="px-2 py-1 text-left">Specialty</th>
@@ -140,8 +138,7 @@ export function SubcontractorImportDialog({ onImportComplete }: SubcontractorImp
                   <tbody>
                     {previewData.slice(0, 10).map((row, index) => (
                       <tr key={index} className="border-t">
-                        <td className="px-2 py-1">{row['Company Name'] || row.company_name}</td>
-                        <td className="px-2 py-1">{row['Contact Name'] || row.contact_name}</td>
+                        <td className="px-2 py-1">{row['Company Name'] || row.company_name || row['Company']}</td>
                         <td className="px-2 py-1">{row['Email'] || row.email}</td>
                         <td className="px-2 py-1">{row['Phone'] || row.phone}</td>
                         <td className="px-2 py-1">{row['Specialty'] || row.specialty}</td>
