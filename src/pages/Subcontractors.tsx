@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Edit, Trash2, Phone, Mail, MoreHorizontal, Grid3X3, List, Search, Filter, Calendar, ArrowUpDown, CheckCircle, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { BulkSubcontractorDialog } from '@/components/subcontractors/BulkSubcontractorDialog';
 
 interface Subcontractor {
   id: string;

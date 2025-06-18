@@ -67,15 +67,25 @@ export function ProjectCard({
         .reduce((sum, exp) => sum + exp.amount, 0) || 0;
 
       const pending = expenses
-        ?.filter(exp => exp.status === 'Pending Field Approval' || exp.status ===
-'Pending Office Approval')
+        ?.filter(exp => exp.status === 'Pending Field Approval' || exp.status === 'Pending Office Approval')
         .reduce((sum, exp) => sum + exp.amount, 0) || 0;
 
       setPaidExpenses(paid);
       setPendingExpenses(pending);
 
+      // Get billing data
+      const { data: billing, error: billingError } = await supabase
+        .from('project_billing')
+        .select('billed_amount, paid_amount')
+        .eq('project_id', project.id);
+
+      if (billingError) throw billingError;
+
+      const totalBilledFromDB = billing?.reduce((sum, bill) => sum + bill.billed_amount, 0) || 0;
+      const totalReceivedFromDB = billing?.reduce((sum, bill) => sum + bill.paid_amount, 0) || 0;
+
       // Calculate remaining amount (contract value - total billed)
-      const remaining = project.contractValue - totalBilled;
+      const remaining = project.contractValue - totalBilledFromDB;
       setRemainingAmount(remaining);
     } catch (error) {
       console.error('Error fetching project financials:', error);
@@ -170,45 +180,59 @@ export function ProjectCard({
             <Progress value={project.completionPercentage} className="h-2" />
           </div>
 
-          {/* Financial Snapshot */}
-          <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-            <div className="space-y-1">
-              <div className="flex items-center text-xs text-gray-500">
-                <DollarSign className="w-3 h-3 mr-1" />
-                Contract Value
-              </div>
-              <div className="text-sm font-semibold">
-                ${project.contractValue.toLocaleString()}
-              </div>
-            </div>
+          {/* Enhanced Financial Snapshot */}
+          <div className="bg-gray-50 rounded-lg p-3 space-y-3">
+            <h4 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-1">
+              Financial Snapshot
+            </h4>
             
-            <div className="space-y-1">
-              <div className="flex items-center text-xs text-gray-500">
-                <TrendingUp className="w-3 h-3 mr-1" />
-                Remaining
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white p-2 rounded border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-xs text-gray-500">
+                    <DollarSign className="w-3 h-3 mr-1" />
+                    Contract
+                  </div>
+                  <div className="text-sm font-bold text-gray-900">
+                    ${project.contractValue.toLocaleString()}
+                  </div>
+                </div>
               </div>
-              <div className="text-sm font-semibold text-green-600">
-                ${remainingAmount.toLocaleString()}
+              
+              <div className="bg-white p-2 rounded border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-xs text-green-600">
+                    <TrendingUp className="w-3 h-3 mr-1" />
+                    Remaining
+                  </div>
+                  <div className="text-sm font-bold text-green-600">
+                    ${remainingAmount.toLocaleString()}
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-1">
-              <div className="flex items-center text-xs text-gray-500">
-                <TrendingDown className="w-3 h-3 mr-1" />
-                Expenses Paid
+              <div className="bg-white p-2 rounded border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-xs text-red-600">
+                    <TrendingDown className="w-3 h-3 mr-1" />
+                    Expenses Paid
+                  </div>
+                  <div className="text-sm font-bold text-red-600">
+                    ${paidExpenses.toLocaleString()}
+                  </div>
+                </div>
               </div>
-              <div className="text-sm font-semibold text-red-600">
-                ${paidExpenses.toLocaleString()}
-              </div>
-            </div>
 
-            <div className="space-y-1">
-              <div className="flex items-center text-xs text-gray-500">
-                <Clock className="w-3 h-3 mr-1" />
-                Pending Expenses
-              </div>
-              <div className="text-sm font-semibold text-orange-600">
-                ${pendingExpenses.toLocaleString()}
+              <div className="bg-white p-2 rounded border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-xs text-orange-600">
+                    <Clock className="w-3 h-3 mr-1" />
+                    Pending
+                  </div>
+                  <div className="text-sm font-bold text-orange-600">
+                    ${pendingExpenses.toLocaleString()}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
