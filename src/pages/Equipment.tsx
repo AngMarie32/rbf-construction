@@ -15,6 +15,7 @@ import { MaintenanceDialog } from '@/components/equipment/MaintenanceDialog';
 import { MaintenanceView } from '@/components/equipment/MaintenanceView';
 import { EquipmentEstimator } from '@/components/equipment/EquipmentEstimator';
 import { EditEquipmentDialog } from '@/components/equipment/EditEquipmentDialog';
+import { EquipmentImportDialog } from '@/components/equipment/EquipmentImportDialog';
 import { useEquipment } from '@/hooks/useEquipment';
 import { EquipmentService } from '@/services/equipmentService';
 import type { Equipment } from '@/types/equipment';
@@ -225,6 +226,7 @@ export default function Equipment() {
                     <List className="w-4 h-4" />
                   </Button>
                 </div>
+                <EquipmentImportDialog onImportComplete={fetchEquipment} />
                 <NewEquipmentDialog onEquipmentCreated={fetchEquipment} />
               </div>
             </div>

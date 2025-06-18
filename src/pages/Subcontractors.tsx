@@ -47,7 +47,9 @@ const SPECIALTY_OPTIONS = [
   'Masonry',
   'Windows & Doors',
   'Insulation',
-  'Tile Work'
+  'Tile Work',
+  'Asphalt',
+  'Other'
 ];
 
 export default function Subcontractors() {
@@ -122,8 +124,8 @@ export default function Subcontractors() {
 
     try {
       const subcontractorData = {
-        company: newSubcontractor.company,
-        name: newSubcontractor.name,
+        company: newSubcontractor.company || null,
+        name: newSubcontractor.name || null,
         email: newSubcontractor.email || null,
         phone: newSubcontractor.phone || null,
         address: newSubcontractor.address || null,
@@ -316,7 +318,7 @@ export default function Subcontractors() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="company">Company Name *</Label>
+                    <Label htmlFor="company">Company Name</Label>
                     <Input
                       id="company"
                       value={newSubcontractor.company}
@@ -325,7 +327,7 @@ export default function Subcontractors() {
                   </div>
 
                   <div>
-                    <Label htmlFor="name">Contact Person *</Label>
+                    <Label htmlFor="name">Contact Person</Label>
                     <Input
                       id="name"
                       value={newSubcontractor.name}
@@ -573,28 +575,28 @@ export default function Subcontractors() {
                   {filteredAndSortedSubcontractors.map((subcontractor) => (
                     <TableRow key={subcontractor.id}>
                       <TableCell>
-                        <div>
-                          <div className="font-medium">{subcontractor.company}</div>
-                          <div className="text-sm text-gray-500">{subcontractor.name}</div>
-                        </div>
+                        <div className="font-medium">{subcontractor.company || 'N/A'}</div>
                       </TableCell>
                       <TableCell>
                         {(subcontractor.specialties && subcontractor.specialties[0]) || 'N/A'}
                       </TableCell>
                       <TableCell>
-                        <div className="space-y-1">
-                          {subcontractor.email && (
-                            <div className="flex items-center text-sm text-gray-600">
-                              <Mail className="w-3 h-3 mr-1" />
-                              {subcontractor.email}
-                            </div>
-                          )}
-                          {subcontractor.phone && (
-                            <div className="flex items-center text-sm text-gray-600">
-                              <Phone className="w-3 h-3 mr-1" />
-                              {subcontractor.phone}
-                            </div>
-                          )}
+                        <div>
+                          <div className="font-medium text-sm">{subcontractor.name || 'N/A'}</div>
+                          <div className="space-y-1">
+                            {subcontractor.email && (
+                              <div className="flex items-center text-sm text-gray-600">
+                                <Mail className="w-3 h-3 mr-1" />
+                                {subcontractor.email}
+                              </div>
+                            )}
+                            {subcontractor.phone && (
+                              <div className="flex items-center text-sm text-gray-600">
+                                <Phone className="w-3 h-3 mr-1" />
+                                {subcontractor.phone}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
