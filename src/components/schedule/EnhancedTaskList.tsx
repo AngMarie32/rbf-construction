@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
-import { MoreHorizontal, Edit, Trash2, Calendar, User, Clock } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, Calendar, User, Clock, Link } from 'lucide-react';
 import { Task } from '@/types';
 import { TaskPriorityIndicator, TaskPriority } from './TaskPriorityIndicator';
 import { format } from 'date-fns';
@@ -23,6 +23,7 @@ interface EnhancedTaskListProps {
   onTaskUpdate: (taskId: string, updates: Partial<Task>) => void;
   onTaskDelete: (taskId: string) => void;
   onTaskEdit: (task: Task) => void;
+  onEditDependencies?: (task: Task) => void;
   selectedTasks?: string[];
   onSelectionChange?: (selectedTasks: string[]) => void;
 }
@@ -34,6 +35,7 @@ export function EnhancedTaskList({
   onTaskUpdate,
   onTaskDelete,
   onTaskEdit,
+  onEditDependencies,
   selectedTasks = [],
   onSelectionChange
 }: EnhancedTaskListProps) {
@@ -199,6 +201,17 @@ export function EnhancedTaskList({
                       </div>
                       
                       <div className="flex items-center gap-2">
+                        {onEditDependencies && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onEditDependencies(task)}
+                            className="h-8 w-8 p-0"
+                            title="Edit Dependencies"
+                          >
+                            <Link className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -247,6 +260,14 @@ export function EnhancedTaskList({
                       </div>
                       <Progress value={task.progress} className="h-2" />
                     </div>
+
+                    {task.dependencies.length > 0 && (
+                      <div className="mt-2">
+                        <div className="text-xs text-gray-500">
+                          Dependencies: {task.dependencies.length} task(s)
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -14,8 +14,9 @@ interface Template {
   id: string;
   name: string;
   description: string;
-  category: string;
   created_at: string;
+  updated_at: string;
+  is_default: boolean;
 }
 
 interface ManageTemplatesDialogProps {
@@ -30,8 +31,7 @@ export function ManageTemplatesDialog({ open, onOpenChange }: ManageTemplatesDia
   const [isCreating, setIsCreating] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
-    category: 'Change Order'
+    description: ''
   });
 
   useEffect(() => {
@@ -104,8 +104,7 @@ export function ManageTemplatesDialog({ open, onOpenChange }: ManageTemplatesDia
     setEditingTemplate(template);
     setFormData({
       name: template.name,
-      description: template.description,
-      category: template.category
+      description: template.description
     });
     setIsCreating(true);
   };
@@ -134,7 +133,7 @@ export function ManageTemplatesDialog({ open, onOpenChange }: ManageTemplatesDia
   };
 
   const resetForm = () => {
-    setFormData({ name: '', description: '', category: 'Change Order' });
+    setFormData({ name: '', description: '' });
     setEditingTemplate(null);
     setIsCreating(false);
   };
