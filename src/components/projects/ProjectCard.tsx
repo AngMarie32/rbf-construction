@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -104,7 +103,7 @@ export function ProjectCard({
   };
 
   const handleCardClick = () => {
-    navigate(`/project/${project.id}`);
+    navigate(`/projects/${project.id}`);
   };
 
   const handleDelete = () => {

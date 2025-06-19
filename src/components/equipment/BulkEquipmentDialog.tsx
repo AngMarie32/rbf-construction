@@ -99,10 +99,10 @@ export function BulkEquipmentDialog({ onEquipmentCreated }: BulkEquipmentDialogP
   };
 
   const handleSave = async () => {
-    const validEquipment = equipment.filter(eq => eq.name && eq.hourly_rate);
+    const validEquipment = equipment.filter(eq => eq.name);
     
     if (validEquipment.length === 0) {
-      toast.error('Please add at least one equipment with name and hourly rate');
+      toast.error('Please add at least one equipment with name');
       return;
     }
 
@@ -121,7 +121,7 @@ export function BulkEquipmentDialog({ onEquipmentCreated }: BulkEquipmentDialogP
         return {
           name: eq.name,
           category: eq.category,
-          hourly_rate: Number(eq.hourly_rate),
+          hourly_rate: eq.hourly_rate ? Number(eq.hourly_rate) : 0,
           year: eq.year ? Number(eq.year) : null,
           value: eq.value ? Number(eq.value) : null,
           status: eq.status,
@@ -217,7 +217,7 @@ export function BulkEquipmentDialog({ onEquipmentCreated }: BulkEquipmentDialogP
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label>Hourly Rate *</Label>
+                  <Label>Hourly Rate</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -320,7 +320,7 @@ export function BulkEquipmentDialog({ onEquipmentCreated }: BulkEquipmentDialogP
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setOpen(false)}>
                 Cancel
-              </Button>
+              </div>
               <Button onClick={handleSave}>
                 Save All Equipment
               </Button>
