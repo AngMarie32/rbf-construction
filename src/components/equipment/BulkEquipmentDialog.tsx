@@ -320,7 +320,7 @@ export function BulkEquipmentDialog({ onEquipmentCreated }: BulkEquipmentDialogP
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setOpen(false)}>
                 Cancel
-              </div>
+              </Button>
               <Button onClick={handleSave}>
                 Save All Equipment
               </Button>
