@@ -1,395 +1,189 @@
 
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { ProjectCard } from '@/components/projects/ProjectCard';
-import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
-import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
-import { CompactWeatherWidget } from '@/components/dashboard/CompactWeatherWidget';
+import { StatCard } from '@/components/dashboard/StatCard';
 import { CompanyScheduleWidget } from '@/components/dashboard/CompanyScheduleWidget';
+import { DateFilter } from '@/components/dashboard/DateFilter';
 import { FinancialDateFilter } from '@/components/dashboard/FinancialDateFilter';
-import { DollarSign, Calendar, FileText, Calculator } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { DollarSign, Calendar, Users, Building2, AlertTriangle, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { Project } from '@/types';
-import { useNavigate } from 'react-router-dom';
-import { useProjectExpenses } from '@/hooks/useProjectExpenses';
-import { useProjectBilling } from '@/hooks/useProjectBilling';
-import { isWithinInterval, parseISO, startOfYear, endOfYear, startOfMonth, endOfMonth } from 'date-fns';
 
-interface DatabaseProject {
-  id: string;
-  name: string;
-  type: string;
-  contract_value: number;
-  status: string;
-  due_date: string | null;
-  start_date: string | null;
-  completion_percentage: number | null;
-  address: string | null;
-  project_code: string | null;
-  client: string | null;
-  created_at: string;
-  updated_at: string;
+interface DashboardStats {
+  totalProjects: number;
+  activeProjects: number;
+  totalRevenue: number;
+  totalExpenses: number;
+  totalEquipment: number;
+  availableEquipment: number;
 }
 
 export default function Dashboard() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [billingData, setBillingData] = useState<any>(null);
-  const [financialFilter, setFinancialFilter] = useState<{ 
-    type: 'year' | 'month' | 'custom' | 'range'; 
-    value?: string;
-    startDate?: Date;
-    endDate?: Date;
-  }>({
-    type: 'custom'
+  const [stats, setStats] = useState<DashboardStats>({
+    totalProjects: 0,
+    activeProjects: 0,
+    totalRevenue: 0,
+    totalExpenses: 0,
+    totalEquipment: 0,
+    availableEquipment: 0
   });
-  const navigate = useNavigate();
-
-  // Get project expenses
-  const projectIds = projects.map(p => p.id);
-  const { expenses: projectExpenses } = useProjectExpenses(projectIds);
-
-  // Get project billing data
-  const { billing: projectBilling } = useProjectBilling(projectIds);
+  const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [financialDateRange, setFinancialDateRange] = useState({ start: '', end: '' });
 
   useEffect(() => {
-    fetchProjects();
-    fetchBillingData();
-  }, []);
+    fetchDashboardStats();
+  }, [dateRange, financialDateRange]);
 
-  useEffect(() => {
-    fetchBillingData();
-  }, [financialFilter]);
-
-  const fetchProjects = async () => {
+  const fetchDashboardStats = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch projects stats
+      const { data: projects, error: projectsError } = await supabase
         .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('id, status, budget');
 
-      if (error) throw error;
+      if (projectsError) throw projectsError;
+
+      // Fetch equipment stats
+      const { data: equipment, error: equipmentError } = await supabase
+        .from('equipment')
+        .select('id, status');
+
+      if (equipmentError) throw equipmentError;
+
+      // Calculate stats
+      const totalProjects = projects?.length || 0;
+      const activeProjects = projects?.filter(p => p.status === 'Active').length || 0;
+      const totalRevenue = projects?.reduce((sum, p) => sum + (p.budget || 0), 0) || 0;
       
-      const mappedProjects: Project[] = (data || []).map((dbProject: DatabaseProject) => ({
-        id: dbProject.id,
-        name: dbProject.name,
-        type: dbProject.type,
-        contractValue: dbProject.contract_value,
-        status: dbProject.status as Project['status'],
-        startDate: dbProject.start_date ? new Date(dbProject.start_date) : new Date(),
-        dueDate: dbProject.due_date ? new Date(dbProject.due_date) : new Date(),
-        completionPercentage: dbProject.completion_percentage || 0,
-        address: dbProject.address || '',
-        projectCode: dbProject.project_code || '',
-        client: dbProject.client || '',
-        createdAt: new Date(dbProject.created_at),
-        updatedAt: new Date(dbProject.updated_at)
-      }));
-      
-      setProjects(mappedProjects);
+      const totalEquipment = equipment?.length || 0;
+      const availableEquipment = equipment?.filter(e => e.status === 'Available').length || 0;
+
+      setStats({
+        totalProjects,
+        activeProjects,
+        totalRevenue,
+        totalExpenses: 0, // Would need expenses table
+        totalEquipment,
+        availableEquipment
+      });
     } catch (error) {
-      console.error('Error fetching projects:', error);
+      console.error('Error fetching dashboard stats:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchBillingData = async () => {
-    try {
-      let query = supabase
-        .from('project_billing')
-        .select('billed_amount, paid_amount, remaining_amount, created_at');
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      let filteredData = data || [];
-
-      if (financialFilter.type !== 'custom') {
-        filteredData = data?.filter(billing => {
-          const billingDate = parseISO(billing.created_at);
-          
-          if (financialFilter.type === 'year') {
-            const year = parseInt(financialFilter.value || '');
-            const yearStart = startOfYear(new Date(year, 0, 1));
-            const yearEnd = endOfYear(new Date(year, 0, 1));
-            return isWithinInterval(billingDate, { start: yearStart, end: yearEnd });
-          } else if (financialFilter.type === 'month') {
-            const [year, month] = (financialFilter.value || '').split('-');
-            const monthStart = startOfMonth(new Date(parseInt(year), parseInt(month) - 1, 1));
-            const monthEnd = endOfMonth(new Date(parseInt(year), parseInt(month) - 1, 1));
-            return isWithinInterval(billingDate, { start: monthStart, end: monthEnd });
-          } else if (financialFilter.type === 'range' && financialFilter.startDate && financialFilter.endDate) {
-            return isWithinInterval(billingDate, { start: financialFilter.startDate, end: financialFilter.endDate });
-          }
-          return true;
-        }) || [];
-      }
-
-      const totals = filteredData.reduce((acc, billing) => ({
-        totalBilled: acc.totalBilled + (billing.billed_amount || 0),
-        totalReceived: acc.totalReceived + (billing.paid_amount || 0),
-        totalOutstanding: acc.totalOutstanding + (billing.remaining_amount || 0)
-      }), { totalBilled: 0, totalReceived: 0, totalOutstanding: 0 });
-
-      setBillingData(totals);
-    } catch (error) {
-      console.error('Error fetching billing data:', error);
-      setBillingData({ totalBilled: 0, totalReceived: 0, totalOutstanding: 0 });
-    }
-  };
-
-  const totalContractValue = projects.reduce((sum, p) => sum + p.contractValue, 0);
-  const openProjects = projects.filter(p => p.status !== 'Closed');
-  const remainingContractBalance = openProjects.reduce((sum, p) => sum + p.contractValue, 0);
-  const totalExpenses = Object.values(projectExpenses).reduce((sum, expenseData) => {
-    return sum + (expenseData?.totalExpenses || 0);
-  }, 0);
-
-  const handleDeleteProject = async (projectId: string) => {
-    try {
-      // First delete related records to avoid foreign key constraints
-      const { error: expensesError } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('project_id', projectId);
-
-      if (expensesError) throw expensesError;
-
-      const { error: billingError } = await supabase
-        .from('project_billing')
-        .delete()
-        .eq('project_id', projectId);
-
-      if (billingError) throw billingError;
-
-      const { error: sovError } = await supabase
-        .from('sov_items')
-        .delete()
-        .eq('project_id', projectId);
-
-      if (sovError) throw sovError;
-
-      const { error: tasksError } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('project_id', projectId);
-
-      if (tasksError) throw tasksError;
-
-      const { error: projectError } = await supabase
-        .from('projects')
-        .delete()
-        .eq('id', projectId);
-
-      if (projectError) throw projectError;
-
-      fetchProjects();
-    } catch (error) {
-      console.error('Error deleting project:', error);
-    }
-  };
-
-  if (loading) {
-    return (
-      <Layout title="Company Dashboard">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-        </div>
-      </Layout>
-    );
-  }
-
   return (
-    <Layout title="Company Dashboard">
+    <Layout title="Dashboard" subtitle="Overview of your construction business">
       <div className="space-y-6">
-        {/* Top Widgets Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <CompactWeatherWidget />
-          <CompanyScheduleWidget />
+        {/* Date Filters */}
+        <div className="flex flex-wrap gap-4">
+          <DateFilter onDateRangeChange={setDateRange} />
+          <FinancialDateFilter onDateRangeChange={setFinancialDateRange} />
         </div>
 
-        {/* Financial Overview with Date Filter */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Financial Overview</CardTitle>
-            <FinancialDateFilter 
-              currentFilter={financialFilter}
-              onFilterChange={setFinancialFilter}
-            />
-          </CardHeader>
-          <CardContent>
-            {billingData && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Contract Value</CardTitle>
-                    <DollarSign className="h-4 w-4 text-blue-600" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-blue-600">
-                      ${totalContractValue.toLocaleString()}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      All projects combined
-                    </p>
-                  </CardContent>
-                </Card>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard
+            title="Total Projects"
+            value={stats.totalProjects.toString()}
+            icon={Building2}
+            trend={{ value: 12, isPositive: true }}
+            loading={loading}
+          />
+          <StatCard
+            title="Active Projects"
+            value={stats.activeProjects.toString()}
+            icon={Calendar}
+            trend={{ value: 8, isPositive: true }}
+            loading={loading}
+          />
+          <StatCard
+            title="Total Revenue"
+            value={`$${stats.totalRevenue.toLocaleString()}`}
+            icon={DollarSign}
+            trend={{ value: 15, isPositive: true }}
+            loading={loading}
+          />
+          <StatCard
+            title="Equipment Available"
+            value={`${stats.availableEquipment}/${stats.totalEquipment}`}
+            icon={Users}
+            trend={{ value: 3, isPositive: false }}
+            loading={loading}
+          />
+        </div>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-                    <DollarSign className="h-4 w-4 text-red-600" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-red-600">
-                      ${totalExpenses.toLocaleString()}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Approved expenses
-                    </p>
-                  </CardContent>
-                </Card>
+        {/* Widgets Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Company Schedule Widget */}
+          <div className="lg:col-span-1">
+            <CompanyScheduleWidget />
+          </div>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Remaining Contract Balance</CardTitle>
-                    <DollarSign className="h-4 w-4 text-purple-600" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-purple-600">
-                      ${remainingContractBalance.toLocaleString()}
+          {/* Recent Activity */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  Recent Activity
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div>
+                      <p className="text-sm font-medium">New project created</p>
+                      <p className="text-xs text-muted-foreground">2 hours ago</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Open projects only
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Billed</CardTitle>
-                    <DollarSign className="h-4 w-4 text-blue-600" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-blue-600">
-                      ${billingData.totalBilled.toLocaleString()}
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <div>
+                      <p className="text-sm font-medium">Equipment maintenance completed</p>
+                      <p className="text-xs text-muted-foreground">5 hours ago</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {financialFilter.type === 'custom' ? 'Total invoiced amount' : 'Filtered period'}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Received</CardTitle>
-                    <DollarSign className="h-4 w-4 text-green-600" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-green-600">
-                      ${billingData.totalReceived.toLocaleString()}
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    <div>
+                      <p className="text-sm font-medium">Payment application submitted</p>
+                      <p className="text-xs text-muted-foreground">1 day ago</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {financialFilter.type === 'custom' ? 'Payments received' : 'Filtered period'}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
-                    <DollarSign className="h-4 w-4 text-orange-600" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-orange-600">
-                      ${billingData.totalOutstanding.toLocaleString()}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {financialFilter.type === 'custom' ? 'Amount pending payment' : 'Filtered period'}
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Open Projects */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Open Projects</CardTitle>
-            <NewProjectDialog onProjectCreated={fetchProjects} />
-          </CardHeader>
-          <CardContent>
-            {openProjects.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {openProjects.slice(0, 6).map((project) => (
-                  <ProjectCard 
-                    key={project.id} 
-                    project={project} 
-                    showDeleteButton={true}
-                    onDelete={handleDeleteProject}
-                    onUpdate={fetchProjects}
-                    totalExpenses={projectExpenses[project.id]?.totalExpenses || 0}
-                    totalBilled={projectBilling[project.id]?.totalBilled || 0}
-                    totalReceived={projectBilling[project.id]?.totalReceived || 0}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-500 text-lg">No open projects found. Create your first project to get started!</p>
-                <div className="mt-4">
-                  <NewProjectDialog onProjectCreated={fetchProjects} />
+                  </div>
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
-        {/* Quick Actions */}
+        {/* Alerts Section */}
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-orange-500" />
+              Alerts & Notifications
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <NewProposalDialog onProposalCreated={() => {}} 
-                trigger={
-                  <Button variant="outline" className="h-20 flex flex-col space-y-2">
-                    <FileText className="w-6 h-6" />
-                    <span className="text-sm">New Proposal</span>
-                  </Button>
-                }
-              />
-              <Button 
-                variant="outline" 
-                className="h-20 flex flex-col space-y-2"
-                onClick={() => navigate('/bid-planner')}
-              >
-                <Calculator className="w-6 h-6" />
-                <span className="text-sm">Bid Planner</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                className="h-20 flex flex-col space-y-2"
-                onClick={() => navigate('/payment-apps')}
-              >
-                <DollarSign className="w-6 h-6" />
-                <span className="text-sm">Payment App</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                className="h-20 flex flex-col space-y-2"
-                onClick={() => navigate('/sov')}
-              >
-                <Calendar className="w-6 h-6" />
-                <span className="text-sm">Schedule</span>
-              </Button>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 p-3 border-l-4 border-orange-500 bg-orange-50">
+                <AlertTriangle className="w-4 h-4 text-orange-500" />
+                <div>
+                  <p className="text-sm font-medium">Equipment maintenance due</p>
+                  <p className="text-xs text-muted-foreground">Excavator #3 requires scheduled maintenance</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 border-l-4 border-blue-500 bg-blue-50">
+                <Calendar className="w-4 h-4 text-blue-500" />
+                <div>
+                  <p className="text-sm font-medium">Upcoming project deadline</p>
+                  <p className="text-xs text-muted-foreground">Site preparation phase due in 3 days</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -10,9 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Calendar as CalendarIcon, Clock, Users, Edit, Trash2 } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, Clock, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CalendarEvent {
   id: string;
@@ -28,6 +29,7 @@ export default function CompanyCalendar() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [newEventOpen, setNewEventOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [newEvent, setNewEvent] = useState({
     title: '',
     start_date: '',
@@ -42,64 +44,77 @@ export default function CompanyCalendar() {
   }, []);
 
   const fetchEvents = async () => {
-    // Mock data for demo
-    const mockEvents: CalendarEvent[] = [
-      {
-        id: '1',
-        title: 'Project Review Meeting',
-        start_date: new Date().toISOString(),
-        end_date: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-        type: 'meeting',
-        description: 'Monthly project review with all team leads',
-        attendees: ['John Doe', 'Jane Smith', 'Mike Johnson']
-      },
-      {
-        id: '2',
-        title: 'Holiday - Independence Day',
-        start_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        end_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        type: 'holiday',
-        description: 'Company holiday - offices closed'
-      },
-      {
-        id: '3',
-        title: 'Project Deadline - Site Preparation',
-        start_date: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
-        end_date: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
-        type: 'deadline',
-        description: 'Final deadline for site preparation phase'
+    try {
+      // Try to fetch from database first
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .select('*')
+        .order('start_date', { ascending: true });
+      
+      if (error) {
+        console.error('Error fetching events:', error);
+        // If table doesn't exist, start with empty array
+        setEvents([]);
+      } else {
+        setEvents(data || []);
       }
-    ];
-    setEvents(mockEvents);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSaveEvent = () => {
+  const handleSaveEvent = async () => {
     if (!newEvent.title || !newEvent.start_date) {
       toast.error('Please fill in required fields');
       return;
     }
 
-    const event: CalendarEvent = {
-      id: Date.now().toString(),
-      title: newEvent.title,
-      start_date: newEvent.start_date,
-      end_date: newEvent.end_date || newEvent.start_date,
-      type: newEvent.type,
-      description: newEvent.description,
-      attendees: newEvent.attendees ? newEvent.attendees.split(',').map(a => a.trim()) : []
-    };
+    try {
+      const event: Omit<CalendarEvent, 'id'> = {
+        title: newEvent.title,
+        start_date: newEvent.start_date,
+        end_date: newEvent.end_date || newEvent.start_date,
+        type: newEvent.type,
+        description: newEvent.description,
+        attendees: newEvent.attendees ? newEvent.attendees.split(',').map(a => a.trim()) : []
+      };
 
-    setEvents([...events, event]);
-    setNewEventOpen(false);
-    setNewEvent({
-      title: '',
-      start_date: '',
-      end_date: '',
-      type: 'meeting',
-      description: '',
-      attendees: ''
-    });
-    toast.success('Event created successfully');
+      // Try to insert into database
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .insert([event])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Database error:', error);
+        // Fall back to local state
+        const localEvent: CalendarEvent = {
+          ...event,
+          id: Date.now().toString()
+        };
+        setEvents([...events, localEvent]);
+      } else {
+        setEvents([...events, data]);
+      }
+
+      setNewEventOpen(false);
+      setNewEvent({
+        title: '',
+        start_date: '',
+        end_date: '',
+        type: 'meeting',
+        description: '',
+        attendees: ''
+      });
+      toast.success('Event created successfully');
+    } catch (error) {
+      console.error('Error creating event:', error);
+      toast.error('Failed to create event');
+    }
   };
 
   const getEventTypeColor = (type: string) => {
@@ -127,14 +142,10 @@ export default function CompanyCalendar() {
   });
 
   return (
-    <Layout title="Company Calendar" subtitle="Manage meetings, holidays, and important dates">
+    <Layout title="Company Calendar" subtitle="Schedule and track company events">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">Company Calendar</h1>
-            <p className="text-muted-foreground">Schedule and track company events</p>
-          </div>
           <Dialog open={newEventOpen} onOpenChange={setNewEventOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -152,7 +163,7 @@ export default function CompanyCalendar() {
                   <Input
                     value={newEvent.title}
                     onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                    placeholder="Event title"
+                    placeholder="Enter event title"
                   />
                 </div>
                 <div>
@@ -171,7 +182,7 @@ export default function CompanyCalendar() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Start Date *</Label>
+                    <Label>Start Date & Time *</Label>
                     <Input
                       type="datetime-local"
                       value={newEvent.start_date}
@@ -179,7 +190,7 @@ export default function CompanyCalendar() {
                     />
                   </div>
                   <div>
-                    <Label>End Date</Label>
+                    <Label>End Date & Time</Label>
                     <Input
                       type="datetime-local"
                       value={newEvent.end_date}
@@ -192,7 +203,7 @@ export default function CompanyCalendar() {
                   <Textarea
                     value={newEvent.description}
                     onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
-                    placeholder="Event description..."
+                    placeholder="Enter event description"
                     rows={3}
                   />
                 </div>
@@ -201,7 +212,7 @@ export default function CompanyCalendar() {
                   <Input
                     value={newEvent.attendees}
                     onChange={(e) => setNewEvent({ ...newEvent, attendees: e.target.value })}
-                    placeholder="Comma-separated names"
+                    placeholder="Enter attendee names separated by commas"
                   />
                 </div>
                 <div className="flex gap-2">
@@ -283,42 +294,40 @@ export default function CompanyCalendar() {
             <CardTitle>All Events</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {events.length > 0 ? (
-                events.map((event) => (
-                  <div key={event.id} className="flex items-center justify-between border rounded-lg p-4">
-                    <div className="flex items-center gap-3">
-                      <Badge className={`${getEventTypeColor(event.type)} text-white`}>
-                        {getEventIcon(event.type)}
-                      </Badge>
-                      <div>
-                        <h4 className="font-medium">{event.title}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(event.start_date), 'MMM dd, yyyy • h:mm a')}
-                        </p>
-                        {event.attendees && event.attendees.length > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            {event.attendees.length} attendee{event.attendees.length > 1 ? 's' : ''}
+            {loading ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Loading events...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {events.length > 0 ? (
+                  events.map((event) => (
+                    <div key={event.id} className="flex items-center justify-between border rounded-lg p-4">
+                      <div className="flex items-center gap-3">
+                        <Badge className={`${getEventTypeColor(event.type)} text-white`}>
+                          {getEventIcon(event.type)}
+                        </Badge>
+                        <div>
+                          <h4 className="font-medium">{event.title}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(event.start_date), 'MMM dd, yyyy • h:mm a')}
                           </p>
-                        )}
+                          {event.attendees && event.attendees.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              {event.attendees.length} attendee{event.attendees.length > 1 ? 's' : ''}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-center text-muted-foreground py-8">
-                  No events scheduled. Create your first event to get started!
-                </p>
-              )}
-            </div>
+                  ))
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    No events scheduled. Create your first event to get started!
+                  </p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

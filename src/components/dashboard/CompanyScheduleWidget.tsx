@@ -29,37 +29,23 @@ export function CompanyScheduleWidget() {
 
   const fetchUpcomingEvents = async () => {
     try {
-      // For demo purposes, use mock data
-      // In production, this would fetch from supabase
-      const mockEvents: CalendarEvent[] = [
-        {
-          id: '1',
-          title: 'Project Review Meeting',
-          start_date: new Date().toISOString(),
-          end_date: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-          type: 'meeting',
-          attendees: ['John Doe', 'Jane Smith']
-        },
-        {
-          id: '2',
-          title: 'Holiday - Independence Day',
-          start_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          end_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          type: 'holiday'
-        },
-        {
-          id: '3',
-          title: 'Project Deadline - Site Prep',
-          start_date: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
-          end_date: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
-          type: 'deadline'
-        }
-      ];
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .select('*')
+        .gte('start_date', new Date().toISOString())
+        .order('start_date', { ascending: true })
+        .limit(3);
       
-      setEvents(mockEvents.slice(0, 3)); // Show only next 3 events
-      setLoading(false);
+      if (error) {
+        console.error('Error fetching events:', error);
+        setEvents([]);
+      } else {
+        setEvents(data || []);
+      }
     } catch (error) {
       console.error('Error fetching events:', error);
+      setEvents([]);
+    } finally {
       setLoading(false);
     }
   };
