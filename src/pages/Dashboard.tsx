@@ -40,7 +40,7 @@ export default function Dashboard() {
       // Fetch projects stats
       const { data: projects, error: projectsError } = await supabase
         .from('projects')
-        .select('id, status, budget');
+        .select('id, status, contract_value');
 
       if (projectsError) throw projectsError;
 
@@ -54,7 +54,7 @@ export default function Dashboard() {
       // Calculate stats
       const totalProjects = projects?.length || 0;
       const activeProjects = projects?.filter(p => p.status === 'Active').length || 0;
-      const totalRevenue = projects?.reduce((sum, p) => sum + (p.budget || 0), 0) || 0;
+      const totalRevenue = projects?.reduce((sum, p) => sum + (p.contract_value || 0), 0) || 0;
       
       const totalEquipment = equipment?.length || 0;
       const availableEquipment = equipment?.filter(e => e.status === 'Available').length || 0;
@@ -74,13 +74,27 @@ export default function Dashboard() {
     }
   };
 
+  const handleDateRangeChange = (range: { from: Date; to: Date }) => {
+    setDateRange({
+      start: range.from.toISOString(),
+      end: range.to.toISOString()
+    });
+  };
+
+  const handleFinancialDateRangeChange = (range: { from: Date; to: Date }) => {
+    setFinancialDateRange({
+      start: range.from.toISOString(),
+      end: range.to.toISOString()
+    });
+  };
+
   return (
     <Layout title="Dashboard" subtitle="Overview of your construction business">
       <div className="space-y-6">
         {/* Date Filters */}
         <div className="flex flex-wrap gap-4">
-          <DateFilter onDateRangeChange={setDateRange} />
-          <FinancialDateFilter onDateRangeChange={setFinancialDateRange} />
+          <DateFilter onDateRangeChange={handleDateRangeChange} />
+          <FinancialDateFilter onDateRangeChange={handleFinancialDateRangeChange} />
         </div>
 
         {/* Stats Grid */}
@@ -88,28 +102,28 @@ export default function Dashboard() {
           <StatCard
             title="Total Projects"
             value={stats.totalProjects.toString()}
-            icon={Building2}
+            icon={<Building2 className="w-5 h-5" />}
             trend={{ value: 12, isPositive: true }}
             loading={loading}
           />
           <StatCard
             title="Active Projects"
             value={stats.activeProjects.toString()}
-            icon={Calendar}
+            icon={<Calendar className="w-5 h-5" />}
             trend={{ value: 8, isPositive: true }}
             loading={loading}
           />
           <StatCard
             title="Total Revenue"
             value={`$${stats.totalRevenue.toLocaleString()}`}
-            icon={DollarSign}
+            icon={<DollarSign className="w-5 h-5" />}
             trend={{ value: 15, isPositive: true }}
             loading={loading}
           />
           <StatCard
             title="Equipment Available"
             value={`${stats.availableEquipment}/${stats.totalEquipment}`}
-            icon={Users}
+            icon={<Users className="w-5 h-5" />}
             trend={{ value: 3, isPositive: false }}
             loading={loading}
           />
