@@ -149,7 +149,9 @@ export default function CompanyCalendar() {
           title: editingEvent.title,
           description: editingEvent.description,
           type: editingEvent.type,
-          attendees: editingEvent.attendees
+          attendees: editingEvent.attendees,
+          recurring_type: editingEvent.recurring_type,
+          recurring_days: editingEvent.recurring_days
         })
         .eq('id', editingEvent.id);
 
@@ -230,6 +232,22 @@ export default function CompanyCalendar() {
     return holidayDate.toDateString() === selectedDate.toDateString();
   });
 
+  const handleRecurringDayToggle = (day: number, checked: boolean) => {
+    if (checked) {
+      setNewEvent(prev => ({
+        ...prev,
+        recurring_days: [...prev.recurring_days, day]
+      }));
+    } else {
+      setNewEvent(prev => ({
+        ...prev,
+        recurring_days: prev.recurring_days.filter(d => d !== day)
+      }));
+    }
+  };
+
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
   return (
     <Layout title="Company Calendar" subtitle="Schedule and track company events">
       <div className="space-y-6">
@@ -309,6 +327,23 @@ export default function CompanyCalendar() {
                     </SelectContent>
                   </Select>
                 </div>
+                {newEvent.recurring_type === 'weekly' && (
+                  <div>
+                    <Label>Repeat on days</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      {dayNames.map((day, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`day-${index}`}
+                            checked={newEvent.recurring_days.includes(index)}
+                            onCheckedChange={(checked) => handleRecurringDayToggle(index, checked as boolean)}
+                          />
+                          <Label htmlFor={`day-${index}`} className="text-sm">{day}</Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <Label>Description</Label>
                   <Textarea
@@ -410,6 +445,11 @@ export default function CompanyCalendar() {
                             Attendees: {event.attendees.join(', ')}
                           </p>
                         )}
+                        {event.recurring_type && event.recurring_type !== 'none' && (
+                          <p className="text-xs text-blue-600 font-medium">
+                            Recurring: {event.recurring_type}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -502,6 +542,20 @@ export default function CompanyCalendar() {
                       <SelectItem value="holiday">Holiday</SelectItem>
                       <SelectItem value="deadline">Deadline</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Recurring</Label>
+                  <Select value={editingEvent.recurring_type || 'none'} onValueChange={(value) => setEditingEvent({ ...editingEvent, recurring_type: value as CalendarEvent['recurring_type'] })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Repeat</SelectItem>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

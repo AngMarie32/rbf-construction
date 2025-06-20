@@ -604,6 +604,8 @@ export type Database = {
           description: string | null
           end_date: string
           id: string
+          recurring_days: number[] | null
+          recurring_type: string | null
           start_date: string
           title: string
           type: string
@@ -615,6 +617,8 @@ export type Database = {
           description?: string | null
           end_date: string
           id?: string
+          recurring_days?: number[] | null
+          recurring_type?: string | null
           start_date: string
           title: string
           type: string
@@ -626,6 +630,8 @@ export type Database = {
           description?: string | null
           end_date?: string
           id?: string
+          recurring_days?: number[] | null
+          recurring_type?: string | null
           start_date?: string
           title?: string
           type?: string
