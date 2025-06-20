@@ -10,6 +10,7 @@ interface StatCardProps {
   changeType?: 'positive' | 'negative' | 'neutral';
   icon?: ReactNode;
   className?: string;
+  loading?: boolean;
 }
 
 export function StatCard({ 
@@ -18,7 +19,8 @@ export function StatCard({
   change, 
   changeType = 'neutral', 
   icon, 
-  className 
+  className,
+  loading = false
 }: StatCardProps) {
   return (
     <Card className={cn("animate-fade-in", className)}>
@@ -26,8 +28,12 @@ export function StatCard({
         <div className="flex items-center justify-between">
           <div className="flex-1">
             <p className="text-sm font-medium text-gray-600">{title}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-2">{value}</p>
-            {change && (
+            {loading ? (
+              <div className="h-8 bg-muted rounded animate-pulse mt-2"></div>
+            ) : (
+              <p className="text-2xl font-bold text-gray-900 mt-2">{value}</p>
+            )}
+            {change && !loading && (
               <p className={cn(
                 "text-sm mt-1",
                 changeType === 'positive' && "text-green-600",
