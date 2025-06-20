@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { ProfessionalProjectReport } from '@/components/reports/ProfessionalProjectReport';
+import { toast } from 'sonner';
 import type { Project } from '@/types';
 
 export default function Projects() {
@@ -66,6 +67,7 @@ export default function Projects() {
       setProjects(typedData);
     } catch (error) {
       console.error('Error fetching projects:', error);
+      toast.error('Failed to load projects');
     } finally {
       setLoading(false);
     }
@@ -99,35 +101,35 @@ export default function Projects() {
 
   const handleDeleteProject = async (projectId: string) => {
     try {
-      // First delete related records to avoid foreign key constraints
-      const { error: expensesError } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('project_id', projectId);
+      console.log('Deleting project:', projectId);
+      
+      // Delete in correct order to avoid foreign key constraint issues
+      const tablesToClean = [
+        'billing_line_items',
+        'project_billing', 
+        'expenses',
+        'sov_items',
+        'tasks',
+        'equipment_reservations',
+        'project_subcontractors',
+        'burn_records',
+        'budget_alerts',
+        'budget_forecasts',
+        'budget_variances'
+      ];
 
-      if (expensesError) throw expensesError;
-
-      // Delete other related records
-      const { error: billingError } = await supabase
-        .from('project_billing')
-        .delete()
-        .eq('project_id', projectId);
-
-      if (billingError) throw billingError;
-
-      const { error: sovError } = await supabase
-        .from('sov_items')
-        .delete()
-        .eq('project_id', projectId);
-
-      if (sovError) throw sovError;
-
-      const { error: tasksError } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('project_id', projectId);
-
-      if (tasksError) throw tasksError;
+      // Clean up related records
+      for (const table of tablesToClean) {
+        const { error } = await supabase
+          .from(table)
+          .delete()
+          .eq('project_id', projectId);
+        
+        if (error) {
+          console.warn(`Warning cleaning ${table}:`, error);
+          // Continue with deletion even if some related records fail
+        }
+      }
 
       // Finally delete the project
       const { error: projectError } = await supabase
@@ -135,11 +137,17 @@ export default function Projects() {
         .delete()
         .eq('id', projectId);
 
-      if (projectError) throw projectError;
+      if (projectError) {
+        console.error('Error deleting project:', projectError);
+        throw projectError;
+      }
 
-      fetchProjects();
+      // Update local state
+      setProjects(prev => prev.filter(p => p.id !== projectId));
+      toast.success('Project deleted successfully');
     } catch (error) {
       console.error('Error deleting project:', error);
+      toast.error('Failed to delete project. Please try again.');
     }
   };
 
@@ -155,7 +163,7 @@ export default function Projects() {
 
   if (showReports) {
     return (
-      <Layout title="Project Reports" subtitle="Professional project reports">
+      <Layout title="Report Snapshot" subtitle="Professional project reports">
         <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Button variant="outline" onClick={() => setShowReports(false)}>
@@ -247,7 +255,7 @@ export default function Projects() {
 
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setShowReports(true)}>
-              Professional Reports
+              Report Snapshot
             </Button>
             <NewProjectDialog onProjectCreated={fetchProjects} />
           </div>

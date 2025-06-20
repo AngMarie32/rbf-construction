@@ -1,11 +1,9 @@
 
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { StatCard } from '@/components/dashboard/StatCard';
-import { CompanyScheduleWidget } from '@/components/dashboard/CompanyScheduleWidget';
 import { DateFilter } from '@/components/dashboard/DateFilter';
 import { FinancialDateFilter } from '@/components/dashboard/FinancialDateFilter';
-import { DollarSign, Calendar, Users, Building2, TrendingUp, Plus } from 'lucide-react';
+import { DollarSign, Calendar, Users, Building2, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -193,89 +191,79 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Company Schedule Widget */}
-          <div className="lg:col-span-1">
-            <CompanyScheduleWidget />
-          </div>
-
-          {/* Financial Overview - Expanded across remaining space */}
-          <div className="lg:col-span-3">
-            <Card>
-              <CardHeader className="pb-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl">Financial Overview</CardTitle>
-                  <div className="flex gap-2 text-xs">
-                    <Button variant="outline" size="sm">This Year</Button>
-                    <Button variant="outline" size="sm">This Month</Button>
-                    <Button variant="outline" size="sm">Last Month</Button>
-                    <Button variant="outline" size="sm">Date Range</Button>
-                    <Button variant="default" size="sm">All Time</Button>
-                  </div>
+        {/* Financial Overview - Full Width Row */}
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl">Financial Overview</CardTitle>
+              <div className="flex gap-2 text-xs">
+                <Button variant="outline" size="sm">This Year</Button>
+                <Button variant="outline" size="sm">This Month</Button>
+                <Button variant="outline" size="sm">Last Month</Button>
+                <Button variant="outline" size="sm">Date Range</Button>
+                <Button variant="default" size="sm">All Time</Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-5 gap-6">
+              <div className="text-center">
+                <div className="flex items-center justify-center text-blue-600 mb-2">
+                  <DollarSign className="w-5 h-5 mr-1" />
+                  <span className="text-sm font-medium">Total Contract Value</span>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-5 gap-6">
-                  <div className="text-center">
-                    <div className="flex items-center justify-center text-blue-600 mb-2">
-                      <DollarSign className="w-5 h-5 mr-1" />
-                      <span className="text-sm font-medium">Total Contract Value</span>
-                    </div>
-                    <div className="text-2xl font-bold text-blue-600">
-                      ${stats.totalRevenue.toLocaleString()}
-                    </div>
-                    <div className="text-xs text-muted-foreground">All projects combined</div>
-                  </div>
-
-                  <div className="text-center">
-                    <div className="flex items-center justify-center text-red-600 mb-2">
-                      <DollarSign className="w-5 h-5 mr-1" />
-                      <span className="text-sm font-medium">Total Expenses</span>
-                    </div>
-                    <div className="text-2xl font-bold text-red-600">
-                      ${totalExpensesPaid.toLocaleString()}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Approved expenses</div>
-                  </div>
-
-                  <div className="text-center">
-                    <div className="flex items-center justify-center text-purple-600 mb-2">
-                      <DollarSign className="w-5 h-5 mr-1" />
-                      <span className="text-sm font-medium">Remaining Contract Balance</span>
-                    </div>
-                    <div className="text-2xl font-bold text-purple-600">
-                      ${remainingContract.toLocaleString()}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Open projects only</div>
-                  </div>
-
-                  <div className="text-center">
-                    <div className="flex items-center justify-center text-blue-600 mb-2">
-                      <DollarSign className="w-5 h-5 mr-1" />
-                      <span className="text-sm font-medium">Total Billed</span>
-                    </div>
-                    <div className="text-2xl font-bold text-blue-600">
-                      ${totalBilled.toLocaleString()}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Total invoiced amount</div>
-                  </div>
-
-                  <div className="text-center">
-                    <div className="flex items-center justify-center text-green-600 mb-2">
-                      <DollarSign className="w-5 h-5 mr-1" />
-                      <span className="text-sm font-medium">Total Received</span>
-                    </div>
-                    <div className="text-2xl font-bold text-green-600">
-                      ${totalReceived.toLocaleString()}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Payments received</div>
-                  </div>
+                <div className="text-2xl font-bold text-blue-600">
+                  ${stats.totalRevenue.toLocaleString()}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+                <div className="text-xs text-muted-foreground">All projects combined</div>
+              </div>
+
+              <div className="text-center">
+                <div className="flex items-center justify-center text-red-600 mb-2">
+                  <DollarSign className="w-5 h-5 mr-1" />
+                  <span className="text-sm font-medium">Total Expenses</span>
+                </div>
+                <div className="text-2xl font-bold text-red-600">
+                  ${totalExpensesPaid.toLocaleString()}
+                </div>
+                <div className="text-xs text-muted-foreground">Approved expenses</div>
+              </div>
+
+              <div className="text-center">
+                <div className="flex items-center justify-center text-purple-600 mb-2">
+                  <DollarSign className="w-5 h-5 mr-1" />
+                  <span className="text-sm font-medium">Remaining Contract Balance</span>
+                </div>
+                <div className="text-2xl font-bold text-purple-600">
+                  ${remainingContract.toLocaleString()}
+                </div>
+                <div className="text-xs text-muted-foreground">Open projects only</div>
+              </div>
+
+              <div className="text-center">
+                <div className="flex items-center justify-center text-blue-600 mb-2">
+                  <DollarSign className="w-5 h-5 mr-1" />
+                  <span className="text-sm font-medium">Total Billed</span>
+                </div>
+                <div className="text-2xl font-bold text-blue-600">
+                  ${totalBilled.toLocaleString()}
+                </div>
+                <div className="text-xs text-muted-foreground">Total invoiced amount</div>
+              </div>
+
+              <div className="text-center">
+                <div className="flex items-center justify-center text-green-600 mb-2">
+                  <DollarSign className="w-5 h-5 mr-1" />
+                  <span className="text-sm font-medium">Total Received</span>
+                </div>
+                <div className="text-2xl font-bold text-green-600">
+                  ${totalReceived.toLocaleString()}
+                </div>
+                <div className="text-xs text-muted-foreground">Payments received</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Open Projects */}
         <Card>
@@ -307,20 +295,22 @@ export default function Dashboard() {
                           </Badge>
                         </div>
 
-                        {project.client && (
+                        <div className="space-y-2">
+                          {project.client && (
+                            <div className="flex items-center text-sm text-gray-600">
+                              <Users className="w-4 h-4 mr-2" />
+                              <span>{project.client}</span>
+                            </div>
+                          )}
+
+                          {project.address && (
+                            <div className="text-sm text-gray-600 truncate">{project.address}</div>
+                          )}
+
                           <div className="flex items-center text-sm text-gray-600">
-                            <Users className="w-4 h-4 mr-2" />
-                            {project.client}
+                            <Calendar className="w-4 h-4 mr-2" />
+                            <span>Due: {format(new Date(project.due_date), 'MMM dd, yyyy')}</span>
                           </div>
-                        )}
-
-                        {project.address && (
-                          <div className="text-sm text-gray-600 truncate">{project.address}</div>
-                        )}
-
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Calendar className="w-4 h-4 mr-2" />
-                          Due: {format(new Date(project.due_date), 'MMM dd, yyyy')}
                         </div>
 
                         <div className="space-y-2">
