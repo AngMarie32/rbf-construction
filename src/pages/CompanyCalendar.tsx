@@ -87,7 +87,7 @@ export default function CompanyCalendar() {
         type: event.type as CalendarEvent['type'],
         description: event.description,
         attendees: event.attendees,
-        recurring_type: event.recurring_type || 'none',
+        recurring_type: (event.recurring_type as CalendarEvent['recurring_type']) || 'none',
         recurring_days: event.recurring_days || []
       }));
 
