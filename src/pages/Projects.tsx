@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -103,33 +102,63 @@ export default function Projects() {
     try {
       console.log('Deleting project:', projectId);
       
-      // Delete in correct order to avoid foreign key constraint issues
-      const tablesToClean = [
-        'billing_line_items',
-        'project_billing', 
-        'expenses',
-        'sov_items',
-        'tasks',
-        'equipment_reservations',
-        'project_subcontractors',
-        'burn_records',
-        'budget_alerts',
-        'budget_forecasts',
-        'budget_variances'
-      ];
-
-      // Clean up related records
-      for (const table of tablesToClean) {
-        const { error } = await supabase
-          .from(table)
-          .delete()
-          .eq('project_id', projectId);
-        
-        if (error) {
-          console.warn(`Warning cleaning ${table}:`, error);
-          // Continue with deletion even if some related records fail
-        }
-      }
+      // Delete related records in correct order to avoid foreign key constraint issues
+      // Using explicit calls instead of loop to satisfy TypeScript
+      
+      const { error: billingLineItemsError } = await supabase
+        .from('billing_line_items')
+        .delete()
+        .eq('billing_id', projectId);
+      
+      const { error: projectBillingError } = await supabase
+        .from('project_billing')
+        .delete()
+        .eq('project_id', projectId);
+      
+      const { error: expensesError } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('project_id', projectId);
+      
+      const { error: sovItemsError } = await supabase
+        .from('sov_items')
+        .delete()
+        .eq('project_id', projectId);
+      
+      const { error: tasksError } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('project_id', projectId);
+      
+      const { error: equipmentReservationsError } = await supabase
+        .from('equipment_reservations')
+        .delete()
+        .eq('project_id', projectId);
+      
+      const { error: projectSubcontractorsError } = await supabase
+        .from('project_subcontractors')
+        .delete()
+        .eq('project_id', projectId);
+      
+      const { error: burnRecordsError } = await supabase
+        .from('burn_records')
+        .delete()
+        .eq('project_id', projectId);
+      
+      const { error: budgetAlertsError } = await supabase
+        .from('budget_alerts')
+        .delete()
+        .eq('project_id', projectId);
+      
+      const { error: budgetForecastsError } = await supabase
+        .from('budget_forecasts')
+        .delete()
+        .eq('project_id', projectId);
+      
+      const { error: budgetVariancesError } = await supabase
+        .from('budget_variances')
+        .delete()
+        .eq('project_id', projectId);
 
       // Finally delete the project
       const { error: projectError } = await supabase
