@@ -1,9 +1,11 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { NewProposalDialog } from '@/components/proposals/NewProposalDialog';
-import { WeatherWidget } from '@/components/dashboard/WeatherWidget';
+import { CompactWeatherWidget } from '@/components/dashboard/CompactWeatherWidget';
+import { CompanyScheduleWidget } from '@/components/dashboard/CompanyScheduleWidget';
 import { FinancialDateFilter } from '@/components/dashboard/FinancialDateFilter';
 import { DollarSign, Calendar, FileText, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -204,9 +206,10 @@ export default function Dashboard() {
   return (
     <Layout title="Company Dashboard">
       <div className="space-y-6">
-        {/* Weather Widget */}
-        <div className="grid grid-cols-1 gap-6">
-          <WeatherWidget />
+        {/* Top Widgets Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <CompactWeatherWidget />
+          <CompanyScheduleWidget />
         </div>
 
         {/* Financial Overview with Date Filter */}

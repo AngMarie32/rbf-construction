@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +15,9 @@ import {
   Trash2,
   TrendingUp,
   TrendingDown,
-  Clock
+  Clock,
+  CreditCard,
+  CheckCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { EditProjectDialog } from './EditProjectDialog';
@@ -45,6 +48,8 @@ export function ProjectCard({
   const [paidExpenses, setPaidExpenses] = useState(0);
   const [pendingExpenses, setPendingExpenses] = useState(0);
   const [remainingAmount, setRemainingAmount] = useState(0);
+  const [billedAmount, setBilledAmount] = useState(0);
+  const [receivedAmount, setReceivedAmount] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -82,6 +87,9 @@ export function ProjectCard({
 
       const totalBilledFromDB = billing?.reduce((sum, bill) => sum + bill.billed_amount, 0) || 0;
       const totalReceivedFromDB = billing?.reduce((sum, bill) => sum + bill.paid_amount, 0) || 0;
+
+      setBilledAmount(totalBilledFromDB);
+      setReceivedAmount(totalReceivedFromDB);
 
       // Calculate remaining amount (contract value - total billed)
       const remaining = project.contractValue - totalBilledFromDB;
@@ -185,7 +193,7 @@ export function ProjectCard({
               Financial Snapshot
             </h4>
             
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <div className="bg-white p-2 rounded border">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center text-xs text-gray-500">
@@ -206,6 +214,30 @@ export function ProjectCard({
                   </div>
                   <div className="text-sm font-bold text-green-600">
                     ${remainingAmount.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-2 rounded border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-xs text-blue-600">
+                    <CreditCard className="w-3 h-3 mr-1" />
+                    Billed
+                  </div>
+                  <div className="text-sm font-bold text-blue-600">
+                    ${billedAmount.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-2 rounded border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-xs text-green-700">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    Received
+                  </div>
+                  <div className="text-sm font-bold text-green-700">
+                    ${receivedAmount.toLocaleString()}
                   </div>
                 </div>
               </div>
