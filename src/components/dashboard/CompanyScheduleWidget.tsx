@@ -29,30 +29,33 @@ export function CompanyScheduleWidget() {
 
   const fetchUpcomingEvents = async () => {
     try {
-      // For now, use sample data since TypeScript types haven't been regenerated
-      // This will be replaced with real database calls once types are updated
-      const sampleEvents: CalendarEvent[] = [
-        {
-          id: '1',
-          title: 'Weekly Team Meeting',
-          start_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
-          end_date: new Date(Date.now() + 24 * 60 * 60 * 1000 + 60 * 60 * 1000).toISOString(),
-          type: 'meeting',
-          description: 'Weekly team sync and project updates',
-          attendees: ['Project Manager', 'Field Supervisor']
-        },
-        {
-          id: '2',
-          title: 'Client Site Visit',
-          start_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
-          end_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(),
-          type: 'meeting',
-          description: 'On-site visit with client for progress review',
-          attendees: ['Client', 'Project Manager']
-        }
-      ];
-      
-      setEvents(sampleEvents);
+      // Get events for the next 7 days
+      const today = new Date();
+      const nextWeek = new Date();
+      nextWeek.setDate(today.getDate() + 7);
+
+      const { data: eventsData, error } = await supabase
+        .from('calendar_events')
+        .select('*')
+        .gte('start_date', today.toISOString())
+        .lte('start_date', nextWeek.toISOString())
+        .order('start_date', { ascending: true })
+        .limit(5);
+
+      if (error) throw error;
+
+      // Transform the data to match our interface
+      const transformedEvents: CalendarEvent[] = (eventsData || []).map(event => ({
+        id: event.id,
+        title: event.title,
+        start_date: event.start_date,
+        end_date: event.end_date,
+        type: event.type as CalendarEvent['type'],
+        description: event.description,
+        attendees: event.attendees
+      }));
+
+      setEvents(transformedEvents);
     } catch (error) {
       console.error('Error fetching events:', error);
       setEvents([]);

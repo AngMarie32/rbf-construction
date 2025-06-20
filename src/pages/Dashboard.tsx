@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { CompanyScheduleWidget } from '@/components/dashboard/CompanyScheduleWidget';
 import { DateFilter } from '@/components/dashboard/DateFilter';
 import { FinancialDateFilter } from '@/components/dashboard/FinancialDateFilter';
-import { DollarSign, Calendar, Users, Building2, AlertTriangle, TrendingUp, Plus } from 'lucide-react';
+import { DollarSign, Calendar, Users, Building2, TrendingUp, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -194,14 +193,14 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Company Schedule Widget */}
           <div className="lg:col-span-1">
             <CompanyScheduleWidget />
           </div>
 
-          {/* Financial Overview */}
-          <div className="lg:col-span-2">
+          {/* Financial Overview - Expanded */}
+          <div className="lg:col-span-3">
             <Card>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
@@ -289,107 +288,85 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {openProjects.map((project) => (
-                <Card key={project.id} className="cursor-pointer hover:shadow-md transition-shadow"
-                      onClick={() => navigate(`/projects/${project.id}`)}>
-                  <CardContent className="p-4">
-                    <div className="space-y-3">
-                      <div>
-                        <h3 className="font-semibold text-lg">{project.name}</h3>
-                        <Badge className={`${getStatusColor(project.status)} text-white text-xs`}>
-                          {project.status}
-                        </Badge>
-                      </div>
+            {loading ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Loading projects...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {openProjects.map((project) => (
+                  <Card key={project.id} className="cursor-pointer hover:shadow-md transition-shadow"
+                        onClick={() => navigate(`/projects/${project.id}`)}>
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
+                        <div>
+                          <h3 className="font-semibold text-lg">{project.name}</h3>
+                          <Badge className={`${getStatusColor(project.status)} text-white text-xs`}>
+                            {project.status}
+                          </Badge>
+                        </div>
 
-                      {project.client && (
+                        {project.client && (
+                          <div className="flex items-center text-sm text-gray-600">
+                            <Users className="w-4 h-4 mr-2" />
+                            {project.client}
+                          </div>
+                        )}
+
+                        {project.address && (
+                          <div className="text-sm text-gray-600 truncate">{project.address}</div>
+                        )}
+
                         <div className="flex items-center text-sm text-gray-600">
-                          <Users className="w-4 h-4 mr-2" />
-                          {project.client}
+                          <Calendar className="w-4 h-4 mr-2" />
+                          Due: {format(new Date(project.due_date), 'MMM dd, yyyy')}
                         </div>
-                      )}
 
-                      {project.address && (
-                        <div className="text-sm text-gray-600 truncate">{project.address}</div>
-                      )}
-
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        Due: {format(new Date(project.due_date), 'MMM dd, yyyy')}
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium">Progress</span>
-                          <span className="text-sm text-gray-600">{project.completion_percentage}%</span>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium">Progress</span>
+                            <span className="text-sm text-gray-600">{project.completion_percentage}%</span>
+                          </div>
+                          <Progress value={project.completion_percentage} className="h-2" />
                         </div>
-                        <Progress value={project.completion_percentage} className="h-2" />
-                      </div>
 
-                      {/* Financial Snapshot */}
-                      <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                        <h4 className="text-sm font-semibold text-gray-700">Financial Snapshot</h4>
-                        
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div className="flex justify-between">
-                            <span className="text-blue-600">Contract</span>
-                            <span className="font-semibold">${project.contract_value.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-green-600">Remaining</span>
-                            <span className="font-semibold">${(project.contract_value - project.totalBilled).toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-blue-600">Billed</span>
-                            <span className="font-semibold">${project.totalBilled.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-green-600">Received</span>
-                            <span className="font-semibold">${project.totalReceived.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-red-600">Expenses Paid</span>
-                            <span className="font-semibold">${project.expensesPaid.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-orange-600">Pending</span>
-                            <span className="font-semibold">${project.pendingExpenses.toLocaleString()}</span>
+                        {/* Financial Snapshot */}
+                        <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                          <h4 className="text-sm font-semibold text-gray-700">Financial Snapshot</h4>
+                          
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-blue-600">Contract</span>
+                              <span className="font-semibold">${project.contract_value.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-green-600">Remaining</span>
+                              <span className="font-semibold">${(project.contract_value - project.totalBilled).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-blue-600">Billed</span>
+                              <span className="font-semibold">${project.totalBilled.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-green-600">Received</span>
+                              <span className="font-semibold">${project.totalReceived.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-red-600">Expenses Paid</span>
+                              <span className="font-semibold">${project.expensesPaid.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-orange-600">Pending</span>
+                              <span className="font-semibold">${project.pendingExpenses.toLocaleString()}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Alerts Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-orange-500" />
-              Alerts & Notifications
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 border-l-4 border-orange-500 bg-orange-50">
-                <AlertTriangle className="w-4 h-4 text-orange-500" />
-                <div>
-                  <p className="text-sm font-medium">Equipment maintenance due</p>
-                  <p className="text-xs text-muted-foreground">Excavator #3 requires scheduled maintenance</p>
-                </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-              <div className="flex items-center gap-3 p-3 border-l-4 border-blue-500 bg-blue-50">
-                <Calendar className="w-4 h-4 text-blue-500" />
-                <div>
-                  <p className="text-sm font-medium">Upcoming project deadline</p>
-                  <p className="text-xs text-muted-foreground">Site preparation phase due in 3 days</p>
-                </div>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

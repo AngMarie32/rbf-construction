@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,8 +31,9 @@ export default function CompanyCalendar() {
   const [loading, setLoading] = useState(true);
   const [newEvent, setNewEvent] = useState({
     title: '',
-    start_date: '',
-    end_date: '',
+    date: '',
+    start_time: '',
+    end_time: '',
     type: 'meeting' as CalendarEvent['type'],
     description: '',
     attendees: ''
@@ -45,9 +45,25 @@ export default function CompanyCalendar() {
 
   const fetchEvents = async () => {
     try {
-      // For now, use local state since TypeScript types haven't been regenerated
-      // This will be replaced with real database calls once types are updated
-      setEvents([]);
+      const { data: eventsData, error } = await supabase
+        .from('calendar_events')
+        .select('*')
+        .order('start_date', { ascending: true });
+
+      if (error) throw error;
+
+      // Transform the data to match our interface
+      const transformedEvents: CalendarEvent[] = (eventsData || []).map(event => ({
+        id: event.id,
+        title: event.title,
+        start_date: event.start_date,
+        end_date: event.end_date,
+        type: event.type as CalendarEvent['type'],
+        description: event.description,
+        attendees: event.attendees
+      }));
+
+      setEvents(transformedEvents);
     } catch (error) {
       console.error('Error fetching events:', error);
       setEvents([]);
@@ -57,31 +73,52 @@ export default function CompanyCalendar() {
   };
 
   const handleSaveEvent = async () => {
-    if (!newEvent.title || !newEvent.start_date) {
-      toast.error('Please fill in required fields');
+    if (!newEvent.title || !newEvent.date || !newEvent.start_time) {
+      toast.error('Please fill in title, date, and start time');
       return;
     }
 
     try {
-      const event: CalendarEvent = {
-        id: Date.now().toString(), // Temporary ID generation
-        title: newEvent.title,
-        start_date: newEvent.start_date,
-        end_date: newEvent.end_date || newEvent.start_date,
-        type: newEvent.type,
-        description: newEvent.description,
-        attendees: newEvent.attendees ? newEvent.attendees.split(',').map(a => a.trim()) : []
+      // Combine date and time into ISO strings
+      const startDateTime = new Date(`${newEvent.date}T${newEvent.start_time}`).toISOString();
+      const endDateTime = newEvent.end_time 
+        ? new Date(`${newEvent.date}T${newEvent.end_time}`).toISOString()
+        : startDateTime;
+
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .insert({
+          title: newEvent.title,
+          start_date: startDateTime,
+          end_date: endDateTime,
+          type: newEvent.type,
+          description: newEvent.description,
+          attendees: newEvent.attendees ? newEvent.attendees.split(',').map(a => a.trim()) : []
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add the new event to local state
+      const newEventData: CalendarEvent = {
+        id: data.id,
+        title: data.title,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        type: data.type as CalendarEvent['type'],
+        description: data.description,
+        attendees: data.attendees
       };
 
-      // For now, just add to local state
-      // This will be replaced with database calls once types are updated
-      setEvents([...events, event]);
+      setEvents([...events, newEventData]);
 
       setNewEventOpen(false);
       setNewEvent({
         title: '',
-        start_date: '',
-        end_date: '',
+        date: '',
+        start_time: '',
+        end_time: '',
         type: 'meeting',
         description: '',
         attendees: ''
@@ -156,21 +193,29 @@ export default function CompanyCalendar() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label>Date *</Label>
+                  <Input
+                    type="date"
+                    value={newEvent.date}
+                    onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Start Date *</Label>
+                    <Label>Start Time *</Label>
                     <Input
-                      type="datetime-local"
-                      value={newEvent.start_date}
-                      onChange={(e) => setNewEvent({ ...newEvent, start_date: e.target.value })}
+                      type="time"
+                      value={newEvent.start_time}
+                      onChange={(e) => setNewEvent({ ...newEvent, start_time: e.target.value })}
                     />
                   </div>
                   <div>
-                    <Label>End Date</Label>
+                    <Label>End Time</Label>
                     <Input
-                      type="datetime-local"
-                      value={newEvent.end_date}
-                      onChange={(e) => setNewEvent({ ...newEvent, end_date: e.target.value })}
+                      type="time"
+                      value={newEvent.end_time}
+                      onChange={(e) => setNewEvent({ ...newEvent, end_time: e.target.value })}
                     />
                   </div>
                 </div>
