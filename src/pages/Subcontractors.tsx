@@ -14,7 +14,11 @@ import {
   Mail,
   Star,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  Grid3X3,
+  List,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -45,6 +49,7 @@ export default function Subcontractors() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showDocumentIssues, setShowDocumentIssues] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
     fetchSubcontractors();
@@ -64,6 +69,23 @@ export default function Subcontractors() {
       toast.error('Failed to load subcontractors');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteSubcontractor = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('subcontractors')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      setSubcontractors(subcontractors.filter(sub => sub.id !== id));
+      toast.success('Subcontractor deleted successfully');
+    } catch (error) {
+      console.error('Error deleting subcontractor:', error);
+      toast.error('Failed to delete subcontractor');
     }
   };
 
@@ -110,6 +132,22 @@ export default function Subcontractors() {
               <Filter className="w-4 h-4 mr-2" />
               Filters
             </Button>
+            <div className="flex border rounded-md">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
           <div className="flex gap-2">
             <Button 
@@ -127,73 +165,168 @@ export default function Subcontractors() {
           </div>
         </div>
 
-        {/* Subcontractors Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredSubcontractors.map((subcontractor) => (
-            <Card key={subcontractor.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-lg">{subcontractor.company}</CardTitle>
-                    <p className="text-sm text-gray-600">{subcontractor.name}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {subcontractor.w9_on_file && (
-                      <FileText className="w-4 h-4 text-green-600" />
-                    )}
-                    <Badge variant={subcontractor.status === 'Active' ? 'default' : 'secondary'}>
-                      {subcontractor.status}
-                    </Badge>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {subcontractor.specialties && subcontractor.specialties.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {subcontractor.specialties.slice(0, 3).map((specialty, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        {specialty}
+        {/* Subcontractors Display */}
+        {viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredSubcontractors.map((subcontractor) => (
+              <Card key={subcontractor.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-lg">{subcontractor.company}</CardTitle>
+                      <p className="text-sm text-gray-600">{subcontractor.name}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {subcontractor.w9_on_file && (
+                        <FileText className="w-4 h-4 text-green-600" />
+                      )}
+                      <Badge variant={subcontractor.status === 'Active' ? 'default' : 'secondary'}>
+                        {subcontractor.status}
                       </Badge>
-                    ))}
-                    {subcontractor.specialties.length > 3 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{subcontractor.specialties.length - 3} more
-                      </Badge>
+                      <div className="flex gap-1 ml-2">
+                        <Button size="sm" variant="ghost">
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={() => handleDeleteSubcontractor(subcontractor.id)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {subcontractor.specialties && subcontractor.specialties.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {subcontractor.specialties.slice(0, 3).map((specialty, index) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {specialty}
+                        </Badge>
+                      ))}
+                      {subcontractor.specialties.length > 3 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{subcontractor.specialties.length - 3} more
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    {subcontractor.email && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Mail className="w-4 h-4 mr-2" />
+                        {subcontractor.email}
+                      </div>
+                    )}
+                    {subcontractor.phone && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Phone className="w-4 h-4 mr-2" />
+                        {subcontractor.phone}
+                      </div>
+                    )}
+                    {subcontractor.city && subcontractor.state && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <MapPin className="w-4 h-4 mr-2" />
+                        {subcontractor.city}, {subcontractor.state}
+                      </div>
                     )}
                   </div>
-                )}
 
-                <div className="space-y-2">
-                  {subcontractor.email && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Mail className="w-4 h-4 mr-2" />
-                      {subcontractor.email}
+                  {subcontractor.rating && (
+                    <div className="flex items-center">
+                      <Star className="w-4 h-4 text-yellow-400 mr-1" />
+                      <span className="text-sm font-medium">{subcontractor.rating}/5</span>
                     </div>
                   )}
-                  {subcontractor.phone && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Phone className="w-4 h-4 mr-2" />
-                      {subcontractor.phone}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <div className="divide-y">
+                {filteredSubcontractors.map((subcontractor) => (
+                  <div key={subcontractor.id} className="p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <h3 className="font-semibold text-lg">{subcontractor.company}</h3>
+                          <p className="text-sm text-gray-600">{subcontractor.name}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {subcontractor.email && (
+                            <div className="flex items-center text-sm text-gray-600">
+                              <Mail className="w-4 h-4 mr-1" />
+                              {subcontractor.email}
+                            </div>
+                          )}
+                          {subcontractor.phone && (
+                            <div className="flex items-center text-sm text-gray-600">
+                              <Phone className="w-4 h-4 mr-1" />
+                              {subcontractor.phone}
+                            </div>
+                          )}
+                          {subcontractor.city && subcontractor.state && (
+                            <div className="flex items-center text-sm text-gray-600">
+                              <MapPin className="w-4 h-4 mr-1" />
+                              {subcontractor.city}, {subcontractor.state}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        {subcontractor.specialties && subcontractor.specialties.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {subcontractor.specialties.slice(0, 2).map((specialty, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {specialty}
+                              </Badge>
+                            ))}
+                            {subcontractor.specialties.length > 2 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{subcontractor.specialties.length - 2}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          {subcontractor.w9_on_file && (
+                            <FileText className="w-4 h-4 text-green-600" />
+                          )}
+                          <Badge variant={subcontractor.status === 'Active' ? 'default' : 'secondary'}>
+                            {subcontractor.status}
+                          </Badge>
+                          {subcontractor.rating && (
+                            <div className="flex items-center">
+                              <Star className="w-4 h-4 text-yellow-400 mr-1" />
+                              <span className="text-sm font-medium">{subcontractor.rating}/5</span>
+                            </div>
+                          )}
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="ghost">
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              onClick={() => handleDeleteSubcontractor(subcontractor.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                  {subcontractor.city && subcontractor.state && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <MapPin className="w-4 h-4 mr-2" />
-                      {subcontractor.city}, {subcontractor.state}
-                    </div>
-                  )}
-                </div>
-
-                {subcontractor.rating && (
-                  <div className="flex items-center">
-                    <Star className="w-4 h-4 text-yellow-400 mr-1" />
-                    <span className="text-sm font-medium">{subcontractor.rating}/5</span>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {filteredSubcontractors.length === 0 && (
           <div className="text-center py-12">

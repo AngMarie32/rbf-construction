@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Calendar as CalendarIcon, Clock, Users } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, Calendar as CalendarIcon, Clock, Users, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,12 +24,21 @@ interface CalendarEvent {
   type: 'meeting' | 'holiday' | 'deadline' | 'other';
   description?: string;
   attendees?: string[];
+  recurring_type?: 'none' | 'daily' | 'weekly' | 'monthly';
+  recurring_days?: number[];
+}
+
+interface Holiday {
+  name: string;
+  date: string;
 }
 
 export default function CompanyCalendar() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [newEventOpen, setNewEventOpen] = useState(false);
+  const [editEventOpen, setEditEventOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [loading, setLoading] = useState(true);
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -36,8 +47,24 @@ export default function CompanyCalendar() {
     end_time: '',
     type: 'meeting' as CalendarEvent['type'],
     description: '',
-    attendees: ''
+    attendees: '',
+    recurring_type: 'none' as CalendarEvent['recurring_type'],
+    recurring_days: [] as number[]
   });
+
+  // Sample holidays for 2025
+  const holidays: Holiday[] = [
+    { name: "New Year's Day", date: "2025-01-01" },
+    { name: "Martin Luther King Jr. Day", date: "2025-01-20" },
+    { name: "Presidents Day", date: "2025-02-17" },
+    { name: "Memorial Day", date: "2025-05-26" },
+    { name: "Independence Day", date: "2025-07-04" },
+    { name: "Labor Day", date: "2025-09-01" },
+    { name: "Columbus Day", date: "2025-10-13" },
+    { name: "Veterans Day", date: "2025-11-11" },
+    { name: "Thanksgiving", date: "2025-11-27" },
+    { name: "Christmas Day", date: "2025-12-25" }
+  ];
 
   useEffect(() => {
     fetchEvents();
@@ -52,7 +79,6 @@ export default function CompanyCalendar() {
 
       if (error) throw error;
 
-      // Transform the data to match our interface
       const transformedEvents: CalendarEvent[] = (eventsData || []).map(event => ({
         id: event.id,
         title: event.title,
@@ -60,7 +86,9 @@ export default function CompanyCalendar() {
         end_date: event.end_date,
         type: event.type as CalendarEvent['type'],
         description: event.description,
-        attendees: event.attendees
+        attendees: event.attendees,
+        recurring_type: event.recurring_type || 'none',
+        recurring_days: event.recurring_days || []
       }));
 
       setEvents(transformedEvents);
@@ -79,7 +107,6 @@ export default function CompanyCalendar() {
     }
 
     try {
-      // Combine date and time into ISO strings
       const startDateTime = new Date(`${newEvent.date}T${newEvent.start_time}`).toISOString();
       const endDateTime = newEvent.end_time 
         ? new Date(`${newEvent.date}T${newEvent.end_time}`).toISOString()
@@ -93,41 +120,80 @@ export default function CompanyCalendar() {
           end_date: endDateTime,
           type: newEvent.type,
           description: newEvent.description,
-          attendees: newEvent.attendees ? newEvent.attendees.split(',').map(a => a.trim()) : []
+          attendees: newEvent.attendees ? newEvent.attendees.split(',').map(a => a.trim()) : [],
+          recurring_type: newEvent.recurring_type,
+          recurring_days: newEvent.recurring_days
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      // Add the new event to local state
-      const newEventData: CalendarEvent = {
-        id: data.id,
-        title: data.title,
-        start_date: data.start_date,
-        end_date: data.end_date,
-        type: data.type as CalendarEvent['type'],
-        description: data.description,
-        attendees: data.attendees
-      };
-
-      setEvents([...events, newEventData]);
-
+      fetchEvents();
       setNewEventOpen(false);
-      setNewEvent({
-        title: '',
-        date: '',
-        start_time: '',
-        end_time: '',
-        type: 'meeting',
-        description: '',
-        attendees: ''
-      });
+      resetNewEvent();
       toast.success('Event created successfully');
     } catch (error) {
       console.error('Error creating event:', error);
       toast.error('Failed to create event');
     }
+  };
+
+  const handleEditEvent = async () => {
+    if (!editingEvent) return;
+
+    try {
+      const { error } = await supabase
+        .from('calendar_events')
+        .update({
+          title: editingEvent.title,
+          description: editingEvent.description,
+          type: editingEvent.type,
+          attendees: editingEvent.attendees
+        })
+        .eq('id', editingEvent.id);
+
+      if (error) throw error;
+
+      fetchEvents();
+      setEditEventOpen(false);
+      setEditingEvent(null);
+      toast.success('Event updated successfully');
+    } catch (error) {
+      console.error('Error updating event:', error);
+      toast.error('Failed to update event');
+    }
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      const { error } = await supabase
+        .from('calendar_events')
+        .delete()
+        .eq('id', eventId);
+
+      if (error) throw error;
+
+      fetchEvents();
+      toast.success('Event deleted successfully');
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      toast.error('Failed to delete event');
+    }
+  };
+
+  const resetNewEvent = () => {
+    setNewEvent({
+      title: '',
+      date: '',
+      start_time: '',
+      end_time: '',
+      type: 'meeting',
+      description: '',
+      attendees: '',
+      recurring_type: 'none',
+      recurring_days: []
+    });
   };
 
   const getEventTypeColor = (type: string) => {
@@ -152,6 +218,16 @@ export default function CompanyCalendar() {
     if (!selectedDate) return false;
     const eventDate = new Date(event.start_date);
     return eventDate.toDateString() === selectedDate.toDateString();
+  });
+
+  const upcomingEvents = events
+    .filter(event => new Date(event.start_date) >= new Date())
+    .slice(0, 5);
+
+  const todaysHolidays = holidays.filter(holiday => {
+    if (!selectedDate) return false;
+    const holidayDate = new Date(holiday.date);
+    return holidayDate.toDateString() === selectedDate.toDateString();
   });
 
   return (
@@ -220,6 +296,20 @@ export default function CompanyCalendar() {
                   </div>
                 </div>
                 <div>
+                  <Label>Recurring</Label>
+                  <Select value={newEvent.recurring_type} onValueChange={(value) => setNewEvent({ ...newEvent, recurring_type: value as CalendarEvent['recurring_type'] })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Repeat</SelectItem>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label>Description</Label>
                   <Textarea
                     value={newEvent.description}
@@ -265,92 +355,183 @@ export default function CompanyCalendar() {
             </CardContent>
           </Card>
 
-          {/* Selected Date Events */}
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {selectedDate ? format(selectedDate, 'MMMM dd, yyyy') : 'Select a date'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {selectedDateEvents.length > 0 ? (
-                <div className="space-y-4">
-                  {selectedDateEvents.map((event) => (
-                    <div key={event.id} className="border rounded-lg p-3">
-                      <div className="flex items-start justify-between mb-2">
+          {/* Right Sidebar */}
+          <div className="space-y-4">
+            {/* Selected Date Events */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">
+                  {selectedDate ? format(selectedDate, 'MMMM dd, yyyy') : 'Select a date'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {selectedDateEvents.length > 0 ? (
+                  <div className="space-y-3">
+                    {selectedDateEvents.map((event) => (
+                      <div key={event.id} className="border rounded-lg p-3">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge className={`${getEventTypeColor(event.type)} text-white`}>
+                              {getEventIcon(event.type)}
+                            </Badge>
+                            <h4 className="font-medium text-sm">{event.title}</h4>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingEvent(event);
+                                setEditEventOpen(true);
+                              }}
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              onClick={() => handleDeleteEvent(event.id)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {format(new Date(event.start_date), 'h:mm a')}
+                          {event.end_date && event.end_date !== event.start_date && 
+                            ` - ${format(new Date(event.end_date), 'h:mm a')}`
+                          }
+                        </p>
+                        {event.description && (
+                          <p className="text-xs text-muted-foreground mb-2">{event.description}</p>
+                        )}
+                        {event.attendees && event.attendees.length > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Attendees: {event.attendees.join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm text-muted-foreground">No events on this date</p>
+                    {todaysHolidays.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-xs font-medium text-red-600 mb-1">Holidays:</p>
+                        {todaysHolidays.map((holiday, index) => (
+                          <p key={index} className="text-xs text-red-600">{holiday.name}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Upcoming Events */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Upcoming Events</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {upcomingEvents.length > 0 ? (
+                  <div className="space-y-2">
+                    {upcomingEvents.map((event) => (
+                      <div key={event.id} className="text-xs">
                         <div className="flex items-center gap-2">
-                          <Badge className={`${getEventTypeColor(event.type)} text-white`}>
+                          <Badge className={`${getEventTypeColor(event.type)} text-white w-4 h-4 p-0 flex items-center justify-center`}>
                             {getEventIcon(event.type)}
                           </Badge>
-                          <h4 className="font-medium text-sm">{event.title}</h4>
+                          <span className="font-medium">{event.title}</span>
                         </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        {format(new Date(event.start_date), 'h:mm a')}
-                        {event.end_date && event.end_date !== event.start_date && 
-                          ` - ${format(new Date(event.end_date), 'h:mm a')}`
-                        }
-                      </p>
-                      {event.description && (
-                        <p className="text-xs text-muted-foreground mb-2">{event.description}</p>
-                      )}
-                      {event.attendees && event.attendees.length > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          Attendees: {event.attendees.join(', ')}
+                        <p className="text-muted-foreground ml-6">
+                          {format(new Date(event.start_date), 'MMM dd • h:mm a')}
                         </p>
-                      )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No upcoming events</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Holidays */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">2025 Holidays</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1">
+                  {holidays.slice(0, 5).map((holiday, index) => (
+                    <div key={index} className="text-xs">
+                      <span className="font-medium">{holiday.name}</span>
+                      <p className="text-muted-foreground">{format(new Date(holiday.date), 'MMM dd')}</p>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No events on this date</p>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        {/* All Events List */}
-        <Card>
-          <CardHeader>
-            <CardTitle>All Events</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">Loading events...</p>
-              </div>
-            ) : (
+        {/* Edit Event Dialog */}
+        <Dialog open={editEventOpen} onOpenChange={setEditEventOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Event</DialogTitle>
+            </DialogHeader>
+            {editingEvent && (
               <div className="space-y-4">
-                {events.length > 0 ? (
-                  events.map((event) => (
-                    <div key={event.id} className="flex items-center justify-between border rounded-lg p-4">
-                      <div className="flex items-center gap-3">
-                        <Badge className={`${getEventTypeColor(event.type)} text-white`}>
-                          {getEventIcon(event.type)}
-                        </Badge>
-                        <div>
-                          <h4 className="font-medium">{event.title}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(event.start_date), 'MMM dd, yyyy • h:mm a')}
-                          </p>
-                          {event.attendees && event.attendees.length > 0 && (
-                            <p className="text-xs text-muted-foreground">
-                              {event.attendees.length} attendee{event.attendees.length > 1 ? 's' : ''}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-center text-muted-foreground py-8">
-                    No events scheduled. Create your first event to get started!
-                  </p>
-                )}
+                <div>
+                  <Label>Title</Label>
+                  <Input
+                    value={editingEvent.title}
+                    onChange={(e) => setEditingEvent({ ...editingEvent, title: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Type</Label>
+                  <Select value={editingEvent.type} onValueChange={(value) => setEditingEvent({ ...editingEvent, type: value as CalendarEvent['type'] })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="meeting">Meeting</SelectItem>
+                      <SelectItem value="holiday">Holiday</SelectItem>
+                      <SelectItem value="deadline">Deadline</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Description</Label>
+                  <Textarea
+                    value={editingEvent.description || ''}
+                    onChange={(e) => setEditingEvent({ ...editingEvent, description: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <Label>Attendees</Label>
+                  <Input
+                    value={editingEvent.attendees?.join(', ') || ''}
+                    onChange={(e) => setEditingEvent({ ...editingEvent, attendees: e.target.value.split(',').map(a => a.trim()) })}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setEditEventOpen(false)} className="flex-1">
+                    Cancel
+                  </Button>
+                  <Button onClick={handleEditEvent} className="flex-1">
+                    Save Changes
+                  </Button>
+                </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

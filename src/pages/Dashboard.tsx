@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -98,7 +99,7 @@ export default function Dashboard() {
         availableEquipment
       });
 
-      // Get open projects with financial data
+      // Get open projects with financial data - include all non-completed projects
       const openProjectsData = projects?.filter(p => 
         p.status === 'Active' || p.status === 'Planning'
       ) || [];
@@ -199,12 +200,12 @@ export default function Dashboard() {
             <CompanyScheduleWidget />
           </div>
 
-          {/* Financial Overview - Expanded */}
+          {/* Financial Overview - Expanded across remaining space */}
           <div className="lg:col-span-3">
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Financial Overview</CardTitle>
+                  <CardTitle className="text-xl">Financial Overview</CardTitle>
                   <div className="flex gap-2 text-xs">
                     <Button variant="outline" size="sm">This Year</Button>
                     <Button variant="outline" size="sm">This Month</Button>
@@ -215,57 +216,57 @@ export default function Dashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-5 gap-4">
+                <div className="grid grid-cols-5 gap-6">
                   <div className="text-center">
-                    <div className="flex items-center justify-center text-blue-600 mb-1">
-                      <DollarSign className="w-4 h-4 mr-1" />
-                      <span className="text-xs font-medium">Total Contract Value</span>
+                    <div className="flex items-center justify-center text-blue-600 mb-2">
+                      <DollarSign className="w-5 h-5 mr-1" />
+                      <span className="text-sm font-medium">Total Contract Value</span>
                     </div>
-                    <div className="text-xl font-bold text-blue-600">
+                    <div className="text-2xl font-bold text-blue-600">
                       ${stats.totalRevenue.toLocaleString()}
                     </div>
                     <div className="text-xs text-muted-foreground">All projects combined</div>
                   </div>
 
                   <div className="text-center">
-                    <div className="flex items-center justify-center text-red-600 mb-1">
-                      <DollarSign className="w-4 h-4 mr-1" />
-                      <span className="text-xs font-medium">Total Expenses</span>
+                    <div className="flex items-center justify-center text-red-600 mb-2">
+                      <DollarSign className="w-5 h-5 mr-1" />
+                      <span className="text-sm font-medium">Total Expenses</span>
                     </div>
-                    <div className="text-xl font-bold text-red-600">
+                    <div className="text-2xl font-bold text-red-600">
                       ${totalExpensesPaid.toLocaleString()}
                     </div>
                     <div className="text-xs text-muted-foreground">Approved expenses</div>
                   </div>
 
                   <div className="text-center">
-                    <div className="flex items-center justify-center text-purple-600 mb-1">
-                      <DollarSign className="w-4 h-4 mr-1" />
-                      <span className="text-xs font-medium">Remaining Contract Balance</span>
+                    <div className="flex items-center justify-center text-purple-600 mb-2">
+                      <DollarSign className="w-5 h-5 mr-1" />
+                      <span className="text-sm font-medium">Remaining Contract Balance</span>
                     </div>
-                    <div className="text-xl font-bold text-purple-600">
+                    <div className="text-2xl font-bold text-purple-600">
                       ${remainingContract.toLocaleString()}
                     </div>
                     <div className="text-xs text-muted-foreground">Open projects only</div>
                   </div>
 
                   <div className="text-center">
-                    <div className="flex items-center justify-center text-blue-600 mb-1">
-                      <DollarSign className="w-4 h-4 mr-1" />
-                      <span className="text-xs font-medium">Total Billed</span>
+                    <div className="flex items-center justify-center text-blue-600 mb-2">
+                      <DollarSign className="w-5 h-5 mr-1" />
+                      <span className="text-sm font-medium">Total Billed</span>
                     </div>
-                    <div className="text-xl font-bold text-blue-600">
+                    <div className="text-2xl font-bold text-blue-600">
                       ${totalBilled.toLocaleString()}
                     </div>
                     <div className="text-xs text-muted-foreground">Total invoiced amount</div>
                   </div>
 
                   <div className="text-center">
-                    <div className="flex items-center justify-center text-green-600 mb-1">
-                      <DollarSign className="w-4 h-4 mr-1" />
-                      <span className="text-xs font-medium">Total Received</span>
+                    <div className="flex items-center justify-center text-green-600 mb-2">
+                      <DollarSign className="w-5 h-5 mr-1" />
+                      <span className="text-sm font-medium">Total Received</span>
                     </div>
-                    <div className="text-xl font-bold text-green-600">
+                    <div className="text-2xl font-bold text-green-600">
                       ${totalReceived.toLocaleString()}
                     </div>
                     <div className="text-xs text-muted-foreground">Payments received</div>
@@ -334,30 +335,30 @@ export default function Dashboard() {
                         <div className="bg-gray-50 rounded-lg p-3 space-y-2">
                           <h4 className="text-sm font-semibold text-gray-700">Financial Snapshot</h4>
                           
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="flex justify-between">
-                              <span className="text-blue-600">Contract</span>
-                              <span className="font-semibold">${project.contract_value.toLocaleString()}</span>
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div className="text-center">
+                              <div className="text-blue-600 font-medium">Contract</div>
+                              <div className="font-bold">${project.contract_value.toLocaleString()}</div>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-green-600">Remaining</span>
-                              <span className="font-semibold">${(project.contract_value - project.totalBilled).toLocaleString()}</span>
+                            <div className="text-center">
+                              <div className="text-green-600 font-medium">Remaining</div>
+                              <div className="font-bold">${(project.contract_value - project.totalBilled).toLocaleString()}</div>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-blue-600">Billed</span>
-                              <span className="font-semibold">${project.totalBilled.toLocaleString()}</span>
+                            <div className="text-center">
+                              <div className="text-blue-600 font-medium">Billed</div>
+                              <div className="font-bold">${project.totalBilled.toLocaleString()}</div>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-green-600">Received</span>
-                              <span className="font-semibold">${project.totalReceived.toLocaleString()}</span>
+                            <div className="text-center">
+                              <div className="text-green-600 font-medium">Received</div>
+                              <div className="font-bold">${project.totalReceived.toLocaleString()}</div>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-red-600">Expenses Paid</span>
-                              <span className="font-semibold">${project.expensesPaid.toLocaleString()}</span>
+                            <div className="text-center">
+                              <div className="text-red-600 font-medium">Expenses Paid</div>
+                              <div className="font-bold">${project.expensesPaid.toLocaleString()}</div>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-orange-600">Pending</span>
-                              <span className="font-semibold">${project.pendingExpenses.toLocaleString()}</span>
+                            <div className="text-center">
+                              <div className="text-orange-600 font-medium">Pending</div>
+                              <div className="font-bold">${project.pendingExpenses.toLocaleString()}</div>
                             </div>
                           </div>
                         </div>
