@@ -28,12 +28,20 @@ export default function Dashboard() {
     availableEquipment: 0
   });
   const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  const [financialDateRange, setFinancialDateRange] = useState({ start: '', end: '' });
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ 
+    from: undefined, 
+    to: undefined 
+  });
+  const [financialFilter, setFinancialFilter] = useState<{ 
+    type: 'year' | 'month' | 'custom' | 'range'; 
+    value?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }>({ type: 'year', value: new Date().getFullYear().toString() });
 
   useEffect(() => {
     fetchDashboardStats();
-  }, [dateRange, financialDateRange]);
+  }, [dateRange, financialFilter]);
 
   const fetchDashboardStats = async () => {
     try {
@@ -74,18 +82,17 @@ export default function Dashboard() {
     }
   };
 
-  const handleDateRangeChange = (range: { from: Date; to: Date }) => {
-    setDateRange({
-      start: range.from.toISOString(),
-      end: range.to.toISOString()
-    });
+  const handleDateRangeChange = (range: { from: Date | undefined; to: Date | undefined }) => {
+    setDateRange(range);
   };
 
-  const handleFinancialDateRangeChange = (range: { from: Date; to: Date }) => {
-    setFinancialDateRange({
-      start: range.from.toISOString(),
-      end: range.to.toISOString()
-    });
+  const handleFinancialFilterChange = (filter: { 
+    type: 'year' | 'month' | 'custom' | 'range'; 
+    value?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }) => {
+    setFinancialFilter(filter);
   };
 
   return (
@@ -93,8 +100,14 @@ export default function Dashboard() {
       <div className="space-y-6">
         {/* Date Filters */}
         <div className="flex flex-wrap gap-4">
-          <DateFilter onDateRangeChange={handleDateRangeChange} />
-          <FinancialDateFilter onDateRangeChange={handleFinancialDateRangeChange} />
+          <DateFilter 
+            dateRange={dateRange}
+            onDateRangeChange={handleDateRangeChange} 
+          />
+          <FinancialDateFilter 
+            currentFilter={financialFilter}
+            onFilterChange={handleFinancialFilterChange} 
+          />
         </div>
 
         {/* Stats Grid */}
@@ -103,28 +116,24 @@ export default function Dashboard() {
             title="Total Projects"
             value={stats.totalProjects.toString()}
             icon={<Building2 className="w-5 h-5" />}
-            trend={{ value: 12, isPositive: true }}
             loading={loading}
           />
           <StatCard
             title="Active Projects"
             value={stats.activeProjects.toString()}
             icon={<Calendar className="w-5 h-5" />}
-            trend={{ value: 8, isPositive: true }}
             loading={loading}
           />
           <StatCard
             title="Total Revenue"
             value={`$${stats.totalRevenue.toLocaleString()}`}
             icon={<DollarSign className="w-5 h-5" />}
-            trend={{ value: 15, isPositive: true }}
             loading={loading}
           />
           <StatCard
             title="Equipment Available"
             value={`${stats.availableEquipment}/${stats.totalEquipment}`}
             icon={<Users className="w-5 h-5" />}
-            trend={{ value: 3, isPositive: false }}
             loading={loading}
           />
         </div>
