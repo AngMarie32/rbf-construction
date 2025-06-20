@@ -5,9 +5,14 @@ import { StatCard } from '@/components/dashboard/StatCard';
 import { CompanyScheduleWidget } from '@/components/dashboard/CompanyScheduleWidget';
 import { DateFilter } from '@/components/dashboard/DateFilter';
 import { FinancialDateFilter } from '@/components/dashboard/FinancialDateFilter';
-import { DollarSign, Calendar, Users, Building2, AlertTriangle, TrendingUp } from 'lucide-react';
+import { DollarSign, Calendar, Users, Building2, AlertTriangle, TrendingUp, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 
 interface DashboardStats {
   totalProjects: number;
@@ -16,6 +21,21 @@ interface DashboardStats {
   totalExpenses: number;
   totalEquipment: number;
   availableEquipment: number;
+}
+
+interface ProjectSummary {
+  id: string;
+  name: string;
+  status: string;
+  contract_value: number;
+  completion_percentage: number;
+  due_date: string;
+  client: string;
+  address: string;
+  totalBilled: number;
+  totalReceived: number;
+  expensesPaid: number;
+  pendingExpenses: number;
 }
 
 export default function Dashboard() {
@@ -27,6 +47,7 @@ export default function Dashboard() {
     totalEquipment: 0,
     availableEquipment: 0
   });
+  const [openProjects, setOpenProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ 
     from: undefined, 
@@ -38,17 +59,19 @@ export default function Dashboard() {
     startDate?: Date;
     endDate?: Date;
   }>({ type: 'year', value: new Date().getFullYear().toString() });
+  
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchDashboardStats();
+    fetchDashboardData();
   }, [dateRange, financialFilter]);
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardData = async () => {
     try {
       // Fetch projects stats
       const { data: projects, error: projectsError } = await supabase
         .from('projects')
-        .select('id, status, contract_value');
+        .select('id, status, contract_value, name, completion_percentage, due_date, client, address');
 
       if (projectsError) throw projectsError;
 
@@ -75,8 +98,51 @@ export default function Dashboard() {
         totalEquipment,
         availableEquipment
       });
+
+      // Get open projects with financial data
+      const openProjectsData = projects?.filter(p => 
+        p.status === 'Active' || p.status === 'Planning'
+      ) || [];
+
+      // Fetch financial data for each project
+      const projectsWithFinancials = await Promise.all(
+        openProjectsData.map(async (project) => {
+          // Get billing data
+          const { data: billing } = await supabase
+            .from('project_billing')
+            .select('billed_amount, paid_amount')
+            .eq('project_id', project.id);
+
+          // Get expenses data
+          const { data: expenses } = await supabase
+            .from('expenses')
+            .select('amount, status')
+            .eq('project_id', project.id);
+
+          const totalBilled = billing?.reduce((sum, bill) => sum + bill.billed_amount, 0) || 0;
+          const totalReceived = billing?.reduce((sum, bill) => sum + bill.paid_amount, 0) || 0;
+          
+          const expensesPaid = expenses
+            ?.filter(exp => exp.status === 'Approved' || exp.status === 'Paid')
+            .reduce((sum, exp) => sum + exp.amount, 0) || 0;
+          
+          const pendingExpenses = expenses
+            ?.filter(exp => exp.status === 'Pending Field Approval' || exp.status === 'Pending Office Approval')
+            .reduce((sum, exp) => sum + exp.amount, 0) || 0;
+
+          return {
+            ...project,
+            totalBilled,
+            totalReceived,
+            expensesPaid,
+            pendingExpenses
+          };
+        })
+      );
+
+      setOpenProjects(projectsWithFinancials);
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
+      console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }
@@ -95,8 +161,25 @@ export default function Dashboard() {
     setFinancialFilter(filter);
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Active': return 'bg-green-500';
+      case 'Planning': return 'bg-blue-500';
+      case 'On Hold': return 'bg-yellow-500';
+      case 'Completed': return 'bg-purple-500';
+      case 'Closed': return 'bg-gray-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const totalBilled = openProjects.reduce((sum, p) => sum + p.totalBilled, 0);
+  const totalReceived = openProjects.reduce((sum, p) => sum + p.totalReceived, 0);
+  const totalExpensesPaid = openProjects.reduce((sum, p) => sum + p.expensesPaid, 0);
+  const remainingContract = stats.totalRevenue - totalBilled;
+  const outstandingAmount = totalBilled - totalReceived;
+
   return (
-    <Layout title="Dashboard" subtitle="Overview of your construction business">
+    <Layout title="Company Dashboard">
       <div className="space-y-6">
         {/* Date Filters */}
         <div className="flex flex-wrap gap-4">
@@ -110,78 +193,177 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard
-            title="Total Projects"
-            value={stats.totalProjects.toString()}
-            icon={<Building2 className="w-5 h-5" />}
-            loading={loading}
-          />
-          <StatCard
-            title="Active Projects"
-            value={stats.activeProjects.toString()}
-            icon={<Calendar className="w-5 h-5" />}
-            loading={loading}
-          />
-          <StatCard
-            title="Total Revenue"
-            value={`$${stats.totalRevenue.toLocaleString()}`}
-            icon={<DollarSign className="w-5 h-5" />}
-            loading={loading}
-          />
-          <StatCard
-            title="Equipment Available"
-            value={`${stats.availableEquipment}/${stats.totalEquipment}`}
-            icon={<Users className="w-5 h-5" />}
-            loading={loading}
-          />
-        </div>
-
-        {/* Widgets Grid */}
+        {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Company Schedule Widget */}
           <div className="lg:col-span-1">
             <CompanyScheduleWidget />
           </div>
 
-          {/* Recent Activity */}
+          {/* Financial Overview */}
           <div className="lg:col-span-2">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  Recent Activity
-                </CardTitle>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Financial Overview</CardTitle>
+                  <div className="flex gap-2 text-xs">
+                    <Button variant="outline" size="sm">This Year</Button>
+                    <Button variant="outline" size="sm">This Month</Button>
+                    <Button variant="outline" size="sm">Last Month</Button>
+                    <Button variant="outline" size="sm">Date Range</Button>
+                    <Button variant="default" size="sm">All Time</Button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <div>
-                      <p className="text-sm font-medium">New project created</p>
-                      <p className="text-xs text-muted-foreground">2 hours ago</p>
+                <div className="grid grid-cols-5 gap-4">
+                  <div className="text-center">
+                    <div className="flex items-center justify-center text-blue-600 mb-1">
+                      <DollarSign className="w-4 h-4 mr-1" />
+                      <span className="text-xs font-medium">Total Contract Value</span>
                     </div>
+                    <div className="text-xl font-bold text-blue-600">
+                      ${stats.totalRevenue.toLocaleString()}
+                    </div>
+                    <div className="text-xs text-muted-foreground">All projects combined</div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <div>
-                      <p className="text-sm font-medium">Equipment maintenance completed</p>
-                      <p className="text-xs text-muted-foreground">5 hours ago</p>
+
+                  <div className="text-center">
+                    <div className="flex items-center justify-center text-red-600 mb-1">
+                      <DollarSign className="w-4 h-4 mr-1" />
+                      <span className="text-xs font-medium">Total Expenses</span>
                     </div>
+                    <div className="text-xl font-bold text-red-600">
+                      ${totalExpensesPaid.toLocaleString()}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Approved expenses</div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <div>
-                      <p className="text-sm font-medium">Payment application submitted</p>
-                      <p className="text-xs text-muted-foreground">1 day ago</p>
+
+                  <div className="text-center">
+                    <div className="flex items-center justify-center text-purple-600 mb-1">
+                      <DollarSign className="w-4 h-4 mr-1" />
+                      <span className="text-xs font-medium">Remaining Contract Balance</span>
                     </div>
+                    <div className="text-xl font-bold text-purple-600">
+                      ${remainingContract.toLocaleString()}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Open projects only</div>
+                  </div>
+
+                  <div className="text-center">
+                    <div className="flex items-center justify-center text-blue-600 mb-1">
+                      <DollarSign className="w-4 h-4 mr-1" />
+                      <span className="text-xs font-medium">Total Billed</span>
+                    </div>
+                    <div className="text-xl font-bold text-blue-600">
+                      ${totalBilled.toLocaleString()}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Total invoiced amount</div>
+                  </div>
+
+                  <div className="text-center">
+                    <div className="flex items-center justify-center text-green-600 mb-1">
+                      <DollarSign className="w-4 h-4 mr-1" />
+                      <span className="text-xs font-medium">Total Received</span>
+                    </div>
+                    <div className="text-xl font-bold text-green-600">
+                      ${totalReceived.toLocaleString()}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Payments received</div>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
+
+        {/* Open Projects */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Open Projects</CardTitle>
+              <Button onClick={() => navigate('/projects')}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Project
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {openProjects.map((project) => (
+                <Card key={project.id} className="cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => navigate(`/projects/${project.id}`)}>
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      <div>
+                        <h3 className="font-semibold text-lg">{project.name}</h3>
+                        <Badge className={`${getStatusColor(project.status)} text-white text-xs`}>
+                          {project.status}
+                        </Badge>
+                      </div>
+
+                      {project.client && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Users className="w-4 h-4 mr-2" />
+                          {project.client}
+                        </div>
+                      )}
+
+                      {project.address && (
+                        <div className="text-sm text-gray-600 truncate">{project.address}</div>
+                      )}
+
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Calendar className="w-4 h-4 mr-2" />
+                        Due: {format(new Date(project.due_date), 'MMM dd, yyyy')}
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">Progress</span>
+                          <span className="text-sm text-gray-600">{project.completion_percentage}%</span>
+                        </div>
+                        <Progress value={project.completion_percentage} className="h-2" />
+                      </div>
+
+                      {/* Financial Snapshot */}
+                      <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                        <h4 className="text-sm font-semibold text-gray-700">Financial Snapshot</h4>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-blue-600">Contract</span>
+                            <span className="font-semibold">${project.contract_value.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-green-600">Remaining</span>
+                            <span className="font-semibold">${(project.contract_value - project.totalBilled).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-blue-600">Billed</span>
+                            <span className="font-semibold">${project.totalBilled.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-green-600">Received</span>
+                            <span className="font-semibold">${project.totalReceived.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-red-600">Expenses Paid</span>
+                            <span className="font-semibold">${project.expensesPaid.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-orange-600">Pending</span>
+                            <span className="font-semibold">${project.pendingExpenses.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Alerts Section */}
         <Card>
