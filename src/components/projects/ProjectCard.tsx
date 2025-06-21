@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,8 +16,7 @@ import {
   TrendingDown,
   Clock,
   CreditCard,
-  CheckCircle,
-  PlayCircle
+  CheckCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { EditProjectDialog } from './EditProjectDialog';
@@ -174,10 +172,6 @@ export function ProjectCard({
                 {project.address}
               </div>
             )}
-            <div className="flex items-center text-sm text-gray-600">
-              <PlayCircle className="w-4 h-4 mr-2" />
-              Started: {format(project.startDate, 'MMM dd, yyyy')}
-            </div>
             <div className="flex items-center text-sm text-gray-600">
               <Calendar className="w-4 h-4 mr-2" />
               Due: {format(project.dueDate, 'MMM dd, yyyy')}

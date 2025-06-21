@@ -8,10 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Calculator, 
   Target,
-  Building2,
-  Lightbulb,
-  CheckCircle2,
-  ArrowRight
+  Building2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -196,70 +193,6 @@ export default function BidPlanner() {
             </CardContent>
           </Card>
         )}
-
-        {/* Quick Start Guide */}
-        <Card className="bg-blue-50 border-blue-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-800">
-              <Lightbulb className="w-5 h-5" />
-              Quick Start Guide
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
-                  1
-                </div>
-                <div>
-                  <h4 className="font-semibold text-blue-800 mb-1">Select Project</h4>
-                  <p className="text-sm text-blue-700">Choose the project you want to create a bid for from the dropdown above.</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
-                  2
-                </div>
-                <div>
-                  <h4 className="font-semibold text-blue-800 mb-1">Add Bid Items</h4>
-                  <p className="text-sm text-blue-700">Use templates or add custom items with quantities, costs, and descriptions.</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
-                  3
-                </div>
-                <div>
-                  <h4 className="font-semibold text-blue-800 mb-1">Export Bid</h4>
-                  <p className="text-sm text-blue-700">Generate professional PDF bid reports for client presentation.</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg p-4 border border-blue-200">
-              <h5 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4" />
-                Pro Tips
-              </h5>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li className="flex items-center gap-2">
-                  <ArrowRight className="w-3 h-3" />
-                  Use bid templates to speed up the process for similar projects
-                </li>
-                <li className="flex items-center gap-2">
-                  <ArrowRight className="w-3 h-3" />
-                  Include detailed descriptions for better client understanding
-                </li>
-                <li className="flex items-center gap-2">
-                  <ArrowRight className="w-3 h-3" />
-                  Review and analyze your bid before exporting to ensure accuracy
-                </li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
 
         <EnhancedBidDialog
           open={createDialogOpen}
