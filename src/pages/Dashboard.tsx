@@ -97,9 +97,9 @@ export default function Dashboard() {
         availableEquipment
       });
 
-      // Get open projects with financial data - include all non-completed projects
+      // Get open projects - all projects except Completed and Closed
       const openProjectsData = projects?.filter(p => 
-        p.status === 'Active' || p.status === 'Planning'
+        p.status !== 'Completed' && p.status !== 'Closed'
       ) || [];
 
       // Fetch financial data for each project

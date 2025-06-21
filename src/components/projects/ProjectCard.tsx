@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -194,75 +193,63 @@ export function ProjectCard({
             </h4>
             
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-white p-2 rounded border">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center text-xs text-gray-500">
-                    <DollarSign className="w-3 h-3 mr-1" />
-                    Contract
-                  </div>
-                  <div className="text-sm font-bold text-gray-900">
-                    ${project.contractValue.toLocaleString()}
-                  </div>
+              <div className="bg-white p-2 rounded border text-center">
+                <div className="flex items-center justify-center text-xs text-gray-500 mb-1">
+                  <DollarSign className="w-3 h-3 mr-1" />
+                  Contract
+                </div>
+                <div className="text-sm font-bold text-gray-900">
+                  ${project.contractValue.toLocaleString()}
                 </div>
               </div>
               
-              <div className="bg-white p-2 rounded border">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center text-xs text-green-600">
-                    <TrendingUp className="w-3 h-3 mr-1" />
-                    Remaining
-                  </div>
-                  <div className="text-sm font-bold text-green-600">
-                    ${remainingAmount.toLocaleString()}
-                  </div>
+              <div className="bg-white p-2 rounded border text-center">
+                <div className="flex items-center justify-center text-xs text-green-600 mb-1">
+                  <TrendingUp className="w-3 h-3 mr-1" />
+                  Remaining
+                </div>
+                <div className="text-sm font-bold text-green-600">
+                  ${remainingAmount.toLocaleString()}
                 </div>
               </div>
 
-              <div className="bg-white p-2 rounded border">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center text-xs text-blue-600">
-                    <CreditCard className="w-3 h-3 mr-1" />
-                    Billed
-                  </div>
-                  <div className="text-sm font-bold text-blue-600">
-                    ${billedAmount.toLocaleString()}
-                  </div>
+              <div className="bg-white p-2 rounded border text-center">
+                <div className="flex items-center justify-center text-xs text-blue-600 mb-1">
+                  <CreditCard className="w-3 h-3 mr-1" />
+                  Billed
+                </div>
+                <div className="text-sm font-bold text-blue-600">
+                  ${billedAmount.toLocaleString()}
                 </div>
               </div>
 
-              <div className="bg-white p-2 rounded border">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center text-xs text-green-700">
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    Received
-                  </div>
-                  <div className="text-sm font-bold text-green-700">
-                    ${receivedAmount.toLocaleString()}
-                  </div>
+              <div className="bg-white p-2 rounded border text-center">
+                <div className="flex items-center justify-center text-xs text-green-700 mb-1">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  Received
+                </div>
+                <div className="text-sm font-bold text-green-700">
+                  ${receivedAmount.toLocaleString()}
                 </div>
               </div>
 
-              <div className="bg-white p-2 rounded border">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center text-xs text-red-600">
-                    <TrendingDown className="w-3 h-3 mr-1" />
-                    Expenses Paid
-                  </div>
-                  <div className="text-sm font-bold text-red-600">
-                    ${paidExpenses.toLocaleString()}
-                  </div>
+              <div className="bg-white p-2 rounded border text-center">
+                <div className="flex items-center justify-center text-xs text-red-600 mb-1">
+                  <TrendingDown className="w-3 h-3 mr-1" />
+                  Expenses Paid
+                </div>
+                <div className="text-sm font-bold text-red-600">
+                  ${paidExpenses.toLocaleString()}
                 </div>
               </div>
 
-              <div className="bg-white p-2 rounded border">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center text-xs text-orange-600">
-                    <Clock className="w-3 h-3 mr-1" />
-                    Pending
-                  </div>
-                  <div className="text-sm font-bold text-orange-600">
-                    ${pendingExpenses.toLocaleString()}
-                  </div>
+              <div className="bg-white p-2 rounded border text-center">
+                <div className="flex items-center justify-center text-xs text-orange-600 mb-1">
+                  <Clock className="w-3 h-3 mr-1" />
+                  Pending
+                </div>
+                <div className="text-sm font-bold text-orange-600">
+                  ${pendingExpenses.toLocaleString()}
                 </div>
               </div>
             </div>
