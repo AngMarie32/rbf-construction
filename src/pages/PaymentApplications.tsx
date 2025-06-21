@@ -1,71 +1,75 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Eye, Download, Delete, FileText, DollarSign, Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { 
+  Search, 
+  Plus, 
+  FileText, 
+  Calendar, 
+  DollarSign,
+  Lightbulb,
+  CheckCircle2,
+  ArrowRight,
+  Download
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
 import { G702Dialog } from '@/components/forms/G702Dialog';
+import { format } from 'date-fns';
 
 interface PaymentApplication {
   id: string;
   project_id: string;
   application_number: number;
   period_to: string;
-  original_contract_sum: number;
-  net_change_by_change_orders: number;
-  contract_sum_to_date: number;
-  total_completed_and_stored?: number;
-  total_retainage?: number;
-  current_payment_due: number;
-  created_at: string;
-  projects?: {
-    name: string;
-    client: string;
-  };
-}
-
-interface Project {
-  id: string;
-  name: string;
+  application_date: string;
+  total_completed_and_stored: number;
   status: string;
+  projects: {
+    name: string;
+  };
 }
 
 export default function PaymentApplications() {
   const [applications, setApplications] = useState<PaymentApplication[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedApplication, setSelectedApplication] = useState<PaymentApplication | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedProject, setSelectedProject] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
+    fetchApplications();
     fetchProjects();
   }, []);
 
   useEffect(() => {
-    if (selectedProject) {
-      fetchApplications();
-    }
-  }, [selectedProject]);
+    fetchApplications();
+  }, [selectedProject, statusFilter]);
 
   const fetchProjects = async () => {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, status')
+        .select('id, name')
         .order('name');
 
       if (error) throw error;
       setProjects(data || []);
-      
-      // Select first project by default
-      if (data && data.length > 0) {
-        setSelectedProject(data[0].id);
-      }
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');
@@ -73,24 +77,26 @@ export default function PaymentApplications() {
   };
 
   const fetchApplications = async () => {
-    if (!selectedProject) return;
-    
     try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('payment_applications_g702')
+      let query = supabase
+        .from('g702_applications')
         .select(`
           *,
-          projects (
-            name,
-            client
-          )
+          projects (name)
         `)
-        .eq('project_id', selectedProject)
-        .order('application_number', { ascending: false });
+        .order('created_at', { ascending: false });
+
+      if (selectedProject !== 'all') {
+        query = query.eq('project_id', selectedProject);
+      }
+
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
-      
       setApplications(data || []);
     } catch (error) {
       console.error('Error fetching applications:', error);
@@ -100,143 +106,26 @@ export default function PaymentApplications() {
     }
   };
 
-  const handleNewApplication = () => {
-    setSelectedApplication(null);
-    setDialogOpen(true);
-  };
-
-  const handleEditApplication = (application: PaymentApplication) => {
-    setSelectedApplication(application);
-    setDialogOpen(true);
-  };
-
-  const handleDeleteApplication = async (id: string, applicationNumber: number) => {
-    if (!confirm('Are you sure you want to delete this payment application? This will also reset SOV progress for this application.')) {
-      return;
-    }
-
-    try {
-      // Get the application to delete
-      const { data: appToDelete, error: fetchError } = await supabase
-        .from('payment_applications_g702')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // Get all applications for this project with higher application numbers
-      const { data: laterApps, error: laterAppsError } = await supabase
-        .from('payment_applications_g702')
-        .select('*')
-        .eq('project_id', selectedProject)
-        .gt('application_number', applicationNumber);
-
-      if (laterAppsError) throw laterAppsError;
-
-      if (laterApps && laterApps.length > 0) {
-        toast.error('Cannot delete this application. Please delete applications in reverse order (delete newer applications first).');
-        return;
-      }
-
-      // Get SOV items for this project
-      const { data: sovItems, error: sovError } = await supabase
-        .from('sov_items')
-        .select('*')
-        .eq('project_id', selectedProject);
-
-      if (sovError) throw sovError;
-
-      // Get previous applications to recalculate SOV item state
-      const { data: previousApps, error: prevError } = await supabase
-        .from('payment_applications_g702')
-        .select('*')
-        .eq('project_id', selectedProject)
-        .lt('application_number', applicationNumber)
-        .order('application_number', { ascending: true });
-
-      if (prevError) throw prevError;
-
-      console.log('Recalculating SOV items for applications:', previousApps?.map(app => app.application_number));
-
-      // For each SOV item, recalculate its state based on remaining applications
-      for (const item of sovItems || []) {
-        let cumulativePreviousApplications = 0;
-        
-        // Sum up all the "this_period" amounts from remaining applications
-        // Note: We don't have historical "this_period" data, so we need to reconstruct it
-        // For now, we'll reset to the state before this application
-        
-        // If this is application #1 being deleted, reset everything to 0
-        if (applicationNumber === 1) {
-          await supabase
-            .from('sov_items')
-            .update({
-              previous_applications: 0,
-              this_period: 0,
-              percent_complete: 0,
-              // Preserve change_orders and other fields
-              change_orders: item.change_orders
-            })
-            .eq('id', item.id);
-        } else {
-          // For applications > 1, we need to recalculate based on remaining applications
-          // This is complex without historical data, so for now we'll approximate
-          // by reducing the previous_applications by the amount that was likely added in this application
-          
-          const estimatedThisPeriodAmount = Math.max(0, 
-            (item.previous_applications || 0) - (previousApps?.length > 0 ? item.previous_applications / previousApps.length : 0)
-          );
-          
-          const newPreviousApplications = Math.max(0, (item.previous_applications || 0) - estimatedThisPeriodAmount);
-          const totalContract = (item.scheduled_value || 0) + (item.change_orders || 0);
-          const newPercentComplete = totalContract > 0 ? (newPreviousApplications / totalContract) * 100 : 0;
-          
-          await supabase
-            .from('sov_items')
-            .update({
-              previous_applications: newPreviousApplications,
-              this_period: 0,
-              percent_complete: Math.min(newPercentComplete, 100),
-              // Preserve change_orders and other fields
-              change_orders: item.change_orders
-            })
-            .eq('id', item.id);
-        }
-      }
-
-      // Delete the application
-      const { error: deleteError } = await supabase
-        .from('payment_applications_g702')
-        .delete()
-        .eq('id', id);
-
-      if (deleteError) throw deleteError;
-      
-      toast.success('Payment application deleted and SOV progress reset successfully');
-      fetchApplications();
-    } catch (error) {
-      console.error('Error deleting application:', error);
-      toast.error('Failed to delete payment application');
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Draft': return 'bg-gray-500';
+      case 'Submitted': return 'bg-blue-500';
+      case 'Under Review': return 'bg-yellow-500';
+      case 'Approved': return 'bg-green-500';
+      case 'Rejected': return 'bg-red-500';
+      case 'Paid': return 'bg-purple-500';
+      default: return 'bg-gray-500';
     }
   };
 
-  const handleApplicationSaved = () => {
-    fetchApplications();
-    setDialogOpen(false);
-    setSelectedApplication(null);
-  };
+  const filteredApplications = applications.filter(app =>
+    app.projects?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    app.application_number.toString().includes(searchTerm)
+  );
 
-  // Calculate stats
-  const totalApplications = applications.length;
-  const totalRequested = applications.reduce((sum, app) => sum + (app.current_payment_due || 0), 0);
-  const latestApplication = applications[0];
-
-  const selectedProjectData = projects.find(p => p.id === selectedProject);
-
-  if (loading && !selectedProject) {
+  if (loading) {
     return (
-      <Layout title="Payment Applications" subtitle="Streamline billing with G702/G703 forms">
+      <Layout title="Payment Applications" subtitle="Manage AIA G702/G703 payment applications">
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
         </div>
@@ -245,193 +134,247 @@ export default function PaymentApplications() {
   }
 
   return (
-    <Layout title="Payment Applications" subtitle="Streamline billing with G702/G703 forms">
+    <Layout title="Payment Applications" subtitle="Manage AIA G702/G703 payment applications">
       <div className="space-y-6">
-        {/* Project Selection */}
-        <Card className="border-2 border-dashed border-green-200 bg-green-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-green-800">
-              <FileText className="w-5 h-5" />
-              Project Selection
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger className="w-full max-w-md">
-                <SelectValue placeholder="Select a project" />
-              </SelectTrigger>
-              <SelectContent>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    <div className="flex items-center gap-2">
-                      <span>{project.name}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {project.status}
-                      </Badge>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{applications.length}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {applications.filter(app => app.status === 'Under Review').length}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Approved</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {applications.filter(app => app.status === 'Approved').length}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                ${applications
+                  .reduce((sum, app) => sum + app.total_completed_and_stored, 0)
+                  .toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filters and Controls */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
+              <div className="flex gap-4 flex-1 flex-wrap">
+                <div className="relative max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search applications..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                <Select value={selectedProject} onValueChange={setSelectedProject}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="All Projects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Projects</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="Draft">Draft</SelectItem>
+                    <SelectItem value="Submitted">Submitted</SelectItem>
+                    <SelectItem value="Under Review">Under Review</SelectItem>
+                    <SelectItem value="Approved">Approved</SelectItem>
+                    <SelectItem value="Rejected">Rejected</SelectItem>
+                    <SelectItem value="Paid">Paid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button onClick={() => setCreateDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                New Application
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
-        {selectedProject && (
-          <>
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-blue-50 border-blue-200">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-blue-600 font-medium">Total Applications</p>
-                      <p className="text-2xl font-bold text-blue-900">{totalApplications}</p>
-                      <p className="text-xs text-blue-500">Payment applications submitted</p>
-                    </div>
-                    <FileText className="w-8 h-8 text-blue-600" />
-                  </div>
-                </CardContent>
-              </Card>
+        {/* Applications Table */}
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>APPLICATION #</TableHead>
+                  <TableHead>PROJECT</TableHead>
+                  <TableHead>PERIOD TO</TableHead>
+                  <TableHead>APPLICATION DATE</TableHead>
+                  <TableHead>AMOUNT</TableHead>
+                  <TableHead>STATUS</TableHead>
+                  <TableHead>ACTIONS</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredApplications.map((application) => (
+                  <TableRow key={application.id}>
+                    <TableCell className="font-medium">
+                      #{application.application_number}
+                    </TableCell>
+                    <TableCell>{application.projects?.name}</TableCell>
+                    <TableCell>
+                      {format(new Date(application.period_to), 'MMM dd, yyyy')}
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(application.application_date), 'MMM dd, yyyy')}
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      ${application.total_completed_and_stored.toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={`${getStatusColor(application.status)} text-white`}>
+                        {application.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="outline" size="sm">
+                        <Download className="w-4 h-4 mr-2" />
+                        Export
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
 
-              <Card className="bg-green-50 border-green-200">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-green-600 font-medium">Total Requested</p>
-                      <p className="text-2xl font-bold text-green-900">${totalRequested.toLocaleString()}</p>
-                      <p className="text-xs text-green-500">Cumulative payment requests</p>
-                    </div>
-                    <DollarSign className="w-8 h-8 text-green-600" />
-                  </div>
-                </CardContent>
-              </Card>
+            {filteredApplications.length === 0 && (
+              <div className="text-center py-12">
+                <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No payment applications found</h3>
+                <p className="text-gray-500 mb-6">Create your first payment application to get started.</p>
+                <Button onClick={() => setCreateDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create First Application
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-              <Card className="bg-orange-50 border-orange-200">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-orange-600 font-medium">Latest Application</p>
-                      <p className="text-2xl font-bold text-orange-900">
-                        {latestApplication ? `#${latestApplication.application_number}` : 'None'}
-                      </p>
-                      <p className="text-xs text-orange-500">
-                        {latestApplication ? format(new Date(latestApplication.period_to), 'MMM dd, yyyy') : 'No applications'}
-                      </p>
-                    </div>
-                    <Calendar className="w-8 h-8 text-orange-600" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Payment Applications */}
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Payment Applications
-                  </CardTitle>
-                  <div className="flex gap-2">
-                    <Button onClick={handleNewApplication} className="bg-green-600 hover:bg-green-700">
-                      <Plus className="w-4 h-4 mr-2" />
-                      New Application
-                    </Button>
-                    <Button variant="outline">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export G702/G703
-                    </Button>
-                  </div>
+        {/* Quick Start Guide */}
+        <Card className="bg-green-50 border-green-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-green-800">
+              <Lightbulb className="w-5 h-5" />
+              Payment Application Quick Start
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                  1
                 </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                {applications.length > 0 ? (
-                  <div className="space-y-4 p-6">
-                    {applications.map((app) => (
-                      <Card key={app.id} className="border-l-4 border-l-blue-500">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-4 mb-2">
-                                <h3 className="font-semibold text-lg">Application #{app.application_number}</h3>
-                                <Badge className="bg-green-100 text-green-800 border-green-300">
-                                  Period Ending: {format(new Date(app.period_to), 'MMM dd, yyyy')}
-                                </Badge>
-                              </div>
-                              <div className="grid grid-cols-4 gap-4 text-sm">
-                                <div>
-                                  <p className="text-gray-600">CONTRACT SUM</p>
-                                  <p className="font-semibold text-lg">${app.original_contract_sum.toLocaleString()}</p>
-                                </div>
-                                <div>
-                                  <p className="text-gray-600">WORK COMPLETED</p>
-                                  <p className="font-semibold text-lg text-green-600">${(app.total_completed_and_stored || 0).toLocaleString()}</p>
-                                </div>
-                                <div>
-                                  <p className="text-gray-600">LESS RETAINAGE</p>
-                                  <p className="font-semibold text-lg text-red-600">${(app.total_retainage || 0).toLocaleString()}</p>
-                                </div>
-                                <div>
-                                  <p className="text-gray-600">PAYMENT DUE</p>
-                                  <p className="font-semibold text-lg text-blue-600">${app.current_payment_due.toLocaleString()}</p>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditApplication(app)}
-                              >
-                                <Eye className="w-4 h-4 mr-1" />
-                                View
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                              >
-                                <Download className="w-4 h-4 mr-1" />
-                                Export
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteApplication(app.id, app.application_number)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Delete className="w-4 h-4 mr-1" />
-                                Delete
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-4">No payment applications found for this project.</p>
-                    <Button onClick={handleNewApplication} className="bg-green-600 hover:bg-green-700">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create First Application
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </>
-        )}
-      </div>
+                <div>
+                  <h4 className="font-semibold text-green-800 mb-1">Create Application</h4>
+                  <p className="text-sm text-green-700">Start a new G702/G703 payment application for your project.</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                  2
+                </div>
+                <div>
+                  <h4 className="font-semibold text-green-800 mb-1">Complete Details</h4>
+                  <p className="text-sm text-green-700">Fill in work completed, stored materials, and previous payments.</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                  3
+                </div>
+                <div>
+                  <h4 className="font-semibold text-green-800 mb-1">Submit & Track</h4>
+                  <p className="text-sm text-green-700">Submit for approval and track payment status through completion.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg p-4 border border-green-200">
+              <h5 className="font-semibold text-green-800 mb-2 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                Best Practices
+              </h5>
+              <ul className="text-sm text-green-700 space-y-1">
+                <li className="flex items-center gap-2">
+                  <ArrowRight className="w-3 h-3" />
+                  Ensure your Schedule of Values (SOV) is current before creating applications
+                </li>
+                <li className="flex items-center gap-2">
+                  <ArrowRight className="w-3 h-3" />
+                  Include supporting documentation for stored materials
+                </li>
+                <li className="flex items-center gap-2">
+                  <ArrowRight className="w-3 h-3" />
+                  Review all calculations before submitting to avoid delays
+                </li>
+                <li className="flex items-center gap-2">
+                  <ArrowRight className="w-3 h-3" />
+                  Submit applications on schedule to maintain project cash flow
+                </li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* G702 Dialog */}
-      <G702Dialog 
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        projectId={selectedProject}
-        applicationId={selectedApplication?.id}
-        onSave={handleApplicationSaved}
-      />
+        <G702Dialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          onApplicationCreated={fetchApplications}
+        />
+      </div>
     </Layout>
   );
 }

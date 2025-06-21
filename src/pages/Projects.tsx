@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,6 @@ export default function Projects() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
   const [fieldLeaderFilter, setFieldLeaderFilter] = useState<string>('all');
   const [showReports, setShowReports] = useState(false);
 
@@ -33,7 +33,7 @@ export default function Projects() {
 
   useEffect(() => {
     filterProjects();
-  }, [projects, searchTerm, statusFilter, typeFilter, fieldLeaderFilter]);
+  }, [projects, searchTerm, statusFilter, fieldLeaderFilter]);
 
   const fetchProjects = async () => {
     setLoading(true);
@@ -87,10 +87,6 @@ export default function Projects() {
       filtered = filtered.filter(project => project.status === statusFilter);
     }
 
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(project => project.type === typeFilter);
-    }
-
     if (fieldLeaderFilter !== 'all') {
       filtered = filtered.filter(project => project.fieldLeader === fieldLeaderFilter);
     }
@@ -103,8 +99,6 @@ export default function Projects() {
       console.log('Deleting project:', projectId);
       
       // Delete related records in correct order to avoid foreign key constraint issues
-      // Using explicit calls instead of loop to satisfy TypeScript
-      
       const { error: billingLineItemsError } = await supabase
         .from('billing_line_items')
         .delete()
@@ -251,19 +245,6 @@ export default function Projects() {
                 <SelectItem value="On Hold">On Hold</SelectItem>
                 <SelectItem value="Completed">Completed</SelectItem>
                 <SelectItem value="Closed">Closed</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="Commercial">Commercial</SelectItem>
-                <SelectItem value="Residential">Residential</SelectItem>
-                <SelectItem value="Infrastructure">Infrastructure</SelectItem>
-                <SelectItem value="Industrial">Industrial</SelectItem>
               </SelectContent>
             </Select>
 
