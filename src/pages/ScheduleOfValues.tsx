@@ -13,7 +13,10 @@ import {
   Download,
   FileText,
   Calculator,
-  Building
+  Building,
+  HelpCircle,
+  Target,
+  List
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -181,26 +184,23 @@ export default function ScheduleOfValues() {
 
   return (
     <Layout title="Schedule of Values" subtitle="Manage project schedule of values and track completion">
-      <Card className="border-2 border-dashed border-primary/20 bg-primary/5">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building className="w-5 h-5 text-primary" />
-            Project Selection
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="project" className="block text-sm font-medium text-gray-700">
-                Select Project
-              </label>
+      <div className="space-y-8">
+        {/* Project Selection */}
+        <Card className="border-2 border-dashed border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="w-5 h-5 text-primary" />
+              Project Selection
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4 items-center">
               <select
-                id="project"
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
+                className="flex-1 max-w-md bg-background border border-input px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 rounded-md"
                 value={selectedProject}
                 onChange={(e) => setSelectedProject(e.target.value)}
               >
-                <option value="">Choose a project</option>
+                <option value="">Choose a project for SOV management</option>
                 {projects.map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.name} - {project.client}
@@ -208,155 +208,221 @@ export default function ScheduleOfValues() {
                 ))}
               </select>
             </div>
-            {selectedProject && (
-              <div className="flex items-center justify-end gap-4">
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">Total Scheduled Value:</span> ${totalScheduledValue.toLocaleString()}
-                </div>
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">Total Work Completed:</span> ${totalWorkCompleted.toLocaleString()}
-                </div>
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">Total Materials Stored:</span> ${totalMaterialsStored.toLocaleString()}
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {selectedProject && (
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Schedule of Values Items
-              </CardTitle>
-              <div className="flex gap-2">
-                <Button onClick={() => setCreateDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add SOV Item
-                </Button>
-                <Button variant="outline" onClick={() => setReportDialogOpen(true)} disabled={sovItems.length === 0}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Generate Report
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Search SOV items..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+        {selectedProject ? (
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Schedule of Values Items
+                </CardTitle>
+                <div className="flex gap-2">
+                  <Button onClick={() => setCreateDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add SOV Item
+                  </Button>
+                  <Button variant="outline" onClick={() => setReportDialogOpen(true)} disabled={sovItems.length === 0}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Generate Report
+                  </Button>
                 </div>
               </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      placeholder="Search SOV items..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
 
-              {filteredItems.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-200">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="border border-gray-200 px-4 py-2 text-left">#</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Description</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Category</th>
-                        <th className="border border-gray-200 px-4 py-2 text-right">Scheduled Value</th>
-                        <th className="border border-gray-200 px-4 py-2 text-right">Work Completed</th>
-                        <th className="border border-gray-200 px-4 py-2 text-right">Materials Stored</th>
-                        <th className="border border-gray-200 px-4 py-2 text-right">% Complete</th>
-                        <th className="border border-gray-200 px-4 py-2 text-center">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredItems.map((item) => (
-                        <tr key={item.id} className="hover:bg-gray-50">
-                          <td className="border border-gray-200 px-4 py-2">{item.item_number}</td>
-                          <td className="border border-gray-200 px-4 py-2">{item.description}</td>
-                          <td className="border border-gray-200 px-4 py-2">
-                            <Badge variant="outline">{item.category}</Badge>
-                          </td>
-                          <td className="border border-gray-200 px-4 py-2 text-right font-medium">
-                            ${(Number(item.scheduled_value) || 0).toLocaleString()}
-                          </td>
-                          <td className="border border-gray-200 px-4 py-2 text-right">
-                            ${(Number(item.work_completed_to_date) || 0).toLocaleString()}
-                          </td>
-                          <td className="border border-gray-200 px-4 py-2 text-right">
-                            ${(Number(item.materials_stored) || 0).toLocaleString()}
-                          </td>
-                          <td className="border border-gray-200 px-4 py-2 text-right">
-                            {((Number(item.percent_complete) || 0) * 100).toFixed(1)}%
-                          </td>
-                          <td className="border border-gray-200 px-4 py-2">
-                            <div className="flex justify-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditSOVItem(item)}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteSOVItem(item.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </td>
+                {/* Summary Cards */}
+                {selectedProject && (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <div className="text-sm font-medium text-blue-800">Total Scheduled Value</div>
+                      <div className="text-2xl font-bold text-blue-900">${totalScheduledValue.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                      <div className="text-sm font-medium text-green-800">Total Work Completed</div>
+                      <div className="text-2xl font-bold text-green-900">${totalWorkCompleted.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                      <div className="text-sm font-medium text-yellow-800">Total Materials Stored</div>
+                      <div className="text-2xl font-bold text-yellow-900">${totalMaterialsStored.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                      <div className="text-sm font-medium text-purple-800">Average % Complete</div>
+                      <div className="text-2xl font-bold text-purple-900">{totalPercentComplete.toFixed(1)}%</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SOV Items Table */}
+                {filteredItems.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-gray-200">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="border border-gray-200 px-4 py-2 text-left">#</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Description</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Category</th>
+                          <th className="border border-gray-200 px-4 py-2 text-right">Scheduled Value</th>
+                          <th className="border border-gray-200 px-4 py-2 text-right">Work Completed</th>
+                          <th className="border border-gray-200 px-4 py-2 text-right">Materials Stored</th>
+                          <th className="border border-gray-200 px-4 py-2 text-right">% Complete</th>
+                          <th className="border border-gray-200 px-4 py-2 text-center">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Building className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No SOV Items Found</h3>
-                  <p className="text-gray-500 mb-6">
-                    {searchTerm ? 'No items match your search criteria.' : 'Get started by creating your first schedule of values item.'}
-                  </p>
-                  {!searchTerm && (
-                    <Button onClick={() => setCreateDialogOpen(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create First SOV Item
-                    </Button>
-                  )}
+                      </thead>
+                      <tbody>
+                        {filteredItems.map((item) => (
+                          <tr key={item.id} className="hover:bg-gray-50">
+                            <td className="border border-gray-200 px-4 py-2">{item.item_number}</td>
+                            <td className="border border-gray-200 px-4 py-2">{item.description}</td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              <Badge variant="outline">{item.category}</Badge>
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2 text-right font-medium">
+                              ${(Number(item.scheduled_value) || 0).toLocaleString()}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2 text-right">
+                              ${(Number(item.work_completed_to_date) || 0).toLocaleString()}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2 text-right">
+                              ${(Number(item.materials_stored) || 0).toLocaleString()}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2 text-right">
+                              {((Number(item.percent_complete) || 0) * 100).toFixed(1)}%
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              <div className="flex justify-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditSOVItem(item)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteSOVItem(item.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Building className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No SOV Items Found</h3>
+                    <p className="text-gray-500 mb-6">
+                      {searchTerm ? 'No items match your search criteria.' : 'Get started by creating your first schedule of values item.'}
+                    </p>
+                    {!searchTerm && (
+                      <Button onClick={() => setCreateDialogOpen(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create First SOV Item
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-2 border-dashed border-gray-200">
+            <CardContent className="text-center py-16">
+              <List className="w-20 h-20 text-gray-300 mx-auto mb-6" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Schedule of Values Management</h3>
+              <p className="text-gray-500 mb-8 max-w-md mx-auto">
+                Select a project above to start managing schedule of values and track project completion progress.
+              </p>
+              {projects.length === 0 && (
+                <div className="mt-6">
+                  <p className="text-gray-400 mb-4">No projects found. Create a project first to start SOV management.</p>
+                  <Button onClick={() => window.location.href = '/projects'} variant="outline">
+                    <Building className="w-4 h-4 mr-2" />
+                    Go to Projects
+                  </Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Quick Start Guide */}
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-800">
+              <HelpCircle className="w-5 h-5" />
+              Quick Start Guide - Schedule of Values
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="w-4 h-4 text-blue-600" />
+                  <h4 className="font-semibold text-blue-800">1. Select Project</h4>
+                </div>
+                <p className="text-sm text-blue-700">Choose an existing project from the dropdown above to begin SOV management.</p>
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Plus className="w-4 h-4 text-blue-600" />
+                  <h4 className="font-semibold text-blue-800">2. Add SOV Items</h4>
+                </div>
+                <p className="text-sm text-blue-700">Create schedule of values items with descriptions, categories, and scheduled values.</p>
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Download className="w-4 h-4 text-blue-600" />
+                  <h4 className="font-semibold text-blue-800">3. Track Progress</h4>
+                </div>
+                <p className="text-sm text-blue-700">Monitor completion percentages and generate professional SOV reports.</p>
+              </div>
             </div>
           </CardContent>
         </Card>
-      )}
 
-      <CreateSOVDialog
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-        projectId={selectedProject}
-        onSave={fetchSOVItems}
-      />
+        <CreateSOVDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          projectId={selectedProject}
+          onSave={fetchSOVItems}
+        />
 
-      <EditSOVItemDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        sovItem={selectedSOVItem}
-        onSave={fetchSOVItems}
-      />
+        <EditSOVItemDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          sovItem={selectedSOVItem}
+          onSave={fetchSOVItems}
+        />
 
-      <SOVReportDialog
-        open={reportDialogOpen}
-        onOpenChange={setReportDialogOpen}
-        projectData={selectedProjectData}
-        sovItems={sovItems}
-      />
+        <SOVReportDialog
+          open={reportDialogOpen}
+          onOpenChange={setReportDialogOpen}
+          projectData={selectedProjectData}
+          sovItems={sovItems}
+        />
+      </div>
     </Layout>
   );
 }

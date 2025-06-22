@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, Bell, User, LogOut, Settings, X, MessageCircle } from 'lucide-react';
@@ -13,7 +14,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
-import { CompanyHeader } from './CompanyHeader';
 import { supabase } from '@/integrations/supabase/client';
 import { DMChatWidget } from '@/components/chat/DMChatWidget';
 
@@ -164,22 +164,24 @@ export function Header({ onMenuClick }: HeaderProps) {
               <Menu className="h-5 w-5" />
             </Button>
             
-            <div className="flex items-center gap-3">
-              {companyInfo.logo_url && (
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">{getPageTitle()}</h1>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Company Logo */}
+            {companyInfo.logo_url && (
+              <div className="flex items-center gap-2">
                 <img 
                   src={companyInfo.logo_url} 
                   alt={`${companyInfo.company_name} logo`}
                   className="h-8 w-auto object-contain"
                 />
-              )}
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">{getPageTitle()}</h1>
-                <p className="text-sm text-gray-600">{companyInfo.company_name}</p>
+                <span className="text-sm font-medium text-gray-700">{companyInfo.company_name}</span>
               </div>
-            </div>
-          </div>
+            )}
 
-          <div className="flex items-center gap-3">
             {/* Chat Button */}
             <Button
               variant="ghost"
