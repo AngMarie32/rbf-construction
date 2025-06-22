@@ -68,9 +68,9 @@ export default function Auth() {
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
               <Wrench className="w-6 h-6 text-white" />
             </div>
-            <span className="font-bold text-2xl text-gray-900">BuildPro</span>
+            <span className="font-bold text-2xl text-gray-900">RBF Construction</span>
           </div>
-          <CardTitle>Welcome to BuildPro</CardTitle>
+          <CardTitle>RBF Construction Management Portal</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">

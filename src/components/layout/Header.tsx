@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, Bell, User, LogOut, Settings, X, MessageCircle } from 'lucide-react';
@@ -170,7 +169,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Company Logo */}
+            {/* Company Logo - moved to far right */}
             {companyInfo.logo_url && (
               <div className="flex items-center gap-2">
                 <img 
@@ -178,7 +177,6 @@ export function Header({ onMenuClick }: HeaderProps) {
                   alt={`${companyInfo.company_name} logo`}
                   className="h-8 w-auto object-contain"
                 />
-                <span className="text-sm font-medium text-gray-700">{companyInfo.company_name}</span>
               </div>
             )}
 
