@@ -30,8 +30,6 @@ export default function BidPackages() {
   const [bidPackages, setBidPackages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [createPackageDialogOpen, setCreatePackageDialogOpen] = useState(false);
-  const [createInvitationDialogOpen, setCreateInvitationDialogOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
@@ -62,12 +60,10 @@ export default function BidPackages() {
 
   const handlePackageCreated = () => {
     setRefreshTrigger(prev => prev + 1);
-    setCreatePackageDialogOpen(false);
   };
 
   const handleInvitationCreated = () => {
     setRefreshTrigger(prev => prev + 1);
-    setCreateInvitationDialogOpen(false);
   };
 
   const filteredPackages = bidPackages.filter(pkg =>
@@ -89,6 +85,43 @@ export default function BidPackages() {
   return (
     <Layout title="Bid Packages" subtitle="Manage bid packages and invitations">
       <div className="space-y-8">
+        {/* Quick Start Guide */}
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-800">
+              <HelpCircle className="w-5 h-5" />
+              Quick Start Guide - Bid Packages & Invitations
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Package className="w-4 h-4 text-blue-600" />
+                  <h4 className="font-semibold text-blue-800">1. Create Package</h4>
+                </div>
+                <p className="text-sm text-blue-700">Start by creating a bid package with project details, scope, and documentation.</p>
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <h4 className="font-semibold text-blue-800">2. Select Subcontractors</h4>
+                </div>
+                <p className="text-sm text-blue-700">Choose qualified subcontractors from your database to invite for bidding.</p>
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Send className="w-4 h-4 text-blue-600" />
+                  <h4 className="font-semibold text-blue-800">3. Send Invitations</h4>
+                </div>
+                <p className="text-sm text-blue-700">Send professional bid invitations with all necessary documents and deadlines.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Tabs defaultValue="packages" className="w-full">
           <div className="flex justify-between items-center mb-6">
             <TabsList>
@@ -97,14 +130,8 @@ export default function BidPackages() {
             </TabsList>
             
             <div className="flex gap-2">
-              <Button onClick={() => setCreatePackageDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Package
-              </Button>
-              <Button variant="outline" onClick={() => setCreateInvitationDialogOpen(true)}>
-                <Mail className="w-4 h-4 mr-2" />
-                Send Invitation
-              </Button>
+              <CreateBidPackageDialog onPackageCreated={handlePackageCreated} />
+              <CreateBidInvitationDialog onInvitationCreated={handleInvitationCreated} />
             </div>
           </div>
 
@@ -170,10 +197,7 @@ export default function BidPackages() {
                       {searchTerm ? 'No packages match your search criteria.' : 'Create your first bid package to get started.'}
                     </p>
                     {!searchTerm && (
-                      <Button onClick={() => setCreatePackageDialogOpen(true)}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create First Package
-                      </Button>
+                      <CreateBidPackageDialog onPackageCreated={handlePackageCreated} />
                     )}
                   </div>
                 )}
@@ -195,55 +219,6 @@ export default function BidPackages() {
             </Card>
           </TabsContent>
         </Tabs>
-
-        {/* Quick Start Guide */}
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-800">
-              <HelpCircle className="w-5 h-5" />
-              Quick Start Guide - Bid Packages & Invitations
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Package className="w-4 h-4 text-blue-600" />
-                  <h4 className="font-semibold text-blue-800">1. Create Package</h4>
-                </div>
-                <p className="text-sm text-blue-700">Start by creating a bid package with project details, scope, and documentation.</p>
-              </div>
-              
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-4 h-4 text-blue-600" />
-                  <h4 className="font-semibold text-blue-800">2. Select Subcontractors</h4>
-                </div>
-                <p className="text-sm text-blue-700">Choose qualified subcontractors from your database to invite for bidding.</p>
-              </div>
-              
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Send className="w-4 h-4 text-blue-600" />
-                  <h4 className="font-semibold text-blue-800">3. Send Invitations</h4>
-                </div>
-                <p className="text-sm text-blue-700">Send professional bid invitations with all necessary documents and deadlines.</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <CreateBidPackageDialog
-          open={createPackageDialogOpen}
-          onOpenChange={setCreatePackageDialogOpen}
-          onPackageCreated={handlePackageCreated}
-        />
-
-        <CreateBidInvitationDialog
-          open={createInvitationDialogOpen}
-          onOpenChange={setCreateInvitationDialogOpen}
-          onInvitationCreated={handleInvitationCreated}
-        />
       </div>
     </Layout>
   );

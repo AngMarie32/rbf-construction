@@ -31,7 +31,6 @@ export default function Subcontractors() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchSubcontractors();
@@ -89,7 +88,7 @@ export default function Subcontractors() {
                 <p className="text-sm text-gray-600 font-medium">{sub.company}</p>
               </div>
               <Badge variant="outline" className="ml-2">
-                {sub.trade}
+                {sub.specialties?.[0] || 'General'}
               </Badge>
             </div>
           </CardHeader>
@@ -163,7 +162,7 @@ export default function Subcontractors() {
               <td className="border border-gray-200 px-4 py-2 font-medium">{sub.name}</td>
               <td className="border border-gray-200 px-4 py-2">{sub.company}</td>
               <td className="border border-gray-200 px-4 py-2">
-                <Badge variant="outline">{sub.trade}</Badge>
+                <Badge variant="outline">{sub.specialties?.[0] || 'General'}</Badge>
               </td>
               <td className="border border-gray-200 px-4 py-2">
                 <div className="space-y-1">
@@ -218,10 +217,7 @@ export default function Subcontractors() {
             </TabsList>
             
             <div className="flex gap-2">
-              <Button onClick={() => setBulkDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Subcontractors
-              </Button>
+              <BulkSubcontractorDialog onSubcontractorsCreated={fetchSubcontractors} />
             </div>
           </div>
 
@@ -273,10 +269,7 @@ export default function Subcontractors() {
                       {searchTerm ? 'No subcontractors match your search criteria.' : 'Add your first subcontractor to get started.'}
                     </p>
                     {!searchTerm && (
-                      <Button onClick={() => setBulkDialogOpen(true)}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add First Subcontractor
-                      </Button>
+                      <BulkSubcontractorDialog onSubcontractorsCreated={fetchSubcontractors} />
                     )}
                   </div>
                 )}
@@ -285,15 +278,9 @@ export default function Subcontractors() {
           </TabsContent>
 
           <TabsContent value="issues">
-            <DocumentIssues />
+            <DocumentIssues onBack={() => {}} />
           </TabsContent>
         </Tabs>
-
-        <BulkSubcontractorDialog
-          open={bulkDialogOpen}
-          onOpenChange={setBulkDialogOpen}
-          onSubcontractorsAdded={fetchSubcontractors}
-        />
       </div>
     </Layout>
   );
