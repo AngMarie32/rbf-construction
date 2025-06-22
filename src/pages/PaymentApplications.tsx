@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Eye, Download, Delete, FileText, DollarSign, Calendar } from 'lucide-react';
+import { Plus, Eye, Download, Delete, FileText, DollarSign, Calendar, HelpCircle, CheckSquare, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -418,6 +418,43 @@ export default function PaymentApplications() {
                     </Button>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Quick Start Guide */}
+            <Card className="border-green-200 bg-green-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-green-800">
+                  <HelpCircle className="w-5 h-5" />
+                  Quick Start Guide - Payment Applications
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="bg-white p-4 rounded-lg border border-green-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckSquare className="w-4 h-4 text-green-600" />
+                      <h4 className="font-semibold text-green-800">1. Set Up SOV</h4>
+                    </div>
+                    <p className="text-sm text-green-700">Create a Schedule of Values (SOV) for your project with line items and values.</p>
+                  </div>
+                  
+                  <div className="bg-white p-4 rounded-lg border border-green-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Plus className="w-4 h-4 text-green-600" />
+                      <h4 className="font-semibold text-green-800">2. Create Application</h4>
+                    </div>
+                    <p className="text-sm text-green-700">Generate G702/G703 payment applications based on work completed for each period.</p>
+                  </div>
+                  
+                  <div className="bg-white p-4 rounded-lg border border-green-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Upload className="w-4 h-4 text-green-600" />
+                      <h4 className="font-semibold text-green-800">3. Submit & Track</h4>
+                    </div>
+                    <p className="text-sm text-green-700">Export professional PDF forms and track payment status throughout the project.</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </>

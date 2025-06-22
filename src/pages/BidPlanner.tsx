@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Calculator, 
   Target,
-  Building2
+  Building2,
+  HelpCircle,
+  FileText,
+  Plus,
+  Download
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -193,6 +196,43 @@ export default function BidPlanner() {
             </CardContent>
           </Card>
         )}
+
+        {/* Quick Start Guide */}
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-800">
+              <HelpCircle className="w-5 h-5" />
+              Quick Start Guide - Bid Planner
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="w-4 h-4 text-blue-600" />
+                  <h4 className="font-semibold text-blue-800">1. Select Project</h4>
+                </div>
+                <p className="text-sm text-blue-700">Choose an existing project from the dropdown above to begin bid planning.</p>
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Plus className="w-4 h-4 text-blue-600" />
+                  <h4 className="font-semibold text-blue-800">2. Add Bid Items</h4>
+                </div>
+                <p className="text-sm text-blue-700">Use templates or create custom bid items with quantities, costs, and categories.</p>
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Download className="w-4 h-4 text-blue-600" />
+                  <h4 className="font-semibold text-blue-800">3. Export Bid</h4>
+                </div>
+                <p className="text-sm text-blue-700">Generate professional PDF bid documents ready for client presentation.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <EnhancedBidDialog
           open={createDialogOpen}
