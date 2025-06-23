@@ -1,51 +1,82 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  Search, 
   Plus, 
+  Search, 
+  Filter, 
   Package, 
   Users, 
-  Mail,
   Calendar,
+  DollarSign,
   FileText,
-  Building,
-  HelpCircle,
-  Target,
-  Send,
-  Download
+  Info,
+  CheckCircle,
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { CreateBidPackageDialog } from '@/components/bid-packages/CreateBidPackageDialog';
 import { CreateBidInvitationDialog } from '@/components/bid-packages/CreateBidInvitationDialog';
 import { BidInvitationsList } from '@/components/bid-packages/BidInvitationsList';
+import { format } from 'date-fns';
+
+interface BidPackage {
+  id: string;
+  title: string;
+  description: string;
+  status: 'Draft' | 'Published' | 'Closed';
+  created_at: string;
+  project_id: string;
+}
+
+interface BidInvitation {
+  id: string;
+  bid_package_id: string;
+  subcontractor_id: string;
+  due_date: string;
+  status: 'Sent' | 'Viewed' | 'Submitted' | 'Declined';
+  created_at: string;
+}
+
+interface Subcontractor {
+  id: string;
+  name: string;
+  contact_person: string;
+  email: string;
+  phone: string;
+  trade: string;
+}
 
 export default function BidPackages() {
-  const [bidPackages, setBidPackages] = useState<any[]>([]);
+  const [bidPackages, setBidPackages] = useState<BidPackage[]>([]);
+  const [bidInvitations, setBidInvitations] = useState<BidInvitation[]>([]);
+  const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [activeTab, setActiveTab] = useState('packages');
+  const [createPackageOpen, setCreatePackageOpen] = useState(false);
+  const [createInvitationOpen, setCreateInvitationOpen] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState<BidPackage | null>(null);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     fetchBidPackages();
-  }, [refreshTrigger]);
+    fetchBidInvitations();
+    fetchSubcontractors();
+  }, []);
 
   const fetchBidPackages = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('bid_packages')
-        .select(`
-          *,
-          project:projects(name, client),
-          bid_package_documents(count),
-          bid_invitations(count)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -58,168 +89,205 @@ export default function BidPackages() {
     }
   };
 
-  const handlePackageCreated = () => {
-    setRefreshTrigger(prev => prev + 1);
+  const fetchBidInvitations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('bid_invitations')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setBidInvitations(data || []);
+    } catch (error) {
+      console.error('Error fetching bid invitations:', error);
+      toast.error('Failed to load bid invitations');
+    }
   };
 
-  const handleInvitationCreated = () => {
-    setRefreshTrigger(prev => prev + 1);
+  const fetchSubcontractors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('subcontractors')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setSubcontractors(data || []);
+    } catch (error) {
+      console.error('Error fetching subcontractors:', error);
+      toast.error('Failed to load subcontractors');
+    }
   };
 
-  const filteredPackages = bidPackages.filter(pkg =>
-    pkg.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    pkg.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    pkg.project?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredBidPackages = bidPackages.filter(pkg => {
+    const matchesSearch = pkg.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           pkg.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'All' || pkg.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
-  if (loading) {
-    return (
-      <Layout title="Bid Packages" subtitle="Manage bid packages and invitations">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-        </div>
-      </Layout>
-    );
-  }
+  const handlePackageCreated = (newPackage: BidPackage) => {
+    setBidPackages(prev => [newPackage, ...prev]);
+    setCreatePackageOpen(false);
+    toast.success('Bid package created successfully');
+  };
+
+  const handleInvitationSent = (newInvitation: BidInvitation) => {
+    setBidInvitations(prev => [newInvitation, ...prev]);
+    setCreateInvitationOpen(false);
+    toast.success('Bid invitation sent successfully');
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Draft': return 'bg-gray-400';
+      case 'Published': return 'bg-green-500';
+      case 'Closed': return 'bg-red-500';
+      default: return 'bg-gray-500';
+    }
+  };
 
   return (
-    <Layout title="Bid Packages" subtitle="Manage bid packages and invitations">
-      <div className="space-y-8">
-        {/* Quick Start Guide */}
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-800">
-              <HelpCircle className="w-5 h-5" />
-              Quick Start Guide - Bid Packages & Invitations
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Package className="w-4 h-4 text-blue-600" />
-                  <h4 className="font-semibold text-blue-800">1. Create Package</h4>
-                </div>
-                <p className="text-sm text-blue-700">Start by creating a bid package with project details, scope, and documentation.</p>
+    <Layout title="Bid Packages" subtitle="Manage bid packages and subcontractor invitations">
+      <div className="space-y-6">
+        {/* Enhanced Header with Quick Guide */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Bid Packages & Invitations</h1>
+                <p className="text-gray-600">Create bid packages and send invitations to subcontractors</p>
               </div>
               
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-4 h-4 text-blue-600" />
-                  <h4 className="font-semibold text-blue-800">2. Select Subcontractors</h4>
-                </div>
-                <p className="text-sm text-blue-700">Choose qualified subcontractors from your database to invite for bidding.</p>
-              </div>
-              
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Send className="w-4 h-4 text-blue-600" />
-                  <h4 className="font-semibold text-blue-800">3. Send Invitations</h4>
-                </div>
-                <p className="text-sm text-blue-700">Send professional bid invitations with all necessary documents and deadlines.</p>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => setCreatePackageOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+                  <Package className="w-4 h-4 mr-2" />
+                  New Bid Package
+                </Button>
+                <Button variant="outline" onClick={() => setCreateInvitationOpen(true)}>
+                  <Users className="w-4 h-4 mr-2" />
+                  Send Invitation
+                </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
 
-        <Tabs defaultValue="packages" className="w-full">
-          <div className="flex justify-between items-center mb-6">
-            <TabsList>
-              <TabsTrigger value="packages">Bid Packages</TabsTrigger>
-              <TabsTrigger value="invitations">Bid Invitations</TabsTrigger>
-            </TabsList>
-            
-            <div className="flex gap-2">
-              <CreateBidPackageDialog onPackageCreated={handlePackageCreated} />
-              <CreateBidInvitationDialog onInvitationCreated={handleInvitationCreated} />
+            {/* Quick Start Guide */}
+            <div className="bg-white rounded-lg border border-blue-200 p-4">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-blue-600 mt-1 flex-shrink-0" />
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-900 mb-3">Quick Start Guide</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs font-medium text-blue-600">1</div>
+                        <h4 className="font-medium text-blue-800">Create Bid Package</h4>
+                      </div>
+                      <p className="text-sm text-blue-700 ml-8">Define scope, timeline, and requirements for your project work package</p>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs font-medium text-blue-600">2</div>
+                        <h4 className="font-medium text-blue-800">Send Invitations</h4>
+                      </div>
+                      <p className="text-sm text-blue-700 ml-8">Invite qualified subcontractors to submit bids on your packages</p>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs font-medium text-blue-600">3</div>
+                        <h4 className="font-medium text-blue-800">Track Responses</h4>
+                      </div>
+                      <p className="text-sm text-blue-700 ml-8">Monitor bid submissions and compare proposals from subcontractors</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+        </div>
 
-          <TabsContent value="packages">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="w-5 h-5" />
-                    Bid Packages
-                  </CardTitle>
-                  <div className="relative max-w-md">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      placeholder="Search packages..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {filteredPackages.length > 0 ? (
-                  <div className="space-y-4">
-                    {filteredPackages.map((pkg) => (
-                      <div key={pkg.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <h3 className="font-semibold text-lg">{pkg.name}</h3>
-                            <p className="text-sm text-gray-600">{pkg.project?.name}</p>
-                          </div>
-                          <Badge variant="outline">{pkg.status}</Badge>
-                        </div>
-                        
-                        {pkg.description && (
-                          <p className="text-gray-700 mb-3">{pkg.description}</p>
-                        )}
-                        
-                        <div className="flex justify-between items-center text-sm text-gray-500">
-                          <div className="flex gap-4">
-                            <span className="flex items-center gap-1">
-                              <FileText className="w-4 h-4" />
-                              {pkg.bid_package_documents?.[0]?.count || 0} documents
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Mail className="w-4 h-4" />
-                              {pkg.bid_invitations?.[0]?.count || 0} invitations
-                            </span>
-                          </div>
-                          <span>
-                            Due: {pkg.due_date ? new Date(pkg.due_date).toLocaleDateString() : 'No date set'}
-                          </span>
-                        </div>
+        {/* Filters and Search */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Input
+              type="text"
+              placeholder="Search bid packages..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="md:w-80"
+            />
+            <Search className="w-4 h-4 text-gray-500" />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-gray-500" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="border rounded px-3 py-2"
+            >
+              <option value="All">All Statuses</option>
+              <option value="Draft">Draft</option>
+              <option value="Published">Published</option>
+              <option value="Closed">Closed</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="packages">Bid Packages</TabsTrigger>
+            <TabsTrigger value="invitations">Bid Invitations</TabsTrigger>
+          </TabsList>
+          <TabsContent value="packages" className="mt-6">
+            {loading ? (
+              <div className="text-center py-8">Loading bid packages...</div>
+            ) : filteredBidPackages.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredBidPackages.map(pkg => (
+                  <Card key={pkg.id} className="bg-white shadow-md rounded-lg overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle className="text-sm font-medium">{pkg.title}</CardTitle>
+                      <Badge className={`${getStatusColor(pkg.status)} text-white`}>
+                        {pkg.status}
+                      </Badge>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-600">{pkg.description}</p>
+                      <div className="text-xs text-gray-500 mt-2">
+                        Created: {format(new Date(pkg.created_at), 'MMM dd, yyyy')}
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Bid Packages Found</h3>
-                    <p className="text-gray-500 mb-6">
-                      {searchTerm ? 'No packages match your search criteria.' : 'Create your first bid package to get started.'}
-                    </p>
-                    {!searchTerm && (
-                      <CreateBidPackageDialog onPackageCreated={handlePackageCreated} />
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">No bid packages found.</div>
+            )}
           </TabsContent>
 
-          <TabsContent value="invitations">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="w-5 h-5" />
-                  Bid Invitations
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <BidInvitationsList refreshTrigger={refreshTrigger} />
-              </CardContent>
-            </Card>
+          <TabsContent value="invitations" className="mt-6">
+            <BidInvitationsList invitations={bidInvitations} subcontractors={subcontractors} />
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Create Bid Package Dialog */}
+      <CreateBidPackageDialog
+        open={createPackageOpen}
+        onOpenChange={setCreatePackageOpen}
+        onPackageCreated={handlePackageCreated}
+      />
+
+      {/* Create Bid Invitation Dialog */}
+      <CreateBidInvitationDialog
+        open={createInvitationOpen}
+        onOpenChange={setCreateInvitationOpen}
+        bidPackages={bidPackages}
+        subcontractors={subcontractors}
+        onInvitationSent={handleInvitationSent}
+      />
     </Layout>
   );
 }

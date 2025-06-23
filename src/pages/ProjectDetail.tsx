@@ -46,6 +46,7 @@ export default function ProjectDetail() {
   const [project, setProject] = useState<GlobalProject | null>(null);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [changeOrders, setChangeOrders] = useState<any[]>([]);
   const [billing, setBilling] = useState<any[]>([]);
@@ -152,6 +153,10 @@ export default function ProjectDetail() {
     setEditDialogOpen(false);
   };
 
+  const handleProjectSettings = () => {
+    setSettingsDialogOpen(true);
+  };
+
   if (loading) {
     return (
       <Layout title="Loading..." subtitle="Loading project details">
@@ -207,7 +212,7 @@ export default function ProjectDetail() {
               <Edit className="w-4 h-4 mr-2" />
               Edit Project
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleProjectSettings}>
               <Settings className="w-4 h-4 mr-2" />
               Settings
             </Button>
@@ -478,6 +483,23 @@ export default function ProjectDetail() {
         project={project}
         onProjectUpdated={handleProjectUpdate}
       />
+
+      {/* Project Settings Dialog */}
+      {settingsDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Project Settings</h3>
+            <div className="space-y-4">
+              <p className="text-gray-600">Project settings and configuration options will be available here.</p>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setSettingsDialogOpen(false)} className="flex-1">
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
