@@ -15,6 +15,7 @@ import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
 import { CriticalPath } from '@/components/schedule/CriticalPath';
 import { CollapsibleFilterSection } from '@/components/schedule/CollapsibleFilterSection';
 import { EnhancedTaskList } from '@/components/schedule/EnhancedTaskList';
+import { PlannerBoard } from '@/components/schedule/PlannerBoard';
 import { exportToPDF, exportCSV } from '@/utils/pdfExport';
 import { 
   Plus, 
@@ -22,7 +23,8 @@ import {
   Clock,
   File,
   Info,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  LayoutGrid
 } from 'lucide-react';
 import { format, addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -62,7 +64,7 @@ export default function ProjectSchedule() {
   });
   const [viewMode, setViewMode] = useState<'week' | 'month' | 'quarter'>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [activeTab, setActiveTab] = useState('gantt');
+  const [activeTab, setActiveTab] = useState('board');
   
   // Feature toggles
   const [showDependencies, setShowDependencies] = useState(false);
@@ -84,7 +86,8 @@ export default function ProjectSchedule() {
     projectId: '',
     startDate: new Date(),
     duration: 1,
-    useDuration: true
+    useDuration: true,
+    status: 'Not Started' as Task['status']
   });
 
   const [loading, setLoading] = useState(true);
@@ -366,7 +369,7 @@ export default function ProjectSchedule() {
           project_id: newTask.projectId,
           start_date: newTask.startDate.toISOString().split('T')[0],
           end_date: endDate.toISOString().split('T')[0],
-          status: 'Not Started',
+          status: newTask.status,
           progress: 0,
           dependencies: []
         });
@@ -381,7 +384,8 @@ export default function ProjectSchedule() {
         projectId: '',
         startDate: new Date(),
         duration: 1,
-        useDuration: true
+        useDuration: true,
+        status: 'Not Started' as Task['status']
       });
       fetchTasks();
     } catch (error) {
@@ -468,6 +472,11 @@ export default function ProjectSchedule() {
     setCurrentDate(newDate);
   };
 
+  const handleAddTaskToBoard = (status: Task['status']) => {
+    setNewTask({ ...newTask, status });
+    setNewTaskDialogOpen(true);
+  };
+
   return (
     <Layout title="Project Schedule" subtitle="Manage project timelines and dependencies">
       <div className="space-y-6">
@@ -534,7 +543,11 @@ export default function ProjectSchedule() {
 
         {/* Enhanced Schedule Views */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-gray-100 p-1 rounded-lg">
+          <TabsList className="grid w-full grid-cols-5 bg-gray-100 p-1 rounded-lg">
+            <TabsTrigger value="board" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <LayoutGrid className="w-4 h-4 mr-2" />
+              Board
+            </TabsTrigger>
             <TabsTrigger value="gantt" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
               Gantt Chart
             </TabsTrigger>
@@ -548,6 +561,18 @@ export default function ProjectSchedule() {
               Task List
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="board" className="mt-6">
+            <div id="planner-board">
+              <PlannerBoard
+                tasks={filteredTasks}
+                projects={projects}
+                onTaskUpdate={optimisticUpdate}
+                onTaskDelete={handleTaskDelete}
+                onAddTask={handleAddTaskToBoard}
+              />
+            </div>
+          </TabsContent>
 
           <TabsContent value="gantt" className="mt-6">
             <div id="gantt-chart">
@@ -633,18 +658,18 @@ export default function ProjectSchedule() {
                 <div>
                   <h4 className="font-medium text-blue-800 mb-2">Getting Started:</h4>
                   <ul className="text-sm space-y-1 text-blue-700">
-                    <li>• Use "Add Task" for individual tasks</li>
+                    <li>• Use the Board view for Microsoft Planner-like task management</li>
+                    <li>• Drag and drop tasks between columns to update status</li>
                     <li>• Use "Quick Planner" for bulk task entry</li>
                     <li>• Create templates for reusable task sets</li>
-                    <li>• Filter by project and date range</li>
                   </ul>
                 </div>
                 <div>
                   <h4 className="font-medium text-blue-800 mb-2">Advanced Features:</h4>
                   <ul className="text-sm space-y-1 text-blue-700">
+                    <li>• Board view with drag-and-drop functionality</li>
                     <li>• Enhanced critical path analysis with float calculations</li>
                     <li>• Generate comprehensive reports with multiple views</li>
-                    <li>• Data validation with error detection</li>
                     <li>• Bulk operations for multiple task management</li>
                   </ul>
                 </div>
@@ -721,6 +746,24 @@ export default function ProjectSchedule() {
                         </div>
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Status</Label>
+                <Select 
+                  value={newTask.status} 
+                  onValueChange={(value: Task['status']) => setNewTask({ ...newTask, status: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Not Started">To Do</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Completed">Done</SelectItem>
+                    <SelectItem value="On Hold">On Hold</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
