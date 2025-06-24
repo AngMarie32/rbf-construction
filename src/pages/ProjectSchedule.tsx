@@ -24,7 +24,11 @@ import {
   File,
   Info,
   Calendar as CalendarIcon,
-  LayoutGrid
+  LayoutGrid,
+  Edit,
+  Send,
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { format, addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -113,12 +117,11 @@ export default function ProjectSchedule() {
 
   // New state for enhanced features
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   
   // Debounced search for better performance
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-  // Enhanced handleTaskUpdate with auto-save
+  // Enhanced handleTaskUpdate
   const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
     try {
       const task = tasks.find(t => t.id === taskId);
@@ -150,9 +153,7 @@ export default function ProjectSchedule() {
         prevTasks.map(t => t.id === taskId ? updatedTask : t)
       );
       
-      if (autoSaveEnabled) {
-        toast.success('Task updated automatically');
-      }
+      toast.success('Task updated');
     } catch (error) {
       console.error('Error updating task:', error);
       toast.error('Failed to update task');
@@ -480,15 +481,12 @@ export default function ProjectSchedule() {
   return (
     <Layout title="Project Schedule" subtitle="Manage project timelines and dependencies">
       <div className="space-y-6">
-        {/* Enhanced Header with keyboard shortcuts info */}
+        {/* Enhanced Header */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Project Schedule</h1>
               <p className="text-gray-600">Manage project timelines, dependencies, and track progress</p>
-              <div className="mt-2 text-sm text-gray-500">
-                Shortcuts: Ctrl+N (New Task), Ctrl+E (Generate Report), Ctrl+Q (Quick Planner), Esc (Close)
-              </div>
             </div>
             
             <div className="flex flex-wrap gap-2">
@@ -628,50 +626,40 @@ export default function ProjectSchedule() {
           </TabsContent>
         </Tabs>
 
-        {/* Performance Status Indicator */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm text-green-800">
-                Performance: Debounced search active, Auto-save {autoSaveEnabled ? 'enabled' : 'disabled'}
-              </span>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}
-              className="text-green-700 border-green-300"
-            >
-              {autoSaveEnabled ? 'Disable' : 'Enable'} Auto-save
-            </Button>
-          </div>
-        </div>
-
-        {/* Enhanced Instructions Panel */}
+        {/* Improved Quick Start Guide */}
         <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200 p-6">
           <div className="flex items-start gap-3">
             <Info className="w-6 h-6 text-blue-600 mt-1 flex-shrink-0" />
             <div>
-              <h3 className="text-lg font-semibold text-blue-900 mb-3">Quick Start Guide</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium text-blue-800 mb-2">Getting Started:</h4>
-                  <ul className="text-sm space-y-1 text-blue-700">
-                    <li>• Use the Board view for Microsoft Planner-like task management</li>
-                    <li>• Drag and drop tasks between columns to update status</li>
-                    <li>• Use "Quick Planner" for bulk task entry</li>
-                    <li>• Create templates for reusable task sets</li>
-                  </ul>
+              <h3 className="text-lg font-semibold text-blue-900 mb-3">Project Schedule Workflow</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Edit className="w-4 h-4 text-blue-600" />
+                    <h4 className="font-medium text-blue-800">Plan</h4>
+                  </div>
+                  <p className="text-sm text-blue-700">Create tasks with timelines and assign to projects</p>
                 </div>
-                <div>
-                  <h4 className="font-medium text-blue-800 mb-2">Advanced Features:</h4>
-                  <ul className="text-sm space-y-1 text-blue-700">
-                    <li>• Board view with drag-and-drop functionality</li>
-                    <li>• Enhanced critical path analysis with float calculations</li>
-                    <li>• Generate comprehensive reports with multiple views</li>
-                    <li>• Bulk operations for multiple task management</li>
-                  </ul>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Send className="w-4 h-4 text-blue-600" />
+                    <h4 className="font-medium text-blue-800">Organize</h4>
+                  </div>
+                  <p className="text-sm text-blue-700">Use Gantt charts and boards to visualize progress</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    <h4 className="font-medium text-blue-800">Track</h4>
+                  </div>
+                  <p className="text-sm text-blue-700">Monitor task progress and identify bottlenecks</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-blue-600" />
+                    <h4 className="font-medium text-blue-800">Complete</h4>
+                  </div>
+                  <p className="text-sm text-blue-700">Mark tasks complete and generate reports</p>
                 </div>
               </div>
             </div>

@@ -4,9 +4,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { MoreHorizontal, Edit, Trash2, Calendar, Clock, Link } from 'lucide-react';
+import { Edit, Trash2, Link } from 'lucide-react';
 import { Task } from '@/types';
-import { format, differenceInDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
+import { format, differenceInDays, eachDayOfInterval } from 'date-fns';
 
 interface Project {
   id: string;
@@ -79,46 +79,73 @@ export function GanttChart({
   };
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardContent className="p-0">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" style={{ minWidth: '800px' }}>
           {/* Header */}
-          <div className="flex border-b bg-gray-50">
-            <div className="w-80 p-4 border-r bg-white">
-              <h3 className="font-semibold">Task</h3>
+          <div className="flex bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10">
+            <div className="w-80 px-4 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700">
+              Task Name
             </div>
-            <div className="flex-1 flex">
-              {timelineDays.map((day, index) => (
-                <div 
-                  key={day.toISOString()} 
-                  className={`flex-1 min-w-[40px] p-2 text-xs text-center border-r ${
-                    index % 7 === 0 ? 'bg-blue-50' : ''
-                  }`}
-                >
-                  <div className="font-medium">{format(day, 'dd')}</div>
-                  <div className="text-gray-500">{format(day, 'EEE')}</div>
-                </div>
-              ))}
+            <div className="w-32 px-4 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center">
+              Start
+            </div>
+            <div className="w-32 px-4 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center">
+              Finish
+            </div>
+            <div className="w-20 px-4 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center">
+              % Complete
+            </div>
+            <div className="flex-1 relative">
+              <div className="flex">
+                {timelineDays.map((day, index) => (
+                  <div 
+                    key={day.toISOString()} 
+                    className={`flex-1 min-w-[30px] p-2 text-xs text-center border-r border-gray-200 ${
+                      index % 7 === 0 || index % 7 === 6 ? 'bg-blue-50' : 'bg-white'
+                    }`}
+                  >
+                    <div className="font-medium text-gray-600">{format(day, 'dd')}</div>
+                    <div className="text-gray-500 text-[10px]">{format(day, 'EEE')}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
           {/* Task Rows */}
           {tasks.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-gray-500 bg-white">
               No tasks found for the selected date range and filters.
             </div>
           ) : (
-            tasks.map((task) => {
+            tasks.map((task, taskIndex) => {
               const position = getTaskPosition(task);
+              const isEvenRow = taskIndex % 2 === 0;
               
               return (
-                <div key={task.id} className="flex border-b hover:bg-gray-50 group">
-                  {/* Task Info */}
-                  <div className="w-80 p-4 border-r bg-white">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-sm truncate flex-1 mr-2">
-                        {task.title}
-                      </h4>
+                <div key={task.id} className={`flex border-b border-gray-200 hover:bg-blue-50 group ${isEvenRow ? 'bg-white' : 'bg-gray-50'}`}>
+                  {/* Task Info Column */}
+                  <div className="w-80 px-4 py-3 border-r border-gray-300">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-medium text-gray-900">{taskIndex + 1}</span>
+                          <h4 className="font-medium text-sm text-gray-900 truncate">
+                            {task.title}
+                          </h4>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-2 h-2 rounded-full" 
+                            style={{ backgroundColor: getProjectColor(task.projectId) }}
+                          />
+                          <span className="text-xs text-gray-600 truncate">
+                            {getProjectName(task.projectId)}
+                          </span>
+                        </div>
+                      </div>
+                      
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         {onEditDependencies && (
                           <Button
@@ -149,101 +176,99 @@ export function GanttChart({
                         </Button>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-2 mb-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: getProjectColor(task.projectId) }}
-                      />
-                      <span className="text-xs text-gray-600 truncate">
-                        {getProjectName(task.projectId)}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>{format(task.startDate, 'MMM dd')} - {format(task.endDate, 'MMM dd')}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {task.status}
-                      </Badge>
-                    </div>
-                    
-                    <div className="mt-2">
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span>Progress</span>
-                        <span>{task.progress}%</span>
-                      </div>
-                      <Progress value={task.progress} className="h-1" />
-                    </div>
-
-                    {showDependencies && task.dependencies.length > 0 && (
-                      <div className="mt-2">
-                        <div className="text-xs text-gray-500">
-                          Dependencies: {task.dependencies.length}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
-                  {/* Timeline */}
-                  <div className="flex-1 relative p-4">
-                    <div 
-                      className={`absolute h-6 rounded ${getStatusColor(task.status)} opacity-80 hover:opacity-100 transition-opacity cursor-pointer`}
-                      style={{
-                        left: `${position.left}%`,
-                        width: `${position.width}%`,
-                        top: '50%',
-                        transform: 'translateY(-50%)'
-                      }}
-                      onMouseEnter={() => setHoveredTask(task.id)}
-                      onMouseLeave={() => setHoveredTask(null)}
-                      title={`${task.title} (${task.progress}%)`}
-                    >
-                      <div className="h-full w-full relative">
-                        {/* Progress fill */}
+                  {/* Start Date Column */}
+                  <div className="w-32 px-4 py-3 border-r border-gray-300 text-center">
+                    <span className="text-sm text-gray-700">{format(task.startDate, 'MM/dd/yyyy')}</span>
+                  </div>
+
+                  {/* End Date Column */}
+                  <div className="w-32 px-4 py-3 border-r border-gray-300 text-center">
+                    <span className="text-sm text-gray-700">{format(task.endDate, 'MM/dd/yyyy')}</span>
+                  </div>
+
+                  {/* Progress Column */}
+                  <div className="w-20 px-4 py-3 border-r border-gray-300 text-center">
+                    <span className="text-sm font-medium text-gray-700">{task.progress}%</span>
+                  </div>
+
+                  {/* Timeline Column */}
+                  <div className="flex-1 relative py-3 px-2">
+                    <div className="relative h-6">
+                      {/* Task Bar */}
+                      <div 
+                        className={`absolute h-5 rounded ${getStatusColor(task.status)} opacity-80 hover:opacity-100 transition-all duration-200 cursor-pointer shadow-sm`}
+                        style={{
+                          left: `${position.left}%`,
+                          width: `${position.width}%`,
+                          top: '2px'
+                        }}
+                        onMouseEnter={() => setHoveredTask(task.id)}
+                        onMouseLeave={() => setHoveredTask(null)}
+                        title={`${task.title} - ${task.progress}% complete`}
+                      >
+                        {/* Progress indicator within the bar */}
                         <div 
-                          className="h-full bg-black bg-opacity-20 rounded-l"
+                          className="h-full bg-black bg-opacity-20 rounded-l transition-all duration-300"
                           style={{ width: `${task.progress}%` }}
                         />
                         
-                        {/* Task label */}
-                        {hoveredTask === task.id && (
-                          <div className="absolute -top-8 left-0 bg-black text-white text-xs p-1 rounded whitespace-nowrap z-10">
+                        {/* Task label on hover */}
+                        {hoveredTask === task.id && position.width > 15 && (
+                          <div className="absolute -top-8 left-0 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-20 shadow-lg">
                             {task.title} - {task.progress}%
                           </div>
                         )}
                       </div>
-                    </div>
 
-                    {/* Dependencies lines */}
-                    {showDependencies && task.dependencies.length > 0 && (
-                      <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-                        {task.dependencies.map((depId) => {
-                          const depTask = tasks.find(t => t.id === depId);
-                          if (!depTask) return null;
-                          
-                          const depPosition = getTaskPosition(depTask);
-                          const currentPosition = getTaskPosition(task);
-                          
-                          return (
-                            <svg
-                              key={depId}
-                              className="absolute top-0 left-0 w-full h-full"
-                              style={{ zIndex: 1 }}
-                            >
-                              <line
-                                x1={`${depPosition.left + depPosition.width}%`}
-                                y1="50%"
-                                x2={`${currentPosition.left}%`}
-                                y2="50%"
-                                stroke="#ef4444"
-                                strokeWidth="2"
-                                strokeDasharray="4,4"
-                              />
-                            </svg>
-                          );
-                        })}
-                      </div>
-                    )}
+                      {/* Dependencies lines */}
+                      {showDependencies && task.dependencies.length > 0 && (
+                        <div className="absolute inset-0 pointer-events-none">
+                          {task.dependencies.map((depId) => {
+                            const depTask = tasks.find(t => t.id === depId);
+                            if (!depTask) return null;
+                            
+                            const depPosition = getTaskPosition(depTask);
+                            const currentPosition = getTaskPosition(task);
+                            
+                            return (
+                              <svg
+                                key={depId}
+                                className="absolute inset-0 w-full h-full"
+                                style={{ zIndex: 1 }}
+                              >
+                                <line
+                                  x1={`${depPosition.left + depPosition.width}%`}
+                                  y1="50%"
+                                  x2={`${currentPosition.left}%`}
+                                  y2="50%"
+                                  stroke="#ef4444"
+                                  strokeWidth="2"
+                                  strokeDasharray="4,4"
+                                  markerEnd="url(#arrowhead)"
+                                />
+                                <defs>
+                                  <marker
+                                    id="arrowhead"
+                                    markerWidth="10"
+                                    markerHeight="7"
+                                    refX="9"
+                                    refY="3.5"
+                                    orient="auto"
+                                  >
+                                    <polygon
+                                      points="0 0, 10 3.5, 0 7"
+                                      fill="#ef4444"
+                                    />
+                                  </marker>
+                                </defs>
+                              </svg>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
