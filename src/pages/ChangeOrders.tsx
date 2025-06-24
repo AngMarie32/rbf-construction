@@ -77,25 +77,10 @@ export default function ChangeOrders() {
     return searchMatch && statusMatch;
   });
 
-  const handleCreateChangeOrder = async (newChangeOrder: Omit<ChangeOrder, 'id' | 'created_at'>) => {
-    try {
-      const { data, error } = await supabase
-        .from('change_orders')
-        .insert([newChangeOrder])
-        .select()
-
-      if (error) {
-        console.error('Error creating change order:', error);
-        toast.error('Failed to create change order');
-      } else {
-        fetchChangeOrders();
-        setCreateDialogOpen(false);
-        toast.success('Change order created successfully');
-      }
-    } catch (error) {
-      console.error('Error creating change order:', error);
-      toast.error('Failed to create change order');
-    }
+  const handleSaveChangeOrder = () => {
+    fetchChangeOrders();
+    setCreateDialogOpen(false);
+    toast.success('Change order created successfully');
   };
 
   return (
@@ -248,7 +233,8 @@ export default function ChangeOrders() {
       <CreateChangeOrderDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
-        onChangeOrderCreated={handleCreateChangeOrder}
+        projectId="default-project"
+        onSave={handleSaveChangeOrder}
       />
 
       {/* Change Order Templates Dialog */}

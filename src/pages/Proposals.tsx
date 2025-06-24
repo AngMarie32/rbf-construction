@@ -61,7 +61,19 @@ export default function Proposals() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProposals(data || []);
+      
+      // Map database fields to component interface and ensure status type safety
+      const mappedData = (data || []).map(item => ({
+        id: item.id,
+        project_name: item.project_name,
+        client: item.client,
+        scope: item.scope,
+        created_at: item.created_at,
+        status: (item.status as 'Draft' | 'Sent' | 'Viewed' | 'Approved' | 'Rejected') || 'Draft',
+        amount: item.amount
+      }));
+      
+      setProposals(mappedData);
     } catch (error) {
       console.error('Error fetching proposals:', error);
       toast.error('Failed to load proposals');
@@ -88,6 +100,12 @@ export default function Proposals() {
   const handleDeleteProposal = (proposal: Proposal) => {
     // Implement delete logic here
     toast.success(`Proposal "${proposal.project_name}" deleted successfully`);
+  };
+
+  const handleProposalCreated = () => {
+    fetchProposals();
+    setNewProposalOpen(false);
+    setSelectedProposal(null);
   };
 
   const statusOptions = ['Draft', 'Sent', 'Viewed', 'Approved', 'Rejected'];
@@ -284,7 +302,7 @@ export default function Proposals() {
         open={newProposalOpen}
         onOpenChange={setNewProposalOpen}
         proposal={selectedProposal}
-        onProposalCreated={fetchProposals}
+        onProposalCreated={handleProposalCreated}
       />
 
       <ProposalTemplateDialog
