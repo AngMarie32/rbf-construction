@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -106,6 +105,21 @@ export default function Proposals() {
     fetchProposals();
     setNewProposalOpen(false);
     setSelectedProposal(null);
+  };
+
+  // Map proposal to expected format for ProposalViewModal
+  const mapProposalForModal = (proposal: Proposal | null) => {
+    if (!proposal) return null;
+    
+    return {
+      id: proposal.id,
+      projectName: proposal.project_name,
+      client: proposal.client,
+      scope: proposal.scope || '',
+      createdAt: new Date(proposal.created_at),
+      status: proposal.status,
+      amount: proposal.amount
+    };
   };
 
   const statusOptions = ['Draft', 'Sent', 'Viewed', 'Approved', 'Rejected'];
@@ -314,7 +328,7 @@ export default function Proposals() {
       <ProposalViewModal
         open={viewModalOpen}
         onOpenChange={setViewModalOpen}
-        proposal={selectedProposal}
+        proposal={mapProposalForModal(selectedProposal)}
       />
     </Layout>
   );
