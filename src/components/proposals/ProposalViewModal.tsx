@@ -1,4 +1,5 @@
 
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,12 +9,17 @@ import { format } from 'date-fns';
 import { Proposal } from '@/types';
 
 interface ProposalViewModalProps {
-  proposal: Proposal;
+  proposal: Proposal | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function ProposalViewModal({ proposal, open, onOpenChange }: ProposalViewModalProps) {
+  // Don't render anything if proposal is null
+  if (!proposal) {
+    return null;
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Draft': return 'bg-gray-100 text-gray-800 border-gray-300';
@@ -222,3 +228,4 @@ Thank you for considering our proposal. We look forward to working with you.
     </Dialog>
   );
 }
+
