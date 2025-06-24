@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,7 +43,7 @@ interface Proposal {
 export default function Proposals() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [newProposalOpen, setNewProposalOpen] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -82,7 +83,7 @@ export default function Proposals() {
   const filteredProposals = proposals.filter(proposal => {
     const searchMatch = proposal.project_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         proposal.client.toLowerCase().includes(searchQuery.toLowerCase());
-    const statusMatch = statusFilter ? proposal.status === statusFilter : true;
+    const statusMatch = statusFilter === 'all' ? true : proposal.status === statusFilter;
     return searchMatch && statusMatch;
   });
 
@@ -244,7 +245,7 @@ export default function Proposals() {
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 {statusOptions.map(status => (
                   <SelectItem key={status} value={status}>{status}</SelectItem>
                 ))}
