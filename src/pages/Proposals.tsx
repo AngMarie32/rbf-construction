@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,46 +32,16 @@ import { format } from 'date-fns';
 
 interface Proposal {
   id: string;
-  title: string;
+  project_name: string;
   client: string;
-  project: string;
-  date: string;
+  scope?: string;
+  created_at: string;
   status: 'Draft' | 'Sent' | 'Viewed' | 'Approved' | 'Rejected';
   amount: number;
 }
 
-const initialProposals: Proposal[] = [
-  {
-    id: '1',
-    title: 'Construction of New Office Building',
-    client: 'Acme Corp',
-    project: 'Office Building Project',
-    date: '2024-01-15',
-    status: 'Approved',
-    amount: 500000
-  },
-  {
-    id: '2',
-    title: 'Renovation of Existing Warehouse',
-    client: 'Beta Industries',
-    project: 'Warehouse Renovation',
-    date: '2024-02-20',
-    status: 'Sent',
-    amount: 250000
-  },
-  {
-    id: '3',
-    title: 'Landscaping for Residential Complex',
-    client: 'Gamma Estates',
-    project: 'Residential Landscaping',
-    date: '2024-03-10',
-    status: 'Draft',
-    amount: 75000
-  },
-];
-
 export default function Proposals() {
-  const [proposals, setProposals] = useState<Proposal[]>(initialProposals);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [newProposalOpen, setNewProposalOpen] = useState(false);
@@ -78,10 +49,28 @@ export default function Proposals() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
 
+  useEffect(() => {
+    fetchProposals();
+  }, []);
+
+  const fetchProposals = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('proposals')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setProposals(data || []);
+    } catch (error) {
+      console.error('Error fetching proposals:', error);
+      toast.error('Failed to load proposals');
+    }
+  };
+
   const filteredProposals = proposals.filter(proposal => {
-    const searchMatch = proposal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        proposal.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        proposal.project.toLowerCase().includes(searchQuery.toLowerCase());
+    const searchMatch = proposal.project_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        proposal.client.toLowerCase().includes(searchQuery.toLowerCase());
     const statusMatch = statusFilter ? proposal.status === statusFilter : true;
     return searchMatch && statusMatch;
   });
@@ -98,7 +87,7 @@ export default function Proposals() {
 
   const handleDeleteProposal = (proposal: Proposal) => {
     // Implement delete logic here
-    toast.success(`Proposal "${proposal.title}" deleted successfully`);
+    toast.success(`Proposal "${proposal.project_name}" deleted successfully`);
   };
 
   const statusOptions = ['Draft', 'Sent', 'Viewed', 'Approved', 'Rejected'];
@@ -231,13 +220,10 @@ export default function Proposals() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Title
+                  Project Name
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Client
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Project
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
@@ -256,10 +242,9 @@ export default function Proposals() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredProposals.map((proposal) => (
                 <tr key={proposal.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">{proposal.title}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{proposal.project_name}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{proposal.client}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{proposal.project}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{format(new Date(proposal.date), 'PPP')}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{format(new Date(proposal.created_at), 'PPP')}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <Badge
                       className={
@@ -299,11 +284,13 @@ export default function Proposals() {
         open={newProposalOpen}
         onOpenChange={setNewProposalOpen}
         proposal={selectedProposal}
+        onProposalCreated={fetchProposals}
       />
 
       <ProposalTemplateDialog
         open={templateDialogOpen}
         onOpenChange={setTemplateDialogOpen}
+        onTemplateSelect={() => {}}
       />
 
       <ProposalViewModal

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Plus, 
   Search, 
@@ -167,7 +169,7 @@ export default function ChangeOrders() {
         </div>
 
         {/* Financial Impact Dashboard */}
-        <FinancialImpactDashboard changeOrders={changeOrders} />
+        <FinancialImpactDashboard changeOrders={changeOrders} projectBudget={500000} />
 
         {/* Filters and Search */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -246,13 +248,14 @@ export default function ChangeOrders() {
       <CreateChangeOrderDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
-        onCreate={handleCreateChangeOrder}
+        onChangeOrderCreated={handleCreateChangeOrder}
       />
 
       {/* Change Order Templates Dialog */}
       <ChangeOrderTemplatesDialog
         open={templatesOpen}
         onOpenChange={setTemplatesOpen}
+        onSelectTemplate={() => {}}
       />
     </Layout>
   );

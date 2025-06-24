@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,29 +29,35 @@ import { format } from 'date-fns';
 
 interface BidPackage {
   id: string;
-  title: string;
+  name: string;
   description: string;
   status: 'Draft' | 'Published' | 'Closed';
   created_at: string;
   project_id: string;
+  due_date?: string;
+  estimated_value?: number;
 }
 
 interface BidInvitation {
   id: string;
   bid_package_id: string;
-  subcontractor_id: string;
+  title: string;
+  message?: string;
   due_date: string;
-  status: 'Sent' | 'Viewed' | 'Submitted' | 'Declined';
+  status: 'Draft' | 'Sent' | 'Viewed' | 'Submitted' | 'Declined';
   created_at: string;
+  sent_at?: string;
 }
 
 interface Subcontractor {
   id: string;
   name: string;
-  contact_person: string;
+  company: string;
   email: string;
   phone: string;
-  trade: string;
+  address: string;
+  specialties: string[];
+  status: string;
 }
 
 export default function BidPackages() {
@@ -80,7 +87,20 @@ export default function BidPackages() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setBidPackages(data || []);
+      
+      // Map database fields to component interface
+      const mappedData = (data || []).map(item => ({
+        id: item.id,
+        name: item.name,
+        description: item.description || '',
+        status: item.status as 'Draft' | 'Published' | 'Closed',
+        created_at: item.created_at,
+        project_id: item.project_id,
+        due_date: item.due_date,
+        estimated_value: item.estimated_value
+      }));
+      
+      setBidPackages(mappedData);
     } catch (error) {
       console.error('Error fetching bid packages:', error);
       toast.error('Failed to load bid packages');
@@ -97,7 +117,20 @@ export default function BidPackages() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setBidInvitations(data || []);
+      
+      // Map database fields to component interface
+      const mappedData = (data || []).map(item => ({
+        id: item.id,
+        bid_package_id: item.bid_package_id,
+        title: item.title,
+        message: item.message,
+        due_date: item.due_date,
+        status: item.status as 'Draft' | 'Sent' | 'Viewed' | 'Submitted' | 'Declined',
+        created_at: item.created_at,
+        sent_at: item.sent_at
+      }));
+      
+      setBidInvitations(mappedData);
     } catch (error) {
       console.error('Error fetching bid invitations:', error);
       toast.error('Failed to load bid invitations');
@@ -112,7 +145,20 @@ export default function BidPackages() {
         .order('name');
 
       if (error) throw error;
-      setSubcontractors(data || []);
+      
+      // Map database fields to component interface
+      const mappedData = (data || []).map(item => ({
+        id: item.id,
+        name: item.name,
+        company: item.company || '',
+        email: item.email || '',
+        phone: item.phone || '',
+        address: item.address || '',
+        specialties: item.specialties || [],
+        status: item.status || 'Active'
+      }));
+      
+      setSubcontractors(mappedData);
     } catch (error) {
       console.error('Error fetching subcontractors:', error);
       toast.error('Failed to load subcontractors');
@@ -120,20 +166,20 @@ export default function BidPackages() {
   };
 
   const filteredBidPackages = bidPackages.filter(pkg => {
-    const matchesSearch = pkg.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = pkg.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            pkg.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'All' || pkg.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const handlePackageCreated = (newPackage: BidPackage) => {
-    setBidPackages(prev => [newPackage, ...prev]);
+  const handlePackageCreated = () => {
+    fetchBidPackages();
     setCreatePackageOpen(false);
     toast.success('Bid package created successfully');
   };
 
-  const handleInvitationSent = (newInvitation: BidInvitation) => {
-    setBidInvitations(prev => [newInvitation, ...prev]);
+  const handleInvitationSent = () => {
+    fetchBidInvitations();
     setCreateInvitationOpen(false);
     toast.success('Bid invitation sent successfully');
   };
@@ -248,7 +294,7 @@ export default function BidPackages() {
                 {filteredBidPackages.map(pkg => (
                   <Card key={pkg.id} className="bg-white shadow-md rounded-lg overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                      <CardTitle className="text-sm font-medium">{pkg.title}</CardTitle>
+                      <CardTitle className="text-sm font-medium">{pkg.name}</CardTitle>
                       <Badge className={`${getStatusColor(pkg.status)} text-white`}>
                         {pkg.status}
                       </Badge>
@@ -268,25 +314,19 @@ export default function BidPackages() {
           </TabsContent>
 
           <TabsContent value="invitations" className="mt-6">
-            <BidInvitationsList invitations={bidInvitations} subcontractors={subcontractors} />
+            <BidInvitationsList refreshTrigger={0} />
           </TabsContent>
         </Tabs>
       </div>
 
       {/* Create Bid Package Dialog */}
       <CreateBidPackageDialog
-        open={createPackageOpen}
-        onOpenChange={setCreatePackageOpen}
         onPackageCreated={handlePackageCreated}
       />
 
       {/* Create Bid Invitation Dialog */}
       <CreateBidInvitationDialog
-        open={createInvitationOpen}
-        onOpenChange={setCreateInvitationOpen}
-        bidPackages={bidPackages}
-        subcontractors={subcontractors}
-        onInvitationSent={handleInvitationSent}
+        onInvitationCreated={handleInvitationSent}
       />
     </Layout>
   );
