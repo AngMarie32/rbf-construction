@@ -111,13 +111,21 @@ export default function Proposals() {
   const mapProposalForModal = (proposal: Proposal | null) => {
     if (!proposal) return null;
     
+    // Map status to match ProposalViewModal's expected type
+    let modalStatus: 'Draft' | 'Sent' | 'Approved' | 'Rejected' = 'Draft';
+    if (proposal.status === 'Draft' || proposal.status === 'Sent' || proposal.status === 'Approved' || proposal.status === 'Rejected') {
+      modalStatus = proposal.status;
+    } else if (proposal.status === 'Viewed') {
+      modalStatus = 'Sent'; // Map 'Viewed' to 'Sent' for the modal
+    }
+    
     return {
       id: proposal.id,
       projectName: proposal.project_name,
       client: proposal.client,
       scope: proposal.scope || '',
       createdAt: new Date(proposal.created_at),
-      status: proposal.status,
+      status: modalStatus,
       amount: proposal.amount
     };
   };
