@@ -1,6 +1,6 @@
 
 import * as XLSX from 'xlsx';
-import { format } from 'date-fns';
+import { format, isWeekend } from 'date-fns';
 import { Task } from '@/types';
 
 interface Project {
@@ -22,6 +22,24 @@ interface ReportOptions {
   includeProjectInfo: boolean;
   dateFormat: string;
 }
+
+// Common US holidays - you can expand this list as needed
+const getHolidays = (year: number) => {
+  return [
+    new Date(year, 0, 1), // New Year's Day
+    new Date(year, 6, 4), // Independence Day
+    new Date(year, 10, 11), // Veterans Day
+    new Date(year, 11, 25), // Christmas Day
+  ];
+};
+
+const isHoliday = (date: Date) => {
+  const holidays = getHolidays(date.getFullYear());
+  return holidays.some(holiday => 
+    holiday.getDate() === date.getDate() && 
+    holiday.getMonth() === date.getMonth()
+  );
+};
 
 export const generateComprehensiveReport = (
   tasks: Task[],
@@ -84,14 +102,15 @@ export const generateComprehensiveReport = (
           }
           th, td { 
             border: 1px solid #e2e8f0;
-            padding: 8px 12px;
+            padding: 6px 8px;
             text-align: left;
-            font-size: 10pt;
+            font-size: 9pt;
           }
           th { 
             background-color: #f8fafc;
             font-weight: 600;
             color: #475569;
+            font-size: 9pt;
           }
           .header {
             text-align: center;
@@ -184,14 +203,70 @@ export const generateComprehensiveReport = (
           .status-in-progress { background-color: #dbeafe; color: #1d4ed8; }
           .status-not-started { background-color: #f3f4f6; color: #374151; }
           .status-on-hold { background-color: #fef3c7; color: #92400e; }
-          .gantt-placeholder {
-            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
-            border: 2px dashed #94a3b8;
-            padding: 40px;
-            text-align: center;
+          .gantt-enhanced {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
             border-radius: 8px;
-            color: #64748b;
+            overflow: hidden;
+            margin: 20px 0;
           }
+          .gantt-header {
+            background: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            font-weight: 600;
+            font-size: 9pt;
+          }
+          .gantt-header > div {
+            padding: 8px 4px;
+            border-right: 1px solid #e2e8f0;
+            text-align: center;
+          }
+          .gantt-row {
+            display: flex;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 8pt;
+          }
+          .gantt-row:nth-child(even) {
+            background: #f9fafb;
+          }
+          .gantt-row > div {
+            padding: 6px 4px;
+            border-right: 1px solid #e2e8f0;
+          }
+          .gantt-timeline {
+            flex: 1;
+            display: flex;
+            position: relative;
+            min-height: 24px;
+          }
+          .gantt-day {
+            flex: 1;
+            min-width: 20px;
+            border-right: 1px solid #f1f5f9;
+            text-align: center;
+            font-size: 7pt;
+            padding: 2px 1px;
+          }
+          .gantt-day.weekend {
+            background-color: #eff6ff;
+          }
+          .gantt-day.holiday {
+            background-color: #fef2f2;
+            color: #dc2626;
+            font-weight: 600;
+          }
+          .task-bar {
+            position: absolute;
+            height: 16px;
+            top: 4px;
+            border-radius: 3px;
+            opacity: 0.8;
+          }
+          .task-bar.completed { background: #10b981; }
+          .task-bar.in-progress { background: #3b82f6; }
+          .task-bar.not-started { background: #9ca3af; }
+          .task-bar.on-hold { background: #f59e0b; }
           .summary-section {
             background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
             padding: 20px;
@@ -247,6 +322,19 @@ export const generateComprehensiveReport = (
       ${projectStats.map(project => {
         if (project.tasks.length === 0) return '';
 
+        // Calculate date range for this project
+        const projectStartDate = new Date(Math.min(...project.tasks.map(t => t.startDate.getTime())));
+        const projectEndDate = new Date(Math.max(...project.tasks.map(t => t.endDate.getTime())));
+        const totalDays = Math.ceil((projectEndDate.getTime() - projectStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        
+        // Generate timeline days for Gantt visualization
+        const timelineDays = [];
+        for (let i = 0; i < Math.min(totalDays, 30); i++) { // Limit to 30 days for print
+          const day = new Date(projectStartDate);
+          day.setDate(day.getDate() + i);
+          timelineDays.push(day);
+        }
+
         return `
           <div class="project-section">
             <div class="project-header">
@@ -284,11 +372,67 @@ export const generateComprehensiveReport = (
 
             ${options.includeGanttChart ? `
               <div class="view-section">
-                <div class="view-title">📊 Gantt Chart View</div>
-                <div class="gantt-placeholder">
-                  <strong>Gantt Chart Visualization</strong><br>
-                  <span style="font-size: 10pt;">Timeline view showing task dependencies and critical path</span><br>
-                  <em style="font-size: 9pt;">Project spans from ${format(new Date(Math.min(...project.tasks.map(t => t.startDate.getTime()))), options.dateFormat)} to ${format(new Date(Math.max(...project.tasks.map(t => t.endDate.getTime()))), options.dateFormat)}</em>
+                <div class="view-title">📊 Enhanced Gantt Chart View</div>
+                <div class="gantt-enhanced">
+                  <div class="gantt-header">
+                    <div style="width: 150px;">#  Task Name</div>
+                    <div style="width: 70px;">Start</div>
+                    <div style="width: 70px;">Finish</div>
+                    <div style="width: 60px;">% Complete</div>
+                    <div class="gantt-timeline">
+                      ${timelineDays.map(day => `
+                        <div class="gantt-day ${isWeekend(day) ? 'weekend' : ''} ${isHoliday(day) ? 'holiday' : ''}">
+                          ${format(day, 'dd')}
+                          <br><span style="font-size: 6pt;">${format(day, 'EEE')}</span>
+                          ${isHoliday(day) ? '<br><span style="font-size: 5pt;">HOL</span>' : ''}
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                  
+                  ${project.tasks.map((task, index) => {
+                    const taskStart = Math.max(0, Math.ceil((task.startDate.getTime() - projectStartDate.getTime()) / (1000 * 60 * 60 * 24)));
+                    const taskDuration = Math.ceil((task.endDate.getTime() - task.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                    const taskWidth = Math.min(100, (taskDuration / Math.min(totalDays, 30)) * 100);
+                    const taskLeft = (taskStart / Math.min(totalDays, 30)) * 100;
+                    
+                    return `
+                      <div class="gantt-row">
+                        <div style="width: 150px; font-size: 8pt;">
+                          <strong>${index + 1}</strong> ${task.title.length > 20 ? task.title.substring(0, 20) + '...' : task.title}
+                        </div>
+                        <div style="width: 70px; text-align: center;">${format(task.startDate, 'MM/dd')}</div>
+                        <div style="width: 70px; text-align: center;">${format(task.endDate, 'MM/dd')}</div>
+                        <div style="width: 60px; text-align: center;">
+                          <strong>${task.progress}%</strong>
+                          <div style="width: 100%; height: 4px; background: #e5e7eb; border-radius: 2px; margin-top: 2px;">
+                            <div style="width: ${task.progress}%; height: 100%; background: #3b82f6; border-radius: 2px;"></div>
+                          </div>
+                        </div>
+                        <div class="gantt-timeline" style="position: relative;">
+                          ${timelineDays.map(day => `
+                            <div class="gantt-day ${isWeekend(day) ? 'weekend' : ''} ${isHoliday(day) ? 'holiday' : ''}"></div>
+                          `).join('')}
+                          <div class="task-bar ${task.status.toLowerCase().replace(' ', '-')}" 
+                               style="left: ${taskLeft}%; width: ${taskWidth}%; z-index: 2;">
+                            <div style="width: ${task.progress}%; height: 100%; background: rgba(0,0,0,0.2); border-radius: 3px 0 0 3px;"></div>
+                          </div>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+                
+                <div style="margin-top: 10px; display: flex; gap: 20px; font-size: 8pt; color: #64748b;">
+                  <div style="display: flex; align-items: center; gap: 5px;">
+                    <div style="width: 12px; height: 8px; background: #eff6ff; border: 1px solid #bfdbfe;"></div>
+                    <span>Weekends</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 5px;">
+                    <div style="width: 12px; height: 8px; background: #fef2f2; border: 1px solid #fecaca;"></div>
+                    <span>Holidays</span>
+                  </div>
+                  <span>• Task bars show progress with darker overlay</span>
                 </div>
               </div>
             ` : ''}
@@ -299,12 +443,12 @@ export const generateComprehensiveReport = (
                 <table>
                   <thead>
                     <tr>
-                      <th style="width: 30%;">Task</th>
+                      <th style="width: 25%;">Task</th>
                       <th style="width: 12%;">Start Date</th>
                       <th style="width: 12%;">End Date</th>
                       <th style="width: 12%;">Status</th>
                       <th style="width: 15%;">Progress</th>
-                      ${options.includeDependencies ? '<th style="width: 19%;">Dependencies</th>' : ''}
+                      ${options.includeDependencies ? '<th style="width: 24%;">Dependencies</th>' : ''}
                     </tr>
                   </thead>
                   <tbody>
@@ -409,7 +553,7 @@ export const generateComprehensiveReport = (
             <strong>Avg Progress:</strong> ${Math.round(tasks.reduce((sum, t) => sum + t.progress, 0) / tasks.length)}%<br>
             <strong>Report Generated:</strong> ${format(new Date(), 'PPp')}<br>
             <strong>Views Included:</strong> ${[
-              options.includeGanttChart && 'Gantt',
+              options.includeGanttChart && 'Enhanced Gantt',
               options.includeTaskList && 'Task List', 
               options.includeCalendarView && 'Calendar',
               options.includeCriticalPath && 'Critical Path'
@@ -456,5 +600,3 @@ export const generateReport = (
     printWindow.focus();
   }
 };
-
-// Remove the old Excel and Google Sheets export functions

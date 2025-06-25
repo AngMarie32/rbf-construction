@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Edit, Trash2, Link } from 'lucide-react';
 import { Task } from '@/types';
-import { format, differenceInDays, eachDayOfInterval } from 'date-fns';
+import { format, differenceInDays, eachDayOfInterval, isWeekend } from 'date-fns';
 
 interface Project {
   id: string;
@@ -26,6 +26,25 @@ interface GanttChartProps {
   showCriticalPath?: boolean;
   showMilestones?: boolean;
 }
+
+// Common US holidays - you can expand this list as needed
+const getHolidays = (year: number) => {
+  return [
+    new Date(year, 0, 1), // New Year's Day
+    new Date(year, 6, 4), // Independence Day
+    new Date(year, 10, 11), // Veterans Day
+    new Date(year, 11, 25), // Christmas Day
+    // Add more holidays as needed
+  ];
+};
+
+const isHoliday = (date: Date) => {
+  const holidays = getHolidays(date.getFullYear());
+  return holidays.some(holiday => 
+    holiday.getDate() === date.getDate() && 
+    holiday.getMonth() === date.getMonth()
+  );
+};
 
 export function GanttChart({
   tasks,
@@ -78,22 +97,32 @@ export function GanttChart({
     }
   };
 
+  const getDayBackgroundClass = (day: Date, index: number) => {
+    if (isHoliday(day)) {
+      return 'bg-red-100 border-red-200';
+    }
+    if (isWeekend(day)) {
+      return 'bg-blue-50 border-blue-200';
+    }
+    return 'bg-white border-gray-200';
+  };
+
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-0">
-        <div className="overflow-x-auto" style={{ minWidth: '800px' }}>
+        <div className="overflow-x-auto" style={{ minWidth: '1000px' }}>
           {/* Header */}
           <div className="flex bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10">
             <div className="w-80 px-4 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700">
               Task Name
             </div>
-            <div className="w-32 px-4 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center">
+            <div className="w-28 px-2 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center text-xs">
               Start
             </div>
-            <div className="w-32 px-4 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center">
+            <div className="w-28 px-2 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center text-xs">
               Finish
             </div>
-            <div className="w-20 px-4 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center">
+            <div className="w-24 px-2 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center text-xs">
               % Complete
             </div>
             <div className="flex-1 relative">
@@ -101,12 +130,17 @@ export function GanttChart({
                 {timelineDays.map((day, index) => (
                   <div 
                     key={day.toISOString()} 
-                    className={`flex-1 min-w-[30px] p-2 text-xs text-center border-r border-gray-200 ${
-                      index % 7 === 0 || index % 7 === 6 ? 'bg-blue-50' : 'bg-white'
-                    }`}
+                    className={`flex-1 min-w-[30px] p-2 text-xs text-center border-r ${getDayBackgroundClass(day, index)}`}
                   >
                     <div className="font-medium text-gray-600">{format(day, 'dd')}</div>
-                    <div className="text-gray-500 text-[10px]">{format(day, 'EEE')}</div>
+                    <div className={`text-[10px] ${isHoliday(day) ? 'text-red-600 font-medium' : isWeekend(day) ? 'text-blue-600' : 'text-gray-500'}`}>
+                      {format(day, 'EEE')}
+                    </div>
+                    {isHoliday(day) && (
+                      <div className="text-[8px] text-red-600 font-bold">
+                        HOL
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -128,16 +162,16 @@ export function GanttChart({
                   {/* Task Info Column */}
                   <div className="w-80 px-4 py-3 border-r border-gray-300">
                     <div className="flex items-center justify-between">
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-medium text-gray-900">{taskIndex + 1}</span>
+                          <span className="text-sm font-medium text-gray-900 flex-shrink-0">{taskIndex + 1}</span>
                           <h4 className="font-medium text-sm text-gray-900 truncate">
                             {task.title}
                           </h4>
                         </div>
                         <div className="flex items-center gap-2">
                           <div 
-                            className="w-2 h-2 rounded-full" 
+                            className="w-2 h-2 rounded-full flex-shrink-0" 
                             style={{ backgroundColor: getProjectColor(task.projectId) }}
                           />
                           <span className="text-xs text-gray-600 truncate">
@@ -146,7 +180,7 @@ export function GanttChart({
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-2">
                         {onEditDependencies && (
                           <Button
                             variant="ghost"
@@ -179,18 +213,26 @@ export function GanttChart({
                   </div>
 
                   {/* Start Date Column */}
-                  <div className="w-32 px-4 py-3 border-r border-gray-300 text-center">
-                    <span className="text-sm text-gray-700">{format(task.startDate, 'MM/dd/yyyy')}</span>
+                  <div className="w-28 px-2 py-3 border-r border-gray-300 text-center">
+                    <span className="text-xs text-gray-700">{format(task.startDate, 'MM/dd/yy')}</span>
                   </div>
 
                   {/* End Date Column */}
-                  <div className="w-32 px-4 py-3 border-r border-gray-300 text-center">
-                    <span className="text-sm text-gray-700">{format(task.endDate, 'MM/dd/yyyy')}</span>
+                  <div className="w-28 px-2 py-3 border-r border-gray-300 text-center">
+                    <span className="text-xs text-gray-700">{format(task.endDate, 'MM/dd/yy')}</span>
                   </div>
 
-                  {/* Progress Column */}
-                  <div className="w-20 px-4 py-3 border-r border-gray-300 text-center">
-                    <span className="text-sm font-medium text-gray-700">{task.progress}%</span>
+                  {/* Progress Column - Fixed width and better formatting */}
+                  <div className="w-24 px-2 py-3 border-r border-gray-300 text-center">
+                    <div className="flex flex-col items-center justify-center h-full">
+                      <span className="text-xs font-medium text-gray-700 mb-1">{task.progress}%</span>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                        <div 
+                          className="bg-blue-600 h-1.5 rounded-full transition-all duration-300" 
+                          style={{ width: `${task.progress}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Timeline Column */}
@@ -274,6 +316,23 @@ export function GanttChart({
               );
             })
           )}
+        </div>
+
+        {/* Legend for holidays and weekends */}
+        <div className="border-t border-gray-200 p-4 bg-gray-50">
+          <div className="flex items-center gap-6 text-xs text-gray-600">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-blue-50 border border-blue-200 rounded"></div>
+              <span>Weekends</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-red-100 border border-red-200 rounded"></div>
+              <span>Holidays</span>
+            </div>
+            <div className="text-gray-500">
+              • Holidays are marked with "HOL" indicator
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
