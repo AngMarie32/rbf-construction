@@ -196,7 +196,7 @@ export function CreateTaskDialog({ projects, tasks, onTaskCreated }: CreateTaskD
             <Checkbox
               id="critical"
               checked={isCritical}
-              onCheckedChange={setIsCritical}
+              onCheckedChange={(checked) => setIsCritical(checked === true)}
             />
             <Label htmlFor="critical">Critical Task</Label>
           </div>
@@ -211,7 +211,7 @@ export function CreateTaskDialog({ projects, tasks, onTaskCreated }: CreateTaskD
                       id={`dep-${task.id}`}
                       checked={selectedDependencies.includes(task.id)}
                       onCheckedChange={(checked) => {
-                        if (checked) {
+                        if (checked === true) {
                           setSelectedDependencies([...selectedDependencies, task.id]);
                         } else {
                           setSelectedDependencies(selectedDependencies.filter(id => id !== task.id));

@@ -160,7 +160,7 @@ export default function Subcontractors() {
 
             {/* COI and W9 Status */}
             <div className="flex items-center gap-4 pt-2 border-t">
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1" title={isInsuranceCurrent(sub.insurance_expiry) ? "COI Current" : "COI Expired/Missing"}>
                 {isInsuranceCurrent(sub.insurance_expiry) ? (
                   <CheckCircle className="w-4 h-4 text-green-500" />
                 ) : (
@@ -168,7 +168,7 @@ export default function Subcontractors() {
                 )}
                 <span className="text-xs">COI</span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1" title={sub.w9_on_file ? "W9 On File" : "W9 Missing"}>
                 {sub.w9_on_file ? (
                   <CheckCircle className="w-4 h-4 text-green-500" />
                 ) : (
@@ -235,16 +235,20 @@ export default function Subcontractors() {
               </td>
               <td className="border border-gray-200 px-4 py-2 text-center">
                 <div className="flex justify-center gap-2">
-                  {isInsuranceCurrent(sub.insurance_expiry) ? (
-                    <CheckCircle className="w-4 h-4 text-green-500" title="COI Current" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-red-500" title="COI Expired/Missing" />
-                  )}
-                  {sub.w9_on_file ? (
-                    <CheckCircle className="w-4 h-4 text-green-500" title="W9 On File" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-red-500" title="W9 Missing" />
-                  )}
+                  <div title={isInsuranceCurrent(sub.insurance_expiry) ? "COI Current" : "COI Expired/Missing"}>
+                    {isInsuranceCurrent(sub.insurance_expiry) ? (
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-red-500" />
+                    )}
+                  </div>
+                  <div title={sub.w9_on_file ? "W9 On File" : "W9 Missing"}>
+                    {sub.w9_on_file ? (
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-red-500" />
+                    )}
+                  </div>
                 </div>
               </td>
               <td className="border border-gray-200 px-4 py-2">

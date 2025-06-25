@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, CalendarDays, Gantt, Plus, Search, Filter, Eye, Download, Settings, Target, Lightbulb, BarChart3, Users, Clock } from 'lucide-react';
+import { Calendar, CalendarDays, BarChart3, Plus, Search, Filter, Eye, Download, Settings, Target, Lightbulb, Users, Clock } from 'lucide-react';
 import { GanttChart } from '@/components/schedule/GanttChart';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
 import { CriticalPath } from '@/components/schedule/CriticalPath';
@@ -40,6 +41,7 @@ export default function ProjectSchedule() {
   const [showMilestones, setShowMilestones] = useState(false);
   const [dependencyTask, setDependencyTask] = useState<Task | null>(null);
   const [editTask, setEditTask] = useState<Task | null>(null);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -84,7 +86,7 @@ export default function ProjectSchedule() {
         projectId: task.project_id,
         startDate: new Date(task.start_date),
         endDate: new Date(task.end_date),
-        status: task.status || 'Not Started',
+        status: task.status as 'Not Started' | 'In Progress' | 'On Hold' | 'Completed' || 'Not Started',
         progress: task.progress || 0,
         dependencies: task.dependencies || []
       }));
@@ -126,6 +128,10 @@ export default function ProjectSchedule() {
       console.error('Error updating task:', error);
       toast.error('Failed to update task');
     }
+  };
+
+  const handleUpdateDependencies = async (taskId: string, dependencies: string[]) => {
+    await handleUpdateTask(taskId, { dependencies });
   };
 
   const handleDeleteTask = async (taskId: string) => {
@@ -216,7 +222,7 @@ export default function ProjectSchedule() {
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle className="flex items-center gap-2">
-                <Gantt className="w-5 h-5" />
+                <BarChart3 className="w-5 h-5" />
                 Project Schedule
               </CardTitle>
               <div className="flex items-center gap-2">
@@ -225,10 +231,10 @@ export default function ProjectSchedule() {
                   tasks={tasks}
                   onTaskCreated={fetchTasks}
                 />
-                <EnhancedExportDialog 
-                  tasks={filteredTasks}
-                  projects={projects}
-                />
+                <Button onClick={() => setExportDialogOpen(true)} variant="outline">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
               </div>
             </div>
           </CardHeader>
@@ -237,7 +243,7 @@ export default function ProjectSchedule() {
               <div className="flex justify-between items-center">
                 <TabsList>
                   <TabsTrigger value="gantt" className="flex items-center gap-2">
-                    <Gantt className="w-4 h-4" />
+                    <BarChart3 className="w-4 h-4" />
                     Gantt Chart
                   </TabsTrigger>
                   <TabsTrigger value="calendar" className="flex items-center gap-2">
@@ -299,14 +305,15 @@ export default function ProjectSchedule() {
                 <ScheduleCalendar 
                   tasks={filteredTasks}
                   projects={projects}
-                  onUpdateTask={handleUpdateTask}
+                  currentDate={new Date()}
+                  onDateChange={() => {}}
+                  onTaskUpdate={handleUpdateTask}
                 />
               </TabsContent>
 
               <TabsContent value="critical">
                 <CriticalPath 
                   tasks={filteredTasks}
-                  projects={projects}
                 />
               </TabsContent>
             </Tabs>
@@ -319,7 +326,7 @@ export default function ProjectSchedule() {
           onOpenChange={(open) => !open && setDependencyTask(null)}
           task={dependencyTask}
           tasks={tasks}
-          onUpdateDependencies={handleUpdateTask}
+          onUpdateDependencies={handleUpdateDependencies}
         />
 
         {/* Task Edit Dialog */}
@@ -328,6 +335,14 @@ export default function ProjectSchedule() {
           open={!!editTask}
           onOpenChange={(open) => !open && setEditTask(null)}
           onSave={handleUpdateTask}
+        />
+
+        {/* Enhanced Export Dialog */}
+        <EnhancedExportDialog
+          open={exportDialogOpen}
+          onOpenChange={setExportDialogOpen}
+          tasks={filteredTasks}
+          projects={projects}
         />
       </div>
     </Layout>
