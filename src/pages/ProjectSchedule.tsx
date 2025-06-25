@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -306,6 +307,7 @@ export default function ProjectSchedule() {
                   projects={projects}
                   currentDate={new Date()}
                   onDateChange={() => {}}
+                  onTaskUpdate={handleUpdateTask}
                 />
               </TabsContent>
 
