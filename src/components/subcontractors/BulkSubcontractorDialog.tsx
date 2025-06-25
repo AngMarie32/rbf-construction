@@ -1,11 +1,51 @@
+
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Upload, FileText, Users } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, Upload, Trash2, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+const SPECIALTY_OPTIONS = [
+  'Electrical',
+  'Plumbing',
+  'HVAC',
+  'Concrete',
+  'Framing',
+  'Roofing',
+  'Flooring',
+  'Drywall',
+  'Painting',
+  'Landscaping',
+  'Excavation',
+  'Masonry',
+  'Windows & Doors',
+  'Insulation',
+  'Tile Work',
+  'Asphalt',
+  'Other'
+];
+
+interface BulkSubcontractorData {
+  company: string;
+  name: string;
+  email: string;
+  phone: string;
+  specialty: string;
+  travelRadius: string;
+  insuranceExpiry: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  notes: string;
+  w9OnFile: boolean;
+}
 
 interface BulkSubcontractorDialogProps {
   onSubcontractorsCreated: () => void;
@@ -13,163 +53,262 @@ interface BulkSubcontractorDialogProps {
 
 export function BulkSubcontractorDialog({ onSubcontractorsCreated }: BulkSubcontractorDialogProps) {
   const [open, setOpen] = useState(false);
-  const [csvData, setCsvData] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [subcontractors, setSubcontractors] = useState<BulkSubcontractorData[]>([
+    {
+      company: '',
+      name: '',
+      email: '',
+      phone: '',
+      specialty: '',
+      travelRadius: '',
+      insuranceExpiry: '',
+      address: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      notes: '',
+      w9OnFile: false
+    }
+  ]);
 
-  const handleSubmit = async () => {
-    if (!csvData.trim()) {
-      toast.error('Please enter CSV data');
+  const addSubcontractor = () => {
+    setSubcontractors([...subcontractors, {
+      company: '',
+      name: '',
+      email: '',
+      phone: '',
+      specialty: '',
+      travelRadius: '',
+      insuranceExpiry: '',
+      address: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      notes: '',
+      w9OnFile: false
+    }]);
+  };
+
+  const removeSubcontractor = (index: number) => {
+    if (subcontractors.length > 1) {
+      setSubcontractors(subcontractors.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateSubcontractor = (index: number, field: keyof BulkSubcontractorData, value: any) => {
+    const updated = [...subcontractors];
+    updated[index] = { ...updated[index], [field]: value };
+    setSubcontractors(updated);
+  };
+
+  const handleSave = async () => {
+    const validSubcontractors = subcontractors.filter(sub => sub.company && sub.name);
+    
+    if (validSubcontractors.length === 0) {
+      toast.error('Please add at least one subcontractor with company and name');
       return;
     }
 
-    setLoading(true);
     try {
-      const lines = csvData.trim().split('\n');
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-      
-      const subcontractors = lines.slice(1).map(line => {
-        const values = line.split(',').map(v => v.trim());
-        const sub: any = {};
-        
-        headers.forEach((header, index) => {
-          const value = values[index] || '';
-          
-          switch (header) {
-            case 'name':
-              sub.name = value;
-              break;
-            case 'company':
-              sub.company = value;
-              break;
-            case 'email':
-              sub.email = value;
-              break;
-            case 'phone':
-              sub.phone = value;
-              break;
-            case 'address':
-              sub.address = value;
-              break;
-            case 'city':
-              sub.city = value;
-              break;
-            case 'state':
-              sub.state = value;
-              break;
-            case 'zip_code':
-            case 'zip':
-              sub.zip_code = value;
-              break;
-            case 'specialties':
-            case 'trades':
-              sub.specialties = value ? value.split('|').map(s => s.trim()) : [];
-              break;
-            case 'status':
-              sub.status = value || 'Active';
-              break;
-            case 'notes':
-              sub.notes = value;
-              break;
-            case 'w9_on_file':
-            case 'w9':
-              sub.w9_on_file = value.toLowerCase() === 'true' || value.toLowerCase() === 'yes';
-              break;
-            case 'insurance_expiry':
-              if (value) {
-                sub.insurance_expiry = new Date(value).toISOString().split('T')[0];
-              }
-              break;
-            case 'rating':
-              if (value && !isNaN(parseFloat(value))) {
-                sub.rating = parseFloat(value);
-              }
-              break;
-          }
-        });
-        
-        return sub;
-      }).filter(sub => sub.name); // Only include entries with names
-
-      if (subcontractors.length === 0) {
-        toast.error('No valid subcontractor data found');
-        return;
-      }
+      const subcontractorData = validSubcontractors.map(sub => ({
+        company: sub.company,
+        name: sub.name,
+        email: sub.email || null,
+        phone: sub.phone || null,
+        specialties: sub.specialty ? [sub.specialty] : null,
+        travel_radius: sub.travelRadius ? parseInt(sub.travelRadius) : null,
+        insurance_expiry: sub.insuranceExpiry || null,
+        address: sub.address || null,
+        city: sub.city || null,
+        state: sub.state || null,
+        zip_code: sub.zipCode || null,
+        notes: sub.notes || null,
+        w9_on_file: sub.w9OnFile
+      }));
 
       const { error } = await supabase
         .from('subcontractors')
-        .insert(subcontractors);
+        .insert(subcontractorData);
 
       if (error) throw error;
 
-      toast.success(`Successfully created ${subcontractors.length} subcontractors`);
-      setOpen(false);
-      setCsvData('');
+      toast.success(`Added ${validSubcontractors.length} subcontractors successfully`);
       onSubcontractorsCreated();
+      setOpen(false);
+      setSubcontractors([{
+        company: '',
+        name: '',
+        email: '',
+        phone: '',
+        specialty: '',
+        travelRadius: '',
+        insuranceExpiry: '',
+        address: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        notes: '',
+        w9OnFile: false
+      }]);
     } catch (error) {
-      console.error('Error creating subcontractors:', error);
-      toast.error('Failed to create subcontractors');
-    } finally {
-      setLoading(false);
+      console.error('Error adding subcontractors:', error);
+      toast.error('Failed to add subcontractors');
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="flex items-center gap-2">
-          <Upload className="w-4 h-4" />
-          Bulk Import
+        <Button>
+          <Plus className="w-4 h-4 mr-2" />
+          Bulk Add Subcontractors
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            Bulk Import Subcontractors
-          </DialogTitle>
+          <DialogTitle>Bulk Add Subcontractors</DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="csv-data">CSV Data</Label>
-            <Textarea
-              id="csv-data"
-              value={csvData}
-              onChange={(e) => setCsvData(e.target.value)}
-              placeholder="Paste your CSV data here..."
-              className="min-h-[200px] font-mono text-sm"
-            />
-            <p className="text-sm text-muted-foreground mt-2">
-              Include headers: name, company, email, phone, address, city, state, zip_code, specialties, status, notes, w9_on_file, insurance_expiry, rating
-            </p>
-          </div>
+        <div className="space-y-6">
+          {subcontractors.map((subcontractor, index) => (
+            <div key={index} className="border rounded-lg p-4 space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="font-medium">Subcontractor {index + 1}</h3>
+                {subcontractors.length > 1 && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => removeSubcontractor(index)}
+                    className="text-red-600"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
 
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="flex items-start gap-2">
-              <FileText className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div>
-                <h4 className="font-medium text-blue-900">CSV Format Tips</h4>
-                <ul className="text-sm text-blue-800 mt-2 space-y-1">
-                  <li>• Separate multiple specialties with "|" (pipe character)</li>
-                  <li>• Use "true" or "yes" for w9_on_file field</li>
-                  <li>• Date format for insurance_expiry: YYYY-MM-DD</li>
-                  <li>• Rating should be a number between 1-5</li>
-                </ul>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Company Name *</Label>
+                  <Input
+                    value={subcontractor.company}
+                    onChange={(e) => updateSubcontractor(index, 'company', e.target.value)}
+                    placeholder="Company name"
+                  />
+                </div>
+                <div>
+                  <Label>Contact Person *</Label>
+                  <Input
+                    value={subcontractor.name}
+                    onChange={(e) => updateSubcontractor(index, 'name', e.target.value)}
+                    placeholder="Contact person name"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    value={subcontractor.email}
+                    onChange={(e) => updateSubcontractor(index, 'email', e.target.value)}
+                    placeholder="email@company.com"
+                  />
+                </div>
+                <div>
+                  <Label>Phone</Label>
+                  <Input
+                    value={subcontractor.phone}
+                    onChange={(e) => updateSubcontractor(index, 'phone', e.target.value)}
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Specialty</Label>
+                  <Select 
+                    value={subcontractor.specialty} 
+                    onValueChange={(value) => updateSubcontractor(index, 'specialty', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select specialty" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SPECIALTY_OPTIONS.map((specialty) => (
+                        <SelectItem key={specialty} value={specialty}>
+                          {specialty}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Travel Radius (miles)</Label>
+                  <Input
+                    type="number"
+                    value={subcontractor.travelRadius}
+                    onChange={(e) => updateSubcontractor(index, 'travelRadius', e.target.value)}
+                    placeholder="50"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label>City</Label>
+                  <Input
+                    value={subcontractor.city}
+                    onChange={(e) => updateSubcontractor(index, 'city', e.target.value)}
+                    placeholder="City"
+                  />
+                </div>
+                <div>
+                  <Label>State</Label>
+                  <Input
+                    value={subcontractor.state}
+                    onChange={(e) => updateSubcontractor(index, 'state', e.target.value)}
+                    placeholder="State"
+                  />
+                </div>
+                <div>
+                  <Label>Zip Code</Label>
+                  <Input
+                    value={subcontractor.zipCode}
+                    onChange={(e) => updateSubcontractor(index, 'zipCode', e.target.value)}
+                    placeholder="12345"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  checked={subcontractor.w9OnFile}
+                  onCheckedChange={(checked) => updateSubcontractor(index, 'w9OnFile', checked)}
+                />
+                <Label className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  W-9 on File
+                </Label>
               </div>
             </div>
-          </div>
+          ))}
 
-          <div className="flex gap-2">
-            <Button onClick={handleSubmit} disabled={loading} className="flex-1">
-              {loading ? 'Importing...' : 'Import Subcontractors'}
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={addSubcontractor}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Another Subcontractor
             </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => setOpen(false)}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
+            
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave}>
+                Save All Subcontractors
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>

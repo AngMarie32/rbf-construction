@@ -1,72 +1,263 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, CalendarDays, BarChart3, Plus, Search, Filter, Eye, Download, Settings, Target, Lightbulb, Users, Clock } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { QuickPlanner } from '@/components/schedule/QuickPlanner';
+import { TemplateManager } from '@/components/schedule/TemplateManager';
 import { GanttChart } from '@/components/schedule/GanttChart';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
 import { CriticalPath } from '@/components/schedule/CriticalPath';
-import { EnhancedExportDialog } from '@/components/schedule/EnhancedExportDialog';
-import { TaskDependencyManager } from '@/components/schedule/TaskDependencyManager';
-import { TaskEditDialog } from '@/components/schedule/TaskEditDialog';
-import { CreateTaskDialog } from '@/components/schedule/CreateTaskDialog';
+import { CollapsibleFilterSection } from '@/components/schedule/CollapsibleFilterSection';
+import { EnhancedTaskList } from '@/components/schedule/EnhancedTaskList';
+import { PlannerBoard } from '@/components/schedule/PlannerBoard';
+import { exportToPDF, exportCSV } from '@/utils/pdfExport';
+import { 
+  Plus, 
+  Download, 
+  Clock,
+  File,
+  Info,
+  Calendar as CalendarIcon,
+  LayoutGrid,
+  Edit,
+  Send,
+  CheckCircle,
+  AlertTriangle
+} from 'lucide-react';
+import { format, addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { addDays, subDays } from 'date-fns';
 import { Task } from '@/types';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useOptimisticUpdates } from '@/hooks/useOptimisticUpdates';
+import { BulkTaskOperations } from '@/components/schedule/BulkTaskOperations';
+import { EnhancedCriticalPath } from '@/components/schedule/EnhancedCriticalPath';
+import { EnhancedExportDialog } from '@/components/schedule/EnhancedExportDialog';
+import { TaskDependencyManager } from '@/components/schedule/TaskDependencyManager';
 
 interface Project {
   id: string;
   name: string;
   color: string;
+  client?: string;
+  contractValue?: number;
+  status?: string;
 }
+
+const PROJECT_COLORS = [
+  '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
+  '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1'
+];
 
 export default function ProjectSchedule() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [dateRange, setDateRange] = useState({
     from: subDays(new Date(), 30),
-    to: addDays(new Date(), 60)
+    to: addDays(new Date(), 90)
   });
-  const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<'week' | 'month' | 'quarter'>('month');
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [activeTab, setActiveTab] = useState('board');
+  
+  // Feature toggles
   const [showDependencies, setShowDependencies] = useState(false);
   const [showCriticalPath, setShowCriticalPath] = useState(false);
   const [showMilestones, setShowMilestones] = useState(false);
-  const [dependencyTask, setDependencyTask] = useState<Task | null>(null);
-  const [editTask, setEditTask] = useState<Task | null>(null);
-  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  
+  // Dialog states
+  const [quickPlannerOpen, setQuickPlannerOpen] = useState(false);
+  const [templateManagerOpen, setTemplateManagerOpen] = useState(false);
+  const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
+  const [enhancedExportOpen, setEnhancedExportOpen] = useState(false);
+  const [dependencyManagerOpen, setDependencyManagerOpen] = useState(false);
+  const [selectedTaskForDependency, setSelectedTaskForDependency] = useState<Task | null>(null);
+  
+  // New task form
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
+    projectId: '',
+    startDate: new Date(),
+    duration: 1,
+    useDuration: true,
+    status: 'Not Started' as Task['status']
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [templateTasks, setTemplateTasks] = useState<any[]>([]);
+
+  // Create project data for PDF export
+  const projectData = {
+    name: selectedProjects.length === 1 
+      ? projects.find(p => p.id === selectedProjects[0])?.name || 'Multiple Projects'
+      : 'Multiple Projects',
+    client: selectedProjects.length === 1 
+      ? projects.find(p => p.id === selectedProjects[0])?.client || 'Various Clients'
+      : 'Various Clients',
+    status: selectedProjects.length === 1 
+      ? projects.find(p => p.id === selectedProjects[0])?.status || 'Active'
+      : 'Active',
+    contractValue: selectedProjects.length === 1 
+      ? projects.find(p => p.id === selectedProjects[0])?.contractValue
+      : undefined,
+    taskCount: filteredTasks.length,
+    dateRange: `${format(dateRange.from, 'PPP')} - ${format(dateRange.to, 'PPP')}`
+  };
+
+  // New state for enhanced features
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  
+  // Debounced search for better performance
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Enhanced handleTaskUpdate
+  const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      const updatedTask = { ...task, ...updates };
+      
+      // Prepare updates for database (convert Date objects to strings)
+      const dbUpdates: any = {
+        progress: updatedTask.progress,
+        status: updatedTask.status
+      };
+
+      if (updates.startDate) {
+        dbUpdates.start_date = updates.startDate.toISOString().split('T')[0];
+      }
+      if (updates.endDate) {
+        dbUpdates.end_date = updates.endDate.toISOString().split('T')[0];
+      }
+
+      const { error } = await supabase
+        .from('tasks')
+        .update(dbUpdates)
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      setTasks(prevTasks => 
+        prevTasks.map(t => t.id === taskId ? updatedTask : t)
+      );
+      
+      toast.success('Task updated');
+    } catch (error) {
+      console.error('Error updating task:', error);
+      toast.error('Failed to update task');
+      throw error;
+    }
+  };
+
+  const handleTaskDependencyUpdate = async (taskId: string, dependencies: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ dependencies })
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      setTasks(prevTasks => 
+        prevTasks.map(task => 
+          task.id === taskId ? { ...task, dependencies } : task
+        )
+      );
+      
+      toast.success('Task dependencies updated');
+    } catch (error) {
+      console.error('Error updating task dependencies:', error);
+      toast.error('Failed to update task dependencies');
+    }
+  };
+
+  const openDependencyManager = (task: Task) => {
+    setSelectedTaskForDependency(task);
+    setDependencyManagerOpen(true);
+  };
+
+  const handleExport = async () => {
+    setEnhancedExportOpen(true);
+  };
+
+  // Optimistic updates for better UX
+  const { optimisticTasks, optimisticUpdate } = useOptimisticUpdates(tasks, handleTaskUpdate);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      key: 'n',
+      ctrlKey: true,
+      callback: () => setNewTaskDialogOpen(true)
+    },
+    {
+      key: 'e',
+      ctrlKey: true,
+      callback: handleExport
+    },
+    {
+      key: 'q',
+      ctrlKey: true,
+      callback: () => setQuickPlannerOpen(true)
+    },
+    {
+      key: 'Escape',
+      callback: () => {
+        setSelectedTaskIds([]);
+        setNewTaskDialogOpen(false);
+        setQuickPlannerOpen(false);
+        setTemplateManagerOpen(false);
+      }
+    }
+  ]);
 
   useEffect(() => {
     fetchProjects();
     fetchTasks();
   }, []);
 
+  useEffect(() => {
+    applyFilters();
+  }, [tasks, selectedProjects, debouncedSearchQuery, dateRange]);
+
+  useEffect(() => {
+    updateDateRangeForViewMode();
+  }, [viewMode, currentDate]);
+
   const fetchProjects = async () => {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name')
+        .select('id, name, client, contract_value, status')
         .order('name');
 
       if (error) throw error;
 
       const projectsWithColors = (data || []).map((project, index) => ({
-        ...project,
-        color: `hsl(${(index * 137.5) % 360}, 70%, 50%)`
+        id: project.id,
+        name: project.name,
+        color: PROJECT_COLORS[index % PROJECT_COLORS.length],
+        client: project.client,
+        contractValue: project.contract_value,
+        status: project.status
       }));
 
       setProjects(projectsWithColors);
-      setSelectedProjects(projectsWithColors.map(p => p.id));
     } catch (error) {
       console.error('Error fetching projects:', error);
-      toast.error('Failed to load projects'); 
+      toast.error('Failed to load projects');
     }
   };
 
@@ -80,18 +271,30 @@ export default function ProjectSchedule() {
 
       if (error) throw error;
 
-      const formattedTasks = (data || []).map(task => ({
-        id: task.id,
-        title: task.title,
-        projectId: task.project_id,
-        startDate: new Date(task.start_date),
-        endDate: new Date(task.end_date),
-        status: task.status as 'Not Started' | 'In Progress' | 'On Hold' | 'Completed' || 'Not Started',
-        progress: task.progress || 0,
-        dependencies: task.dependencies || []
-      }));
+      const tasksWithDates = (data || []).map(task => {
+        const startDate = new Date(task.start_date);
+        const endDate = new Date(task.end_date);
+        
+        // Ensure status matches the Task type
+        let status: Task['status'] = 'Not Started';
+        const dbStatus = task.status;
+        if (dbStatus === 'Not Started' || dbStatus === 'In Progress' || dbStatus === 'Completed' || dbStatus === 'On Hold') {
+          status = dbStatus;
+        }
 
-      setTasks(formattedTasks);
+        return {
+          id: task.id,
+          projectId: task.project_id,
+          title: task.title,
+          startDate,
+          endDate,
+          progress: task.progress || 0,
+          status,
+          dependencies: task.dependencies || []
+        };
+      });
+
+      setTasks(tasksWithDates);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       toast.error('Failed to load tasks');
@@ -100,41 +303,99 @@ export default function ProjectSchedule() {
     }
   };
 
-  const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
-    try {
-      const task = tasks.find(t => t.id === taskId);
-      if (!task) return;
+  const updateDateRangeForViewMode = () => {
+    let from: Date;
+    let to: Date;
 
-      const updateData: any = {};
-      if (updates.startDate) updateData.start_date = updates.startDate.toISOString().split('T')[0];
-      if (updates.endDate) updateData.end_date = updates.endDate.toISOString().split('T')[0];
-      if (updates.status) updateData.status = updates.status;
-      if (updates.progress !== undefined) updateData.progress = updates.progress;
-      if (updates.dependencies) updateData.dependencies = updates.dependencies;
+    switch (viewMode) {
+      case 'week':
+        from = startOfWeek(currentDate);
+        to = endOfWeek(currentDate);
+        break;
+      case 'month':
+        from = startOfMonth(currentDate);
+        to = endOfMonth(currentDate);
+        break;
+      case 'quarter':
+        from = startOfQuarter(currentDate);
+        to = endOfQuarter(currentDate);
+        break;
+      default:
+        from = startOfMonth(currentDate);
+        to = endOfMonth(currentDate);
+    }
+
+    setDateRange({ from, to });
+  };
+
+  const applyFilters = () => {
+    let filtered = tasks;
+
+    // Filter by selected projects
+    if (selectedProjects.length > 0) {
+      filtered = filtered.filter(task => selectedProjects.includes(task.projectId));
+    }
+
+    // Filter by debounced search query
+    if (debouncedSearchQuery) {
+      filtered = filtered.filter(task =>
+        task.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+      );
+    }
+
+    // Filter by date range
+    filtered = filtered.filter(task => {
+      return task.startDate >= dateRange.from && task.startDate <= dateRange.to;
+    });
+
+    setFilteredTasks(filtered);
+  };
+
+  const addNewTask = async () => {
+    if (!newTask.title || !newTask.projectId) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const endDate = new Date(newTask.startDate);
+      if (newTask.useDuration) {
+        endDate.setDate(endDate.getDate() + newTask.duration - 1);
+      }
 
       const { error } = await supabase
         .from('tasks')
-        .update(updateData)
-        .eq('id', taskId);
+        .insert({
+          title: newTask.title,
+          project_id: newTask.projectId,
+          start_date: newTask.startDate.toISOString().split('T')[0],
+          end_date: endDate.toISOString().split('T')[0],
+          status: newTask.status,
+          progress: 0,
+          dependencies: []
+        });
 
       if (error) throw error;
 
-      setTasks(prev => prev.map(t => 
-        t.id === taskId ? { ...t, ...updates } : t
-      ));
-
-      toast.success('Task updated successfully');
+      toast.success('Task added successfully');
+      setNewTaskDialogOpen(false);
+      setNewTask({
+        title: '',
+        description: '',
+        projectId: '',
+        startDate: new Date(),
+        duration: 1,
+        useDuration: true,
+        status: 'Not Started' as Task['status']
+      });
+      fetchTasks();
     } catch (error) {
-      console.error('Error updating task:', error);
-      toast.error('Failed to update task');
+      console.error('Error adding task:', error);
+      toast.error('Failed to add task');
     }
   };
 
-  const handleUpdateDependencies = async (taskId: string, dependencies: string[]) => {
-    await handleUpdateTask(taskId, { dependencies });
-  };
-
-  const handleDeleteTask = async (taskId: string) => {
+  const handleTaskDelete = async (taskId: string) => {
     try {
       const { error } = await supabase
         .from('tasks')
@@ -143,7 +404,7 @@ export default function ProjectSchedule() {
 
       if (error) throw error;
 
-      setTasks(prev => prev.filter(t => t.id !== taskId));
+      setTasks(prevTasks => prevTasks.filter(t => t.id !== taskId));
       toast.success('Task deleted successfully');
     } catch (error) {
       console.error('Error deleting task:', error);
@@ -151,201 +412,441 @@ export default function ProjectSchedule() {
     }
   };
 
-  const filteredTasks = tasks.filter(task => {
-    const matchesProject = selectedProjects.includes(task.projectId);
-    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const withinDateRange = task.startDate <= dateRange.to && task.endDate >= dateRange.from;
+  const handleBulkUpdate = async (taskIds: string[], updates: Partial<Task>) => {
+    try {
+      for (const taskId of taskIds) {
+        await handleTaskUpdate(taskId, updates);
+      }
+    } catch (error) {
+      console.error('Error in bulk update:', error);
+      throw error;
+    }
+  };
+
+  const handleBulkDelete = async (taskIds: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .in('id', taskIds);
+
+      if (error) throw error;
+
+      setTasks(prevTasks => prevTasks.filter(t => !taskIds.includes(t.id)));
+      toast.success(`Deleted ${taskIds.length} tasks successfully`);
+    } catch (error) {
+      console.error('Error deleting tasks:', error);
+      toast.error('Failed to delete tasks');
+      throw error;
+    }
+  };
+
+  const handleQuickPlannerTasksAdded = (newTasks: any[]) => {
+    fetchTasks();
+    setQuickPlannerOpen(false);
+    toast.success(`${newTasks.length} tasks added successfully`);
+  };
+
+  const handleTemplateApplied = (templateTasks: any[]) => {
+    // Store template tasks and open QuickPlanner
+    setTemplateTasks(templateTasks);
+    setQuickPlannerOpen(true);
+    setTemplateManagerOpen(false);
+    toast.success('Template loaded into Quick Planner');
+  };
+
+  const navigateDate = (direction: 'prev' | 'next') => {
+    const newDate = new Date(currentDate);
     
-    return matchesProject && matchesSearch && withinDateRange;
-  });
+    switch (viewMode) {
+      case 'week':
+        newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
+        break;
+      case 'month':
+        newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
+        break;
+      case 'quarter':
+        newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 3 : -3));
+        break;
+    }
+    
+    setCurrentDate(newDate);
+  };
+
+  const handleAddTaskToBoard = (status: Task['status']) => {
+    setNewTask({ ...newTask, status });
+    setNewTaskDialogOpen(true);
+  };
 
   return (
     <Layout title="Project Schedule" subtitle="Manage project timelines and dependencies">
-      <div className="space-y-8">
-        {/* Quick Start Guide */}
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-2">
-              <Lightbulb className="w-5 h-5 text-blue-600" />
-              <CardTitle className="text-blue-900">Quick Start Guide</CardTitle>
+      <div className="space-y-6">
+        {/* Enhanced Header */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Project Schedule</h1>
+              <p className="text-gray-600">Manage project timelines, dependencies, and track progress</p>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <h4 className="font-semibold text-blue-900 flex items-center gap-2">
-                  <Target className="w-4 h-4" />
-                  Getting Started
-                </h4>
-                <ul className="space-y-2 text-sm text-blue-800">
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
-                    Create tasks by clicking "Add Task" and fill in project details, dates, and dependencies
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
-                    Use the Gantt chart to visualize project timelines and identify scheduling conflicts
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
-                    Set task dependencies to ensure proper work sequencing
-                  </li>
-                </ul>
-              </div>
-              
-              <div className="space-y-3">
-                <h4 className="font-semibold text-blue-900 flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4" />
-                  Key Features
-                </h4>
-                <ul className="space-y-2 text-sm text-blue-800">
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
-                    Track progress with percentage completion for each task
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
-                    Export comprehensive reports with enhanced formatting
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
-                    View critical path analysis to identify bottlenecks
-                  </li>
-                </ul>
-              </div>
+            
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setNewTaskDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Task
+              </Button>
+              <Button variant="outline" onClick={() => setQuickPlannerOpen(true)}>
+                <Clock className="w-4 h-4 mr-2" />
+                Quick Planner
+              </Button>
+              <Button variant="outline" onClick={() => setTemplateManagerOpen(true)}>
+                <File className="w-4 h-4 mr-2" />
+                Templates
+              </Button>
+              <Button variant="outline" onClick={handleExport}>
+                <Download className="w-4 h-4 mr-2" />
+                Generate Report
+              </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Main Schedule Interface */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
-                Project Schedule
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <CreateTaskDialog 
-                  projects={projects}
-                  tasks={tasks}
-                  onTaskCreated={fetchTasks}
-                />
-                <Button onClick={() => setExportDialogOpen(true)} variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="gantt" className="space-y-6">
-              <div className="flex justify-between items-center">
-                <TabsList>
-                  <TabsTrigger value="gantt" className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    Gantt Chart
-                  </TabsTrigger>
-                  <TabsTrigger value="calendar" className="flex items-center gap-2">
-                    <CalendarDays className="w-4 h-4" />
-                    Calendar
-                  </TabsTrigger>
-                  <TabsTrigger value="critical" className="flex items-center gap-2">
-                    <Target className="w-4 h-4" />
-                    Critical Path
-                  </TabsTrigger>
-                </TabsList>
+        {/* Bulk Operations */}
+        <BulkTaskOperations
+          selectedTasks={selectedTaskIds}
+          tasks={filteredTasks}
+          onClearSelection={() => setSelectedTaskIds([])}
+          onBulkUpdate={handleBulkUpdate}
+          onBulkDelete={handleBulkDelete}
+        />
 
-                <div className="flex items-center gap-4">
+        {/* Enhanced Filters Section */}
+        <CollapsibleFilterSection
+          projects={projects}
+          selectedProjects={selectedProjects}
+          onSelectionChange={setSelectedProjects}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          showDependencies={showDependencies}
+          onShowDependenciesChange={setShowDependencies}
+          showCriticalPath={showCriticalPath}
+          onShowCriticalPathChange={setShowCriticalPath}
+          showMilestones={showMilestones}
+          onShowMilestonesChange={setShowMilestones}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          dateRange={dateRange}
+          onNavigateDate={navigateDate}
+          currentDate={currentDate}
+        />
+
+        {/* Enhanced Schedule Views */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-5 bg-gray-100 p-1 rounded-lg">
+            <TabsTrigger value="board" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <LayoutGrid className="w-4 h-4 mr-2" />
+              Board
+            </TabsTrigger>
+            <TabsTrigger value="gantt" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              Gantt Chart
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              Calendar
+            </TabsTrigger>
+            <TabsTrigger value="critical-path" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              Critical Path
+            </TabsTrigger>
+            <TabsTrigger value="list" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              Task List
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="board" className="mt-6">
+            <div id="planner-board">
+              <PlannerBoard
+                tasks={filteredTasks}
+                projects={projects}
+                onTaskUpdate={optimisticUpdate}
+                onTaskDelete={handleTaskDelete}
+                onAddTask={handleAddTaskToBoard}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="gantt" className="mt-6">
+            <div id="gantt-chart">
+              <GanttChart
+                tasks={filteredTasks}
+                onUpdateTask={optimisticUpdate}
+                onDeleteTask={handleTaskDelete}
+                onEditDependencies={openDependencyManager}
+                projects={projects}
+                selectedProjects={selectedProjects}
+                dateRange={dateRange}
+                showDependencies={showDependencies}
+                showCriticalPath={showCriticalPath}
+                showMilestones={showMilestones}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="calendar" className="mt-6">
+            <div id="schedule-calendar">
+              <ScheduleCalendar
+                tasks={filteredTasks}
+                projects={projects}
+                currentDate={currentDate}
+                onDateChange={setCurrentDate}
+                onTaskUpdate={optimisticUpdate}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="critical-path" className="mt-6">
+            <div id="critical-path-view">
+              <EnhancedCriticalPath
+                tasks={filteredTasks}
+                projects={projects}
+                selectedProjects={selectedProjects}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="list" className="mt-6">
+            <EnhancedTaskList
+              tasks={filteredTasks}
+              projects={projects}
+              loading={loading}
+              onTaskUpdate={optimisticUpdate}
+              onTaskDelete={handleTaskDelete}
+              onTaskEdit={(task) => console.log('Edit task:', task)}
+              onEditDependencies={openDependencyManager}
+              selectedTasks={selectedTaskIds}
+              onSelectionChange={setSelectedTaskIds}
+            />
+          </TabsContent>
+        </Tabs>
+
+        {/* Improved Quick Start Guide */}
+        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200 p-6">
+          <div className="flex items-start gap-3">
+            <Info className="w-6 h-6 text-blue-600 mt-1 flex-shrink-0" />
+            <div>
+              <h3 className="text-lg font-semibold text-blue-900 mb-3">Project Schedule Workflow</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Label htmlFor="dependencies" className="text-sm">Dependencies</Label>
-                    <input
-                      id="dependencies"
-                      type="checkbox"
-                      checked={showDependencies}
-                      onChange={(e) => setShowDependencies(e.target.checked)}
-                      className="rounded"
-                    />
+                    <Edit className="w-4 h-4 text-blue-600" />
+                    <h4 className="font-medium text-blue-800">Plan</h4>
                   </div>
-                  
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      placeholder="Search tasks..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 w-64"
-                    />
+                  <p className="text-sm text-blue-700">Create tasks with timelines and assign to projects</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Send className="w-4 h-4 text-blue-600" />
+                    <h4 className="font-medium text-blue-800">Organize</h4>
                   </div>
+                  <p className="text-sm text-blue-700">Use Gantt charts and boards to visualize progress</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    <h4 className="font-medium text-blue-800">Track</h4>
+                  </div>
+                  <p className="text-sm text-blue-700">Monitor task progress and identify bottlenecks</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-blue-600" />
+                    <h4 className="font-medium text-blue-800">Complete</h4>
+                  </div>
+                  <p className="text-sm text-blue-700">Mark tasks complete and generate reports</p>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-              <TabsContent value="gantt" className="space-y-4">
-                {loading ? (
-                  <div className="flex justify-center items-center h-64">
-                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      {/* Dialogs */}
+      <QuickPlanner
+        open={quickPlannerOpen}
+        onOpenChange={setQuickPlannerOpen}
+        projects={projects}
+        onTasksAdded={handleQuickPlannerTasksAdded}
+        templateTasks={templateTasks}
+      />
+
+      <TemplateManager
+        open={templateManagerOpen}
+        onOpenChange={setTemplateManagerOpen}
+        onTemplateApplied={handleTemplateApplied}
+      />
+
+      <TaskDependencyManager
+        open={dependencyManagerOpen}
+        onOpenChange={setDependencyManagerOpen}
+        task={selectedTaskForDependency}
+        tasks={tasks}
+        onUpdateDependencies={handleTaskDependencyUpdate}
+      />
+
+      <EnhancedExportDialog
+        open={enhancedExportOpen}
+        onOpenChange={setEnhancedExportOpen}
+        tasks={filteredTasks}
+        projects={projects}
+        title="Project Schedule Report"
+      />
+
+      {/* Add Task Dialog */}
+      {newTaskDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Add New Task</h3>
+            <div className="space-y-4">
+              <div>
+                <Label>Task Name *</Label>
+                <Input
+                  value={newTask.title}
+                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                  placeholder="Enter task name"
+                />
+              </div>
+              
+              <div>
+                <Label>Project *</Label>
+                <Select 
+                  value={newTask.projectId} 
+                  onValueChange={(value) => setNewTask({ ...newTask, projectId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: project.color }}
+                          />
+                          {project.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Status</Label>
+                <Select 
+                  value={newTask.status} 
+                  onValueChange={(value: Task['status']) => setNewTask({ ...newTask, status: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Not Started">To Do</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Completed">Done</SelectItem>
+                    <SelectItem value="On Hold">On Hold</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Start Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(newTask.startDate, "PPP")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={newTask.startDate}
+                      onSelect={(date) => date && setNewTask({ ...newTask, startDate: date })}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div>
+                <div className="flex items-center space-x-2 mb-2">
+                  <Checkbox
+                    id="use-duration"
+                    checked={newTask.useDuration}
+                    onCheckedChange={(checked) => setNewTask({ ...newTask, useDuration: !!checked })}
+                  />
+                  <Label htmlFor="use-duration">Use duration (auto-calculate end date)</Label>
+                </div>
+                
+                {newTask.useDuration ? (
+                  <div>
+                    <Label>Duration (Days)</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={newTask.duration}
+                      onChange={(e) => setNewTask({ ...newTask, duration: parseInt(e.target.value) || 1 })}
+                    />
+                    <p className="text-sm text-gray-500 mt-1">
+                      End date: {format(addDays(newTask.startDate, newTask.duration - 1), 'PPP')}
+                    </p>
                   </div>
                 ) : (
-                  <GanttChart
-                    tasks={filteredTasks}
-                    onUpdateTask={handleUpdateTask}
-                    onDeleteTask={handleDeleteTask}
-                    onEditDependencies={setDependencyTask}
-                    projects={projects}
-                    selectedProjects={selectedProjects}
-                    dateRange={dateRange}
-                    showDependencies={showDependencies}
-                    showCriticalPath={showCriticalPath}
-                    showMilestones={showMilestones}
-                  />
+                  <div>
+                    <Label>End Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {format(addDays(newTask.startDate, newTask.duration - 1), "PPP")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={addDays(newTask.startDate, newTask.duration - 1)}
+                          onSelect={(date) => {
+                            if (date) {
+                              const duration = Math.max(1, Math.ceil((date.getTime() - newTask.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+                              setNewTask({ ...newTask, duration });
+                            }
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 )}
-              </TabsContent>
-
-              <TabsContent value="calendar">
-                <ScheduleCalendar 
-                  tasks={filteredTasks}
-                  projects={projects}
-                  currentDate={new Date()}
-                  onDateChange={() => {}}
-                  onTaskUpdate={handleUpdateTask}
-                />
-              </TabsContent>
-
-              <TabsContent value="critical">
-                <CriticalPath 
-                  tasks={filteredTasks}
-                  selectedProjects={selectedProjects}
-                />
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-
-        {/* Task Dependencies Dialog */}
-        <TaskDependencyManager
-          open={!!dependencyTask}
-          onOpenChange={(open) => !open && setDependencyTask(null)}
-          task={dependencyTask}
-          tasks={tasks}
-          onUpdateDependencies={handleUpdateDependencies}
-        />
-
-        {/* Task Edit Dialog */}
-        <TaskEditDialog
-          task={editTask}
-          open={!!editTask}
-          onOpenChange={(open) => !open && setEditTask(null)}
-          onSave={handleUpdateTask}
-        />
-
-        {/* Enhanced Export Dialog */}
-        <EnhancedExportDialog
-          open={exportDialogOpen}
-          onOpenChange={setExportDialogOpen}
-          tasks={filteredTasks}
-          projects={projects}
-        />
-      </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 mt-6">
+              <Button onClick={addNewTask} className="flex-1">Add Task</Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setNewTaskDialogOpen(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

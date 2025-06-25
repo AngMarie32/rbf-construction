@@ -122,7 +122,7 @@ export function GanttChart({
             <div className="w-28 px-2 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center text-xs">
               Finish
             </div>
-            <div className="w-32 px-2 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center text-xs">
+            <div className="w-24 px-2 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center text-xs">
               % Complete
             </div>
             <div className="flex-1 relative">
@@ -136,6 +136,11 @@ export function GanttChart({
                     <div className={`text-[10px] ${isHoliday(day) ? 'text-red-600 font-medium' : isWeekend(day) ? 'text-blue-600' : 'text-gray-500'}`}>
                       {format(day, 'EEE')}
                     </div>
+                    {isHoliday(day) && (
+                      <div className="text-[8px] text-red-600 font-bold">
+                        HOL
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -218,7 +223,7 @@ export function GanttChart({
                   </div>
 
                   {/* Progress Column - Fixed width and better formatting */}
-                  <div className="w-32 px-2 py-3 border-r border-gray-300 text-center">
+                  <div className="w-24 px-2 py-3 border-r border-gray-300 text-center">
                     <div className="flex flex-col items-center justify-center h-full">
                       <span className="text-xs font-medium text-gray-700 mb-1">{task.progress}%</span>
                       <div className="w-full bg-gray-200 rounded-full h-1.5">
@@ -323,6 +328,9 @@ export function GanttChart({
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-red-100 border border-red-200 rounded"></div>
               <span>Holidays</span>
+            </div>
+            <div className="text-gray-500">
+              • Holidays are marked with "HOL" indicator
             </div>
           </div>
         </div>
