@@ -24,7 +24,14 @@ interface BidItemFormProps {
   onItemsChange: (items: BidItem[]) => void;
 }
 
-const commonCategories = [
+const mainCategories = [
+  'General Conditions',
+  'Site',
+  'Building',
+  'Other'
+];
+
+const subcategoryOptions = [
   'Site Work',
   'Concrete',
   'Masonry',
@@ -50,7 +57,7 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
   const addItem = () => {
     const newItem: BidItem = {
       id: Date.now().toString(),
-      category: '',
+      category: 'General Conditions',
       subcategory: '',
       description: '',
       quantity: 1,
@@ -118,10 +125,10 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                   onValueChange={(value) => updateItem(item.id, 'category', value)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {commonCategories.map((category) => (
+                    {mainCategories.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
                       </SelectItem>
@@ -132,12 +139,21 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
 
               <div>
                 <Label htmlFor={`subcategory-${item.id}`}>Subcategory</Label>
-                <Input
-                  id={`subcategory-${item.id}`}
+                <Select
                   value={item.subcategory}
-                  onChange={(e) => updateItem(item.id, 'subcategory', e.target.value)}
-                  placeholder="Enter subcategory"
-                />
+                  onValueChange={(value) => updateItem(item.id, 'subcategory', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subcategoryOptions.map((subcategory) => (
+                      <SelectItem key={subcategory} value={subcategory}>
+                        {subcategory}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -166,7 +182,6 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                 id={`description-${item.id}`}
                 value={item.description}
                 onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                placeholder="Detailed description of work (optional)"
                 rows={2}
               />
             </div>
@@ -193,7 +208,6 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                   onChange={(e) => updateItem(item.id, 'unitCost', parseFloat(e.target.value) || 0)}
                   min="0"
                   step="0.01"
-                  placeholder="0.00"
                 />
               </div>
 

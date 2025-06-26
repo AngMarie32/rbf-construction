@@ -3,11 +3,10 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calculator, FileText, Download, Settings, BarChart3 } from 'lucide-react';
+import { Calculator, FileText, Download, Settings, BarChart3, Plus } from 'lucide-react';
 import { BidTemplateSelector } from './BidTemplateSelector';
 import { BidCreationView } from './BidCreationView';
 import { BidOverview } from './BidOverview';
-import { BidAnalysis } from './BidAnalysis';
 import { BidSettings } from './BidSettings';
 
 interface TabbedBidInterfaceProps {
@@ -36,11 +35,21 @@ export function TabbedBidInterface({
     setShowCreateView(true);
   };
 
+  const handleExportSOV = () => {
+    // Navigate to SOV page or export SOV
+    window.location.href = '/schedule-of-values';
+  };
+
+  const handleCreateProposal = () => {
+    // Navigate to proposals page
+    window.location.href = '/proposals';
+  };
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="overview" className="space-y-6">
         <div className="flex justify-between items-center">
-          <TabsList className="grid grid-cols-5 w-full max-w-2xl">
+          <TabsList className="grid grid-cols-4 w-full max-w-xl">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               Overview
@@ -53,20 +62,26 @@ export function TabbedBidInterface({
               <Calculator className="w-4 h-4" />
               Create Bid
             </TabsTrigger>
-            <TabsTrigger value="analysis" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Analysis
-            </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
               Settings
             </TabsTrigger>
           </TabsList>
 
-          <Button onClick={onExportReport} variant="outline">
-            <Download className="w-4 h-4 mr-2" />
-            Export PDF
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleExportSOV} variant="outline">
+              <Download className="w-4 h-4 mr-2" />
+              Export to SOV
+            </Button>
+            <Button onClick={handleCreateProposal} variant="outline">
+              <Plus className="w-4 h-4 mr-2" />
+              Create Proposal
+            </Button>
+            <Button onClick={onExportReport} variant="outline">
+              <Download className="w-4 h-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
         </div>
 
         <TabsContent value="overview">
@@ -91,13 +106,6 @@ export function TabbedBidInterface({
             onItemsChange={onItemsChange}
             showCreateView={showCreateView}
             onShowCreateViewChange={setShowCreateView}
-          />
-        </TabsContent>
-
-        <TabsContent value="analysis">
-          <BidAnalysis 
-            projectId={projectId}
-            bidItems={bidItems}
           />
         </TabsContent>
 

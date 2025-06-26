@@ -123,7 +123,7 @@ export function BidTemplateSelector({ onTemplateSelected, onCreateNew }: BidTemp
         </div>
         <Button onClick={onCreateNew}>
           <Plus className="w-4 h-4 mr-2" />
-          Create from Scratch
+          Start from Scratch
         </Button>
       </div>
 
@@ -187,7 +187,7 @@ export function BidTemplateSelector({ onTemplateSelected, onCreateNew }: BidTemp
             </p>
             <Button onClick={onCreateNew}>
               <Plus className="w-4 h-4 mr-2" />
-              Create Your First Bid
+              Start from Scratch
             </Button>
           </CardContent>
         </Card>
