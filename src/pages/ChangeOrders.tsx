@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -153,9 +152,6 @@ export default function ChangeOrders() {
           </div>
         </div>
 
-        {/* Financial Impact Dashboard */}
-        <FinancialImpactDashboard changeOrders={changeOrders} projectBudget={500000} />
-
         {/* Filters and Search */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input
@@ -178,55 +174,33 @@ export default function ChangeOrders() {
           </Select>
         </div>
 
-        {/* Tabs */}
-        <Tabs defaultValue="list" className="space-y-4" value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="list">Change Orders List</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="dashboard" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Change Orders Overview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  A summary of key metrics and recent activities related to change orders will be displayed here.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="list">
-            <Card>
-              <CardHeader>
-                <CardTitle>Change Orders</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {filteredChangeOrders.length > 0 ? (
-                  <div className="space-y-4">
-                    {filteredChangeOrders.map(co => (
-                      <div key={co.id} className="border rounded p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-semibold">{co.number}</h4>
-                          <Badge variant="outline">{co.status}</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2">{co.description}</p>
-                        <div className="flex justify-between text-sm">
-                          <span>Amount: ${co.amount?.toLocaleString()}</span>
-                          <span>Date: {format(new Date(co.date), 'PPP')}</span>
-                        </div>
-                      </div>
-                    ))}
+        {/* Change Orders List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Change Orders</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {filteredChangeOrders.length > 0 ? (
+              <div className="space-y-4">
+                {filteredChangeOrders.map(co => (
+                  <div key={co.id} className="border rounded p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold">{co.number}</h4>
+                      <Badge variant="outline">{co.status}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-2">{co.description}</p>
+                    <div className="flex justify-between text-sm">
+                      <span>Amount: ${co.amount?.toLocaleString()}</span>
+                      <span>Date: {format(new Date(co.date), 'PPP')}</span>
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-muted-foreground">No change orders found.</p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">No change orders found.</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Create Change Order Dialog */}

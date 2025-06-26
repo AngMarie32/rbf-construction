@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +27,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BulkSubcontractorDialog } from '@/components/subcontractors/BulkSubcontractorDialog';
 import { DocumentIssues } from '@/components/subcontractors/DocumentIssues';
+import { AddSubcontractorDialog } from '@/components/subcontractors/AddSubcontractorDialog';
+import { BulkAddSubcontractorDialog } from '@/components/subcontractors/BulkAddSubcontractorDialog';
 
 interface Subcontractor {
   id: string;
@@ -298,11 +299,8 @@ export default function Subcontractors() {
             </TabsList>
             
             <div className="flex gap-2">
-              <Button className="flex items-center gap-2">
-                <Plus className="w-4 h-4" />
-                Add Subcontractor
-              </Button>
-              <BulkSubcontractorDialog onSubcontractorsCreated={fetchSubcontractors} />
+              <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
+              <BulkAddSubcontractorDialog onSubcontractorsCreated={fetchSubcontractors} />
             </div>
           </div>
 
@@ -370,11 +368,8 @@ export default function Subcontractors() {
                     </p>
                     {!searchTerm && tradeFilter === 'all' && (
                       <div className="flex gap-2 justify-center">
-                        <Button className="flex items-center gap-2">
-                          <Plus className="w-4 h-4" />
-                          Add Subcontractor
-                        </Button>
-                        <BulkSubcontractorDialog onSubcontractorsCreated={fetchSubcontractors} />
+                        <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
+                        <BulkAddSubcontractorDialog onSubcontractorsCreated={fetchSubcontractors} />
                       </div>
                     )}
                   </div>

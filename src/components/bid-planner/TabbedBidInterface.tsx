@@ -1,5 +1,6 @@
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ export function TabbedBidInterface({
 }: TabbedBidInterfaceProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [showCreateView, setShowCreateView] = useState(false);
+  const navigate = useNavigate();
 
   const handleTemplateSelected = (template: any) => {
     setSelectedTemplate(template);
@@ -36,13 +38,11 @@ export function TabbedBidInterface({
   };
 
   const handleExportSOV = () => {
-    // Navigate to SOV page or export SOV
-    window.location.href = '/schedule-of-values';
+    navigate('/schedule-of-values');
   };
 
   const handleCreateProposal = () => {
-    // Navigate to proposals page
-    window.location.href = '/proposals';
+    navigate('/proposals');
   };
 
   return (
@@ -87,7 +87,6 @@ export function TabbedBidInterface({
         <TabsContent value="overview">
           <BidOverview 
             projectId={projectId}
-            bidItems={bidItems}
             onExportReport={onExportReport}
           />
         </TabsContent>
