@@ -277,28 +277,13 @@ export default function Projects() {
           {filteredProjects.map((project) => (
             <ProjectCard 
               key={project.id} 
-              project={{
-                id: project.id,
-                name: project.name,
-                type: project.type,
-                status: project.status,
-                address: project.address,
-                client: project.client,
-                field_leader: project.fieldLeader,
-                contract_value: project.contractValue,
-                due_date: project.dueDate.toISOString().split('T')[0],
-                completion_percentage: project.completionPercentage,
-                contingency_type: undefined,
-                contingency_value: undefined
-              }}
-              onEdit={(project) => {
-                // Handle edit functionality
-                console.log('Edit project:', project);
-              }}
-              onView={(project) => {
-                // Handle view functionality
-                console.log('View project:', project);
-              }}
+              project={project} 
+              showDeleteButton={true}
+              onDelete={handleDeleteProject}
+              onUpdate={fetchProjects}
+              totalExpenses={0}
+              totalBilled={0}
+              totalReceived={0}
             />
           ))}
 

@@ -44,7 +44,7 @@ const commonCategories = [
   'Utilities'
 ];
 
-const unitOptions = ['each', 'SF', 'LY', 'CY', 'CF', 'Acre', 'Day', 'Week', 'Lot', 'Ton'];
+const commonUnits = ['each', 'sf', 'lf', 'cf', 'cy', 'ton', 'hour', 'day', 'lot'];
 
 export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
   const addItem = () => {
@@ -110,9 +110,9 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor={`category-${item.id}`}>Category *</Label>
+                <Label htmlFor={`category-${item.id}`}>Category</Label>
                 <Select
                   value={item.category}
                   onValueChange={(value) => updateItem(item.id, 'category', value)}
@@ -139,25 +139,6 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                   placeholder="Enter subcategory"
                 />
               </div>
-
-              <div>
-                <Label htmlFor={`unit-${item.id}`}>Unit *</Label>
-                <Select
-                  value={item.unit}
-                  onValueChange={(value) => updateItem(item.id, 'unit', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {unitOptions.map((unit) => (
-                      <SelectItem key={unit} value={unit}>
-                        {unit}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
             <div>
@@ -166,14 +147,14 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                 id={`description-${item.id}`}
                 value={item.description}
                 onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                placeholder="Optional description of work"
+                placeholder="Detailed description of work"
                 rows={2}
               />
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <Label htmlFor={`quantity-${item.id}`}>Quantity *</Label>
+                <Label htmlFor={`quantity-${item.id}`}>Quantity</Label>
                 <Input
                   id={`quantity-${item.id}`}
                   type="number"
@@ -185,6 +166,25 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
               </div>
 
               <div>
+                <Label htmlFor={`unit-${item.id}`}>Unit</Label>
+                <Select
+                  value={item.unit}
+                  onValueChange={(value) => updateItem(item.id, 'unit', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {commonUnits.map((unit) => (
+                      <SelectItem key={unit} value={unit}>
+                        {unit}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
                 <Label htmlFor={`unitCost-${item.id}`}>Unit Cost ($)</Label>
                 <Input
                   id={`unitCost-${item.id}`}
@@ -193,11 +193,10 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                   onChange={(e) => updateItem(item.id, 'unitCost', parseFloat(e.target.value) || 0)}
                   min="0"
                   step="0.01"
-                  placeholder="0.00"
                 />
               </div>
 
-              <div className="md:col-span-2">
+              <div>
                 <Label>Total</Label>
                 <div className="p-2 bg-gray-50 rounded border font-medium">
                   ${item.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
