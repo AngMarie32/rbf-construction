@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Search, 
   Plus, 
@@ -19,18 +20,39 @@ import {
   AlertCircle,
   Grid3X3,
   List,
-  Building
+  Building,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BulkSubcontractorDialog } from '@/components/subcontractors/BulkSubcontractorDialog';
 import { DocumentIssues } from '@/components/subcontractors/DocumentIssues';
 
+interface Subcontractor {
+  id: string;
+  name: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  specialties?: string[];
+  status: string;
+  w9_on_file?: boolean;
+  insurance_expiry?: string;
+  rating?: number;
+  notes?: string;
+}
+
 export default function Subcontractors() {
-  const [subcontractors, setSubcontractors] = useState<any[]>([]);
+  const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [tradeFilter, setTradeFilter] = useState('all');
 
   useEffect(() => {
     fetchSubcontractors();
@@ -70,12 +92,32 @@ export default function Subcontractors() {
     }
   };
 
-  const filteredSubcontractors = subcontractors.filter(sub =>
-    sub.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sub.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sub.trade?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sub.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const isInsuranceCurrent = (insuranceExpiry?: string) => {
+    if (!insuranceExpiry) return false;
+    const expiryDate = new Date(insuranceExpiry);
+    const today = new Date();
+    return expiryDate > today;
+  };
+
+  // Get unique trades for filter
+  const allTrades = Array.from(new Set(
+    subcontractors.flatMap(sub => sub.specialties || [])
+  )).sort();
+
+  const filteredSubcontractors = subcontractors.filter(sub => {
+    const matchesSearch = 
+      sub.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sub.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sub.specialties?.some(specialty => 
+        specialty.toLowerCase().includes(searchTerm.toLowerCase())
+      ) ||
+      sub.email?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesTrade = tradeFilter === 'all' || 
+      sub.specialties?.includes(tradeFilter);
+
+    return matchesSearch && matchesTrade;
+  });
 
   const renderGridView = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -116,6 +158,26 @@ export default function Subcontractors() {
               )}
             </div>
 
+            {/* COI and W9 Status */}
+            <div className="flex items-center gap-4 pt-2 border-t">
+              <div className="flex items-center gap-1" title={isInsuranceCurrent(sub.insurance_expiry) ? "COI Current" : "COI Expired/Missing"}>
+                {isInsuranceCurrent(sub.insurance_expiry) ? (
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-red-500" />
+                )}
+                <span className="text-xs">COI</span>
+              </div>
+              <div className="flex items-center gap-1" title={sub.w9_on_file ? "W9 On File" : "W9 Missing"}>
+                {sub.w9_on_file ? (
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-red-500" />
+                )}
+                <span className="text-xs">W9</span>
+              </div>
+            </div>
+
             <div className="flex justify-between items-center pt-3 border-t">
               <Badge 
                 variant={sub.status === 'Active' ? 'default' : 'secondary'}
@@ -152,6 +214,7 @@ export default function Subcontractors() {
             <th className="border border-gray-200 px-4 py-2 text-left">Company</th>
             <th className="border border-gray-200 px-4 py-2 text-left">Trade</th>
             <th className="border border-gray-200 px-4 py-2 text-left">Contact</th>
+            <th className="border border-gray-200 px-4 py-2 text-center">COI/W9</th>
             <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
             <th className="border border-gray-200 px-4 py-2 text-center">Actions</th>
           </tr>
@@ -168,6 +231,24 @@ export default function Subcontractors() {
                 <div className="space-y-1">
                   {sub.email && <div className="text-sm">{sub.email}</div>}
                   {sub.phone && <div className="text-sm text-gray-600">{sub.phone}</div>}
+                </div>
+              </td>
+              <td className="border border-gray-200 px-4 py-2 text-center">
+                <div className="flex justify-center gap-2">
+                  <div title={isInsuranceCurrent(sub.insurance_expiry) ? "COI Current" : "COI Expired/Missing"}>
+                    {isInsuranceCurrent(sub.insurance_expiry) ? (
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-red-500" />
+                    )}
+                  </div>
+                  <div title={sub.w9_on_file ? "W9 On File" : "W9 Missing"}>
+                    {sub.w9_on_file ? (
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-red-500" />
+                    )}
+                  </div>
                 </div>
               </td>
               <td className="border border-gray-200 px-4 py-2">
@@ -217,6 +298,10 @@ export default function Subcontractors() {
             </TabsList>
             
             <div className="flex gap-2">
+              <Button className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Add Subcontractor
+              </Button>
               <BulkSubcontractorDialog onSubcontractorsCreated={fetchSubcontractors} />
             </div>
           </div>
@@ -246,6 +331,21 @@ export default function Subcontractors() {
                         <List className="w-4 h-4" />
                       </Button>
                     </div>
+                    
+                    <Select value={tradeFilter} onValueChange={setTradeFilter}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Filter by trade" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Trades</SelectItem>
+                        {allTrades.map(trade => (
+                          <SelectItem key={trade} value={trade}>
+                            {trade}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
                     <div className="relative max-w-md">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                       <Input
@@ -266,10 +366,16 @@ export default function Subcontractors() {
                     <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">No Subcontractors Found</h3>
                     <p className="text-gray-500 mb-6">
-                      {searchTerm ? 'No subcontractors match your search criteria.' : 'Add your first subcontractor to get started.'}
+                      {searchTerm || tradeFilter !== 'all' ? 'No subcontractors match your search criteria.' : 'Add your first subcontractor to get started.'}
                     </p>
-                    {!searchTerm && (
-                      <BulkSubcontractorDialog onSubcontractorsCreated={fetchSubcontractors} />
+                    {!searchTerm && tradeFilter === 'all' && (
+                      <div className="flex gap-2 justify-center">
+                        <Button className="flex items-center gap-2">
+                          <Plus className="w-4 h-4" />
+                          Add Subcontractor
+                        </Button>
+                        <BulkSubcontractorDialog onSubcontractorsCreated={fetchSubcontractors} />
+                      </div>
                     )}
                   </div>
                 )}
