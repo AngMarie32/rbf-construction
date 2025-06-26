@@ -13,20 +13,22 @@ import {
 import { toast } from 'sonner';
 
 interface BidOverviewProps {
-  totalEstimate: number;
-  itemCount: number;
-  categoryCount: number;
-  projectName?: string;
+  projectId: string;
+  bidItems: any[];
+  onExportReport: () => void;
 }
 
-export function BidOverview({ totalEstimate, itemCount, categoryCount, projectName }: BidOverviewProps) {
+export function BidOverview({ projectId, bidItems, onExportReport }: BidOverviewProps) {
+  const totalEstimate = bidItems.reduce((sum, item) => sum + ((item.unit_cost || 0) * (item.quantity || 0)), 0);
+  const itemCount = bidItems.length;
+  const categoryCount = [...new Set(bidItems.map(item => item.category))].length;
+  
   const profit = totalEstimate * 0.15; // 15% profit margin
   const overhead = totalEstimate * 0.10; // 10% overhead
   const directCosts = totalEstimate - profit - overhead;
 
   const handleExportToPDF = () => {
-    window.print();
-    toast.success('Print dialog opened');
+    onExportReport();
   };
 
   const handleScheduleReview = () => {
@@ -41,21 +43,6 @@ export function BidOverview({ totalEstimate, itemCount, categoryCount, projectNa
 
   return (
     <div className="space-y-6">
-      {/* Project Info */}
-      {projectName && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Project Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-semibold">{projectName}</div>
-            <div className="text-sm text-gray-500">
-              Last updated: {new Date().toLocaleDateString()}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>

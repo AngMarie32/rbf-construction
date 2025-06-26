@@ -32,7 +32,7 @@ export function BidSettings({ projectId }: BidSettingsProps) {
       if (error) throw error;
 
       if (data) {
-        setContingencyType(data.contingency_type || 'percentage');
+        setContingencyType((data.contingency_type as 'percentage' | 'dollar') || 'percentage');
         setContingencyValue(data.contingency_value || 0);
       }
     } catch (error) {
@@ -77,7 +77,7 @@ export function BidSettings({ projectId }: BidSettingsProps) {
               <Label htmlFor="contingency-type">Contingency Type</Label>
               <Select
                 value={contingencyType}
-                onValueChange={(value: 'percentage' | 'dollar') => setContingencyType(value)}
+                onValueChange={(value) => setContingencyType(value as 'percentage' | 'dollar')}
               >
                 <SelectTrigger>
                   <SelectValue />

@@ -59,6 +59,8 @@ export default function Projects() {
         client: item.client || '',
         fieldLeader: item.field_leader || '',
         description: item.description || '',
+        contingency_type: item.contingency_type || 'percentage',
+        contingency_value: item.contingency_value || 0,
         createdAt: new Date(item.created_at),
         updatedAt: new Date(item.updated_at)
       })) as Project[];

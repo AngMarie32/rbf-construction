@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -21,6 +20,8 @@ export interface Project {
   client: string;
   fieldLeader?: string;
   description?: string;
+  contingency_type?: 'percentage' | 'dollar';
+  contingency_value?: number;
   createdAt: Date;
   updatedAt: Date;
 }
