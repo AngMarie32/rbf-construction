@@ -34,6 +34,7 @@ const tradeOptions = [
   'Insulation',
   'Tile & Stone',
   'Cabinetry',
+  'Asphalt',
   'Other'
 ];
 
@@ -70,7 +71,10 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
         .from('subcontractors')
         .insert([formData]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       toast.success('Subcontractor added successfully');
       setOpen(false);

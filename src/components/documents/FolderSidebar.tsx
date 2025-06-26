@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Folder, FolderOpen, Clock, Star, Archive, Trash2 } from 'lucide-react';
+import { Plus, Folder, FolderOpen, Clock, Star, Archive, Trash2, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -38,6 +38,7 @@ export function FolderSidebar({ selectedFolder, onFolderSelect, documentCount }:
   ]);
   const [newFolderName, setNewFolderName] = useState('');
   const [showNewFolder, setShowNewFolder] = useState(false);
+  const [draggedFolder, setDraggedFolder] = useState<string | null>(null);
 
   const handleAddFolder = () => {
     if (newFolderName.trim()) {
@@ -68,6 +69,41 @@ export function FolderSidebar({ selectedFolder, onFolderSelect, documentCount }:
     toast.success(`Folder "${folderName}" deleted successfully`);
   };
 
+  const handleDragStart = (e: React.DragEvent, folderId: string) => {
+    setDraggedFolder(folderId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetFolderId: string) => {
+    e.preventDefault();
+    
+    if (!draggedFolder || draggedFolder === targetFolderId) {
+      setDraggedFolder(null);
+      return;
+    }
+
+    const draggedIndex = folders.findIndex(f => f.id === draggedFolder);
+    const targetIndex = folders.findIndex(f => f.id === targetFolderId);
+    
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedFolder(null);
+      return;
+    }
+
+    const newFolders = [...folders];
+    const [draggedItem] = newFolders.splice(draggedIndex, 1);
+    newFolders.splice(targetIndex, 0, draggedItem);
+    
+    setFolders(newFolders);
+    setDraggedFolder(null);
+    toast.success('Folder order updated');
+  };
+
   return (
     <div className="w-80 bg-gray-50 border-r p-4 overflow-y-auto">
       <div className="mb-6">
@@ -76,21 +112,31 @@ export function FolderSidebar({ selectedFolder, onFolderSelect, documentCount }:
           {folders.map((folder) => (
             <div
               key={folder.id}
+              draggable={folder.isDeletable}
+              onDragStart={(e) => handleDragStart(e, folder.id)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, folder.id)}
               className={cn(
                 "flex items-center justify-between p-2 rounded hover:bg-blue-50 transition-colors group",
-                selectedFolder === folder.id ? "bg-blue-100 text-blue-700" : "text-gray-700"
+                selectedFolder === folder.id ? "bg-blue-100 text-blue-700" : "text-gray-700",
+                draggedFolder === folder.id ? "opacity-50" : ""
               )}
             >
-              <div 
-                className="flex items-center space-x-2 flex-1 cursor-pointer"
-                onClick={() => onFolderSelect(folder.id)}
-              >
-                {selectedFolder === folder.id ? (
-                  <FolderOpen className="w-4 h-4" />
-                ) : (
-                  <Folder className="w-4 h-4" />
+              <div className="flex items-center space-x-2 flex-1">
+                {folder.isDeletable && (
+                  <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
                 )}
-                <span className="text-sm font-medium">{folder.name}</span>
+                <div 
+                  className="flex items-center space-x-2 flex-1 cursor-pointer"
+                  onClick={() => onFolderSelect(folder.id)}
+                >
+                  {selectedFolder === folder.id ? (
+                    <FolderOpen className="w-4 h-4" />
+                  ) : (
+                    <Folder className="w-4 h-4" />
+                  )}
+                  <span className="text-sm font-medium">{folder.name}</span>
+                </div>
               </div>
               <div className="flex items-center space-x-2">
                 <span className="text-xs bg-gray-200 px-2 py-1 rounded-full min-w-[24px] text-center">

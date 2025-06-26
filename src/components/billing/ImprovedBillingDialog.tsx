@@ -371,7 +371,9 @@ export function ImprovedBillingDialog({
                         <SelectContent>
                           {projects.map((project) => (
                             <SelectItem key={project.id} value={project.id}>
-                              {project.name}
+                              <div className="max-w-[300px] truncate">
+                                {project.name}
+                              </div>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -423,7 +425,6 @@ export function ImprovedBillingDialog({
                       <Input
                         value={entry.invoice_number}
                         onChange={(e) => updateBulkEntry(entry.id, 'invoice_number', e.target.value)}
-                        placeholder="Optional"
                       />
                     </div>
 
@@ -432,7 +433,6 @@ export function ImprovedBillingDialog({
                       <Input
                         value={entry.notes}
                         onChange={(e) => updateBulkEntry(entry.id, 'notes', e.target.value)}
-                        placeholder="Optional"
                       />
                     </div>
                   </CardContent>
@@ -492,10 +492,10 @@ export function ImprovedBillingDialog({
                       <SelectContent>
                         {projects.map((project) => (
                           <SelectItem key={project.id} value={project.id}>
-                            <div>
-                              <div className="font-medium">{project.name}</div>
+                            <div className="max-w-[300px]">
+                              <div className="font-medium truncate">{project.name}</div>
                               {project.client && (
-                                <div className="text-sm text-gray-500">{project.client}</div>
+                                <div className="text-sm text-gray-500 truncate">{project.client}</div>
                               )}
                             </div>
                           </SelectItem>
@@ -578,12 +578,11 @@ export function ImprovedBillingDialog({
                   </div>
 
                   <div>
-                    <Label htmlFor="invoice_number">Invoice Number (Optional)</Label>
+                    <Label htmlFor="invoice_number">Invoice Number</Label>
                     <Input
                       id="invoice_number"
                       value={formData.invoice_number}
                       onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
-                      placeholder="Enter invoice number"
                     />
                   </div>
                 </CardContent>
@@ -607,7 +606,7 @@ export function ImprovedBillingDialog({
                   </div>
 
                   <div>
-                    <Label htmlFor="paid_amount">Paid Amount (Optional)</Label>
+                    <Label htmlFor="paid_amount">Paid Amount</Label>
                     <Input
                       id="paid_amount"
                       type="number"
@@ -655,7 +654,7 @@ export function ImprovedBillingDialog({
 
             <Card>
               <CardHeader>
-                <CardTitle>Date Information (Optional)</CardTitle>
+                <CardTitle>Date Information</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -668,10 +667,10 @@ export function ImprovedBillingDialog({
                           className="w-full justify-start text-left font-normal"
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {format(formData.billing_period_start, "MMM dd, yyyy")}
+                          {format(formData.billing_period_start, 'PPP')}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
                           selected={formData.billing_period_start}
@@ -691,10 +690,10 @@ export function ImprovedBillingDialog({
                           className="w-full justify-start text-left font-normal"
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {format(formData.billing_period_end, "MMM dd, yyyy")}
+                          {format(formData.billing_period_end, 'PPP')}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
                           selected={formData.billing_period_end}
@@ -706,7 +705,7 @@ export function ImprovedBillingDialog({
                   </div>
 
                   <div>
-                    <Label>Invoice Date (Optional)</Label>
+                    <Label>Invoice Date</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -714,10 +713,10 @@ export function ImprovedBillingDialog({
                           className="w-full justify-start text-left font-normal"
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {formData.invoice_date ? format(formData.invoice_date, "MMM dd, yyyy") : "Select date"}
+                          {formData.invoice_date ? format(formData.invoice_date, 'PPP') : 'Select date'}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
                           selected={formData.invoice_date}
@@ -729,7 +728,7 @@ export function ImprovedBillingDialog({
                   </div>
 
                   <div>
-                    <Label>Due Date (Optional)</Label>
+                    <Label>Due Date</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -737,10 +736,10 @@ export function ImprovedBillingDialog({
                           className="w-full justify-start text-left font-normal"
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {formData.due_date ? format(formData.due_date, "MMM dd, yyyy") : "Select date"}
+                          {formData.due_date ? format(formData.due_date, 'PPP') : 'Select date'}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
                           selected={formData.due_date}
@@ -756,13 +755,12 @@ export function ImprovedBillingDialog({
 
             <Card>
               <CardHeader>
-                <CardTitle>Additional Notes (Optional)</CardTitle>
+                <CardTitle>Notes</CardTitle>
               </CardHeader>
               <CardContent>
                 <Textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Add any billing notes or special instructions..."
                   rows={3}
                 />
               </CardContent>
@@ -772,8 +770,8 @@ export function ImprovedBillingDialog({
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading || !formData.project_id}>
-                {loading ? 'Saving...' : billing?.id ? 'Update Billing' : 'Create Billing'}
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Saving...' : billing?.id ? 'Update Billing Record' : 'Create Billing Record'}
               </Button>
             </div>
           </form>

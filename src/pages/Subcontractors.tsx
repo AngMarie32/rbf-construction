@@ -1,63 +1,76 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
 import { 
   Search, 
   Plus, 
+  Star, 
+  StarOff, 
   Edit, 
   Trash2, 
-  Users, 
-  Phone, 
   Mail, 
+  Phone, 
   MapPin,
+  Users,
+  Filter,
+  Download,
+  Calendar,
   FileText,
-  AlertCircle,
-  Grid3X3,
-  List,
-  Building,
-  CheckCircle,
-  XCircle
+  AlertTriangle,
+  CheckCircle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { BulkSubcontractorDialog } from '@/components/subcontractors/BulkSubcontractorDialog';
-import { DocumentIssues } from '@/components/subcontractors/DocumentIssues';
 import { AddSubcontractorDialog } from '@/components/subcontractors/AddSubcontractorDialog';
 import { BulkAddSubcontractorDialog } from '@/components/subcontractors/BulkAddSubcontractorDialog';
 
 interface Subcontractor {
   id: string;
   name: string;
-  company?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zip_code?: string;
-  specialties?: string[];
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+  specialties: string[] | null;
   status: string;
-  w9_on_file?: boolean;
-  insurance_expiry?: string;
-  rating?: number;
-  notes?: string;
+  rating: number | null;
+  notes: string | null;
+  w9_on_file: boolean;
+  insurance_expiry: string | null;
+  created_at: string;
 }
 
 export default function Subcontractors() {
   const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
+  const [filteredSubcontractors, setFilteredSubcontractors] = useState<Subcontractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [tradeFilter, setTradeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [specialtyFilter, setSpecialtyFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchSubcontractors();
   }, []);
+
+  useEffect(() => {
+    filterSubcontractors();
+  }, [subcontractors, searchTerm, statusFilter, specialtyFilter]);
 
   const fetchSubcontractors = async () => {
     try {
@@ -76,7 +89,36 @@ export default function Subcontractors() {
     }
   };
 
-  const handleDeleteSubcontractor = async (id: string) => {
+  const filterSubcontractors = () => {
+    let filtered = subcontractors;
+
+    if (searchTerm) {
+      filtered = filtered.filter(sub =>
+        sub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sub.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sub.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sub.specialties?.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(sub => sub.status === statusFilter);
+    }
+
+    if (specialtyFilter !== 'all') {
+      filtered = filtered.filter(sub => 
+        sub.specialties?.includes(specialtyFilter)
+      );
+    }
+
+    setFilteredSubcontractors(filtered);
+  };
+
+  const deleteSubcontractor = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this subcontractor?')) {
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('subcontractors')
@@ -93,194 +135,99 @@ export default function Subcontractors() {
     }
   };
 
-  const isInsuranceCurrent = (insuranceExpiry?: string) => {
-    if (!insuranceExpiry) return false;
-    const expiryDate = new Date(insuranceExpiry);
-    const today = new Date();
-    return expiryDate > today;
+  const updateSubcontractorStatus = async (id: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('subcontractors')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success(`Subcontractor ${newStatus.toLowerCase()}`);
+      fetchSubcontractors();
+    } catch (error) {
+      console.error('Error updating subcontractor:', error);
+      toast.error('Failed to update subcontractor');
+    }
   };
 
-  // Get unique trades for filter
-  const allTrades = Array.from(new Set(
-    subcontractors.flatMap(sub => sub.specialties || [])
-  )).sort();
+  const exportToCSV = () => {
+    const csvContent = [
+      ['Name', 'Company', 'Email', 'Phone', 'Specialties', 'Status', 'Rating', 'W9 on File', 'Insurance Expiry'].join(','),
+      ...filteredSubcontractors.map(sub => [
+        `"${sub.name}"`,
+        `"${sub.company || ''}"`,
+        `"${sub.email || ''}"`,
+        `"${sub.phone || ''}"`,
+        `"${sub.specialties?.join(', ') || ''}"`,
+        sub.status,
+        sub.rating || '',
+        sub.w9_on_file ? 'Yes' : 'No',
+        sub.insurance_expiry || ''
+      ].join(','))
+    ].join('\n');
 
-  const filteredSubcontractors = subcontractors.filter(sub => {
-    const matchesSearch = 
-      sub.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sub.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sub.specialties?.some(specialty => 
-        specialty.toLowerCase().includes(searchTerm.toLowerCase())
-      ) ||
-      sub.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `subcontractors-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
 
-    const matchesTrade = tradeFilter === 'all' || 
-      sub.specialties?.includes(tradeFilter);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Active': return 'bg-green-500';
+      case 'Inactive': return 'bg-gray-500';
+      default: return 'bg-gray-500';
+    }
+  };
 
-    return matchesSearch && matchesTrade;
-  });
+  const getRatingStars = (rating: number | null) => {
+    if (!rating) return null;
+    return Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        className={`w-4 h-4 ${i < rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+      />
+    ));
+  };
 
-  const renderGridView = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {filteredSubcontractors.map((sub) => (
-        <Card key={sub.id} className="hover:shadow-lg transition-shadow">
-          <CardHeader className="pb-3">
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <CardTitle className="text-lg">{sub.name}</CardTitle>
-                <p className="text-sm text-gray-600 font-medium">{sub.company}</p>
-              </div>
-              <Badge variant="outline" className="ml-2">
-                {sub.specialties?.[0] || 'General'}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-2">
-              {sub.email && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="w-4 h-4 text-gray-400" />
-                  <span className="truncate">{sub.email}</span>
-                </div>
-              )}
-              
-              {sub.phone && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="w-4 h-4 text-gray-400" />
-                  <span>{sub.phone}</span>
-                </div>
-              )}
-              
-              {sub.address && (
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-gray-400" />
-                  <span className="truncate">{sub.address}</span>
-                </div>
-              )}
-            </div>
+  const getInsuranceStatus = (expiryDate: string | null) => {
+    if (!expiryDate) return null;
+    
+    const expiry = new Date(expiryDate);
+    const today = new Date();
+    const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysUntilExpiry < 0) {
+      return <Badge variant="destructive">Expired</Badge>;
+    } else if (daysUntilExpiry <= 30) {
+      return <Badge className="bg-yellow-500">Expires Soon</Badge>;
+    } else {
+      return <Badge className="bg-green-500">Valid</Badge>;
+    }
+  };
 
-            {/* COI and W9 Status */}
-            <div className="flex items-center gap-4 pt-2 border-t">
-              <div className="flex items-center gap-1" title={isInsuranceCurrent(sub.insurance_expiry) ? "COI Current" : "COI Expired/Missing"}>
-                {isInsuranceCurrent(sub.insurance_expiry) ? (
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                ) : (
-                  <XCircle className="w-4 h-4 text-red-500" />
-                )}
-                <span className="text-xs">COI</span>
-              </div>
-              <div className="flex items-center gap-1" title={sub.w9_on_file ? "W9 On File" : "W9 Missing"}>
-                {sub.w9_on_file ? (
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                ) : (
-                  <XCircle className="w-4 h-4 text-red-500" />
-                )}
-                <span className="text-xs">W9</span>
-              </div>
-            </div>
+  const activeSubcontractors = subcontractors.filter(s => s.status === 'Active').length;
+  const inactiveSubcontractors = subcontractors.filter(s => s.status === 'Inactive').length;
+  const expiringSoon = subcontractors.filter(s => {
+    if (!s.insurance_expiry) return false;
+    const expiry = new Date(s.insurance_expiry);
+    const today = new Date();
+    const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return daysUntilExpiry <= 30 && daysUntilExpiry >= 0;
+  }).length;
 
-            <div className="flex justify-between items-center pt-3 border-t">
-              <Badge 
-                variant={sub.status === 'Active' ? 'default' : 'secondary'}
-                className="text-xs"
-              >
-                {sub.status}
-              </Badge>
-              
-              <div className="flex gap-1">
-                <Button variant="outline" size="sm">
-                  <Edit className="w-4 h-4" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleDeleteSubcontractor(sub.id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-
-  const renderListView = () => (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse border border-gray-200">
-        <thead>
-          <tr className="bg-gray-50">
-            <th className="border border-gray-200 px-4 py-2 text-left">Name</th>
-            <th className="border border-gray-200 px-4 py-2 text-left">Company</th>
-            <th className="border border-gray-200 px-4 py-2 text-left">Trade</th>
-            <th className="border border-gray-200 px-4 py-2 text-left">Contact</th>
-            <th className="border border-gray-200 px-4 py-2 text-center">COI/W9</th>
-            <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
-            <th className="border border-gray-200 px-4 py-2 text-center">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredSubcontractors.map((sub) => (
-            <tr key={sub.id} className="hover:bg-gray-50">
-              <td className="border border-gray-200 px-4 py-2 font-medium">{sub.name}</td>
-              <td className="border border-gray-200 px-4 py-2">{sub.company}</td>
-              <td className="border border-gray-200 px-4 py-2">
-                <Badge variant="outline">{sub.specialties?.[0] || 'General'}</Badge>
-              </td>
-              <td className="border border-gray-200 px-4 py-2">
-                <div className="space-y-1">
-                  {sub.email && <div className="text-sm">{sub.email}</div>}
-                  {sub.phone && <div className="text-sm text-gray-600">{sub.phone}</div>}
-                </div>
-              </td>
-              <td className="border border-gray-200 px-4 py-2 text-center">
-                <div className="flex justify-center gap-2">
-                  <div title={isInsuranceCurrent(sub.insurance_expiry) ? "COI Current" : "COI Expired/Missing"}>
-                    {isInsuranceCurrent(sub.insurance_expiry) ? (
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <XCircle className="w-4 h-4 text-red-500" />
-                    )}
-                  </div>
-                  <div title={sub.w9_on_file ? "W9 On File" : "W9 Missing"}>
-                    {sub.w9_on_file ? (
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <XCircle className="w-4 h-4 text-red-500" />
-                    )}
-                  </div>
-                </div>
-              </td>
-              <td className="border border-gray-200 px-4 py-2">
-                <Badge variant={sub.status === 'Active' ? 'default' : 'secondary'}>
-                  {sub.status}
-                </Badge>
-              </td>
-              <td className="border border-gray-200 px-4 py-2">
-                <div className="flex justify-center gap-2">
-                  <Button variant="outline" size="sm">
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleDeleteSubcontractor(sub.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  const allSpecialties = [...new Set(subcontractors.flatMap(s => s.specialties || []))].sort();
 
   if (loading) {
     return (
-      <Layout title="Subcontractors" subtitle="Manage your subcontractor network">
+      <Layout title="Subcontractors" subtitle="Manage your network of subcontractors">
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
         </div>
@@ -289,99 +236,230 @@ export default function Subcontractors() {
   }
 
   return (
-    <Layout title="Subcontractors" subtitle="Manage your subcontractor network">
-      <div className="space-y-8">
-        <Tabs defaultValue="list" className="w-full">
-          <div className="flex justify-between items-center mb-6">
-            <TabsList>
-              <TabsTrigger value="list">Subcontractors</TabsTrigger>
-              <TabsTrigger value="issues">Document Issues</TabsTrigger>
-            </TabsList>
-            
-            <div className="flex gap-2">
-              <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
-              <BulkAddSubcontractorDialog onSubcontractorsCreated={fetchSubcontractors} />
-            </div>
-          </div>
+    <Layout title="Subcontractors" subtitle="Manage your network of subcontractors">
+      <div className="space-y-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Subcontractors</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{subcontractors.length}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{activeSubcontractors}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Inactive</CardTitle>
+              <Users className="h-4 w-4 text-gray-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-600">{inactiveSubcontractors}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Insurance Expiring</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">{expiringSoon}</div>
+            </CardContent>
+          </Card>
+        </div>
 
-          <TabsContent value="list">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Subcontractors ({filteredSubcontractors.length})
-                  </CardTitle>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant={viewMode === 'grid' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setViewMode('grid')}
-                      >
-                        <Grid3X3 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant={viewMode === 'list' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setViewMode('list')}
-                      >
-                        <List className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    
-                    <Select value={tradeFilter} onValueChange={setTradeFilter}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Filter by trade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Trades</SelectItem>
-                        {allTrades.map(trade => (
-                          <SelectItem key={trade} value={trade}>
-                            {trade}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    
-                    <div className="relative max-w-md">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      <Input
-                        placeholder="Search subcontractors..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
+        {/* Controls */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+              <div className="flex flex-col sm:flex-row gap-4 items-center flex-1">
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search subcontractors..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
-              </CardHeader>
-              <CardContent>
-                {filteredSubcontractors.length > 0 ? (
-                  viewMode === 'grid' ? renderGridView() : renderListView()
-                ) : (
-                  <div className="text-center py-12">
-                    <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Subcontractors Found</h3>
-                    <p className="text-gray-500 mb-6">
-                      {searchTerm || tradeFilter !== 'all' ? 'No subcontractors match your search criteria.' : 'Add your first subcontractor to get started.'}
-                    </p>
-                    {!searchTerm && tradeFilter === 'all' && (
-                      <div className="flex gap-2 justify-center">
-                        <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
-                        <BulkAddSubcontractorDialog onSubcontractorsCreated={fetchSubcontractors} />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-32">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={specialtyFilter} onValueChange={setSpecialtyFilter}>
+                  <SelectTrigger className="w-full sm:w-48">
+                    <SelectValue placeholder="Specialty" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Specialties</SelectItem>
+                    {allSpecialties.map(specialty => (
+                      <SelectItem key={specialty} value={specialty}>
+                        {specialty}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex gap-2">
+                <Button onClick={exportToCSV} variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+                <BulkAddSubcontractorDialog onSubcontractorsCreated={fetchSubcontractors} />
+                <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <TabsContent value="issues">
-            <DocumentIssues onBack={() => {}} />
-          </TabsContent>
-        </Tabs>
+        {/* Subcontractors Table */}
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>NAME</TableHead>
+                  <TableHead>COMPANY</TableHead>
+                  <TableHead>CONTACT</TableHead>
+                  <TableHead>SPECIALTIES</TableHead>
+                  <TableHead>STATUS</TableHead>
+                  <TableHead>RATING</TableHead>
+                  <TableHead>COMPLIANCE</TableHead>
+                  <TableHead>ACTIONS</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredSubcontractors.map((subcontractor) => (
+                  <TableRow key={subcontractor.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{subcontractor.name}</div>
+                        {subcontractor.address && (
+                          <div className="text-sm text-gray-500 flex items-center">
+                            <MapPin className="w-3 h-3 mr-1" />
+                            {subcontractor.city}, {subcontractor.state}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{subcontractor.company || '-'}</TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {subcontractor.email && (
+                          <div className="flex items-center text-sm">
+                            <Mail className="w-3 h-3 mr-1" />
+                            {subcontractor.email}
+                          </div>
+                        )}
+                        {subcontractor.phone && (
+                          <div className="flex items-center text-sm">
+                            <Phone className="w-3 h-3 mr-1" />
+                            {subcontractor.phone}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {subcontractor.specialties?.slice(0, 2).map((specialty, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {specialty}
+                          </Badge>
+                        ))}
+                        {subcontractor.specialties && subcontractor.specialties.length > 2 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{subcontractor.specialties.length - 2} more
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={`${getStatusColor(subcontractor.status)} text-white`}>
+                        {subcontractor.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        {getRatingStars(subcontractor.rating)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs">W9:</span>
+                          {subcontractor.w9_on_file ? (
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                          ) : (
+                            <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                          )}
+                        </div>
+                        {subcontractor.insurance_expiry && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs">Insurance:</span>
+                            {getInsuranceStatus(subcontractor.insurance_expiry)}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const newStatus = subcontractor.status === 'Active' ? 'Inactive' : 'Active';
+                            updateSubcontractorStatus(subcontractor.id, newStatus);
+                          }}
+                        >
+                          {subcontractor.status === 'Active' ? 'Deactivate' : 'Activate'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => deleteSubcontractor(subcontractor.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            
+            {filteredSubcontractors.length === 0 && (
+              <div className="text-center py-12">
+                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No subcontractors found</h3>
+                <p className="text-gray-500 mb-6">Start building your network of trusted subcontractors.</p>
+                <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );
