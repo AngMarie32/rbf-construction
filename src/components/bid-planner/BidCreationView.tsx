@@ -13,8 +13,10 @@ import { BidItemForm } from './BidItemForm';
 
 interface BidCreationViewProps {
   projectId: string;
-  onBack: () => void;
-  onBidCreated: () => void;
+  selectedTemplate: any;
+  onItemsChange: (items: any[]) => void;
+  showCreateView: boolean;
+  onShowCreateViewChange: (show: boolean) => void;
 }
 
 interface BidItem {
@@ -28,7 +30,7 @@ interface BidItem {
   total: number;
 }
 
-export function BidCreationView({ projectId, onBack, onBidCreated }: BidCreationViewProps) {
+export function BidCreationView({ projectId, selectedTemplate, onItemsChange, showCreateView, onShowCreateViewChange }: BidCreationViewProps) {
   const [saving, setSaving] = useState(false);
   const [bidInfo, setBidInfo] = useState({
     name: '',
@@ -108,8 +110,8 @@ export function BidCreationView({ projectId, onBack, onBidCreated }: BidCreation
       }
 
       toast.success(`Bid "${bidInfo.name}" created successfully with ${itemsToSave.length} items`);
-      onBidCreated();
-      onBack();
+      onItemsChange(itemsToSave);
+      onShowCreateViewChange(false);
     } catch (error) {
       console.error('Error saving bid:', error);
       toast.error('Failed to save bid. Please try again.');
@@ -140,10 +142,14 @@ export function BidCreationView({ projectId, onBack, onBidCreated }: BidCreation
     }
   };
 
+  const handleBack = () => {
+    onShowCreateViewChange(false);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="outline" onClick={onBack}>
+        <Button variant="outline" onClick={handleBack}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Bid Planner
         </Button>

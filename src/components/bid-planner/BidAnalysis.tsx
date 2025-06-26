@@ -20,28 +20,20 @@ import { toast } from 'sonner';
 
 interface BidAnalysisProps {
   projectId: string;
-  onBack: () => void;
+  bidItems: any[];
 }
 
-export function BidAnalysis({ projectId, onBack }: BidAnalysisProps) {
-  const [bidItems, setBidItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export function BidAnalysis({ projectId, bidItems }: BidAnalysisProps) {
+  const [loading, setLoading] = useState(false);
   const [projectData, setProjectData] = useState<any>(null);
 
   useEffect(() => {
-    fetchBidData();
+    fetchProjectData();
   }, [projectId]);
 
-  const fetchBidData = async () => {
+  const fetchProjectData = async () => {
     try {
-      // Fetch bid items
-      const { data: items, error: itemsError } = await supabase
-        .from('bid_items')
-        .select('*')
-        .eq('project_id', projectId);
-
-      if (itemsError) throw itemsError;
-
+      setLoading(true);
       // Fetch project data
       const { data: project, error: projectError } = await supabase
         .from('projects')
@@ -51,11 +43,10 @@ export function BidAnalysis({ projectId, onBack }: BidAnalysisProps) {
 
       if (projectError) throw projectError;
 
-      setBidItems(items || []);
       setProjectData(project);
     } catch (error) {
-      console.error('Error fetching bid data:', error);
-      toast.error('Failed to load bid analysis data');
+      console.error('Error fetching project data:', error);
+      toast.error('Failed to load project data');
     } finally {
       setLoading(false);
     }
@@ -93,10 +84,6 @@ export function BidAnalysis({ projectId, onBack }: BidAnalysisProps) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="outline" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Bid Planner
-        </Button>
         <div>
           <h1 className="text-2xl font-bold">Bid Analysis</h1>
           <p className="text-muted-foreground">{projectData?.name}</p>
