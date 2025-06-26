@@ -1,271 +1,178 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
   Calendar, 
   DollarSign, 
   MapPin, 
   User, 
-  MoreVertical, 
-  Edit, 
-  Trash2,
-  TrendingUp,
-  TrendingDown,
-  Clock,
-  CreditCard,
-  CheckCircle
+  Edit,
+  Eye,
+  MoreVertical
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { EditProjectDialog } from './EditProjectDialog';
-import { useNavigate } from 'react-router-dom';
-import type { Project } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
+import { ProjectContingencyBadge } from './ProjectContingencyBadge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+interface Project {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  address?: string;
+  client?: string;
+  field_leader?: string;
+  contract_value: number;
+  due_date?: string;
+  completion_percentage?: number;
+  contingency_type?: 'percentage' | 'dollar';
+  contingency_value?: number;
+}
 
 interface ProjectCardProps {
   project: Project;
-  showDeleteButton?: boolean;
-  onDelete?: (id: string) => void;
-  onUpdate?: () => void;
-  totalExpenses?: number;
-  totalBilled?: number;
-  totalReceived?: number;
+  onEdit: (project: Project) => void;
+  onView: (project: Project) => void;
 }
 
-export function ProjectCard({
-  project,
-  showDeleteButton = false,
-  onDelete,
-  onUpdate,
-  totalExpenses = 0,
-  totalBilled = 0,
-  totalReceived = 0
-}: ProjectCardProps) {
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [paidExpenses, setPaidExpenses] = useState(0);
-  const [pendingExpenses, setPendingExpenses] = useState(0);
-  const [remainingAmount, setRemainingAmount] = useState(0);
-  const [billedAmount, setBilledAmount] = useState(0);
-  const [receivedAmount, setReceivedAmount] = useState(0);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    fetchProjectFinancials();
-  }, [project.id]);
-
-  const fetchProjectFinancials = async () => {
-    try {
-      // Get expenses data
-      const { data: expenses, error: expensesError } = await supabase
-        .from('expenses')
-        .select('amount, status')
-        .eq('project_id', project.id);
-
-      if (expensesError) throw expensesError;
-
-      const paid = expenses
-        ?.filter(exp => exp.status === 'Approved' || exp.status === 'Paid')
-        .reduce((sum, exp) => sum + exp.amount, 0) || 0;
-
-      const pending = expenses
-        ?.filter(exp => exp.status === 'Pending Field Approval' || exp.status === 'Pending Office Approval')
-        .reduce((sum, exp) => sum + exp.amount, 0) || 0;
-
-      setPaidExpenses(paid);
-      setPendingExpenses(pending);
-
-      // Get billing data
-      const { data: billing, error: billingError } = await supabase
-        .from('project_billing')
-        .select('billed_amount, paid_amount')
-        .eq('project_id', project.id);
-
-      if (billingError) throw billingError;
-
-      const totalBilledFromDB = billing?.reduce((sum, bill) => sum + bill.billed_amount, 0) || 0;
-      const totalReceivedFromDB = billing?.reduce((sum, bill) => sum + bill.paid_amount, 0) || 0;
-
-      setBilledAmount(totalBilledFromDB);
-      setReceivedAmount(totalReceivedFromDB);
-
-      // Calculate remaining amount (contract value - total billed)
-      const remaining = project.contractValue - totalBilledFromDB;
-      setRemainingAmount(remaining);
-    } catch (error) {
-      console.error('Error fetching project financials:', error);
-    }
-  };
-
+export function ProjectCard({ project, onEdit, onView }: ProjectCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Active': return 'bg-green-500';
-      case 'Planning': return 'bg-blue-500';
-      case 'On Hold': return 'bg-yellow-500';
-      case 'Completed': return 'bg-purple-500';
-      case 'Closed': return 'bg-gray-500';
-      default: return 'bg-gray-500';
+      case 'Active':
+        return 'bg-green-100 text-green-800';
+      case 'Planning':
+        return 'bg-blue-100 text-blue-800';
+      case 'On Hold':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'Completed':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const handleCardClick = () => {
-    navigate(`/projects/${project.id}`);
-  };
-
-  const handleDelete = () => {
-    if (onDelete && confirm('Are you sure you want to delete this project?')) {
-      onDelete(project.id);
-    }
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
   };
 
   return (
-    <>
-      <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={handleCardClick}>
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <CardTitle className="text-lg mb-1">{project.name}</CardTitle>
-              <Badge className={`${getStatusColor(project.status)} text-white`}>
-                {project.status}
-              </Badge>
-            </div>
+    <Card className="hover:shadow-lg transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <CardTitle className="text-lg font-semibold leading-tight">
+              {project.name}
+            </CardTitle>
+            <Badge variant="secondary" className="text-xs">
+              {project.type}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge className={`text-xs ${getStatusColor(project.status)}`}>
+              {project.status}
+            </Badge>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="sm">
-                  <MoreVertical className="w-4 h-4" />
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => {
-                  e.stopPropagation();
-                  setEditDialogOpen(true);
-                }}>
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit
+                <DropdownMenuItem onClick={() => onView(project)}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Details
                 </DropdownMenuItem>
-                {showDeleteButton && (
-                  <DropdownMenuItem onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete();
-                  }} className="text-red-600">
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem onClick={() => onEdit(project)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Project
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </CardHeader>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        {/* Project Details */}
+        <div className="space-y-2 text-sm">
+          {project.address && (
+            <div className="flex items-center text-muted-foreground">
+              <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span className="truncate">{project.address}</span>
+            </div>
+          )}
+          
+          {project.client && (
+            <div className="flex items-center text-muted-foreground">
+              <User className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span className="truncate">{project.client}</span>
+            </div>
+          )}
+          
+          <div className="flex items-center text-muted-foreground">
+            <DollarSign className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="font-medium">{formatCurrency(project.contract_value)}</span>
+          </div>
+          
+          {project.due_date && (
+            <div className="flex items-center text-muted-foreground">
+              <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span>{new Date(project.due_date).toLocaleDateString()}</span>
+            </div>
+          )}
+        </div>
 
-        <CardContent className="space-y-4">
+        {/* Contingency Information */}
+        <ProjectContingencyBadge
+          contingencyType={project.contingency_type}
+          contingencyValue={project.contingency_value}
+          projectValue={project.contract_value}
+        />
+
+        {/* Progress */}
+        {typeof project.completion_percentage === 'number' && (
           <div className="space-y-2">
-            {project.client && (
-              <div className="flex items-center text-sm text-gray-600">
-                <User className="w-4 h-4 mr-2" />
-                {project.client}
-              </div>
-            )}
-            {project.address && (
-              <div className="flex items-center text-sm text-gray-600">
-                <MapPin className="w-4 h-4 mr-2" />
-                {project.address}
-              </div>
-            )}
-            <div className="flex items-center text-sm text-gray-600">
-              <Calendar className="w-4 h-4 mr-2" />
-              Due: {format(project.dueDate, 'MMM dd, yyyy')}
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Progress</span>
+              <span className="font-medium">{project.completion_percentage}%</span>
             </div>
+            <Progress value={project.completion_percentage} className="h-2" />
           </div>
+        )}
 
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Progress</span>
-              <span className="text-sm text-gray-600">{project.completionPercentage}%</span>
-            </div>
-            <Progress value={project.completionPercentage} className="h-2" />
-          </div>
-
-          {/* Enhanced Financial Snapshot */}
-          <div className="bg-gray-50 rounded-lg p-3 space-y-3">
-            <h4 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-1">
-              Financial Snapshot
-            </h4>
-            
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-white p-2 rounded border text-center">
-                <div className="flex items-center justify-center text-xs text-gray-500 mb-1">
-                  <DollarSign className="w-3 h-3 mr-1" />
-                  Contract
-                </div>
-                <div className="text-sm font-bold text-gray-900">
-                  ${project.contractValue.toLocaleString()}
-                </div>
-              </div>
-              
-              <div className="bg-white p-2 rounded border text-center">
-                <div className="flex items-center justify-center text-xs text-green-600 mb-1">
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                  Remaining
-                </div>
-                <div className="text-sm font-bold text-green-600">
-                  ${remainingAmount.toLocaleString()}
-                </div>
-              </div>
-
-              <div className="bg-white p-2 rounded border text-center">
-                <div className="flex items-center justify-center text-xs text-blue-600 mb-1">
-                  <CreditCard className="w-3 h-3 mr-1" />
-                  Billed
-                </div>
-                <div className="text-sm font-bold text-blue-600">
-                  ${billedAmount.toLocaleString()}
-                </div>
-              </div>
-
-              <div className="bg-white p-2 rounded border text-center">
-                <div className="flex items-center justify-center text-xs text-green-700 mb-1">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  Received
-                </div>
-                <div className="text-sm font-bold text-green-700">
-                  ${receivedAmount.toLocaleString()}
-                </div>
-              </div>
-
-              <div className="bg-white p-2 rounded border text-center">
-                <div className="flex items-center justify-center text-xs text-red-600 mb-1">
-                  <TrendingDown className="w-3 h-3 mr-1" />
-                  Expenses Paid
-                </div>
-                <div className="text-sm font-bold text-red-600">
-                  ${paidExpenses.toLocaleString()}
-                </div>
-              </div>
-
-              <div className="bg-white p-2 rounded border text-center">
-                <div className="flex items-center justify-center text-xs text-orange-600 mb-1">
-                  <Clock className="w-3 h-3 mr-1" />
-                  Pending
-                </div>
-                <div className="text-sm font-bold text-orange-600">
-                  ${pendingExpenses.toLocaleString()}
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <EditProjectDialog
-        project={project}
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        onProjectUpdated={() => {
-          onUpdate?.();
-          fetchProjectFinancials();
-        }}
-      />
-    </>
+        {/* Action Buttons */}
+        <div className="flex gap-2 pt-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => onView(project)}
+            className="flex-1"
+          >
+            <Eye className="w-4 h-4 mr-2" />
+            View
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => onEdit(project)}
+            className="flex-1"
+          >
+            <Edit className="w-4 h-4 mr-2" />
+            Edit
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
