@@ -16,7 +16,8 @@ import {
   TrendingDown,
   Clock,
   CreditCard,
-  CheckCircle
+  CheckCircle,
+  Shield
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { EditProjectDialog } from './EditProjectDialog';
@@ -126,9 +127,21 @@ export function ProjectCard({
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <CardTitle className="text-lg mb-1">{project.name}</CardTitle>
-              <Badge className={`${getStatusColor(project.status)} text-white`}>
-                {project.status}
-              </Badge>
+              <div className="flex items-center gap-2 mb-2">
+                <Badge className={`${getStatusColor(project.status)} text-white`}>
+                  {project.status}
+                </Badge>
+                {/* Display contingency if it exists */}
+                {project.contingency_value && project.contingency_value > 0 && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <Shield className="w-3 h-3" />
+                    {project.contingency_type === 'percentage' 
+                      ? `${project.contingency_value}% contingency`
+                      : `$${project.contingency_value.toLocaleString()} contingency`
+                    }
+                  </Badge>
+                )}
+              </div>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -253,6 +266,21 @@ export function ProjectCard({
                 </div>
               </div>
             </div>
+
+            {/* Show contingency calculation if exists */}
+            {project.contingency_value && project.contingency_value > 0 && (
+              <div className="border-t border-gray-200 pt-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-600">Contingency Available:</span>
+                  <span className="font-medium text-gray-900">
+                    ${project.contingency_type === 'percentage' 
+                      ? ((project.contractValue * project.contingency_value) / 100).toLocaleString()
+                      : project.contingency_value.toLocaleString()
+                    }
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -777,6 +777,8 @@ export type Database = {
           company_name: string
           company_phone: string | null
           created_at: string | null
+          default_contingency_type: string | null
+          default_contingency_value: number | null
           default_retainage_rate: number | null
           default_tax_rate: number | null
           id: string
@@ -791,6 +793,8 @@ export type Database = {
           company_name?: string
           company_phone?: string | null
           created_at?: string | null
+          default_contingency_type?: string | null
+          default_contingency_value?: number | null
           default_retainage_rate?: number | null
           default_tax_rate?: number | null
           id?: string
@@ -805,6 +809,8 @@ export type Database = {
           company_name?: string
           company_phone?: string | null
           created_at?: string | null
+          default_contingency_type?: string | null
+          default_contingency_value?: number | null
           default_retainage_rate?: number | null
           default_tax_rate?: number | null
           id?: string
@@ -1674,6 +1680,8 @@ export type Database = {
           address: string | null
           client: string | null
           completion_percentage: number | null
+          contingency_type: string | null
+          contingency_value: number | null
           contract_value: number
           created_at: string | null
           description: string | null
@@ -1693,6 +1701,8 @@ export type Database = {
           address?: string | null
           client?: string | null
           completion_percentage?: number | null
+          contingency_type?: string | null
+          contingency_value?: number | null
           contract_value?: number
           created_at?: string | null
           description?: string | null
@@ -1712,6 +1722,8 @@ export type Database = {
           address?: string | null
           client?: string | null
           completion_percentage?: number | null
+          contingency_type?: string | null
+          contingency_value?: number | null
           contract_value?: number
           created_at?: string | null
           description?: string | null

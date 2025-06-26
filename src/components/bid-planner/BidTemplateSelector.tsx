@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, FileText, Plus } from 'lucide-react';
+import { Search, FileText, Plus, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { EditBidTemplateDialog } from './EditBidTemplateDialog';
 
 interface BidTemplate {
   id: string;
@@ -25,6 +26,7 @@ export function BidTemplateSelector({ onTemplateSelected, onCreateNew }: BidTemp
   const [templates, setTemplates] = useState<BidTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingTemplate, setEditingTemplate] = useState<BidTemplate | null>(null);
 
   useEffect(() => {
     fetchTemplates();
@@ -60,6 +62,34 @@ export function BidTemplateSelector({ onTemplateSelected, onCreateNew }: BidTemp
       toast.error('Failed to load bid templates');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (templateId: string, templateName: string) => {
+    if (!confirm(`Are you sure you want to delete the template "${templateName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      // First delete all template items
+      await supabase
+        .from('bid_template_items')
+        .delete()
+        .eq('template_id', templateId);
+
+      // Then delete the template
+      const { error } = await supabase
+        .from('bid_templates')
+        .delete()
+        .eq('id', templateId);
+
+      if (error) throw error;
+
+      toast.success('Template deleted successfully');
+      fetchTemplates();
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      toast.error('Failed to delete template');
     }
   };
 
@@ -99,7 +129,7 @@ export function BidTemplateSelector({ onTemplateSelected, onCreateNew }: BidTemp
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredTemplates.map((template) => (
-          <Card key={template.id} className="cursor-pointer hover:shadow-md transition-shadow">
+          <Card key={template.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <CardTitle className="text-lg">{template.name}</CardTitle>
@@ -112,16 +142,34 @@ export function BidTemplateSelector({ onTemplateSelected, onCreateNew }: BidTemp
               <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
                 {template.description || 'No description provided'}
               </p>
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center mb-3">
                 <span className="text-xs text-muted-foreground">
                   {new Date(template.created_at).toLocaleDateString()}
                 </span>
+              </div>
+              <div className="flex gap-2">
                 <Button 
                   size="sm" 
                   onClick={() => onTemplateSelected(template)}
+                  className="flex-1"
                 >
                   <FileText className="w-4 h-4 mr-2" />
                   Use Template
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditingTemplate(template)}
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleDeleteTemplate(template.id, template.name)}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
             </CardContent>
@@ -144,6 +192,13 @@ export function BidTemplateSelector({ onTemplateSelected, onCreateNew }: BidTemp
           </CardContent>
         </Card>
       )}
+
+      <EditBidTemplateDialog
+        template={editingTemplate}
+        open={!!editingTemplate}
+        onOpenChange={(open) => !open && setEditingTemplate(null)}
+        onTemplateUpdated={fetchTemplates}
+      />
     </div>
   );
 }
