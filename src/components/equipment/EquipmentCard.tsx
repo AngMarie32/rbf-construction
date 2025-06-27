@@ -3,16 +3,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   Building, 
   Truck, 
-  Edit2, 
-  Trash2,
   DollarSign,
   Clock,
   MapPin,
   Wrench,
-  Settings
+  Settings,
+  MoreVertical,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import type { Equipment } from '@/types/equipment';
 
@@ -67,27 +74,44 @@ export function EquipmentCard({
               <CardTitle className="text-lg font-semibold text-gray-900 truncate">
                 {equipment.name}
               </CardTitle>
-              <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                {getCategoryIcon(equipment.category)}
-                <span>{equipment.category}</span>
-                {equipment.year && (
-                  <>
-                    <span>•</span>
-                    <span>{equipment.year}</span>
-                  </>
-                )}
-              </div>
+              {equipment.year && (
+                <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                  <span>{equipment.year}</span>
+                </div>
+              )}
             </div>
           </div>
-          <Badge className={`text-xs font-medium border ${getStatusColor(equipment.status)}`} variant="outline">
-            {equipment.status}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge className={`text-xs font-medium border ${getStatusColor(equipment.status)}`} variant="outline">
+              {equipment.status}
+            </Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEdit(equipment)}>
+                  <Edit2 className="h-4 w-4 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => onDelete(equipment.id)}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
         {equipment.image && (
-          <div className="relative h-40 overflow-hidden rounded-lg bg-gray-100">
+          <div className="relative h-32 overflow-hidden rounded-lg bg-gray-100">
             <img 
               src={equipment.image} 
               alt={equipment.name}
@@ -135,15 +159,6 @@ export function EquipmentCard({
             size="sm" 
             variant="outline" 
             className="flex-1"
-            onClick={() => onEdit(equipment)}
-          >
-            <Edit2 className="w-4 h-4 mr-1" />
-            Edit
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="flex-1"
             onClick={() => onMaintenance(equipment)}
           >
             <Settings className="w-4 h-4 mr-1" />
@@ -157,14 +172,6 @@ export function EquipmentCard({
           >
             <DollarSign className="w-4 h-4 mr-1" />
             Estimate
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
-            onClick={() => onDelete(equipment.id)}
-          >
-            <Trash2 className="w-4 h-4" />
           </Button>
         </div>
       </CardContent>

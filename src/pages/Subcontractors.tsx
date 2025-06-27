@@ -16,26 +16,18 @@ import {
 } from '@/components/ui/table';
 import { 
   Search, 
-  Plus, 
-  Star, 
-  StarOff, 
-  Edit, 
-  Trash2, 
   Mail, 
   Phone, 
   MapPin,
   Users,
-  Filter,
-  Download,
-  Calendar,
-  FileText,
-  AlertTriangle,
-  CheckCircle
+  Grid3X3,
+  List,
+  AlertTriangle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AddSubcontractorDialog } from '@/components/subcontractors/AddSubcontractorDialog';
-import { BulkAddSubcontractorDialog } from '@/components/subcontractors/BulkAddSubcontractorDialog';
+import { DocumentIssues } from '@/components/subcontractors/DocumentIssues';
 
 interface Subcontractor {
   id: string;
@@ -61,8 +53,9 @@ export default function Subcontractors() {
   const [filteredSubcontractors, setFilteredSubcontractors] = useState<Subcontractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [specialtyFilter, setSpecialtyFilter] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [showDocumentIssues, setShowDocumentIssues] = useState(false);
 
   useEffect(() => {
     fetchSubcontractors();
@@ -70,7 +63,7 @@ export default function Subcontractors() {
 
   useEffect(() => {
     filterSubcontractors();
-  }, [subcontractors, searchTerm, statusFilter, specialtyFilter]);
+  }, [subcontractors, searchTerm, specialtyFilter]);
 
   const fetchSubcontractors = async () => {
     try {
@@ -99,10 +92,6 @@ export default function Subcontractors() {
         sub.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         sub.specialties?.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
       );
-    }
-
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(sub => sub.status === statusFilter);
     }
 
     if (specialtyFilter !== 'all') {
@@ -135,94 +124,6 @@ export default function Subcontractors() {
     }
   };
 
-  const updateSubcontractorStatus = async (id: string, newStatus: string) => {
-    try {
-      const { error } = await supabase
-        .from('subcontractors')
-        .update({ status: newStatus })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast.success(`Subcontractor ${newStatus.toLowerCase()}`);
-      fetchSubcontractors();
-    } catch (error) {
-      console.error('Error updating subcontractor:', error);
-      toast.error('Failed to update subcontractor');
-    }
-  };
-
-  const exportToCSV = () => {
-    const csvContent = [
-      ['Name', 'Company', 'Email', 'Phone', 'Specialties', 'Status', 'Rating', 'W9 on File', 'Insurance Expiry'].join(','),
-      ...filteredSubcontractors.map(sub => [
-        `"${sub.name}"`,
-        `"${sub.company || ''}"`,
-        `"${sub.email || ''}"`,
-        `"${sub.phone || ''}"`,
-        `"${sub.specialties?.join(', ') || ''}"`,
-        sub.status,
-        sub.rating || '',
-        sub.w9_on_file ? 'Yes' : 'No',
-        sub.insurance_expiry || ''
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `subcontractors-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Active': return 'bg-green-500';
-      case 'Inactive': return 'bg-gray-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  const getRatingStars = (rating: number | null) => {
-    if (!rating) return null;
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        className={`w-4 h-4 ${i < rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
-      />
-    ));
-  };
-
-  const getInsuranceStatus = (expiryDate: string | null) => {
-    if (!expiryDate) return null;
-    
-    const expiry = new Date(expiryDate);
-    const today = new Date();
-    const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (daysUntilExpiry < 0) {
-      return <Badge variant="destructive">Expired</Badge>;
-    } else if (daysUntilExpiry <= 30) {
-      return <Badge className="bg-yellow-500">Expires Soon</Badge>;
-    } else {
-      return <Badge className="bg-green-500">Valid</Badge>;
-    }
-  };
-
-  const activeSubcontractors = subcontractors.filter(s => s.status === 'Active').length;
-  const inactiveSubcontractors = subcontractors.filter(s => s.status === 'Inactive').length;
-  const expiringSoon = subcontractors.filter(s => {
-    if (!s.insurance_expiry) return false;
-    const expiry = new Date(s.insurance_expiry);
-    const today = new Date();
-    const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return daysUntilExpiry <= 30 && daysUntilExpiry >= 0;
-  }).length;
-
   const allSpecialties = [...new Set(subcontractors.flatMap(s => s.specialties || []))].sort();
 
   if (loading) {
@@ -235,11 +136,19 @@ export default function Subcontractors() {
     );
   }
 
+  if (showDocumentIssues) {
+    return (
+      <Layout title="Document Issues" subtitle="Manage subcontractor document compliance">
+        <DocumentIssues onBack={() => setShowDocumentIssues(false)} />
+      </Layout>
+    );
+  }
+
   return (
     <Layout title="Subcontractors" subtitle="Manage your network of subcontractors">
       <div className="space-y-6">
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Subcontractors</CardTitle>
@@ -253,30 +162,29 @@ export default function Subcontractors() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-600" />
+              <Users className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{activeSubcontractors}</div>
+              <div className="text-2xl font-bold text-green-600">
+                {subcontractors.filter(s => s.status === 'Active').length}
+              </div>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Inactive</CardTitle>
-              <Users className="h-4 w-4 text-gray-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-600">{inactiveSubcontractors}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Insurance Expiring</CardTitle>
+              <CardTitle className="text-sm font-medium">Document Issues</CardTitle>
               <AlertTriangle className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{expiringSoon}</div>
+              <div className="text-2xl font-bold text-yellow-600">0</div>
+              <Button 
+                variant="link" 
+                className="p-0 h-auto text-sm text-blue-600"
+                onClick={() => setShowDocumentIssues(true)}
+              >
+                View Issues
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -296,17 +204,6 @@ export default function Subcontractors() {
                   />
                 </div>
                 
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-32">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="Active">Active</SelectItem>
-                    <SelectItem value="Inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-                
                 <Select value={specialtyFilter} onValueChange={setSpecialtyFilter}>
                   <SelectTrigger className="w-full sm:w-48">
                     <SelectValue placeholder="Specialty" />
@@ -323,143 +220,179 @@ export default function Subcontractors() {
               </div>
               
               <div className="flex gap-2">
-                <Button onClick={exportToCSV} variant="outline" size="sm">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
-                <BulkAddSubcontractorDialog onSubcontractorsCreated={fetchSubcontractors} />
+                <div className="flex border rounded">
+                  <Button
+                    variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('grid')}
+                  >
+                    <Grid3X3 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'list' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('list')}
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
+                </div>
                 <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Subcontractors Table */}
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>NAME</TableHead>
-                  <TableHead>COMPANY</TableHead>
-                  <TableHead>CONTACT</TableHead>
-                  <TableHead>SPECIALTIES</TableHead>
-                  <TableHead>STATUS</TableHead>
-                  <TableHead>RATING</TableHead>
-                  <TableHead>COMPLIANCE</TableHead>
-                  <TableHead>ACTIONS</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSubcontractors.map((subcontractor) => (
-                  <TableRow key={subcontractor.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{subcontractor.name}</div>
-                        {subcontractor.address && (
-                          <div className="text-sm text-gray-500 flex items-center">
-                            <MapPin className="w-3 h-3 mr-1" />
-                            {subcontractor.city}, {subcontractor.state}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{subcontractor.company || '-'}</TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {subcontractor.email && (
-                          <div className="flex items-center text-sm">
-                            <Mail className="w-3 h-3 mr-1" />
-                            {subcontractor.email}
-                          </div>
-                        )}
-                        {subcontractor.phone && (
-                          <div className="flex items-center text-sm">
-                            <Phone className="w-3 h-3 mr-1" />
-                            {subcontractor.phone}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {subcontractor.specialties?.slice(0, 2).map((specialty, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            {specialty}
-                          </Badge>
-                        ))}
-                        {subcontractor.specialties && subcontractor.specialties.length > 2 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{subcontractor.specialties.length - 2} more
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={`${getStatusColor(subcontractor.status)} text-white`}>
-                        {subcontractor.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {getRatingStars(subcontractor.rating)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs">W9:</span>
-                          {subcontractor.w9_on_file ? (
-                            <CheckCircle className="w-4 h-4 text-green-500" />
-                          ) : (
-                            <AlertTriangle className="w-4 h-4 text-yellow-500" />
+        {/* Subcontractors Content */}
+        {viewMode === 'list' ? (
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>CONTACT NAME</TableHead>
+                    <TableHead>COMPANY</TableHead>
+                    <TableHead>CONTACT INFO</TableHead>
+                    <TableHead>SPECIALTIES</TableHead>
+                    <TableHead>ACTIONS</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredSubcontractors.map((subcontractor) => (
+                    <TableRow key={subcontractor.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{subcontractor.name}</div>
+                          {subcontractor.address && (
+                            <div className="text-sm text-gray-500 flex items-center">
+                              <MapPin className="w-3 h-3 mr-1" />
+                              {subcontractor.city}, {subcontractor.state}
+                            </div>
                           )}
                         </div>
-                        {subcontractor.insurance_expiry && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs">Insurance:</span>
-                            {getInsuranceStatus(subcontractor.insurance_expiry)}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            const newStatus = subcontractor.status === 'Active' ? 'Inactive' : 'Active';
-                            updateSubcontractorStatus(subcontractor.id, newStatus);
-                          }}
-                        >
-                          {subcontractor.status === 'Active' ? 'Deactivate' : 'Activate'}
-                        </Button>
+                      </TableCell>
+                      <TableCell>{subcontractor.company || '-'}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          {subcontractor.email && (
+                            <div className="flex items-center text-sm">
+                              <Mail className="w-3 h-3 mr-1" />
+                              {subcontractor.email}
+                            </div>
+                          )}
+                          {subcontractor.phone && (
+                            <div className="flex items-center text-sm">
+                              <Phone className="w-3 h-3 mr-1" />
+                              {subcontractor.phone}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {subcontractor.specialties?.slice(0, 2).map((specialty, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {specialty}
+                            </Badge>
+                          ))}
+                          {subcontractor.specialties && subcontractor.specialties.length > 2 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{subcontractor.specialties.length - 2} more
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => deleteSubcontractor(subcontractor.id)}
                           className="text-red-600 hover:text-red-700"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          Delete
                         </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              
+              {filteredSubcontractors.length === 0 && (
+                <div className="text-center py-12">
+                  <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No subcontractors found</h3>
+                  <p className="text-gray-500 mb-6">Start building your network of trusted subcontractors.</p>
+                  <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredSubcontractors.map((subcontractor) => (
+              <Card key={subcontractor.id} className="hover:shadow-lg transition-shadow">
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold text-lg">{subcontractor.name}</h3>
+                      {subcontractor.company && (
+                        <p className="text-gray-600">{subcontractor.company}</p>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {subcontractor.email && (
+                        <div className="flex items-center text-sm">
+                          <Mail className="w-4 h-4 mr-2" />
+                          {subcontractor.email}
+                        </div>
+                      )}
+                      {subcontractor.phone && (
+                        <div className="flex items-center text-sm">
+                          <Phone className="w-4 h-4 mr-2" />
+                          {subcontractor.phone}
+                        </div>
+                      )}
+                      {subcontractor.address && (
+                        <div className="flex items-center text-sm">
+                          <MapPin className="w-4 h-4 mr-2" />
+                          {subcontractor.city}, {subcontractor.state}
+                        </div>
+                      )}
+                    </div>
+
+                    {subcontractor.specialties && subcontractor.specialties.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {subcontractor.specialties.map((specialty, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {specialty}
+                          </Badge>
+                        ))}
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => deleteSubcontractor(subcontractor.id)}
+                      className="w-full text-red-600 hover:text-red-700"
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
             
             {filteredSubcontractors.length === 0 && (
-              <div className="text-center py-12">
+              <div className="col-span-full text-center py-12">
                 <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No subcontractors found</h3>
                 <p className="text-gray-500 mb-6">Start building your network of trusted subcontractors.</p>
                 <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        )}
       </div>
     </Layout>
   );

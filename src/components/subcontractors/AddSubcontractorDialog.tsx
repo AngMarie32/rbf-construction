@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus } from 'lucide-react';
@@ -51,25 +50,22 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
     state: '',
     zip_code: '',
     specialties: [] as string[],
-    status: 'Active',
     w9_on_file: false,
     insurance_expiry: '',
-    rating: 0,
     notes: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) {
-      toast.error('Name is required');
-      return;
-    }
 
     setLoading(true);
     try {
       const { error } = await supabase
         .from('subcontractors')
-        .insert([formData]);
+        .insert([{
+          ...formData,
+          status: 'Active'
+        }]);
 
       if (error) {
         console.error('Supabase error:', error);
@@ -88,10 +84,8 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
         state: '',
         zip_code: '',
         specialties: [],
-        status: 'Active',
         w9_on_file: false,
         insurance_expiry: '',
-        rating: 0,
         notes: ''
       });
       onSubcontractorCreated();
@@ -133,12 +127,11 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="name">Name *</Label>
+              <Label htmlFor="name">Contact Name</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                required
               />
             </div>
             <div>
@@ -223,19 +216,7 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="insurance_expiry">Insurance Expiry</Label>
               <Input
