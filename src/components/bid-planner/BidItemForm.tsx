@@ -1,10 +1,8 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Plus, Trash2 } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -308,7 +306,7 @@ function SearchableSelect({ value, onValueChange, options, placeholder, allowCus
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between text-left font-normal"
+          className="w-full justify-between text-left font-normal h-8 text-xs"
         >
           {value || placeholder}
         </Button>
@@ -364,7 +362,6 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
       unitCost: 0,
       total: 0
     };
-    // Add new item at the beginning of the array
     onItemsChange([newItem, ...items]);
   };
 
@@ -394,119 +391,113 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
     <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
-          <CardTitle>Bid Line Items</CardTitle>
+          <CardTitle>Line Items</CardTitle>
           <Button onClick={addItem} size="sm">
             <Plus className="w-4 h-4 mr-2" />
-            Add Item
+            Add Line Item
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {items.map((item, index) => (
-          <div key={item.id} className="border rounded-lg p-3 space-y-3">
-            <div className="flex justify-between items-start">
-              <h4 className="font-medium text-sm">Item #{index + 1}</h4>
+      <CardContent className="space-y-2">
+        {/* Header Row */}
+        <div className="grid grid-cols-12 gap-2 pb-2 border-b text-xs font-medium text-muted-foreground">
+          <div className="col-span-1">Division</div>
+          <div className="col-span-2">Category</div>
+          <div className="col-span-2">Subcategory</div>
+          <div className="col-span-3">Description</div>
+          <div className="col-span-1">Unit</div>
+          <div className="col-span-1">Quantity</div>
+          <div className="col-span-1">Unit Cost</div>
+          <div className="col-span-1">Total</div>
+        </div>
+
+        {/* Item Rows */}
+        {items.map((item) => (
+          <div key={item.id} className="grid grid-cols-12 gap-2 items-center py-1 border-b border-gray-100">
+            <div className="col-span-1">
+              <SearchableSelect
+                value={item.division}
+                onValueChange={(value) => updateItem(item.id, 'division', value)}
+                options={divisions}
+                placeholder="Division"
+                allowCustom={true}
+              />
+            </div>
+
+            <div className="col-span-2">
+              <SearchableSelect
+                value={item.category}
+                onValueChange={(value) => updateItem(item.id, 'category', value)}
+                options={categoryOptions}
+                placeholder="Category"
+                allowCustom={true}
+              />
+            </div>
+
+            <div className="col-span-2">
+              <SearchableSelect
+                value={item.subcategory}
+                onValueChange={(value) => updateItem(item.id, 'subcategory', value)}
+                options={subcategoryOptions}
+                placeholder="Subcategory"
+                allowCustom={true}
+              />
+            </div>
+
+            <div className="col-span-3">
+              <Input
+                value={item.description}
+                onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                className="h-8 text-xs"
+                placeholder=""
+              />
+            </div>
+
+            <div className="col-span-1">
+              <SearchableSelect
+                value={item.unit}
+                onValueChange={(value) => updateItem(item.id, 'unit', value)}
+                options={allowedUnits}
+                placeholder="Unit"
+              />
+            </div>
+
+            <div className="col-span-1">
+              <Input
+                type="number"
+                value={item.quantity}
+                onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                min="0"
+                step="0.01"
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="col-span-1">
+              <Input
+                type="number"
+                value={item.unitCost}
+                onChange={(e) => updateItem(item.id, 'unitCost', parseFloat(e.target.value) || 0)}
+                min="0"
+                step="0.01"
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="col-span-1 flex items-center justify-between">
+              <div className="text-xs font-medium">
+                ${item.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
               {items.length > 1 && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => removeItem(item.id)}
+                  className="h-6 w-6 p-0 ml-1"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-3 h-3" />
                 </Button>
               )}
-            </div>
-
-            {/* Single row layout for all form fields */}
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-              <div>
-                <Label htmlFor={`division-${item.id}`} className="text-xs">Division</Label>
-                <SearchableSelect
-                  value={item.division}
-                  onValueChange={(value) => updateItem(item.id, 'division', value)}
-                  options={divisions}
-                  placeholder="Select division"
-                  allowCustom={true}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor={`category-${item.id}`} className="text-xs">Category</Label>
-                <SearchableSelect
-                  value={item.category}
-                  onValueChange={(value) => updateItem(item.id, 'category', value)}
-                  options={categoryOptions}
-                  placeholder="Select category"
-                  allowCustom={true}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor={`subcategory-${item.id}`} className="text-xs">Subcategory</Label>
-                <SearchableSelect
-                  value={item.subcategory}
-                  onValueChange={(value) => updateItem(item.id, 'subcategory', value)}
-                  options={subcategoryOptions}
-                  placeholder="Select subcategory"
-                  allowCustom={true}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor={`unit-${item.id}`} className="text-xs">Unit</Label>
-                <SearchableSelect
-                  value={item.unit}
-                  onValueChange={(value) => updateItem(item.id, 'unit', value)}
-                  options={allowedUnits}
-                  placeholder="Select unit"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor={`quantity-${item.id}`} className="text-xs">Quantity</Label>
-                <Input
-                  id={`quantity-${item.id}`}
-                  type="number"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                  min="0"
-                  step="0.01"
-                  className="h-8"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor={`unitCost-${item.id}`} className="text-xs">Unit Cost ($)</Label>
-                <Input
-                  id={`unitCost-${item.id}`}
-                  type="number"
-                  value={item.unitCost}
-                  onChange={(e) => updateItem(item.id, 'unitCost', parseFloat(e.target.value) || 0)}
-                  min="0"
-                  step="0.01"
-                  className="h-8"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor={`description-${item.id}`} className="text-xs">Description</Label>
-                <Input
-                  id={`description-${item.id}`}
-                  value={item.description}
-                  onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                  className="h-8"
-                  placeholder="Optional description..."
-                />
-              </div>
-
-              <div>
-                <Label className="text-xs">Total</Label>
-                <div className="p-2 bg-gray-50 rounded border font-medium text-sm h-8 flex items-center">
-                  ${item.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-              </div>
             </div>
           </div>
         ))}

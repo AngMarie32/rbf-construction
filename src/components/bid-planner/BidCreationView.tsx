@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -125,15 +124,27 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" onClick={handleBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Bid Planner
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Create New Bid</h1>
-          <p className="text-muted-foreground">Build a detailed construction bid with line items and pricing</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={handleBack}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Bid Planner
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Create New Bid</h1>
+            <p className="text-muted-foreground">Build a detailed construction bid with line items and pricing</p>
+          </div>
         </div>
+        
+        {/* Save Button moved to header */}
+        <Button 
+          onClick={handleSaveBid} 
+          disabled={saving} 
+          size="lg"
+        >
+          <Save className="w-4 h-4 mr-2" />
+          {saving ? 'Saving...' : 'Save Bid'}
+        </Button>
       </div>
 
       {/* Bid Items - Full width */}
@@ -141,32 +152,38 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         <BidItemForm items={bidItems} onItemsChange={setBidItems} />
       </div>
 
-      {/* Bid Summary - Bottom section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Bid Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Expanded Bid Summary - Full width */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Bid Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Total Summary */}
             <div className="space-y-4">
-              <div className="text-lg font-bold border-b pb-2">
+              <div className="text-2xl font-bold border-b pb-2">
                 Total: ${calculateTotalValue().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
-              
-              {/* Division Totals */}
-              <div className="space-y-3">
-                <h4 className="font-semibold text-sm">Division Breakdown</h4>
-                {Object.entries(divisionTotals).map(([division, total]) => (
-                  <div key={division} className="flex justify-between text-sm border-b pb-1">
-                    <span className="font-medium">{division}</span>
-                    <span className="font-semibold">${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                ))}
+              <div className="text-sm text-muted-foreground">
+                {bidItems.length} line item{bidItems.length !== 1 ? 's' : ''}
               </div>
+            </div>
 
-              {/* Detailed Category Breakdown */}
-              <div className="space-y-4 pt-4 border-t">
-                <h4 className="font-semibold text-sm">Category Breakdown</h4>
+            {/* Division Totals */}
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm">Division Breakdown</h4>
+              {Object.entries(divisionTotals).map(([division, total]) => (
+                <div key={division} className="flex justify-between text-sm border-b pb-1">
+                  <span className="font-medium">{division}</span>
+                  <span className="font-semibold">${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Detailed Category Breakdown */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-sm">Category Breakdown</h4>
+              <div className="max-h-64 overflow-y-auto space-y-3">
                 {Object.entries(breakdown).map(([division, categories]) => (
                   <div key={division} className="space-y-2">
                     <div className="font-medium text-sm text-blue-600">
@@ -181,32 +198,10 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
                   </div>
                 ))}
               </div>
-              
-              <div className="text-sm text-muted-foreground pt-2 border-t">
-                {bidItems.length} line items
-              </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Action Buttons */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              onClick={handleSaveBid} 
-              disabled={saving} 
-              className="w-full"
-              size="lg"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              {saving ? 'Saving...' : 'Save Bid'}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
