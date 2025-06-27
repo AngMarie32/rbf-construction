@@ -72,8 +72,8 @@ export function EditExpenseDialog({ open, onOpenChange, expense, onExpenseUpdate
   };
 
   const handleSave = async () => {
-    if (!expense || !formData.project_id || !formData.category || !formData.description || !formData.amount) {
-      toast.error('Please fill in all required fields');
+    if (!expense || !formData.project_id || !formData.category || !formData.amount) {
+      toast.error('Please fill in project, category, and amount');
       return;
     }
 
@@ -84,7 +84,7 @@ export function EditExpenseDialog({ open, onOpenChange, expense, onExpenseUpdate
         .update({
           project_id: formData.project_id,
           category: formData.category,
-          description: formData.description,
+          description: formData.description || '',
           amount: parseFloat(formData.amount),
           date: formData.date,
           vendor: formData.vendor || null,
@@ -116,7 +116,7 @@ export function EditExpenseDialog({ open, onOpenChange, expense, onExpenseUpdate
 
         <div className="space-y-4">
           <div>
-            <Label htmlFor="project">Project *</Label>
+            <Label htmlFor="project">Project</Label>
             <Select value={formData.project_id} onValueChange={(value) => setFormData(prev => ({ ...prev, project_id: value }))}>
               <SelectTrigger>
                 <SelectValue placeholder="Select project" />
@@ -132,7 +132,7 @@ export function EditExpenseDialog({ open, onOpenChange, expense, onExpenseUpdate
           </div>
 
           <div>
-            <Label htmlFor="category">Category *</Label>
+            <Label htmlFor="category">Category</Label>
             <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
               <SelectTrigger>
                 <SelectValue placeholder="Select category" />
@@ -149,7 +149,7 @@ export function EditExpenseDialog({ open, onOpenChange, expense, onExpenseUpdate
           </div>
 
           <div>
-            <Label htmlFor="description">Description *</Label>
+            <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
               value={formData.description}
@@ -161,7 +161,7 @@ export function EditExpenseDialog({ open, onOpenChange, expense, onExpenseUpdate
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="amount">Amount *</Label>
+              <Label htmlFor="amount">Amount</Label>
               <Input
                 id="amount"
                 type="number"

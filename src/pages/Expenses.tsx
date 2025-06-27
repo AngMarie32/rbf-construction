@@ -170,7 +170,7 @@ export default function Expenses() {
       console.log('Status updated successfully');
       toast.success(`Expense ${newStatus.toLowerCase()}`);
       
-      // Refresh the expenses list
+      // Refresh the expenses list to update tiles
       await fetchExpenses();
     } catch (error) {
       console.error('Error updating expense:', error);
@@ -239,7 +239,7 @@ export default function Expenses() {
   };
 
   const filteredExpenses = expenses.filter(expense =>
-    expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (expense.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     expense.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
     expense.vendor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     expense.receipt_number?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -252,11 +252,11 @@ export default function Expenses() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Field Approval': return 'bg-yellow-500';
-      case 'Office Approval': return 'bg-blue-500';
-      case 'Paid': return 'bg-green-500';
-      case 'Rejected': return 'bg-red-500';
-      default: return 'bg-gray-500';
+      case 'Field Approval': return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'Office Approval': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Paid': return 'bg-green-100 text-green-800 border-green-200';
+      case 'Rejected': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -290,15 +290,15 @@ export default function Expenses() {
 
   const handleExport = () => {
     const csvContent = [
-      ['Date', 'Description', 'Category', 'Amount', 'Status', 'Vendor', 'Project'],
+      ['Date', 'Project', 'Vendor', 'Category', 'Description', 'Amount', 'Status'],
       ...filteredExpenses.map(expense => [
         new Date(expense.date).toLocaleDateString(),
-        expense.description,
-        expense.category,
-        expense.amount.toString(),
-        expense.status,
+        expense.projects.name,
         expense.vendor || '',
-        expense.projects.name
+        expense.category,
+        expense.description || '',
+        expense.amount.toString(),
+        expense.status
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -440,11 +440,11 @@ export default function Expenses() {
               <TableHeader>
                 <TableRow>
                   <TableHead>DATE</TableHead>
-                  <TableHead>DESCRIPTION</TableHead>
-                  <TableHead>CATEGORY</TableHead>
-                  <TableHead>AMOUNT</TableHead>
-                  <TableHead>VENDOR</TableHead>
                   <TableHead>PROJECT</TableHead>
+                  <TableHead>VENDOR</TableHead>
+                  <TableHead>CATEGORY</TableHead>
+                  <TableHead>DESCRIPTION</TableHead>
+                  <TableHead>AMOUNT</TableHead>
                   <TableHead>STATUS</TableHead>
                   <TableHead>APPROVAL</TableHead>
                   <TableHead>ACTIONS</TableHead>
@@ -454,13 +454,13 @@ export default function Expenses() {
                 {filteredExpenses.map((expense) => (
                   <TableRow key={expense.id} className="hover:bg-gray-50">
                     <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
-                    <TableCell className="font-medium">{expense.description}</TableCell>
-                    <TableCell>{expense.category}</TableCell>
-                    <TableCell className="font-semibold">${expense.amount.toLocaleString()}</TableCell>
-                    <TableCell>{expense.vendor || '-'}</TableCell>
                     <TableCell>{expense.projects.name}</TableCell>
+                    <TableCell>{expense.vendor || '-'}</TableCell>
+                    <TableCell>{expense.category}</TableCell>
+                    <TableCell className="font-medium">{expense.description || ''}</TableCell>
+                    <TableCell className="font-semibold">${expense.amount.toLocaleString()}</TableCell>
                     <TableCell>
-                      <Badge className={`${getStatusColor(expense.status)} text-white`}>
+                      <Badge className={`${getStatusColor(expense.status)} border`}>
                         {expense.status}
                       </Badge>
                     </TableCell>
