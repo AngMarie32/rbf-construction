@@ -53,11 +53,7 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
           </div>
         </DialogHeader>
         <div>
-          <G702Form 
-            projectId={projectId} 
-            applicationId={applicationId}
-            onSave={handleSave} 
-          />
+          <G702Form onSave={handleSave} />
         </div>
       </DialogContent>
     </Dialog>

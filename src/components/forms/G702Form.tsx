@@ -99,18 +99,22 @@ export function G702Form({ onSave }: G702FormProps) {
       const processedItems = (data || []).map(item => {
         const scheduledValue = Number(item.scheduled_value) || 0;
         const changeOrders = Number(item.change_orders) || 0;
-        const workCompleted = Number(item.work_completed_to_date) || 0;
+        const workCompleted = Number(item.previous_applications) || 0;
         const materialsStored = Number(item.materials_stored) || 0;
         const totalCompletedAndStored = workCompleted + materialsStored;
         
         return {
-          ...item,
-          scheduled_value: scheduledValue,
-          change_orders: changeOrders,
-          work_completed_to_date: workCompleted,
-          materials_stored: materialsStored,
-          total_completed_and_stored: totalCompletedAndStored,
-          balance_to_finish: (scheduledValue + changeOrders) - totalCompletedAndStored
+          id: item.id,
+          itemNumber: item.item_number,
+          description: item.description,
+          scheduledValue: scheduledValue,
+          changeOrders: changeOrders,
+          previousApplications: workCompleted,
+          thisPeriod: Number(item.this_period) || 0,
+          materialsStored: materialsStored,
+          totalCompletedAndStored: totalCompletedAndStored,
+          percentComplete: scheduledValue > 0 ? (totalCompletedAndStored / (scheduledValue + changeOrders)) * 100 : 0,
+          category: item.category
         };
       });
 
@@ -132,7 +136,7 @@ export function G702Form({ onSave }: G702FormProps) {
     try {
       // Calculate totals from SOV items
       const totalCompletedAndStored = sovItems.reduce((sum, item) => 
-        sum + (Number(item.total_completed_and_stored) || 0), 0
+        sum + (Number(item.totalCompletedAndStored) || 0), 0
       );
       
       const contractSumToDate = formData.original_contract_sum + formData.net_change_by_change_orders;
@@ -169,6 +173,12 @@ export function G702Form({ onSave }: G702FormProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUpdateSOVItem = (id: string, value: number) => {
+    setSovItems(prev => prev.map(item => 
+      item.id === id ? { ...item, thisPeriod: value } : item
+    ));
   };
 
   return (
@@ -265,7 +275,13 @@ export function G702Form({ onSave }: G702FormProps) {
             <CardTitle>Schedule of Values</CardTitle>
           </CardHeader>
           <CardContent>
-            <SOVTable items={sovItems} />
+            <SOVTable 
+              sovItems={sovItems}
+              setSovItems={setSovItems}
+              projectId={selectedProject}
+              selectedApplication="current"
+              onUpdateItem={handleUpdateSOVItem}
+            />
           </CardContent>
         </Card>
       )}
