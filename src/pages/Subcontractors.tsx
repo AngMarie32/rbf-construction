@@ -237,10 +237,7 @@ export default function Subcontractors() {
                     <List className="w-4 h-4" />
                   </Button>
                 </div>
-                <Button onClick={() => setDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Subcontractor
-                </Button>
+                <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
               </div>
             </div>
           </CardContent>

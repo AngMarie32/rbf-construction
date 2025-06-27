@@ -597,14 +597,16 @@ export default function Expenses() {
         <AttachInvoiceDialog
           open={attachInvoiceDialogOpen}
           onOpenChange={setAttachInvoiceDialogOpen}
-          expense={expenseForInvoice}
+          expenseId={expenseForInvoice?.id || null}
+          expenseDescription={expenseForInvoice?.description || ''}
           onInvoiceAttached={fetchExpenses}
         />
 
         <ViewInvoiceDialog
           open={viewInvoiceDialogOpen}
           onOpenChange={setViewInvoiceDialogOpen}
-          expense={expenseForViewInvoice}
+          expenseId={expenseForViewInvoice?.id || null}
+          expenseDescription={expenseForViewInvoice?.description || ''}
         />
 
         <BulkExpenseDialog
