@@ -50,7 +50,9 @@ function App() {
               <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
               <Route path="/projects/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
               <Route path="/projects/:id/schedule" element={<ProtectedRoute><ProjectSchedule /></ProtectedRoute>} />
+              <Route path="/schedule" element={<ProtectedRoute><ProjectSchedule /></ProtectedRoute>} />
               <Route path="/schedule-of-values" element={<ProtectedRoute><ScheduleOfValues /></ProtectedRoute>} />
+              <Route path="/sov" element={<ProtectedRoute><ScheduleOfValues /></ProtectedRoute>} />
               <Route path="/bid-planner" element={<ProtectedRoute><BidPlanner /></ProtectedRoute>} />
               <Route path="/equipment" element={<ProtectedRoute><Equipment /></ProtectedRoute>} />
               <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
@@ -60,8 +62,10 @@ function App() {
               <Route path="/change-orders" element={<ProtectedRoute><ChangeOrders /></ProtectedRoute>} />
               <Route path="/proposals" element={<ProtectedRoute><Proposals /></ProtectedRoute>} />
               <Route path="/billing" element={<ProtectedRoute><ProjectBilling /></ProtectedRoute>} />
+              <Route path="/project-billing" element={<ProtectedRoute><ProjectBilling /></ProtectedRoute>} />
               <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
               <Route path="/payment-applications" element={<ProtectedRoute><PaymentApplications /></ProtectedRoute>} />
+              <Route path="/payment-apps" element={<ProtectedRoute><PaymentApplications /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
               <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />

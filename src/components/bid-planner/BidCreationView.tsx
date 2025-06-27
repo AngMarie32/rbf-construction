@@ -1,8 +1,7 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Save, FileText } from 'lucide-react';
+import { ArrowLeft, Save, FileText, Edit, Trash2, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BidItemForm } from './BidItemForm';
@@ -30,6 +29,7 @@ interface BidItem {
 export function BidCreationView({ projectId, selectedTemplate, onItemsChange, showCreateView, onShowCreateViewChange }: BidCreationViewProps) {
   const [saving, setSaving] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [currentBidId, setCurrentBidId] = useState<string | null>(null);
 
   const [bidItems, setBidItems] = useState<BidItem[]>([
     {
@@ -87,38 +87,79 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       return;
     }
 
+    // Filter out items without description
+    const validItems = bidItems.filter(item => item.description && item.description.trim());
+    
+    if (validItems.length === 0) {
+      toast.error('Please add at least one bid item with a description');
+      return;
+    }
+
     setSaving(true);
     try {
-      const itemsToSave = bidItems.map(item => ({
+      const itemsToSave = validItems.map(item => ({
         project_id: projectId,
         category: item.category || 'Other',
         subcategory: item.subcategory || '',
-        description: item.description || '',
-        quantity: item.quantity,
-        unit: item.unit,
-        unit_cost: item.unitCost,
-        total: item.total
+        description: item.description.trim(),
+        quantity: Number(item.quantity) || 1,
+        unit: item.unit || 'each',
+        unit_cost: Number(item.unitCost) || 0
       }));
 
       console.log('Saving bid items:', itemsToSave);
 
-      const { error: itemsError } = await supabase
+      const { data, error } = await supabase
         .from('bid_items')
-        .insert(itemsToSave);
+        .insert(itemsToSave)
+        .select();
 
-      if (itemsError) {
-        console.error('Error saving bid items:', itemsError);
-        throw itemsError;
+      if (error) {
+        console.error('Supabase error saving bid items:', error);
+        throw error;
       }
 
+      console.log('Bid items saved successfully:', data);
       toast.success(`Bid created successfully with ${itemsToSave.length} items`);
-      onItemsChange(itemsToSave);
-      onShowCreateViewChange(false);
+      onItemsChange(data || itemsToSave);
     } catch (error) {
       console.error('Error saving bid:', error);
-      toast.error('Failed to save bid. Please try again.');
+      toast.error(`Failed to save bid: ${error.message || 'Unknown error'}`);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteBid = async () => {
+    if (!currentBidId) {
+      toast.error('No bid selected to delete');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('bid_items')
+        .delete()
+        .eq('project_id', projectId);
+
+      if (error) throw error;
+
+      toast.success('Bid deleted successfully');
+      setBidItems([{
+        id: '1',
+        division: 'General Conditions',
+        category: 'Labor/Supervision',
+        subcategory: '',
+        description: '',
+        quantity: 1,
+        unit: 'each',
+        unitCost: 0,
+        total: 0
+      }]);
+      setCurrentBidId(null);
+    } catch (error) {
+      console.error('Error deleting bid:', error);
+      toast.error('Failed to delete bid');
     }
   };
 
@@ -258,9 +299,14 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     onShowCreateViewChange(false);
   };
 
-  const handleExportToSOV = () => {
-    // Navigate to Schedule of Values page
-    window.location.href = '/schedule-of-values';
+  const handleExportToSOV = async () => {
+    try {
+      // Navigate to Schedule of Values page
+      window.location.href = '/schedule-of-values';
+    } catch (error) {
+      console.error('Error navigating to SOV:', error);
+      toast.error('Failed to navigate to Schedule of Values');
+    }
   };
 
   const breakdown = getDivisionBreakdown();
@@ -276,7 +322,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           </Button>
           <div>
             <h1 className="text-2xl font-bold">Create New Bid</h1>
-            <p className="text-muted-foreground">Build a detailed construction bid with line items and pricing</p>
           </div>
         </div>
       </div>
@@ -286,98 +331,101 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         <BidItemForm items={bidItems} onItemsChange={setBidItems} />
       </div>
 
-      {/* Action Buttons and Bid Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Action Buttons */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button 
-              onClick={handleSaveBid} 
-              disabled={saving} 
-              className="w-full"
-              size="lg"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              {saving ? 'Saving...' : 'Save Bid'}
-            </Button>
-            
-            <Button 
-              onClick={handleExportPDF} 
-              disabled={exportingPDF || bidItems.length === 0}
-              variant="outline"
-              className="w-full"
-              size="lg"
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              {exportingPDF ? 'Exporting...' : 'Export PDF'}
-            </Button>
-            
-            <Button 
-              onClick={handleExportToSOV} 
-              disabled={bidItems.length === 0}
-              variant="outline"
-              className="w-full"
-              size="lg"
-            >
-              Export to SOV
-            </Button>
-          </CardContent>
-        </Card>
+      {/* Extended Bid Summary - Full width */}
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle>Bid Summary & Actions</CardTitle>
+            <div className="flex items-center gap-2">
+              <Button 
+                onClick={handleSaveBid} 
+                disabled={saving} 
+                size="sm"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {saving ? 'Saving...' : 'Save Bid'}
+              </Button>
+              
+              <Button 
+                onClick={handleExportPDF} 
+                disabled={exportingPDF || bidItems.length === 0}
+                variant="outline"
+                size="sm"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                {exportingPDF ? 'Exporting...' : 'Export PDF'}
+              </Button>
+              
+              <Button 
+                onClick={handleExportToSOV} 
+                disabled={bidItems.length === 0}
+                variant="outline"
+                size="sm"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export to SOV
+              </Button>
 
-        {/* Expanded Bid Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Bid Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
+              <Button 
+                onClick={handleDeleteBid} 
+                disabled={!currentBidId}
+                variant="destructive"
+                size="sm"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Bid
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left Column - Summary */}
             <div className="space-y-6">
               {/* Total Summary */}
               <div className="space-y-4">
-                <div className="text-3xl font-bold border-b pb-2 text-blue-600">
+                <div className="text-4xl font-bold border-b pb-4 text-blue-600">
                   Total: ${calculateTotalValue().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-lg text-muted-foreground">
                   {bidItems.length} line item{bidItems.length !== 1 ? 's' : ''}
                 </div>
               </div>
 
               {/* Division Totals */}
-              <div className="space-y-3">
-                <h4 className="font-semibold text-sm">Division Breakdown</h4>
+              <div className="space-y-4">
+                <h4 className="font-semibold text-lg">Division Breakdown</h4>
                 {Object.entries(divisionTotals).map(([division, total]) => (
-                  <div key={division} className="flex justify-between text-sm border-b pb-1">
+                  <div key={division} className="flex justify-between text-base border-b pb-2">
                     <span className="font-medium">{division}</span>
                     <span className="font-semibold">${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 ))}
               </div>
+            </div>
 
-              {/* Detailed Category Breakdown */}
-              <div className="space-y-4">
-                <h4 className="font-semibold text-sm">Category Breakdown</h4>
-                <div className="max-h-64 overflow-y-auto space-y-3">
-                  {Object.entries(breakdown).map(([division, categories]) => (
-                    <div key={division} className="space-y-2">
-                      <div className="font-medium text-sm text-blue-600">
-                        {division}
-                      </div>
-                      {Object.entries(categories).map(([category, amount]) => (
-                        <div key={category} className="flex justify-between text-xs pl-3">
-                          <span className="text-muted-foreground">{category}</span>
-                          <span>${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                        </div>
-                      ))}
+            {/* Right Column - Detailed Category Breakdown */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-lg">Detailed Category Breakdown</h4>
+              <div className="max-h-96 overflow-y-auto space-y-4">
+                {Object.entries(breakdown).map(([division, categories]) => (
+                  <div key={division} className="space-y-3">
+                    <div className="font-medium text-base text-blue-600 border-b pb-1">
+                      {division}
                     </div>
-                  ))}
-                </div>
+                    {Object.entries(categories).map(([category, amount]) => (
+                      <div key={category} className="flex justify-between text-sm pl-4">
+                        <span className="text-muted-foreground">{category}</span>
+                        <span className="font-medium">${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

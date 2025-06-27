@@ -266,7 +266,7 @@ const subcategoryOptions = [
   'Electrical-Other'
 ];
 
-const allowedUnits = ['each', 'SF', 'LY', 'CY', 'CF', 'Acre', 'Day', 'Week', 'Lot', 'Ton'];
+const allowedUnits = ['each', 'SF', 'LY', 'CY', 'CF', 'AC', 'Day', 'Week', 'Lot', 'Ton', 'LFT', 'SY', 'LS'];
 
 interface SearchableSelectProps {
   value: string;
