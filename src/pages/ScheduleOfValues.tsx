@@ -186,7 +186,7 @@ export default function ScheduleOfValues() {
     <Layout title="Schedule of Values" subtitle="Manage project schedule of values and track completion">
       <div className="space-y-8">
         {/* Project Selection */}
-        <Card className="border-2 border-dashed border-primary/20 bg-primary/5">
+        <Card className="bg-white border-2 border-dashed border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="w-5 h-5 text-primary" />
@@ -212,7 +212,7 @@ export default function ScheduleOfValues() {
         </Card>
 
         {selectedProject ? (
-          <Card>
+          <Card className="bg-white">
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle className="flex items-center gap-2">
@@ -248,19 +248,19 @@ export default function ScheduleOfValues() {
                 {/* Summary Cards */}
                 {selectedProject && (
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div className="bg-white p-4 rounded-lg border-2 border-blue-200">
                       <div className="text-sm font-medium text-blue-800">Total Scheduled Value</div>
                       <div className="text-2xl font-bold text-blue-900">${totalScheduledValue.toLocaleString()}</div>
                     </div>
-                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div className="bg-white p-4 rounded-lg border-2 border-green-200">
                       <div className="text-sm font-medium text-green-800">Total Work Completed</div>
                       <div className="text-2xl font-bold text-green-900">${totalWorkCompleted.toLocaleString()}</div>
                     </div>
-                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <div className="bg-white p-4 rounded-lg border-2 border-yellow-200">
                       <div className="text-sm font-medium text-yellow-800">Total Materials Stored</div>
                       <div className="text-2xl font-bold text-yellow-900">${totalMaterialsStored.toLocaleString()}</div>
                     </div>
-                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                    <div className="bg-white p-4 rounded-lg border-2 border-purple-200">
                       <div className="text-sm font-medium text-purple-800">Average % Complete</div>
                       <div className="text-2xl font-bold text-purple-900">{totalPercentComplete.toFixed(1)}%</div>
                     </div>
@@ -345,7 +345,7 @@ export default function ScheduleOfValues() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="border-2 border-dashed border-gray-200">
+          <Card className="bg-white border-2 border-dashed border-gray-200">
             <CardContent className="text-center py-16">
               <List className="w-20 h-20 text-gray-300 mx-auto mb-6" />
               <h3 className="text-xl font-semibold text-gray-900 mb-3">Schedule of Values Management</h3>
@@ -366,7 +366,7 @@ export default function ScheduleOfValues() {
         )}
 
         {/* Quick Start Guide */}
-        <Card className="border-blue-200 bg-blue-50">
+        <Card className="bg-white border-blue-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-blue-800">
               <HelpCircle className="w-5 h-5" />
@@ -375,7 +375,7 @@ export default function ScheduleOfValues() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-3 gap-4">
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
+              <div className="bg-white p-4 rounded-lg border-2 border-blue-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Target className="w-4 h-4 text-blue-600" />
                   <h4 className="font-semibold text-blue-800">1. Select Project</h4>
@@ -383,7 +383,7 @@ export default function ScheduleOfValues() {
                 <p className="text-sm text-blue-700">Choose an existing project from the dropdown above to begin SOV management.</p>
               </div>
               
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
+              <div className="bg-white p-4 rounded-lg border-2 border-blue-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Plus className="w-4 h-4 text-blue-600" />
                   <h4 className="font-semibold text-blue-800">2. Add SOV Items</h4>
@@ -391,7 +391,7 @@ export default function ScheduleOfValues() {
                 <p className="text-sm text-blue-700">Create schedule of values items with descriptions, categories, and scheduled values.</p>
               </div>
               
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
+              <div className="bg-white p-4 rounded-lg border-2 border-blue-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Download className="w-4 h-4 text-blue-600" />
                   <h4 className="font-semibold text-blue-800">3. Track Progress</h4>

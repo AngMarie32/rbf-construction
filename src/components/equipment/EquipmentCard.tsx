@@ -13,13 +13,14 @@ import {
   Building, 
   Truck, 
   DollarSign,
-  Clock,
   MapPin,
   Wrench,
   Settings,
   MoreVertical,
   Edit2,
-  Trash2
+  Trash2,
+  Calendar,
+  Hash
 } from 'lucide-react';
 import type { Equipment } from '@/types/equipment';
 
@@ -74,11 +75,20 @@ export function EquipmentCard({
               <CardTitle className="text-lg font-semibold text-gray-900 truncate">
                 {equipment.name}
               </CardTitle>
-              {equipment.year && (
-                <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                  <span>{equipment.year}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                {equipment.year && (
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    <span>{equipment.year}</span>
+                  </div>
+                )}
+                {equipment.qr_code && (
+                  <div className="flex items-center gap-1">
+                    <Hash className="w-3 h-3" />
+                    <span className="truncate max-w-[100px]">{equipment.qr_code}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -111,7 +121,7 @@ export function EquipmentCard({
 
       <CardContent className="space-y-4">
         {equipment.image && (
-          <div className="relative h-32 overflow-hidden rounded-lg bg-gray-100">
+          <div className="relative h-24 overflow-hidden rounded-lg bg-gray-100">
             <img 
               src={equipment.image} 
               alt={equipment.name}
@@ -129,28 +139,20 @@ export function EquipmentCard({
           </p>
         )}
 
-        <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-600">Hourly Rate</span>
-          </div>
-          <span className="text-lg font-bold text-gray-900">${equipment.hourly_rate}</span>
-        </div>
-
         {equipment.value && (
-          <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+          <div className="flex justify-between items-center p-2 bg-green-50 rounded-lg">
             <div className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-medium text-green-600">Value</span>
+              <DollarSign className="w-3 h-3 text-green-600" />
+              <span className="text-xs font-medium text-green-600">Value</span>
             </div>
-            <span className="text-lg font-bold text-gray-900">${equipment.value.toLocaleString()}</span>
+            <span className="text-sm font-bold text-gray-900">${equipment.value.toLocaleString()}</span>
           </div>
         )}
 
         {equipment.location && (
-          <div className="flex items-center gap-2 text-sm text-gray-600 p-3 bg-gray-50 rounded-lg">
-            <MapPin className="w-4 h-4" />
-            <span>{equipment.location}</span>
+          <div className="flex items-center gap-2 text-sm text-gray-600 p-2 bg-gray-50 rounded-lg">
+            <MapPin className="w-3 h-3" />
+            <span className="text-xs">{equipment.location}</span>
           </div>
         )}
 

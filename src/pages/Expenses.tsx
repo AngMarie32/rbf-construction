@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -238,6 +239,14 @@ export default function Expenses() {
     setDeleteDialogOpen(true);
   };
 
+  const handleStatusBadgeClick = (expense: Expense) => {
+    const canApprove = expense.status === 'Field Approval' || expense.status === 'Office Approval';
+    if (canApprove) {
+      const nextStatus = expense.status === 'Field Approval' ? 'Office Approval' : 'Paid';
+      updateExpenseStatus(expense.id, nextStatus);
+    }
+  };
+
   const filteredExpenses = expenses.filter(expense =>
     (expense.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     expense.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -245,15 +254,25 @@ export default function Expenses() {
     expense.receipt_number?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const fieldApprovalExpenses = filteredExpenses.filter(e => e.status === 'Field Approval').reduce((sum, expense) => sum + expense.amount, 0);
-  const officeApprovalExpenses = filteredExpenses.filter(e => e.status === 'Office Approval').reduce((sum, expense) => sum + expense.amount, 0);
-  const paidExpenses = filteredExpenses.filter(e => e.status === 'Paid').reduce((sum, expense) => sum + expense.amount, 0);
-  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const fieldApprovalExpenses = filteredExpenses
+    .filter(e => e.status === 'Field Approval')
+    .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    
+  const officeApprovalExpenses = filteredExpenses
+    .filter(e => e.status === 'Office Approval')
+    .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    
+  const paidExpenses = filteredExpenses
+    .filter(e => e.status === 'Paid')
+    .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    
+  const totalExpenses = filteredExpenses
+    .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Field Approval': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'Office Approval': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Field Approval': return 'bg-amber-100 text-amber-800 border-amber-200 cursor-pointer hover:bg-amber-200';
+      case 'Office Approval': return 'bg-blue-100 text-blue-800 border-blue-200 cursor-pointer hover:bg-blue-200';
       case 'Paid': return 'bg-green-100 text-green-800 border-green-200';
       case 'Rejected': return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -329,7 +348,7 @@ export default function Expenses() {
       <div className="space-y-6">
         {/* Summary Dashboard */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+          <Card className="bg-white border-yellow-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-yellow-700">Field Approval</CardTitle>
               <Clock className="h-5 w-5 text-yellow-600" />
@@ -340,7 +359,7 @@ export default function Expenses() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <Card className="bg-white border-blue-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-blue-700">Office Approval</CardTitle>
               <FileText className="h-5 w-5 text-blue-600" />
@@ -351,7 +370,7 @@ export default function Expenses() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <Card className="bg-white border-green-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-green-700">Paid</CardTitle>
               <CheckCircle className="h-5 w-5 text-green-600" />
@@ -362,7 +381,7 @@ export default function Expenses() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200">
+          <Card className="bg-white border-gray-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-700">Total Expenses</CardTitle>
               <FileText className="h-5 w-5 text-gray-600" />
@@ -458,9 +477,12 @@ export default function Expenses() {
                     <TableCell>{expense.vendor || '-'}</TableCell>
                     <TableCell>{expense.category}</TableCell>
                     <TableCell className="font-medium">{expense.description || ''}</TableCell>
-                    <TableCell className="font-semibold">${expense.amount.toLocaleString()}</TableCell>
+                    <TableCell className="font-semibold">${Number(expense.amount || 0).toLocaleString()}</TableCell>
                     <TableCell>
-                      <Badge className={`${getStatusColor(expense.status)} border`}>
+                      <Badge 
+                        className={`${getStatusColor(expense.status)} border`}
+                        onClick={() => handleStatusBadgeClick(expense)}
+                      >
                         {expense.status}
                       </Badge>
                     </TableCell>

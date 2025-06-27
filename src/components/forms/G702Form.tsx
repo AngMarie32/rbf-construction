@@ -251,33 +251,45 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
 
   const fetchSOVItems = async () => {
     try {
+      console.log('Fetching SOV items for project:', projectId);
       const { data, error } = await supabase
         .from('sov_items')
         .select('*')
         .eq('project_id', projectId)
         .order('item_number');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching SOV items:', error);
+        throw error;
+      }
 
-      console.log('Fetched SOV items:', data);
+      console.log('Raw SOV data from database:', data);
 
       const mappedItems = (data || []).map(item => {
-        console.log(`Item ${item.item_number}: change_orders = ${item.change_orders}`);
+        console.log(`Processing item ${item.item_number}:`, {
+          scheduled_value: item.scheduled_value,
+          change_orders: item.change_orders,
+          previous_applications: item.previous_applications,
+          this_period: item.this_period,
+          materials_stored: item.materials_stored
+        });
+        
         return {
           id: item.id,
           itemNumber: item.item_number,
           description: item.description,
-          scheduledValue: item.scheduled_value,
-          changeOrders: item.change_orders || 0,
-          previousApplications: item.previous_applications || 0,
-          thisPeriod: item.this_period || 0,
-          materialsStored: item.materials_stored || 0,
-          totalCompletedAndStored: item.total_completed_and_stored || 0,
-          percentComplete: item.percent_complete || 0,
+          scheduledValue: Number(item.scheduled_value || 0),
+          changeOrders: Number(item.change_orders || 0),
+          previousApplications: Number(item.previous_applications || 0),
+          thisPeriod: Number(item.this_period || 0),
+          materialsStored: Number(item.materials_stored || 0),
+          totalCompletedAndStored: Number(item.total_completed_and_stored || 0),
+          percentComplete: Number(item.percent_complete || 0),
           category: item.category
         };
       });
 
+      console.log('Mapped SOV items:', mappedItems);
       setSovItems(mappedItems);
       
       const totalChangeOrders = mappedItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
@@ -285,6 +297,7 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
     } catch (error) {
       console.error('Error fetching SOV items:', error);
       toast.error('Failed to load SOV items');
+      setSovItems([]); // Set empty array on error
     }
   };
 
