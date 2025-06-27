@@ -395,12 +395,6 @@ export default function Subcontractors() {
           </div>
         )}
       </div>
-      
-      <AddSubcontractorDialog 
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onSubcontractorCreated={fetchSubcontractors} 
-      />
     </Layout>
   );
 }
