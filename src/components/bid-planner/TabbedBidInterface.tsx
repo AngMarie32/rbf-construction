@@ -4,10 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calculator, FileText, Download, Settings, BarChart3, Plus } from 'lucide-react';
+import { Calculator, FileText, Download, Settings, Plus } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { BidTemplateSelector } from './BidTemplateSelector';
 import { BidCreationView } from './BidCreationView';
-import { BidOverview } from './BidOverview';
 import { BidSettings } from './BidSettings';
 
 interface TabbedBidInterfaceProps {
@@ -37,8 +38,67 @@ export function TabbedBidInterface({
     setShowCreateView(true);
   };
 
-  const handleExportSOV = () => {
-    navigate('/schedule-of-values');
+  const handleExportSOV = async () => {
+    try {
+      console.log('Exporting bid items to SOV for project:', projectId);
+      console.log('Bid items to export:', bidItems);
+
+      if (!bidItems || bidItems.length === 0) {
+        toast.error('No bid items to export to Schedule of Values');
+        return;
+      }
+
+      // Get project details first
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .select('name')
+        .eq('id', projectId)
+        .single();
+
+      if (projectError) {
+        console.error('Error fetching project:', projectError);
+        throw new Error('Failed to fetch project details');
+      }
+
+      // Convert bid items to SOV format and insert them
+      const sovItems = bidItems.map((item, index) => ({
+        project_id: projectId,
+        item_number: String(index + 1).padStart(3, '0'),
+        category: item.category || 'General',
+        description: item.description || 'Imported from Bid',
+        scheduled_value: (item.unit_cost || 0) * (item.quantity || 1),
+        previous_applications: 0,
+        this_period: 0,
+        materials_stored: 0,
+        percent_complete: 0,
+        work_completed_from_previous: 0,
+        materials_presently_stored: 0,
+        retainage_percentage: 10,
+        change_orders: 0
+      }));
+
+      console.log('Converting to SOV items:', sovItems);
+
+      const { data: insertedItems, error: insertError } = await supabase
+        .from('sov_items')
+        .insert(sovItems)
+        .select();
+
+      if (insertError) {
+        console.error('Error inserting SOV items:', insertError);
+        throw new Error(`Failed to create SOV items: ${insertError.message}`);
+      }
+
+      console.log('SOV items created successfully:', insertedItems);
+      
+      toast.success(`Successfully exported ${sovItems.length} bid items to Schedule of Values for ${project.name}`);
+      
+      // Navigate to SOV page
+      navigate('/schedule-of-values');
+    } catch (error) {
+      console.error('Error exporting to SOV:', error);
+      toast.error(`Failed to export to SOV: ${error.message || 'Unknown error'}`);
+    }
   };
 
   const handleCreateProposal = () => {
@@ -47,13 +107,9 @@ export function TabbedBidInterface({
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs defaultValue="templates" className="space-y-6">
         <div className="flex justify-between items-center">
-          <TabsList className="grid grid-cols-4 w-full max-w-xl">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Overview
-            </TabsTrigger>
+          <TabsList className="grid grid-cols-3 w-full max-w-xl">
             <TabsTrigger value="templates" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
               Templates
@@ -69,7 +125,7 @@ export function TabbedBidInterface({
           </TabsList>
 
           <div className="flex gap-2">
-            <Button onClick={handleExportSOV} variant="outline">
+            <Button onClick={handleExportSOV} variant="outline" disabled={!bidItems || bidItems.length === 0}>
               <Download className="w-4 h-4 mr-2" />
               Export to SOV
             </Button>
@@ -83,13 +139,6 @@ export function TabbedBidInterface({
             </Button>
           </div>
         </div>
-
-        <TabsContent value="overview">
-          <BidOverview 
-            projectId={projectId}
-            onExportReport={onExportReport}
-          />
-        </TabsContent>
 
         <TabsContent value="templates">
           <BidTemplateSelector

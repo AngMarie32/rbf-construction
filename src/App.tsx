@@ -70,6 +70,7 @@ function App() {
               <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
               <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
               <Route path="/burn-rate-analysis" element={<ProtectedRoute><BurnRateAnalysis /></ProtectedRoute>} />
+              <Route path="/burn-analysis" element={<ProtectedRoute><BurnRateAnalysis /></ProtectedRoute>} />
               <Route path="/project-analyzer" element={<ProtectedRoute><ProjectAnalyzer /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
               <Route path="/company-calendar" element={<ProtectedRoute><CompanyCalendar /></ProtectedRoute>} />

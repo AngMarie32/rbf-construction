@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Save, FileText, Edit, Trash2, Download } from 'lucide-react';
@@ -28,6 +28,7 @@ interface BidItem {
 
 export function BidCreationView({ projectId, selectedTemplate, onItemsChange, showCreateView, onShowCreateViewChange }: BidCreationViewProps) {
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
   const [currentBidId, setCurrentBidId] = useState<string | null>(null);
 
@@ -44,6 +45,55 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       total: 0
     }
   ]);
+
+  // Load existing bid items for this project on component mount
+  useEffect(() => {
+    if (projectId) {
+      loadExistingBidItems();
+    }
+  }, [projectId]);
+
+  const loadExistingBidItems = async () => {
+    try {
+      setLoading(true);
+      console.log('Loading existing bid items for project:', projectId);
+
+      const { data: existingItems, error } = await supabase
+        .from('bid_items')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error loading bid items:', error);
+        return;
+      }
+
+      if (existingItems && existingItems.length > 0) {
+        console.log('Found existing bid items:', existingItems);
+        
+        // Convert database items to component format
+        const formattedItems: BidItem[] = existingItems.map((item, index) => ({
+          id: item.id || String(index + 1),
+          division: 'General Conditions', // Default division since it's not stored in DB
+          category: item.category || 'Labor/Supervision',
+          subcategory: item.subcategory || '',
+          description: item.description || '',
+          quantity: item.quantity || 1,
+          unit: item.unit || 'each',
+          unitCost: item.unit_cost || 0,
+          total: (item.unit_cost || 0) * (item.quantity || 1)
+        }));
+
+        setBidItems(formattedItems);
+        onItemsChange(existingItems); // Update parent component
+      }
+    } catch (error) {
+      console.error('Error loading existing bid items:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const calculateTotalValue = () => {
     return bidItems.reduce((sum, item) => sum + item.total, 0);
@@ -97,6 +147,20 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
     setSaving(true);
     try {
+      console.log('Saving bid for project:', projectId);
+
+      // First, delete existing bid items for this project to avoid duplicates
+      const { error: deleteError } = await supabase
+        .from('bid_items')
+        .delete()
+        .eq('project_id', projectId);
+
+      if (deleteError) {
+        console.error('Error deleting existing bid items:', deleteError);
+        // Don't throw here, continue with insert
+      }
+
+      // Prepare items for database insert
       const itemsToSave = validItems.map(item => ({
         project_id: projectId,
         category: item.category || 'Other',
@@ -105,6 +169,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         quantity: Number(item.quantity) || 1,
         unit: item.unit || 'each',
         unit_cost: Number(item.unitCost) || 0
+        // Note: 'total' is computed in the database, not inserted
       }));
 
       console.log('Saving bid items:', itemsToSave);
@@ -116,12 +181,18 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
       if (error) {
         console.error('Supabase error saving bid items:', error);
-        throw error;
+        throw new Error(`Database error: ${error.message}`);
       }
 
       console.log('Bid items saved successfully:', data);
-      toast.success(`Bid created successfully with ${itemsToSave.length} items`);
+      toast.success(`Bid saved successfully with ${itemsToSave.length} items`);
+      
+      // Update parent component with the saved data
       onItemsChange(data || itemsToSave);
+      
+      // Mark that we have a current bid
+      setCurrentBidId(projectId);
+      
     } catch (error) {
       console.error('Error saving bid:', error);
       toast.error(`Failed to save bid: ${error.message || 'Unknown error'}`);
@@ -131,20 +202,27 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const handleDeleteBid = async () => {
-    if (!currentBidId) {
-      toast.error('No bid selected to delete');
+    if (!projectId) {
+      toast.error('No project selected');
       return;
     }
 
     try {
+      console.log('Deleting bid for project:', projectId);
+
       const { error } = await supabase
         .from('bid_items')
         .delete()
         .eq('project_id', projectId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting bid:', error);
+        throw new Error(`Failed to delete bid: ${error.message}`);
+      }
 
       toast.success('Bid deleted successfully');
+      
+      // Reset to default state
       setBidItems([{
         id: '1',
         division: 'General Conditions',
@@ -156,10 +234,13 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         unitCost: 0,
         total: 0
       }]);
+      
       setCurrentBidId(null);
+      onItemsChange([]);
+      
     } catch (error) {
       console.error('Error deleting bid:', error);
-      toast.error('Failed to delete bid');
+      toast.error(`Failed to delete bid: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -312,6 +393,14 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   const breakdown = getDivisionBreakdown();
   const divisionTotals = getDivisionTotals();
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -335,7 +424,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Bid Summary & Actions</CardTitle>
+            <CardTitle>Bid Summary</CardTitle>
             <div className="flex items-center gap-2">
               <Button 
                 onClick={handleSaveBid} 
@@ -355,20 +444,10 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
                 <FileText className="w-4 h-4 mr-2" />
                 {exportingPDF ? 'Exporting...' : 'Export PDF'}
               </Button>
-              
-              <Button 
-                onClick={handleExportToSOV} 
-                disabled={bidItems.length === 0}
-                variant="outline"
-                size="sm"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export to SOV
-              </Button>
 
               <Button 
                 onClick={handleDeleteBid} 
-                disabled={!currentBidId}
+                disabled={bidItems.length === 0}
                 variant="destructive"
                 size="sm"
               >
