@@ -24,7 +24,8 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
     description: '',
     year: '',
     value: '',
-    image: ''
+    image: '',
+    qr_code: ''
   });
   const [loading, setLoading] = useState(false);
 
@@ -69,6 +70,7 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
         year: formData.year ? parseInt(formData.year) : null,
         value: formData.value ? parseFloat(formData.value) : null,
         image: formData.image || null,
+        qr_code: formData.qr_code.trim() || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -93,7 +95,8 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
         description: '',
         year: '',
         value: '',
-        image: ''
+        image: '',
+        qr_code: ''
       });
     } catch (error) {
       console.error('Error creating equipment:', error);
@@ -159,6 +162,31 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
 
           <div className="grid grid-cols-2 gap-3">
             <div>
+              <Label htmlFor="year">Year</Label>
+              <Input
+                id="year"
+                type="number"
+                min="1900"
+                max="2030"
+                value={formData.year}
+                onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                placeholder="2020"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="qr_code">Serial/VIN Number</Label>
+              <Input
+                id="qr_code"
+                value={formData.qr_code}
+                onChange={(e) => setFormData({ ...formData, qr_code: e.target.value })}
+                placeholder="Enter serial or VIN"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
               <Label htmlFor="hourly_rate">Hourly Rate ($)</Label>
               <Input
                 id="hourly_rate"
@@ -172,30 +200,17 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
             </div>
 
             <div>
-              <Label htmlFor="year">Year</Label>
+              <Label htmlFor="value">Equipment Value ($)</Label>
               <Input
-                id="year"
+                id="value"
                 type="number"
-                min="1900"
-                max="2030"
-                value={formData.year}
-                onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                placeholder="2020"
+                step="0.01"
+                min="0"
+                value={formData.value}
+                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+                placeholder="0.00"
               />
             </div>
-          </div>
-
-          <div>
-            <Label htmlFor="value">Equipment Value ($)</Label>
-            <Input
-              id="value"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.value}
-              onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-              placeholder="0.00"
-            />
           </div>
 
           <div>

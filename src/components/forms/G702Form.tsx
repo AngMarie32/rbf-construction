@@ -292,6 +292,12 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
       console.log('Mapped SOV items:', mappedItems);
       setSovItems(mappedItems);
       
+      // Ensure we have fresh totals after SOV items are loaded
+      if (mappedItems.length > 0) {
+        const freshTotals = await calculateTotals();
+        setCalculatedTotals(freshTotals);
+      }
+      
       const totalChangeOrders = mappedItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
       console.log('Total change orders from SOV items:', totalChangeOrders);
     } catch (error) {

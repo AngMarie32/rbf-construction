@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -248,7 +249,7 @@ export default function PaymentApplications() {
     <Layout title="Payment Applications" subtitle="Streamline billing with G702/G703 forms">
       <div className="space-y-6">
         {/* Project Selection */}
-        <Card className="border-2 border-dashed border-green-200 bg-green-50">
+        <Card className="bg-white border border-green-300">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-green-800">
               <FileText className="w-5 h-5" />
@@ -280,7 +281,7 @@ export default function PaymentApplications() {
           <>
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-blue-50 border-blue-200">
+              <Card className="bg-white border border-blue-300">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -293,7 +294,7 @@ export default function PaymentApplications() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-green-50 border-green-200">
+              <Card className="bg-white border border-green-300">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -306,7 +307,7 @@ export default function PaymentApplications() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-orange-50 border-orange-200">
+              <Card className="bg-white border border-orange-300">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -325,7 +326,7 @@ export default function PaymentApplications() {
             </div>
 
             {/* Payment Applications */}
-            <Card>
+            <Card className="bg-white">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle className="flex items-center gap-2">
@@ -348,7 +349,7 @@ export default function PaymentApplications() {
                 {applications.length > 0 ? (
                   <div className="space-y-4 p-6">
                     {applications.map((app) => (
-                      <Card key={app.id} className="border-l-4 border-l-blue-500">
+                      <Card key={app.id} className="bg-white border-l-4 border-l-blue-500">
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
@@ -422,7 +423,7 @@ export default function PaymentApplications() {
             </Card>
 
             {/* Quick Start Guide */}
-            <Card className="border-green-200 bg-green-50">
+            <Card className="bg-white border border-green-300">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-green-800">
                   <HelpCircle className="w-5 h-5" />

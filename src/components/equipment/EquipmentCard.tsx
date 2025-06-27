@@ -62,7 +62,7 @@ export function EquipmentCard({
   };
 
   return (
-    <Card className={`transition-all duration-200 hover:shadow-lg ${isSelected ? 'ring-2 ring-blue-500 shadow-md' : 'shadow-sm'} bg-white`}>
+    <Card className={`transition-all duration-200 hover:shadow-lg ${isSelected ? 'ring-2 ring-blue-500 shadow-md' : 'shadow-sm'} bg-white border border-gray-200`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3 flex-1">
@@ -75,57 +75,43 @@ export function EquipmentCard({
               <CardTitle className="text-lg font-semibold text-gray-900 truncate">
                 {equipment.name}
               </CardTitle>
-              <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-                {equipment.year && (
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    <span>{equipment.year}</span>
-                  </div>
-                )}
-                {equipment.qr_code && (
-                  <div className="flex items-center gap-1">
-                    <Hash className="w-3 h-3" />
-                    <span className="truncate max-w-[100px]">{equipment.qr_code}</span>
-                  </div>
-                )}
+              <div className="flex items-center gap-2 mt-1">
+                <Badge className={`text-xs font-medium border ${getStatusColor(equipment.status)}`} variant="outline">
+                  {equipment.status}
+                </Badge>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge className={`text-xs font-medium border ${getStatusColor(equipment.status)}`} variant="outline">
-              {equipment.status}
-            </Badge>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEdit(equipment)}>
-                  <Edit2 className="h-4 w-4 mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => onDelete(equipment.id)}
-                  className="text-red-600 focus:text-red-600"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEdit(equipment)}>
+                <Edit2 className="h-4 w-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => onDelete(equipment.id)}
+                className="text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
         {equipment.image && (
-          <div className="relative h-24 overflow-hidden rounded-lg bg-gray-100">
+          <div className="relative h-32 overflow-hidden rounded-lg bg-gray-100">
             <img 
               src={equipment.image} 
               alt={equipment.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover object-center"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}
@@ -133,20 +119,35 @@ export function EquipmentCard({
           </div>
         )}
 
+        <div className="space-y-2">
+          {(equipment.year || equipment.qr_code) && (
+            <div className="flex items-center gap-4 text-sm text-gray-600">
+              {equipment.year && (
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  <span>{equipment.year}</span>
+                </div>
+              )}
+              {equipment.qr_code && (
+                <div className="flex items-center gap-1">
+                  <Hash className="w-3 h-3" />
+                  <span className="truncate">VIN: {equipment.qr_code}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {equipment.value && (
+            <div className="text-right">
+              <span className="text-lg font-bold text-gray-900">${equipment.value.toLocaleString()}</span>
+            </div>
+          )}
+        </div>
+
         {equipment.description && (
           <p className="text-sm text-gray-600 line-clamp-2">
             {equipment.description}
           </p>
-        )}
-
-        {equipment.value && (
-          <div className="flex justify-between items-center p-2 bg-green-50 rounded-lg">
-            <div className="flex items-center gap-2">
-              <DollarSign className="w-3 h-3 text-green-600" />
-              <span className="text-xs font-medium text-green-600">Value</span>
-            </div>
-            <span className="text-sm font-bold text-gray-900">${equipment.value.toLocaleString()}</span>
-          </div>
         )}
 
         {equipment.location && (
