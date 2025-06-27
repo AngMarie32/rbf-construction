@@ -170,7 +170,7 @@ export default function Expenses() {
       console.log('Status updated successfully');
       toast.success(`Expense ${newStatus.toLowerCase()}`);
       
-      // Refresh the expenses list to update tiles
+      // Refresh the expenses list to update tiles and table
       await fetchExpenses();
     } catch (error) {
       console.error('Error updating expense:', error);
@@ -245,18 +245,19 @@ export default function Expenses() {
     expense.receipt_number?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const fieldApprovalExpenses = filteredExpenses.filter(e => e.status === 'Field Approval').reduce((sum, expense) => sum + expense.amount, 0);
-  const officeApprovalExpenses = filteredExpenses.filter(e => e.status === 'Office Approval').reduce((sum, expense) => sum + expense.amount, 0);
-  const paidExpenses = filteredExpenses.filter(e => e.status === 'Paid').reduce((sum, expense) => sum + expense.amount, 0);
-  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  // Calculate totals based on filtered expenses
+  const fieldApprovalExpenses = filteredExpenses.filter(e => e.status === 'Field Approval').reduce((sum, expense) => sum + Number(expense.amount), 0);
+  const officeApprovalExpenses = filteredExpenses.filter(e => e.status === 'Office Approval').reduce((sum, expense) => sum + Number(expense.amount), 0);
+  const paidExpenses = filteredExpenses.filter(e => e.status === 'Paid').reduce((sum, expense) => sum + Number(expense.amount), 0);
+  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Field Approval': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'Office Approval': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Paid': return 'bg-green-100 text-green-800 border-green-200';
-      case 'Rejected': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'Field Approval': return 'bg-orange-50 text-orange-700 border-orange-200';
+      case 'Office Approval': return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'Paid': return 'bg-green-50 text-green-700 border-green-200';
+      case 'Rejected': return 'bg-red-50 text-red-700 border-red-200';
+      default: return 'bg-gray-50 text-gray-700 border-gray-200';
     }
   };
 
@@ -457,10 +458,20 @@ export default function Expenses() {
                     <TableCell>{expense.projects.name}</TableCell>
                     <TableCell>{expense.vendor || '-'}</TableCell>
                     <TableCell>{expense.category}</TableCell>
-                    <TableCell className="font-medium">{expense.description || ''}</TableCell>
-                    <TableCell className="font-semibold">${expense.amount.toLocaleString()}</TableCell>
+                    <TableCell className="font-medium">
+                      {expense.description && expense.description.trim() !== '' ? expense.description : ''}
+                    </TableCell>
+                    <TableCell className="font-semibold">${Number(expense.amount).toLocaleString()}</TableCell>
                     <TableCell>
-                      <Badge className={`${getStatusColor(expense.status)} border`}>
+                      <Badge 
+                        className={`${getStatusColor(expense.status)} border cursor-pointer hover:opacity-80`}
+                        onClick={() => {
+                          const nextStatus = getNextStatus(expense.status);
+                          if (nextStatus && canApprove(expense.status)) {
+                            updateExpenseStatus(expense.id, nextStatus);
+                          }
+                        }}
+                      >
                         {expense.status}
                       </Badge>
                     </TableCell>

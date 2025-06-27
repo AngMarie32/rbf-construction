@@ -1,219 +1,60 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Settings } from 'lucide-react';
-import { G702Builder } from './G702Builder';
-import { G702Document } from './G702Document';
-import { G703Document } from './G703Document';
+import { SOVTable } from './sov/SOVTable';
 
 interface G702FormProps {
-  projectId: string;
-  applicationId?: string;
   onSave?: () => void;
 }
 
-interface SOVItem {
-  id: string;
-  itemNumber: string;
-  description: string;
-  scheduledValue: number;
-  changeOrders: number;
-  previousApplications: number;
-  thisPeriod: number;
-  materialsStored: number;
-  totalCompletedAndStored: number;
-  percentComplete: number;
-  category: string;
-  retainageHeld?: number;
-  balanceToFinish?: number;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  contractValue: number;
-  originalContractSum: number;
-  netChangeOrders: number;
-  client: string;
-  address: string;
-  projectCode: string;
-}
-
-export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
-  const [project, setProject] = useState<Project | null>(null);
-  const [sovItems, setSovItems] = useState<SOVItem[]>([]);
+export function G702Form({ onSave }: G702FormProps) {
+  const [projects, setProjects] = useState<any[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [sovItems, setSovItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeDocument, setActiveDocument] = useState<'g702' | 'g703' | 'builder'>('builder');
-  const [calculatedTotals, setCalculatedTotals] = useState<any>(null);
-  
   const [formData, setFormData] = useState({
-    applicationNumber: 1,
-    periodTo: new Date().toISOString().split('T')[0],
-    periodFrom: new Date().toISOString().split('T')[0],
-    contractDate: '',
-    architectProjectNo: '',
-    projectNumber: '',
-    contractorName: '',
-    contractorAddress: '',
-    contractorTitle: '',
-    contractorSignatory: '',
-    contractorSignature: null,
-    originalContractSum: 0,
-    netChangeOrders: 0,
-    retainagePercentage: 5,
-    previousCertificates: 0,
-    distributionTo: {
-      owner: true,
-      architect: false,
-      contractor: false
-    },
-    certification: false
+    contractor_name: '',
+    contractor_address: '',
+    project_name: '',
+    project_number: '',
+    application_number: 1,
+    period_to: '',
+    original_contract_sum: 0,
+    net_change_by_change_orders: 0,
+    architect_date: '',
+    contractor_date: ''
   });
 
   useEffect(() => {
-    if (projectId) {
+    fetchProjects();
+  }, []);
+
+  useEffect(() => {
+    if (selectedProject) {
       fetchProjectData();
       fetchSOVItems();
-      if (applicationId) {
-        fetchExistingApplication();
-      } else {
-        fetchLastApplicationNumber();
-      }
     }
-  }, [projectId, applicationId]);
+  }, [selectedProject]);
 
-  // Recalculate totals whenever SOV items or form data changes
-  useEffect(() => {
-    if (sovItems.length > 0) {
-      calculateTotals().then(setCalculatedTotals);
-    }
-  }, [sovItems, formData.applicationNumber, formData.retainagePercentage]);
-
-  const fetchExistingApplication = async () => {
-    if (!applicationId) return;
-    
+  const fetchProjects = async () => {
     try {
       const { data, error } = await supabase
-        .from('payment_applications_g702')
-        .select('*')
-        .eq('id', applicationId)
-        .single();
+        .from('projects')
+        .select('id, name, client, contract_value')
+        .order('name');
 
       if (error) throw error;
-
-      if (data) {
-        setFormData(prev => ({
-          ...prev,
-          applicationNumber: data.application_number,
-          periodTo: data.period_to,
-          contractorName: data.contractor_name || '',
-          contractorAddress: data.contractor_address || '',
-          projectNumber: data.project_number || '',
-          originalContractSum: data.original_contract_sum || 0,
-          netChangeOrders: data.net_change_by_change_orders || 0,
-          contractorSignature: data.contractor_signature || null
-        }));
-
-        // When viewing an existing application, we need to reconstruct the SOV state 
-        // at the time of that application
-        await reconstructSOVForApplication(data.application_number);
-      }
+      setProjects(data || []);
     } catch (error) {
-      console.error('Error fetching existing application:', error);
-      toast.error('Failed to load existing application');
-    }
-  };
-
-  const reconstructSOVForApplication = async (appNumber: number) => {
-    try {
-      // Get the SOV items as they are now
-      const { data: currentSOVItems, error } = await supabase
-        .from('sov_items')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('item_number');
-
-      if (error) throw error;
-
-      // Get all applications up to and including this one
-      const { data: applicationsUpToThis, error: appError } = await supabase
-        .from('payment_applications_g702')
-        .select('*')
-        .eq('project_id', projectId)
-        .lte('application_number', appNumber)
-        .order('application_number');
-
-      if (appError) throw appError;
-
-      console.log('Reconstructing SOV for application', appNumber);
-      console.log('Applications up to this:', applicationsUpToThis?.map(app => app.application_number));
-
-      // For each SOV item, calculate what the state should be for this application
-      const reconstructedItems = (currentSOVItems || []).map(item => {
-        // Calculate previous applications (all applications before this one)
-        const previousApps = applicationsUpToThis?.filter(app => app.application_number < appNumber) || [];
-        const currentApp = applicationsUpToThis?.find(app => app.application_number === appNumber);
-        
-        // For viewing existing applications, we need to show the "this period" work
-        // that was done in that specific application
-        let thisPeriodWork = 0;
-        let previousApplicationsTotal = 0;
-
-        if (appNumber === 1) {
-          // For the first application, everything in previous_applications was actually "this period"
-          thisPeriodWork = item.previous_applications || 0;
-          previousApplicationsTotal = 0;
-        } else {
-          // For subsequent applications, we need to calculate the difference
-          // This is complex without historical data, so we'll approximate
-          const totalWorkDone = item.previous_applications || 0;
-          const estimatedWorkPerApp = totalWorkDone / appNumber;
-          thisPeriodWork = estimatedWorkPerApp;
-          previousApplicationsTotal = totalWorkDone - thisPeriodWork;
-        }
-
-        return {
-          id: item.id,
-          itemNumber: item.item_number,
-          description: item.description,
-          scheduledValue: item.scheduled_value,
-          changeOrders: item.change_orders || 0,
-          previousApplications: previousApplicationsTotal,
-          thisPeriod: thisPeriodWork,
-          materialsStored: item.materials_stored || 0,
-          totalCompletedAndStored: item.total_completed_and_stored || 0,
-          percentComplete: item.percent_complete || 0,
-          category: item.category
-        };
-      });
-
-      setSovItems(reconstructedItems);
-    } catch (error) {
-      console.error('Error reconstructing SOV for application:', error);
-    }
-  };
-
-  const fetchLastApplicationNumber = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('payment_applications_g702')
-        .select('application_number')
-        .eq('project_id', projectId)
-        .order('application_number', { ascending: false })
-        .limit(1);
-
-      if (error) throw error;
-
-      const nextNumber = data.length > 0 ? data[0].application_number + 1 : 1;
-      setFormData(prev => ({ ...prev, applicationNumber: nextNumber }));
-    } catch (error) {
-      console.error('Error fetching last application number:', error);
+      console.error('Error fetching projects:', error);
+      toast.error('Failed to load projects');
     }
   };
 
@@ -222,231 +63,105 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
-        .eq('id', projectId)
+        .eq('id', selectedProject)
         .single();
 
       if (error) throw error;
 
-      setProject({
-        id: data.id,
-        name: data.name,
-        contractValue: data.contract_value,
-        originalContractSum: data.original_contract_sum || data.contract_value,
-        netChangeOrders: data.net_change_orders || 0,
-        client: data.client || '',
-        address: data.address || '',
-        projectCode: data.project_code || ''
-      });
-
       setFormData(prev => ({
         ...prev,
-        originalContractSum: data.original_contract_sum || data.contract_value,
-        netChangeOrders: data.net_change_orders || 0
+        project_name: data.name,
+        original_contract_sum: data.contract_value || 0
       }));
     } catch (error) {
-      console.error('Error fetching project:', error);
+      console.error('Error fetching project data:', error);
       toast.error('Failed to load project data');
     }
   };
 
   const fetchSOVItems = async () => {
     try {
+      console.log('Fetching SOV items for project:', selectedProject);
       const { data, error } = await supabase
         .from('sov_items')
         .select('*')
-        .eq('project_id', projectId)
+        .eq('project_id', selectedProject)
         .order('item_number');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching SOV items:', error);
+        throw error;
+      }
 
-      console.log('Fetched SOV items:', data);
-
-      const mappedItems = (data || []).map(item => {
-        console.log(`Item ${item.item_number}: change_orders = ${item.change_orders}`);
+      console.log('SOV items fetched:', data);
+      
+      // Process the SOV items with proper calculations
+      const processedItems = (data || []).map(item => {
+        const scheduledValue = Number(item.scheduled_value) || 0;
+        const changeOrders = Number(item.change_orders) || 0;
+        const workCompleted = Number(item.work_completed_to_date) || 0;
+        const materialsStored = Number(item.materials_stored) || 0;
+        const totalCompletedAndStored = workCompleted + materialsStored;
+        
         return {
-          id: item.id,
-          itemNumber: item.item_number,
-          description: item.description,
-          scheduledValue: item.scheduled_value,
-          changeOrders: item.change_orders || 0,
-          previousApplications: item.previous_applications || 0,
-          thisPeriod: item.this_period || 0,
-          materialsStored: item.materials_stored || 0,
-          totalCompletedAndStored: item.total_completed_and_stored || 0,
-          percentComplete: item.percent_complete || 0,
-          category: item.category
+          ...item,
+          scheduled_value: scheduledValue,
+          change_orders: changeOrders,
+          work_completed_to_date: workCompleted,
+          materials_stored: materialsStored,
+          total_completed_and_stored: totalCompletedAndStored,
+          balance_to_finish: (scheduledValue + changeOrders) - totalCompletedAndStored
         };
       });
 
-      setSovItems(mappedItems);
-      
-      const totalChangeOrders = mappedItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
-      console.log('Total change orders from SOV items:', totalChangeOrders);
+      setSovItems(processedItems);
     } catch (error) {
       console.error('Error fetching SOV items:', error);
-      toast.error('Failed to load SOV items');
+      toast.error('Failed to load Schedule of Values items');
+      setSovItems([]);
     }
   };
 
-  const calculateTotals = async () => {
-    console.log('Calculating totals for application number:', formData.applicationNumber);
-    
-    // Get only EXISTING previous applications for this project (excluding current if editing)
-    const { data: previousApps, error: prevError } = await supabase
-      .from('payment_applications_g702')
-      .select('*')
-      .eq('project_id', projectId)
-      .lt('application_number', formData.applicationNumber);
-
-    if (prevError) {
-      console.error('Error fetching previous applications:', prevError);
+  const handleSave = async () => {
+    if (!selectedProject) {
+      toast.error('Please select a project');
+      return;
     }
 
-    console.log('Previous applications found:', previousApps?.length || 0);
-    console.log('Previous applications:', previousApps);
-
-    // Calculate from SOV items - this ensures we get the most up-to-date values including change orders
-    const originalContractSum = sovItems.reduce((sum, item) => sum + (item.scheduledValue || 0), 0);
-    const netChangeOrders = sovItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
-    
-    console.log('Calculated totals from SOV:', {
-      originalContractSum,
-      netChangeOrders,
-      sovItemsCount: sovItems.length
-    });
-    
-    // Contract Sum to Date = Original Contract Sum + Net Change by Change Orders
-    const contractSumToDate = originalContractSum + netChangeOrders;
-    
-    // Total Completed & Stored to Date = Sum of all SOV item totals for THIS period
-    const totalCompletedAndStored = sovItems.reduce((sum, item) => {
-      const itemTotal = (item.previousApplications || 0) + (item.thisPeriod || 0) + (item.materialsStored || 0);
-      return sum + itemTotal;
-    }, 0);
-    
-    console.log('Total completed and stored calculation:', totalCompletedAndStored);
-    
-    // Retainage calculations
-    const retainageRate = formData.retainagePercentage / 100;
-    const totalRetainage = totalCompletedAndStored * retainageRate;
-    
-    // Total Earned Less Retainage = Total Completed & Stored to Date - Total Retainage
-    const totalEarnedLessRetainage = totalCompletedAndStored - totalRetainage;
-    
-    // Less Previous Certificates for Payment = Sum ONLY from existing previous applications
-    const lessPreviousPayments = (previousApps || []).reduce((sum, app) => {
-      console.log(`Previous app ${app.application_number}: payment = ${app.current_payment_due}`);
-      return sum + (app.current_payment_due || 0);
-    }, 0);
-    
-    console.log('Less previous payments total:', lessPreviousPayments);
-    
-    // Current Payment Due = Total Earned Less Retainage - Less Previous Applications
-    const currentPaymentDue = Math.max(totalEarnedLessRetainage - lessPreviousPayments, 0);
-    
-    // Balance to Finish = Contract Sum to Date - Total Completed & Stored to Date
-    const balanceToFinish = contractSumToDate - totalCompletedAndStored;
-
-    const totals = {
-      originalContractSum,
-      netChangeOrders,
-      contractSumToDate,
-      totalCompletedAndStored,
-      totalRetainage,
-      totalEarnedLessRetainage,
-      lessPreviousPayments,
-      currentPaymentDue,
-      balanceToFinish
-    };
-
-    console.log('Final calculated totals:', totals);
-    return totals;
-  };
-
-  const saveG702Application = async () => {
-    if (!project || !calculatedTotals) return;
-
+    setLoading(true);
     try {
-      setLoading(true);
-
-      // Recalculate totals to ensure fresh data
-      const freshTotals = await calculateTotals();
-      console.log('Saving with fresh totals:', freshTotals);
+      // Calculate totals from SOV items
+      const totalCompletedAndStored = sovItems.reduce((sum, item) => 
+        sum + (Number(item.total_completed_and_stored) || 0), 0
+      );
+      
+      const contractSumToDate = formData.original_contract_sum + formData.net_change_by_change_orders;
+      const balanceToFinish = contractSumToDate - totalCompletedAndStored;
 
       const applicationData = {
-        project_id: projectId,
-        application_number: formData.applicationNumber,
-        period_to: formData.periodTo,
-        contractor_name: formData.contractorName,
-        contractor_address: formData.contractorAddress,
-        contractor_signature: formData.contractorSignature,
-        project_name: project.name,
-        project_number: formData.projectNumber || project.projectCode,
-        original_contract_sum: freshTotals.originalContractSum,
-        net_change_by_change_orders: freshTotals.netChangeOrders,
-        contract_sum_to_date: freshTotals.contractSumToDate,
-        total_completed_and_stored: freshTotals.totalCompletedAndStored,
-        retainage_completed_work: freshTotals.totalRetainage * 0.9,
-        retainage_stored_materials: freshTotals.totalRetainage * 0.1,
-        total_retainage: freshTotals.totalRetainage,
-        total_earned_less_retainage: freshTotals.totalEarnedLessRetainage,
-        less_previous_certificates: freshTotals.lessPreviousPayments,
-        current_payment_due: freshTotals.currentPaymentDue,
-        balance_to_finish: freshTotals.balanceToFinish
+        project_id: selectedProject,
+        contractor_name: formData.contractor_name,
+        contractor_address: formData.contractor_address,
+        project_name: formData.project_name,
+        project_number: formData.project_number,
+        application_number: formData.application_number,
+        period_to: formData.period_to,
+        original_contract_sum: formData.original_contract_sum,
+        net_change_by_change_orders: formData.net_change_by_change_orders,
+        contract_sum_to_date: contractSumToDate,
+        total_completed_and_stored: totalCompletedAndStored,
+        balance_to_finish: balanceToFinish,
+        architect_date: formData.architect_date || null,
+        contractor_date: formData.contractor_date || null
       };
 
-      console.log('Application data to save:', applicationData);
-
-      let error;
-      if (applicationId) {
-        // Update existing application
-        const { error: updateError } = await supabase
-          .from('payment_applications_g702')
-          .update(applicationData)
-          .eq('id', applicationId);
-        error = updateError;
-      } else {
-        // Create new application
-        const { error: insertError } = await supabase
-          .from('payment_applications_g702')
-          .insert(applicationData);
-        error = insertError;
-
-        // For NEW applications only, update SOV items with cumulative progress
-        // This moves "this period" amounts to "previous applications" for future applications
-        for (const item of sovItems) {
-          if (item.thisPeriod > 0 || item.materialsStored > 0) {
-            const newPreviousApplications = item.previousApplications + item.thisPeriod;
-            const newTotalCompleted = newPreviousApplications + item.materialsStored;
-            const totalContract = item.scheduledValue + item.changeOrders;
-            const newPercentComplete = totalContract > 0 ? (newTotalCompleted / totalContract) * 100 : 0;
-            
-            console.log(`Updating SOV item ${item.itemNumber}:`, {
-              oldPrevious: item.previousApplications,
-              thisPeriod: item.thisPeriod,
-              newPrevious: newPreviousApplications,
-              newPercent: newPercentComplete,
-              changeOrders: item.changeOrders // Make sure change_orders value is preserved
-            });
-            
-            // CRITICAL: Always preserve change_orders value when updating SOV items
-            await supabase
-              .from('sov_items')
-              .update({
-                previous_applications: newPreviousApplications,
-                this_period: 0, // Reset this period to 0 for next application
-                percent_complete: Math.min(newPercentComplete, 100),
-                // Explicitly preserve change_orders - this is crucial!
-                change_orders: item.changeOrders
-              })
-              .eq('id', item.id);
-          }
-        }
-      }
+      const { error } = await supabase
+        .from('payment_applications_g702')
+        .insert(applicationData);
 
       if (error) throw error;
 
-      toast.success(applicationId ? 'Payment Application updated successfully' : 'Payment Application saved successfully');
+      toast.success('Payment application saved successfully');
       onSave?.();
     } catch (error) {
       console.error('Error saving payment application:', error);
@@ -456,92 +171,124 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
     }
   };
 
-  if (!project) {
-    return <div className="text-center py-8">Loading project data...</div>;
-  }
-
   return (
     <div className="space-y-6">
-      {/* Document Toggle */}
-      <div className="flex gap-2 print:hidden">
-        <Button 
-          variant={activeDocument === 'builder' ? 'default' : 'outline'}
-          onClick={() => setActiveDocument('builder')}
-        >
-          <Settings className="w-4 h-4 mr-2" />
-          Builder
-        </Button>
-        <Button 
-          variant={activeDocument === 'g702' ? 'default' : 'outline'}
-          onClick={() => setActiveDocument('g702')}
-        >
-          G702 - Application for Payment
-        </Button>
-        <Button 
-          variant={activeDocument === 'g703' ? 'default' : 'outline'}
-          onClick={() => setActiveDocument('g703')}
-        >
-          G703 - Continuation Sheet
-        </Button>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment Application Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="project">Project</Label>
+              <Select value={selectedProject} onValueChange={setSelectedProject}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name} - {project.client}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-      {/* Builder View */}
-      {activeDocument === 'builder' && (
-        <div className="print:hidden">
-          <G702Builder
-            projectId={projectId}
-            formData={formData}
-            setFormData={setFormData}
-            sovItems={sovItems}
-            setSovItems={setSovItems}
-          />
-        </div>
+            <div>
+              <Label htmlFor="application_number">Application Number</Label>
+              <Input
+                id="application_number"
+                type="number"
+                value={formData.application_number}
+                onChange={(e) => setFormData(prev => ({ ...prev, application_number: Number(e.target.value) }))}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="contractor_name">Contractor Name</Label>
+              <Input
+                id="contractor_name"
+                value={formData.contractor_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, contractor_name: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="period_to">Period To</Label>
+              <Input
+                id="period_to"
+                type="date"
+                value={formData.period_to}
+                onChange={(e) => setFormData(prev => ({ ...prev, period_to: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="original_contract_sum">Original Contract Sum</Label>
+              <Input
+                id="original_contract_sum"
+                type="number"
+                step="0.01"
+                value={formData.original_contract_sum}
+                onChange={(e) => setFormData(prev => ({ ...prev, original_contract_sum: Number(e.target.value) }))}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="net_change_by_change_orders">Net Change by Change Orders</Label>
+              <Input
+                id="net_change_by_change_orders"
+                type="number"
+                step="0.01"
+                value={formData.net_change_by_change_orders}
+                onChange={(e) => setFormData(prev => ({ ...prev, net_change_by_change_orders: Number(e.target.value) }))}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="contractor_address">Contractor Address</Label>
+            <Textarea
+              id="contractor_address"
+              value={formData.contractor_address}
+              onChange={(e) => setFormData(prev => ({ ...prev, contractor_address: e.target.value }))}
+              rows={3}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {selectedProject && sovItems.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Schedule of Values</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SOVTable items={sovItems} />
+          </CardContent>
+        </Card>
       )}
 
-      {/* G702 and G703 Documents: Always in DOM but hide inactive */}
-      <div className="relative">
-        {/* G702 Document */}
-        <div
-          id="g702-document"
-          aria-hidden={activeDocument !== 'g702'}
-          className={
-            activeDocument === 'g702'
-              ? ''
-              : 'sr-only'
-          }
-          style={activeDocument === 'g702' ? {} : { position: 'absolute', left: 0, top: 0 }}
-        >
-          {calculatedTotals && (
-            <G702Document
-              project={project}
-              formData={formData}
-              totals={calculatedTotals}
-            />
-          )}
-        </div>
-        {/* G703 Document */}
-        <div
-          id="g703-document"
-          aria-hidden={activeDocument !== 'g703'}
-          className={
-            activeDocument === 'g703'
-              ? ''
-              : 'sr-only'
-          }
-          style={activeDocument === 'g703' ? {} : { position: 'absolute', left: 0, top: 0 }}
-        >
-          <G703Document
-            project={project}
-            formData={formData}
-            sovItems={sovItems}
-          />
-        </div>
-      </div>
+      {selectedProject && sovItems.length === 0 && (
+        <Card>
+          <CardContent className="text-center py-8">
+            <p className="text-gray-500 mb-4">
+              No Schedule of Values items found for this project.
+            </p>
+            <p className="text-sm text-gray-400">
+              Please create SOV items in the Schedule of Values page first.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Save Button */}
-      <div className="flex gap-4 justify-end print:hidden">
-        <Button onClick={saveG702Application} disabled={loading}>
-          {loading ? 'Saving...' : 'Save Application'}
+      <div className="flex justify-end">
+        <Button 
+          onClick={handleSave} 
+          disabled={loading || !selectedProject}
+        >
+          {loading ? 'Saving...' : 'Save Payment Application'}
         </Button>
       </div>
     </div>
