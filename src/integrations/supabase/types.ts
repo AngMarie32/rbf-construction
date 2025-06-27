@@ -292,6 +292,42 @@ export type Database = {
           },
         ]
       }
+      bid_settings: {
+        Row: {
+          contingency_percentage: number | null
+          created_at: string
+          id: string
+          include_tax: boolean | null
+          markup_percentage: number | null
+          project_id: string
+          round_to_nearest: number | null
+          tax_percentage: number | null
+          updated_at: string
+        }
+        Insert: {
+          contingency_percentage?: number | null
+          created_at?: string
+          id?: string
+          include_tax?: boolean | null
+          markup_percentage?: number | null
+          project_id: string
+          round_to_nearest?: number | null
+          tax_percentage?: number | null
+          updated_at?: string
+        }
+        Update: {
+          contingency_percentage?: number | null
+          created_at?: string
+          id?: string
+          include_tax?: boolean | null
+          markup_percentage?: number | null
+          project_id?: string
+          round_to_nearest?: number | null
+          tax_percentage?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bid_template_items: {
         Row: {
           category: string

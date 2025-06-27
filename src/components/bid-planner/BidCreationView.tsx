@@ -52,8 +52,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     const breakdown: Record<string, Record<string, number>> = {};
     
     bidItems.forEach(item => {
-      if (!item.description.trim()) return;
-      
       const division = item.division || 'Other';
       const category = item.category || 'Uncategorized';
       
@@ -71,31 +69,35 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     return breakdown;
   };
 
+  const getDivisionTotals = () => {
+    const breakdown = getDivisionBreakdown();
+    const divisionTotals: Record<string, number> = {};
+    
+    Object.entries(breakdown).forEach(([division, categories]) => {
+      divisionTotals[division] = Object.values(categories).reduce((sum, amount) => sum + amount, 0);
+    });
+    
+    return divisionTotals;
+  };
+
   const handleSaveBid = async () => {
-    if (bidItems.length === 0 || bidItems.every(item => !item.description.trim())) {
-      toast.error('Please add at least one bid item with a description');
+    if (bidItems.length === 0) {
+      toast.error('Please add at least one bid item');
       return;
     }
 
     setSaving(true);
     try {
-      const itemsToSave = bidItems
-        .filter(item => item.description.trim())
-        .map(item => ({
-          project_id: projectId,
-          category: item.category || 'Other',
-          subcategory: item.subcategory || '',
-          description: item.description,
-          quantity: item.quantity,
-          unit: item.unit,
-          unit_cost: item.unitCost,
-          total: item.total
-        }));
-
-      if (itemsToSave.length === 0) {
-        toast.error('Please add at least one valid bid item');
-        return;
-      }
+      const itemsToSave = bidItems.map(item => ({
+        project_id: projectId,
+        category: item.category || 'Other',
+        subcategory: item.subcategory || '',
+        description: item.description,
+        quantity: item.quantity,
+        unit: item.unit,
+        unit_cost: item.unitCost,
+        total: item.total
+      }));
 
       const { error: itemsError } = await supabase
         .from('bid_items')
@@ -119,6 +121,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const breakdown = getDivisionBreakdown();
+  const divisionTotals = getDivisionTotals();
 
   return (
     <div className="space-y-6">
@@ -150,27 +153,37 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
                 Total: ${calculateTotalValue().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               
-              <div className="space-y-4">
-                {Object.entries(breakdown).map(([division, categories]) => {
-                  const divisionTotal = Object.values(categories).reduce((sum, amount) => sum + amount, 0);
-                  return (
-                    <div key={division} className="space-y-2">
-                      <div className="font-semibold text-sm border-b pb-1">
-                        {division}: ${divisionTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </div>
-                      {Object.entries(categories).map(([category, amount]) => (
-                        <div key={category} className="flex justify-between text-xs pl-3">
-                          <span className="text-muted-foreground">{category}</span>
-                          <span>${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                        </div>
-                      ))}
+              {/* Division Totals */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm">Division Breakdown</h4>
+                {Object.entries(divisionTotals).map(([division, total]) => (
+                  <div key={division} className="flex justify-between text-sm border-b pb-1">
+                    <span className="font-medium">{division}</span>
+                    <span className="font-semibold">${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Detailed Category Breakdown */}
+              <div className="space-y-4 pt-4 border-t">
+                <h4 className="font-semibold text-sm">Category Breakdown</h4>
+                {Object.entries(breakdown).map(([division, categories]) => (
+                  <div key={division} className="space-y-2">
+                    <div className="font-medium text-sm text-blue-600">
+                      {division}
                     </div>
-                  );
-                })}
+                    {Object.entries(categories).map(([category, amount]) => (
+                      <div key={category} className="flex justify-between text-xs pl-3">
+                        <span className="text-muted-foreground">{category}</span>
+                        <span>${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
               
               <div className="text-sm text-muted-foreground pt-2 border-t">
-                {bidItems.filter(item => item.description.trim()).length} line items
+                {bidItems.length} line items
               </div>
             </div>
           </CardContent>

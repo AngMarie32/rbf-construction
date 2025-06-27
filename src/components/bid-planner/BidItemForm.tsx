@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -104,8 +105,6 @@ const subcategoryOptions = [
   'Equipment Rental',
   'Site Cleaning',
   'Mobilization',
-  'Fuel',
-  'Other',
   'Site Clearing/Grubbing',
   'Tree Cutting',
   'Stump Removal',
@@ -276,10 +275,31 @@ interface SearchableSelectProps {
   onValueChange: (value: string) => void;
   options: string[];
   placeholder: string;
+  allowCustom?: boolean;
 }
 
-function SearchableSelect({ value, onValueChange, options, placeholder }: SearchableSelectProps) {
+function SearchableSelect({ value, onValueChange, options, placeholder, allowCustom = false }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+
+  const filteredOptions = options.filter(option =>
+    option.toLowerCase().includes(inputValue.toLowerCase())
+  );
+
+  const handleSelect = (selectedValue: string) => {
+    onValueChange(selectedValue);
+    setOpen(false);
+    setInputValue('');
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && allowCustom && inputValue.trim()) {
+      e.preventDefault();
+      onValueChange(inputValue.trim());
+      setOpen(false);
+      setInputValue('');
+    }
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -295,18 +315,30 @@ function SearchableSelect({ value, onValueChange, options, placeholder }: Search
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
         <Command>
-          <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
+          <CommandInput 
+            placeholder={`Search ${placeholder.toLowerCase()}...${allowCustom ? ' or type custom' : ''}`}
+            value={inputValue}
+            onValueChange={setInputValue}
+            onKeyDown={handleInputKeyDown}
+          />
           <CommandList>
+            {allowCustom && inputValue.trim() && !options.includes(inputValue.trim()) && (
+              <CommandGroup>
+                <CommandItem
+                  value={inputValue.trim()}
+                  onSelect={() => handleSelect(inputValue.trim())}
+                >
+                  Create "{inputValue.trim()}"
+                </CommandItem>
+              </CommandGroup>
+            )}
             <CommandEmpty>No option found.</CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {filteredOptions.map((option) => (
                 <CommandItem
                   key={option}
                   value={option}
-                  onSelect={() => {
-                    onValueChange(option);
-                    setOpen(false);
-                  }}
+                  onSelect={() => handleSelect(option)}
                 >
                   {option}
                 </CommandItem>
@@ -332,7 +364,8 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
       unitCost: 0,
       total: 0
     };
-    onItemsChange([...items, newItem]);
+    // Add new item at the beginning of the array
+    onItemsChange([newItem, ...items]);
   };
 
   const updateItem = (id: string, field: keyof BidItem, value: any) => {
@@ -393,6 +426,7 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                   onValueChange={(value) => updateItem(item.id, 'division', value)}
                   options={divisions}
                   placeholder="Select division"
+                  allowCustom={true}
                 />
               </div>
 
@@ -403,6 +437,7 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                   onValueChange={(value) => updateItem(item.id, 'category', value)}
                   options={categoryOptions}
                   placeholder="Select category"
+                  allowCustom={true}
                 />
               </div>
 
@@ -413,6 +448,7 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                   onValueChange={(value) => updateItem(item.id, 'subcategory', value)}
                   options={subcategoryOptions}
                   placeholder="Select subcategory"
+                  allowCustom={true}
                 />
               </div>
 
@@ -456,12 +492,12 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <Label htmlFor={`description-${item.id}`} className="text-xs">Description</Label>
-                <Textarea
+                <Input
                   id={`description-${item.id}`}
                   value={item.description}
                   onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                  rows={1}
-                  className="min-h-[32px] resize-none"
+                  className="h-8"
+                  placeholder="Optional description..."
                 />
               </div>
 
