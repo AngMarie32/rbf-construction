@@ -17,6 +17,7 @@ interface BidCreationViewProps {
 
 interface BidItem {
   id: string;
+  division: string;
   category: string;
   subcategory: string;
   description: string;
@@ -32,7 +33,8 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   const [bidItems, setBidItems] = useState<BidItem[]>([
     {
       id: '1',
-      category: 'General Conditions',
+      division: 'General Conditions',
+      category: 'Labor/Supervision',
       subcategory: '',
       description: '',
       quantity: 1,
@@ -77,7 +79,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
     setSaving(true);
     try {
-      // Save bid items to the database
       const itemsToSave = bidItems
         .filter(item => item.description.trim())
         .map(item => ({
@@ -132,47 +133,50 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Bid Items - Takes up 3 columns */}
-        <div className="lg:col-span-3">
-          <BidItemForm items={bidItems} onItemsChange={setBidItems} />
-        </div>
+      {/* Bid Items - Full width */}
+      <div className="w-full">
+        <BidItemForm items={bidItems} onItemsChange={setBidItems} />
+      </div>
 
-        {/* Bid Summary - Takes up 1 column */}
-        <div className="lg:col-span-1 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Bid Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="text-lg font-bold border-b pb-2">
-                  Total: ${calculateTotalValue().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                
-                <div className="space-y-3">
-                  {Object.entries(breakdown).map(([category, subcategories]) => (
-                    <div key={category} className="space-y-2">
-                      <div className="font-medium text-sm">{category}</div>
-                      {Object.entries(subcategories).map(([subcategory, amount]) => (
-                        <div key={subcategory} className="flex justify-between text-xs pl-3">
-                          <span className="text-muted-foreground">{subcategory}</span>
-                          <span>${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="text-sm text-muted-foreground pt-2 border-t">
-                  {bidItems.filter(item => item.description.trim()).length} line items
-                </div>
+      {/* Bid Summary - Bottom section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Bid Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="text-lg font-bold border-b pb-2">
+                Total: ${calculateTotalValue().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
-            </CardContent>
-          </Card>
+              
+              <div className="space-y-3">
+                {Object.entries(breakdown).map(([category, subcategories]) => (
+                  <div key={category} className="space-y-2">
+                    <div className="font-medium text-sm">{category}</div>
+                    {Object.entries(subcategories).map(([subcategory, amount]) => (
+                      <div key={subcategory} className="flex justify-between text-xs pl-3">
+                        <span className="text-muted-foreground">{subcategory}</span>
+                        <span>${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              
+              <div className="text-sm text-muted-foreground pt-2 border-t">
+                {bidItems.filter(item => item.description.trim()).length} line items
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Action Buttons */}
-          <div className="space-y-2">
+        {/* Action Buttons */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Actions</CardTitle>
+          </CardHeader>
+          <CardContent>
             <Button 
               onClick={handleSaveBid} 
               disabled={saving} 
@@ -182,8 +186,8 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
               <Save className="w-4 h-4 mr-2" />
               {saving ? 'Saving...' : 'Save Bid'}
             </Button>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

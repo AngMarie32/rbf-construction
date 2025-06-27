@@ -10,6 +10,7 @@ import { Plus, Trash2 } from 'lucide-react';
 
 interface BidItem {
   id: string;
+  division: string;
   category: string;
   subcategory: string;
   description: string;
@@ -24,31 +25,248 @@ interface BidItemFormProps {
   onItemsChange: (items: BidItem[]) => void;
 }
 
-const mainCategories = [
+const divisions = [
   'General Conditions',
-  'Site',
+  'Site Work',
   'Building',
   'Other'
 ];
 
-const subcategoryOptions = [
-  'Site Work',
+const categoryOptions = [
+  'Labor/Supervision',
+  'Design Fees & Estimating',
+  'Permits/Fees/Bonds/Insurances',
+  'General-Other',
+  'Site-General',
+  'Demolition/Land Clearance',
+  'Demolition Building/Concrete',
+  'Erosion Controls',
+  'Excavation/Grading',
+  'Site Construction',
+  'Utilities (Including Excavation)',
+  'Landscaping & Irrigation',
   'Concrete',
   'Masonry',
-  'Steel',
-  'Wood & Plastics',
-  'Thermal & Moisture Protection',
-  'Doors & Windows',
+  'Metals/Siding Materials',
+  'Rough/Final Carpentry',
+  'Thermal/Moisture',
+  'Doors, Windows, & Glass',
   'Finishes',
-  'Specialties',
-  'Equipment',
-  'Furnishings',
-  'Special Construction',
-  'Conveying Systems',
+  'Install Specialities',
+  'Install Equipment',
+  'Install Furnishings',
+  'Install Special Construction',
   'Mechanical',
+  'Plumbing',
+  'Fire',
   'Electrical',
-  'Earthwork',
-  'Utilities'
+  'Other Interior Demolition',
+  'Management',
+  'Supervision',
+  'Profit & Overhead'
+];
+
+const subcategoryOptions = [
+  'Project Manager',
+  'Labor',
+  'Per Diem Expense',
+  'Architectual Fees',
+  'Printing & Reproduction',
+  'Asbestos Survey Study',
+  'Misc.',
+  'Plan Review Fees',
+  'Building Permits',
+  'Demo Permit',
+  'Soil Erosion',
+  'Industrial Discharge Permit',
+  'Other Permits',
+  'Capital Connection Fees- Tab In',
+  'Utilities- Gas & Electric Connection Fees',
+  'Water Meter Fees (Municipality)',
+  'Construction Interest',
+  'Other Fees',
+  'Performance Bond (Returned After C of O)',
+  'Other Bonds',
+  'Builder\'s Risk Insurance',
+  'Other Insurance',
+  'Soil Boring & Compaction Testing',
+  'Concrete Testing',
+  'Other Testing',
+  'Survey Staking & Layout',
+  'Temp Electric/Lighting',
+  'Temp Heat',
+  'Barricading/Job Site Security',
+  'SWPP-Soil Erosion Maintenance',
+  'Daily Clean-up',
+  'White Glove Cleaning',
+  'Porta-Jon Rental',
+  'Dumpster Rental',
+  'Equipment Rental',
+  'Site Cleaning',
+  'Mobilization',
+  'Fuel',
+  'Other',
+  'Site Clearing/Grubbing',
+  'Tree Cutting',
+  'Stump Removal',
+  'Remove Exisitng Building(s)',
+  'Remove Esisting Structure(s)',
+  'Remove Existing Utilities',
+  'Remove Esxisting Paving',
+  'Remove Contaminated Soils',
+  'Abestos Abatement',
+  'Demolition-Other',
+  'Silt Fence',
+  'Mud Mat',
+  'Erosion-Other',
+  'Excavation (Non-Utility)',
+  'Backfill Materials',
+  'Backfill Labor',
+  'Other Excavation',
+  'Level/Grade/Compaction',
+  'Parking Lot Bast Materials',
+  'Compaction Labor',
+  'Export Spoils',
+  'Finish Grading',
+  'Soil Stabilization',
+  'Grading-Other',
+  'Concrete Paving',
+  'Concrete Curbs/Gutters',
+  'Concrete Walk-Ways',
+  'Concrete Footing',
+  'Transformer Pad',
+  'Dumpster Enclosure/Concrete Pad',
+  'Light Pole Bases',
+  'Misc. Drainage/Flumes/Etc.',
+  'Other Concrete',
+  'Asphalt Paving',
+  'Lot Striping',
+  'Wheel Stops',
+  'Other Asphalt',
+  'Bollards',
+  'HC Signs, Hand Rails, Misc.',
+  'Other Bollards/Signs',
+  'Wood Fence- Cedar @ 6\'',
+  'Retaining Wall(s)-Concrete @ 4\'',
+  'Other Fencing',
+  'ADA Railing',
+  'Menu Board Footing',
+  'Water Service',
+  'Water Suppression Service',
+  'Well Service (Complete System)',
+  'Other Water',
+  'Sanitary Sewer',
+  'Grease Trap',
+  'Other Sewer',
+  'Storm Sewer/Structures',
+  'Detention System (Underground/Pond)',
+  'Sump Line/ Downspout Drains',
+  'Other Storm',
+  'Electricial Service/Transformer/Overhead',
+  'Gas Service',
+  'Telephone/Internet',
+  'Cable/ Misc. Communication',
+  'Modification of Existing Utilities',
+  'Other Utilities',
+  'Landscaping (Hard/Soft)',
+  'Top Soil',
+  'Hydroseeding',
+  'Irrigation',
+  'Landscaping-Other',
+  'Concrete Footings & Foundation',
+  'Slab on Grade & Trench Fill',
+  'Saw Cutting',
+  'Concrete Removal',
+  'Concrete-Other',
+  'Masonry-CMU (Concrete Blocks)',
+  'Masonry-Stone Veneer-Cultured Stone',
+  'Masonry-Misc.',
+  'Steel- Red Iron Structual',
+  'Pre-Fab Steel Building Materials',
+  'Pre-Fab Labor',
+  'Metal Awnings/Overhangs/Canopy',
+  'Vinyl Siding/Hardie Board/Etc.',
+  'Gutters & Downspouts',
+  'Metals- Other',
+  'RC-Wood Lumber Package',
+  'RC-Wood Framing Labor',
+  'RC-Other',
+  'RC-Metal Framing Materials',
+  'RC-Metal Framing Labor',
+  'RC- Other',
+  'FC-Misc Framing, Bracing, & Blocking',
+  'FC-Trim Lumber Package',
+  'FC- Misc Finish Carpentry & Trim',
+  'FC- Millwork',
+  'FC-Other',
+  'Building Insulation-Exterior',
+  'Building Insulation-Interior',
+  'Roof Insulation',
+  'Runner Roofing (Durolast)',
+  'Roof Walkway Pads',
+  'Asphalt Shingles',
+  'EIFS (Dryvit)',
+  'Caulking & Sealants',
+  'TM-Other',
+  'Storefont Aluminimum, Door Frames, Etc.',
+  'Vinyl Windows',
+  'Pre-Pay & DT Window Installation',
+  'Overhead Doors (Closures)',
+  'Exterior Wood Frame Doors',
+  'Interior Wood Frame Doors',
+  'Exterior HM Frame Doors',
+  'Interior HM Frame Doors',
+  'Door Hardware (Closers, Handles, Etc.)',
+  'Door/Windows-Other (Labor)',
+  'Gypsum Wall Board',
+  'Cement Board',
+  'Quarry & Ceramic Tile Material',
+  'Quarry & Ceramic Tile Labor',
+  'Epoxy Flooring',
+  'Laminate Flooring',
+  'Hardwood Flooring',
+  'Carpet',
+  'Floor Prep',
+  'FRP',
+  'Exterior Painting',
+  'Interior Painting',
+  'Ceiling Painting',
+  'Acoustical Ceilings',
+  'Marmoleum Wainscot & Wood Trim (Interior)',
+  'Countertops-Laminate',
+  'Countertops-Solid Surface',
+  'Finishes-Other',
+  'Toilet Accessories',
+  'Toilet Partitions',
+  'ABC Fire Extinguishers',
+  'Stainless Steel Corner Guards',
+  'Other Specialities',
+  'Installation of Owner Supplied Equipment',
+  'Installation of Owner Supplied Walk-in Cooler Box',
+  'Equipment Installation-Other',
+  'Decor Installation by GC',
+  'Other Furnishing Installation',
+  'Vinyl Graphic Installation',
+  'Special Installation-Other',
+  'Mechanical-RTU Install',
+  'Mechanical-Duckwork System',
+  'Mechanical-Hood/Ventilation Install',
+  'Mechanical-Other',
+  'Plumbing',
+  'Plumbing-Grease Trap (Interior)',
+  'Plumbing-Water Heater',
+  'Plumbing-Water Filtaration System',
+  'Plumbing-Fixtures',
+  'Plumbing-Other',
+  'Fire Suppression System',
+  'Ansul System Install',
+  'Fire-Other',
+  'Electrical Distrubution: Feeders, Switches, Receptacles',
+  'MDP Panels/Lighting Control Panels',
+  'Light Fixture Package',
+  'Fire Alarm',
+  'Low Voltage (Internet, Phone, Data)',
+  'Electrical-Other'
 ];
 
 const allowedUnits = ['each', 'SF', 'LY', 'CY', 'CF', 'Acre', 'Day', 'Week', 'Lot', 'Ton'];
@@ -57,7 +275,8 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
   const addItem = () => {
     const newItem: BidItem = {
       id: Date.now().toString(),
-      category: 'General Conditions',
+      division: 'General Conditions',
+      category: 'Labor/Supervision',
       subcategory: '',
       description: '',
       quantity: 1,
@@ -117,7 +336,27 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Single row layout for all form fields */}
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+              <div>
+                <Label htmlFor={`division-${item.id}`}>Division</Label>
+                <Select
+                  value={item.division}
+                  onValueChange={(value) => updateItem(item.id, 'division', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {divisions.map((division) => (
+                      <SelectItem key={division} value={division}>
+                        {division}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div>
                 <Label htmlFor={`category-${item.id}`}>Category</Label>
                 <Select
@@ -128,7 +367,7 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {mainCategories.map((category) => (
+                    {categoryOptions.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
                       </SelectItem>
@@ -174,19 +413,7 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            <div>
-              <Label htmlFor={`description-${item.id}`}>Description</Label>
-              <Textarea
-                id={`description-${item.id}`}
-                value={item.description}
-                onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                rows={2}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor={`quantity-${item.id}`}>Quantity</Label>
                 <Input
@@ -210,8 +437,20 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                   step="0.01"
                 />
               </div>
+            </div>
 
-              <div className="md:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor={`description-${item.id}`}>Description</Label>
+                <Textarea
+                  id={`description-${item.id}`}
+                  value={item.description}
+                  onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                  rows={2}
+                />
+              </div>
+
+              <div>
                 <Label>Total</Label>
                 <div className="p-2 bg-gray-50 rounded border font-medium">
                   ${item.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
