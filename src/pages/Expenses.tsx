@@ -254,20 +254,17 @@ export default function Expenses() {
     expense.receipt_number?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const fieldApprovalExpenses = filteredExpenses
-    .filter(e => e.status === 'Field Approval')
-    .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const fieldApprovalExpenses = filteredExpenses.filter(e => e.status === 'Field Approval');
+  const fieldApprovalAmount = fieldApprovalExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const fieldApprovalCount = fieldApprovalExpenses.length;
     
-  const officeApprovalExpenses = filteredExpenses
-    .filter(e => e.status === 'Office Approval')
-    .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const officeApprovalExpenses = filteredExpenses.filter(e => e.status === 'Office Approval');
+  const officeApprovalAmount = officeApprovalExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
     
-  const paidExpenses = filteredExpenses
-    .filter(e => e.status === 'Paid')
-    .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const paidExpenses = filteredExpenses.filter(e => e.status === 'Paid');
+  const paidAmount = paidExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
     
-  const totalExpenses = filteredExpenses
-    .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const totalAmount = filteredExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -354,8 +351,8 @@ export default function Expenses() {
               <Clock className="h-5 w-5 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-800">${fieldApprovalExpenses.toLocaleString()}</div>
-              <p className="text-xs text-yellow-600 mt-1">Awaiting field team</p>
+              <div className="text-2xl font-bold text-yellow-800">${fieldApprovalAmount.toLocaleString()}</div>
+              <p className="text-xs text-yellow-600 mt-1">{fieldApprovalCount} pending approvals</p>
             </CardContent>
           </Card>
 
@@ -365,7 +362,7 @@ export default function Expenses() {
               <FileText className="h-5 w-5 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-800">${officeApprovalExpenses.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-blue-800">${officeApprovalAmount.toLocaleString()}</div>
               <p className="text-xs text-blue-600 mt-1">Awaiting office team</p>
             </CardContent>
           </Card>
@@ -376,7 +373,7 @@ export default function Expenses() {
               <CheckCircle className="h-5 w-5 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-800">${paidExpenses.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-green-800">${paidAmount.toLocaleString()}</div>
               <p className="text-xs text-green-600 mt-1">Completed payments</p>
             </CardContent>
           </Card>
@@ -387,14 +384,14 @@ export default function Expenses() {
               <FileText className="h-5 w-5 text-gray-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-800">${totalExpenses.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-gray-800">${totalAmount.toLocaleString()}</div>
               <p className="text-xs text-gray-600 mt-1">All expenses</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Compact Filters and Controls - Side by Side */}
-        <Card>
+        <Card className="bg-white">
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center mb-4">
               <div className="relative">
@@ -453,7 +450,7 @@ export default function Expenses() {
         </Card>
 
         {/* Expenses Table */}
-        <Card>
+        <Card className="bg-white">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
@@ -517,7 +514,7 @@ export default function Expenses() {
                             Reject
                           </Button>
                         )}
-
+                        
                         {/* Undo Button - Only show if can undo */}
                         {canUndo(expense.status) && (
                           <Button 
@@ -533,44 +530,32 @@ export default function Expenses() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {/* Nested Actions Menu */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" className="h-7 w-7 p-0">
-                            <MoreHorizontal className="w-3 h-3" />
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem 
-                            onClick={() => handleViewExpense(expense)}
-                          >
-                            <Eye className="w-4 h-4 mr-2" />
+                          <DropdownMenuItem onClick={() => handleViewExpense(expense)}>
+                            <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleEditExpense(expense)}
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
+                          <DropdownMenuItem onClick={() => handleEditExpense(expense)}>
+                            <Edit className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleViewInvoice(expense)}
-                          >
-                            <Eye className="w-4 h-4 mr-2" />
-                            View Invoice
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleAttachInvoice(expense)}
-                          >
-                            <Paperclip className="w-4 h-4 mr-2" />
+                          <DropdownMenuItem onClick={() => handleAttachInvoice(expense)}>
+                            <Paperclip className="mr-2 h-4 w-4" />
                             Attach Invoice
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
-                            className="text-red-600 focus:text-red-600"
                             onClick={() => handleDeleteClick(expense.id)}
+                            className="text-red-600"
                           >
-                            <Trash2 className="w-4 h-4 mr-2" />
+                            <Trash2 className="mr-2 h-4 w-4" />
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -585,7 +570,7 @@ export default function Expenses() {
               <div className="text-center py-12">
                 <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No expenses found</h3>
-                <p className="text-gray-500 mb-6">Start tracking your project expenses.</p>
+                <p className="text-gray-500 mb-6">Create your first expense to get started.</p>
                 <Button onClick={() => setCreateDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
                   <Plus className="w-4 h-4 mr-2" />
                   Create First Expense
@@ -595,16 +580,11 @@ export default function Expenses() {
           </CardContent>
         </Card>
 
-        <CreateExpenseDialog
+        {/* Dialogs */}
+        <CreateExpenseDialog 
           open={createDialogOpen}
           onOpenChange={setCreateDialogOpen}
           onExpenseCreated={fetchExpenses}
-        />
-
-        <BulkExpenseDialog
-          open={bulkExpenseDialogOpen}
-          onOpenChange={setBulkExpenseDialogOpen}
-          onExpensesCreated={fetchExpenses}
         />
 
         <EditExpenseDialog
@@ -617,47 +597,95 @@ export default function Expenses() {
         <AttachInvoiceDialog
           open={attachInvoiceDialogOpen}
           onOpenChange={setAttachInvoiceDialogOpen}
-          expenseId={expenseForInvoice?.id || null}
-          expenseDescription={expenseForInvoice?.description || ''}
+          expense={expenseForInvoice}
           onInvoiceAttached={fetchExpenses}
         />
 
         <ViewInvoiceDialog
           open={viewInvoiceDialogOpen}
           onOpenChange={setViewInvoiceDialogOpen}
-          expenseId={expenseForViewInvoice?.id || null}
-          expenseDescription={expenseForViewInvoice?.description || ''}
+          expense={expenseForViewInvoice}
         />
 
-        {/* Delete Confirmation Dialog */}
+        <BulkExpenseDialog
+          open={bulkExpenseDialogOpen}
+          onOpenChange={setBulkExpenseDialogOpen}
+          onExpensesCreated={fetchExpenses}
+        />
+
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Expense</AlertDialogTitle>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete this expense? This action cannot be undone.
+                This action cannot be undone. This will permanently delete the expense record.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => {
-                setDeleteDialogOpen(false);
-                setExpenseToDelete(null);
-              }}>
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction 
-                onClick={() => {
-                  if (expenseToDelete) {
-                    deleteExpense(expenseToDelete);
-                  }
-                }}
-                className="bg-red-600 hover:bg-red-700"
-              >
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => expenseToDelete && deleteExpense(expenseToDelete)}>
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Expense Details</DialogTitle>
+            </DialogHeader>
+            {selectedExpense && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Date</label>
+                    <p className="text-sm">{new Date(selectedExpense.date).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Amount</label>
+                    <p className="text-sm font-semibold">${Number(selectedExpense.amount).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Category</label>
+                    <p className="text-sm">{selectedExpense.category}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Status</label>
+                    <Badge className={`${getStatusColor(selectedExpense.status)} border`}>
+                      {selectedExpense.status}
+                    </Badge>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Project</label>
+                    <p className="text-sm">{selectedExpense.projects.name}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Vendor</label>
+                    <p className="text-sm">{selectedExpense.vendor || 'N/A'}</p>
+                  </div>
+                </div>
+                {selectedExpense.description && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Description</label>
+                    <p className="text-sm">{selectedExpense.description}</p>
+                  </div>
+                )}
+                {selectedExpense.receipt_number && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Receipt Number</label>
+                    <p className="text-sm">{selectedExpense.receipt_number}</p>
+                  </div>
+                )}
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

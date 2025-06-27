@@ -64,7 +64,20 @@ export default function ScheduleOfValues() {
             filter: `project_id=eq.${selectedProject}`
           },
           () => {
-            // Refresh SOV items when payment applications change
+            console.log('Payment application changed, refreshing SOV items');
+            fetchSOVItems();
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'sov_items',
+            filter: `project_id=eq.${selectedProject}`
+          },
+          () => {
+            console.log('SOV items changed, refreshing data');
             fetchSOVItems();
           }
         )

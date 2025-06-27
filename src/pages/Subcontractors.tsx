@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +21,8 @@ import {
   Users,
   Grid3X3,
   List,
-  AlertTriangle
+  AlertTriangle,
+  Plus
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -56,6 +56,7 @@ export default function Subcontractors() {
   const [specialtyFilter, setSpecialtyFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [showDocumentIssues, setShowDocumentIssues] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchSubcontractors();
@@ -149,7 +150,7 @@ export default function Subcontractors() {
       <div className="space-y-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
+          <Card className="bg-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Subcontractors</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -159,7 +160,7 @@ export default function Subcontractors() {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="bg-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active</CardTitle>
               <Users className="h-4 w-4 text-green-600" />
@@ -171,7 +172,7 @@ export default function Subcontractors() {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="bg-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Document Issues</CardTitle>
               <AlertTriangle className="h-4 w-4 text-yellow-600" />
@@ -190,7 +191,7 @@ export default function Subcontractors() {
         </div>
 
         {/* Controls */}
-        <Card>
+        <Card className="bg-white">
           <CardContent className="pt-6">
             <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
               <div className="flex flex-col sm:flex-row gap-4 items-center flex-1">
@@ -236,7 +237,10 @@ export default function Subcontractors() {
                     <List className="w-4 h-4" />
                   </Button>
                 </div>
-                <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
+                <Button onClick={() => setDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Subcontractor
+                </Button>
               </div>
             </div>
           </CardContent>
@@ -394,6 +398,12 @@ export default function Subcontractors() {
           </div>
         )}
       </div>
+      
+      <AddSubcontractorDialog 
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSubcontractorCreated={fetchSubcontractors} 
+      />
     </Layout>
   );
 }

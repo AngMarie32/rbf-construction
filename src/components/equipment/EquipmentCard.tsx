@@ -107,7 +107,7 @@ export function EquipmentCard({
 
       <CardContent className="space-y-4">
         {equipment.image && (
-          <div className="relative h-32 overflow-hidden rounded-lg bg-gray-100">
+          <div className="relative h-40 overflow-hidden rounded-lg bg-gray-100">
             <img 
               src={equipment.image} 
               alt={equipment.name}
@@ -119,27 +119,22 @@ export function EquipmentCard({
           </div>
         )}
 
-        <div className="space-y-2">
-          {(equipment.year || equipment.qr_code) && (
-            <div className="flex items-center gap-4 text-sm text-gray-600">
-              {equipment.year && (
-                <div className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  <span>{equipment.year}</span>
-                </div>
-              )}
-              {equipment.qr_code && (
-                <div className="flex items-center gap-1">
-                  <Hash className="w-3 h-3" />
-                  <span className="truncate">VIN: {equipment.qr_code}</span>
-                </div>
-              )}
+        <div className="space-y-3">
+          {equipment.year && (
+            <div className="text-sm text-gray-700">
+              <span className="font-medium">Year:</span> {equipment.year}
             </div>
           )}
-
+          
+          {equipment.qr_code && (
+            <div className="text-sm text-gray-700">
+              <span className="font-medium">VIN/Serial #:</span> {equipment.qr_code}
+            </div>
+          )}
+          
           {equipment.value && (
-            <div className="text-right">
-              <span className="text-lg font-bold text-gray-900">${equipment.value.toLocaleString()}</span>
+            <div className="text-sm text-gray-700">
+              <span className="font-medium">Value:</span> ${equipment.value.toLocaleString()}
             </div>
           )}
         </div>
