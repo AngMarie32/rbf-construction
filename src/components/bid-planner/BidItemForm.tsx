@@ -1,12 +1,12 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Trash2 } from 'lucide-react';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface BidItem {
   id: string;
@@ -70,7 +70,7 @@ const subcategoryOptions = [
   'Project Manager',
   'Labor',
   'Per Diem Expense',
-  'Architectual Fees',
+  'Architectural Fees',
   'Printing & Reproduction',
   'Asbestos Survey Study',
   'Misc.',
@@ -271,6 +271,54 @@ const subcategoryOptions = [
 
 const allowedUnits = ['each', 'SF', 'LY', 'CY', 'CF', 'Acre', 'Day', 'Week', 'Lot', 'Ton'];
 
+interface SearchableSelectProps {
+  value: string;
+  onValueChange: (value: string) => void;
+  options: string[];
+  placeholder: string;
+}
+
+function SearchableSelect({ value, onValueChange, options, placeholder }: SearchableSelectProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between text-left font-normal"
+        >
+          {value || placeholder}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-full p-0" align="start">
+        <Command>
+          <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
+          <CommandList>
+            <CommandEmpty>No option found.</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option}
+                  value={option}
+                  onSelect={() => {
+                    onValueChange(option);
+                    setOpen(false);
+                  }}
+                >
+                  {option}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
   const addItem = () => {
     const newItem: BidItem = {
@@ -320,11 +368,11 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         {items.map((item, index) => (
-          <div key={item.id} className="border rounded-lg p-4 space-y-4">
+          <div key={item.id} className="border rounded-lg p-3 space-y-3">
             <div className="flex justify-between items-start">
-              <h4 className="font-medium">Item #{index + 1}</h4>
+              <h4 className="font-medium text-sm">Item #{index + 1}</h4>
               {items.length > 1 && (
                 <Button
                   variant="outline"
@@ -337,85 +385,49 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
             </div>
 
             {/* Single row layout for all form fields */}
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
               <div>
-                <Label htmlFor={`division-${item.id}`}>Division</Label>
-                <Select
+                <Label htmlFor={`division-${item.id}`} className="text-xs">Division</Label>
+                <SearchableSelect
                   value={item.division}
                   onValueChange={(value) => updateItem(item.id, 'division', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {divisions.map((division) => (
-                      <SelectItem key={division} value={division}>
-                        {division}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={divisions}
+                  placeholder="Select division"
+                />
               </div>
 
               <div>
-                <Label htmlFor={`category-${item.id}`}>Category</Label>
-                <Select
+                <Label htmlFor={`category-${item.id}`} className="text-xs">Category</Label>
+                <SearchableSelect
                   value={item.category}
                   onValueChange={(value) => updateItem(item.id, 'category', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoryOptions.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={categoryOptions}
+                  placeholder="Select category"
+                />
               </div>
 
               <div>
-                <Label htmlFor={`subcategory-${item.id}`}>Subcategory</Label>
-                <Select
+                <Label htmlFor={`subcategory-${item.id}`} className="text-xs">Subcategory</Label>
+                <SearchableSelect
                   value={item.subcategory}
                   onValueChange={(value) => updateItem(item.id, 'subcategory', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subcategoryOptions.map((subcategory) => (
-                      <SelectItem key={subcategory} value={subcategory}>
-                        {subcategory}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={subcategoryOptions}
+                  placeholder="Select subcategory"
+                />
               </div>
 
               <div>
-                <Label htmlFor={`unit-${item.id}`}>Unit</Label>
-                <Select
+                <Label htmlFor={`unit-${item.id}`} className="text-xs">Unit</Label>
+                <SearchableSelect
                   value={item.unit}
                   onValueChange={(value) => updateItem(item.id, 'unit', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allowedUnits.map((unit) => (
-                      <SelectItem key={unit} value={unit}>
-                        {unit}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={allowedUnits}
+                  placeholder="Select unit"
+                />
               </div>
 
               <div>
-                <Label htmlFor={`quantity-${item.id}`}>Quantity</Label>
+                <Label htmlFor={`quantity-${item.id}`} className="text-xs">Quantity</Label>
                 <Input
                   id={`quantity-${item.id}`}
                   type="number"
@@ -423,11 +435,12 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                   onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
                   min="0"
                   step="0.01"
+                  className="h-8"
                 />
               </div>
 
               <div>
-                <Label htmlFor={`unitCost-${item.id}`}>Unit Cost ($)</Label>
+                <Label htmlFor={`unitCost-${item.id}`} className="text-xs">Unit Cost ($)</Label>
                 <Input
                   id={`unitCost-${item.id}`}
                   type="number"
@@ -435,24 +448,26 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                   onChange={(e) => updateItem(item.id, 'unitCost', parseFloat(e.target.value) || 0)}
                   min="0"
                   step="0.01"
+                  className="h-8"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <Label htmlFor={`description-${item.id}`}>Description</Label>
+                <Label htmlFor={`description-${item.id}`} className="text-xs">Description</Label>
                 <Textarea
                   id={`description-${item.id}`}
                   value={item.description}
                   onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                  rows={2}
+                  rows={1}
+                  className="min-h-[32px] resize-none"
                 />
               </div>
 
               <div>
-                <Label>Total</Label>
-                <div className="p-2 bg-gray-50 rounded border font-medium">
+                <Label className="text-xs">Total</Label>
+                <div className="p-2 bg-gray-50 rounded border font-medium text-sm h-8 flex items-center">
                   ${item.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>

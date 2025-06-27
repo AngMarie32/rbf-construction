@@ -1,10 +1,11 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Save } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -13,98 +14,68 @@ interface BidSettingsProps {
 }
 
 export function BidSettings({ projectId }: BidSettingsProps) {
-  const [contingencyType, setContingencyType] = useState<'percentage' | 'dollar'>('percentage');
-  const [contingencyValue, setContingencyValue] = useState<number>(0);
-  const [markupPercentage, setMarkupPercentage] = useState<number>(0);
-  const [bondRate, setBondRate] = useState<number>(0);
-  const [loading, setLoading] = useState(false);
+  const [settings, setSettings] = useState({
+    markupPercentage: 15,
+    contingencyPercentage: 5,
+    includeTax: true,
+    taxPercentage: 8.5,
+    roundToNearest: 100
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchProjectSettings();
+    loadSettings();
   }, [projectId]);
 
-  const fetchProjectSettings = async () => {
+  const loadSettings = async () => {
     try {
       const { data, error } = await supabase
-        .from('projects')
-        .select('contingency_type, contingency_value')
-        .eq('id', projectId)
+        .from('bid_settings')
+        .select('*')
+        .eq('project_id', projectId)
         .single();
 
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
 
       if (data) {
-        setContingencyType((data.contingency_type as 'percentage' | 'dollar') || 'percentage');
-        setContingencyValue(data.contingency_value || 0);
-      }
-
-      // Fetch company settings for markup and bond rate
-      const { data: companyData, error: companyError } = await supabase
-        .from('company_settings')
-        .select('profit_margin, overhead_percentage')
-        .limit(1)
-        .maybeSingle();
-
-      if (companyData) {
-        setMarkupPercentage(companyData.profit_margin || 0);
-        setBondRate(companyData.overhead_percentage || 0);
+        setSettings({
+          markupPercentage: data.markup_percentage || 15,
+          contingencyPercentage: data.contingency_percentage || 5,
+          includeTax: data.include_tax || true,
+          taxPercentage: data.tax_percentage || 8.5,
+          roundToNearest: data.round_to_nearest || 100
+        });
       }
     } catch (error) {
-      console.error('Error fetching project settings:', error);
+      console.error('Error loading bid settings:', error);
+      toast.error('Failed to load bid settings');
     }
   };
 
-  const handleSaveSettings = async () => {
-    setLoading(true);
+  const handleSave = async () => {
+    setSaving(true);
     try {
-      // Update project settings
-      const { error: projectError } = await supabase
-        .from('projects')
-        .update({
-          contingency_type: contingencyType,
-          contingency_value: contingencyValue,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', projectId);
+      const { error } = await supabase
+        .from('bid_settings')
+        .upsert({
+          project_id: projectId,
+          markup_percentage: settings.markupPercentage,
+          contingency_percentage: settings.contingencyPercentage,
+          include_tax: settings.includeTax,
+          tax_percentage: settings.taxPercentage,
+          round_to_nearest: settings.roundToNearest
+        });
 
-      if (projectError) throw projectError;
+      if (error) throw error;
 
-      // Update company settings
-      const { data: existingCompany } = await supabase
-        .from('company_settings')
-        .select('id')
-        .limit(1)
-        .maybeSingle();
-
-      if (existingCompany) {
-        const { error: companyError } = await supabase
-          .from('company_settings')
-          .update({
-            profit_margin: markupPercentage,
-            overhead_percentage: bondRate,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingCompany.id);
-
-        if (companyError) throw companyError;
-      } else {
-        const { error: companyError } = await supabase
-          .from('company_settings')
-          .insert({
-            company_name: 'BuildPro Construction',
-            profit_margin: markupPercentage,
-            overhead_percentage: bondRate
-          });
-
-        if (companyError) throw companyError;
-      }
-
-      toast.success('Settings saved successfully');
+      toast.success('Bid settings saved successfully');
     } catch (error) {
-      console.error('Error saving settings:', error);
-      toast.error('Failed to save settings');
+      console.error('Error saving bid settings:', error);
+      toast.error('Failed to save bid settings');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -114,77 +85,75 @@ export function BidSettings({ projectId }: BidSettingsProps) {
         <CardTitle>Bid Settings</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-4">
-          <h4 className="font-medium">Contingency Settings</h4>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
             <div>
-              <Label htmlFor="contingency-type">Contingency Type</Label>
-              <Select
-                value={contingencyType}
-                onValueChange={(value) => setContingencyType(value as 'percentage' | 'dollar')}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="percentage">Percentage (%)</SelectItem>
-                  <SelectItem value="dollar">Dollar Amount ($)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="contingency-value">
-                Contingency {contingencyType === 'percentage' ? 'Percentage' : 'Amount'}
-              </Label>
+              <Label htmlFor="markup">Mark Up %</Label>
               <Input
-                id="contingency-value"
+                id="markup"
                 type="number"
-                value={contingencyValue}
-                onChange={(e) => setContingencyValue(parseFloat(e.target.value) || 0)}
-                min="0"
-                step={contingencyType === 'percentage' ? '0.1' : '0.01'}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <h4 className="font-medium">Pricing Settings</h4>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="markup-percentage">Mark % (Profit Margin)</Label>
-              <Input
-                id="markup-percentage"
-                type="number"
-                value={markupPercentage}
-                onChange={(e) => setMarkupPercentage(parseFloat(e.target.value) || 0)}
+                value={settings.markupPercentage}
+                onChange={(e) => setSettings(prev => ({ ...prev, markupPercentage: parseFloat(e.target.value) || 0 }))}
                 min="0"
                 step="0.1"
               />
             </div>
 
             <div>
-              <Label htmlFor="bond-rate">Bond Rate %</Label>
+              <Label htmlFor="contingency">Contingency %</Label>
               <Input
-                id="bond-rate"
+                id="contingency"
                 type="number"
-                value={bondRate}
-                onChange={(e) => setBondRate(parseFloat(e.target.value) || 0)}
+                value={settings.contingencyPercentage}
+                onChange={(e) => setSettings(prev => ({ ...prev, contingencyPercentage: parseFloat(e.target.value) || 0 }))}
                 min="0"
                 step="0.1"
               />
             </div>
+
+            <div>
+              <Label htmlFor="roundTo">Round to Nearest</Label>
+              <Input
+                id="roundTo"
+                type="number"
+                value={settings.roundToNearest}
+                onChange={(e) => setSettings(prev => ({ ...prev, roundToNearest: parseFloat(e.target.value) || 1 }))}
+                min="1"
+                step="1"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="include-tax"
+                checked={settings.includeTax}
+                onCheckedChange={(checked) => setSettings(prev => ({ ...prev, includeTax: checked }))}
+              />
+              <Label htmlFor="include-tax">Include Tax</Label>
+            </div>
+
+            {settings.includeTax && (
+              <div>
+                <Label htmlFor="tax">Tax %</Label>
+                <Input
+                  id="tax"
+                  type="number"
+                  value={settings.taxPercentage}
+                  onChange={(e) => setSettings(prev => ({ ...prev, taxPercentage: parseFloat(e.target.value) || 0 }))}
+                  min="0"
+                  step="0.1"
+                />
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="pt-4 border-t">
-          <Button onClick={handleSaveSettings} disabled={loading}>
-            {loading ? 'Saving...' : 'Save Settings'}
-          </Button>
-        </div>
+        <Button onClick={handleSave} disabled={saving} className="w-full">
+          <Save className="w-4 h-4 mr-2" />
+          {saving ? 'Saving...' : 'Save Settings'}
+        </Button>
       </CardContent>
     </Card>
   );

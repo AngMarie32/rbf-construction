@@ -48,24 +48,24 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     return bidItems.reduce((sum, item) => sum + item.total, 0);
   };
 
-  const getCategoryBreakdown = () => {
+  const getDivisionBreakdown = () => {
     const breakdown: Record<string, Record<string, number>> = {};
     
     bidItems.forEach(item => {
       if (!item.description.trim()) return;
       
-      const category = item.category || 'Other';
-      const subcategory = item.subcategory || 'Uncategorized';
+      const division = item.division || 'Other';
+      const category = item.category || 'Uncategorized';
       
-      if (!breakdown[category]) {
-        breakdown[category] = {};
+      if (!breakdown[division]) {
+        breakdown[division] = {};
       }
       
-      if (!breakdown[category][subcategory]) {
-        breakdown[category][subcategory] = 0;
+      if (!breakdown[division][category]) {
+        breakdown[division][category] = 0;
       }
       
-      breakdown[category][subcategory] += item.total;
+      breakdown[division][category] += item.total;
     });
     
     return breakdown;
@@ -118,7 +118,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     onShowCreateViewChange(false);
   };
 
-  const breakdown = getCategoryBreakdown();
+  const breakdown = getDivisionBreakdown();
 
   return (
     <div className="space-y-6">
@@ -150,18 +150,23 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
                 Total: ${calculateTotalValue().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               
-              <div className="space-y-3">
-                {Object.entries(breakdown).map(([category, subcategories]) => (
-                  <div key={category} className="space-y-2">
-                    <div className="font-medium text-sm">{category}</div>
-                    {Object.entries(subcategories).map(([subcategory, amount]) => (
-                      <div key={subcategory} className="flex justify-between text-xs pl-3">
-                        <span className="text-muted-foreground">{subcategory}</span>
-                        <span>${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <div className="space-y-4">
+                {Object.entries(breakdown).map(([division, categories]) => {
+                  const divisionTotal = Object.values(categories).reduce((sum, amount) => sum + amount, 0);
+                  return (
+                    <div key={division} className="space-y-2">
+                      <div className="font-semibold text-sm border-b pb-1">
+                        {division}: ${divisionTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
-                    ))}
-                  </div>
-                ))}
+                      {Object.entries(categories).map(([category, amount]) => (
+                        <div key={category} className="flex justify-between text-xs pl-3">
+                          <span className="text-muted-foreground">{category}</span>
+                          <span>${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
               
               <div className="text-sm text-muted-foreground pt-2 border-t">
