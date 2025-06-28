@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, CalendarDays, BarChart3, Plus, Search, Filter, Eye, Download, Settings, Target, Lightbulb, Users, Clock, Board, Zap, FileTemplate } from 'lucide-react';
+import { Calendar, CalendarDays, BarChart3, Plus, Search, Filter, Eye, Download, Settings, Target, Lightbulb, Users, Clock, Kanban, Zap, FileText } from 'lucide-react';
 import { GanttChart } from '@/components/schedule/GanttChart';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
 import { CriticalPath } from '@/components/schedule/CriticalPath';
@@ -325,7 +326,7 @@ export default function ProjectSchedule() {
                   variant="outline"
                   className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
                 >
-                  <FileTemplate className="w-4 h-4 mr-2" />
+                  <FileText className="w-4 h-4 mr-2" />
                   Templates
                 </Button>
                 <CreateTaskDialog 
@@ -348,7 +349,7 @@ export default function ProjectSchedule() {
                   Gantt Chart
                 </TabsTrigger>
                 <TabsTrigger value="board" className="flex items-center gap-2">
-                  <Board className="w-4 h-4" />
+                  <Kanban className="w-4 h-4" />
                   Board
                 </TabsTrigger>
                 <TabsTrigger value="calendar" className="flex items-center gap-2">
