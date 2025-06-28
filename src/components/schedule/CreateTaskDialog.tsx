@@ -41,7 +41,7 @@ export function CreateTaskDialog({
   const [projectId, setProjectId] = useState('');
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [duration, setDuration] = useState(1);
-  const [status, setStatus] = useState(defaultStatus);
+  const [status, setStatus] = useState<Task['status']>(defaultStatus);
   const [progress, setProgress] = useState(0);
   const [isCritical, setIsCritical] = useState(false);
   const [selectedDependencies, setSelectedDependencies] = useState<string[]>([]);
@@ -63,8 +63,25 @@ export function CreateTaskDialog({
     }
 
     setLoading(true);
+    
+    // Calculate business days (skip weekends)
+    const calculateBusinessDays = (start: Date, days: number): Date => {
+      let result = new Date(start);
+      let addedDays = 0;
+      
+      while (addedDays < days) {
+        result = addDays(result, 1);
+        // Skip weekends (Saturday = 6, Sunday = 0)
+        if (result.getDay() !== 0 && result.getDay() !== 6) {
+          addedDays++;
+        }
+      }
+      
+      return result;
+    };
+
     try {
-      const endDate = addDays(startDate, duration - 1);
+      const endDate = calculateBusinessDays(startDate, duration - 1);
       
       const { error } = await supabase
         .from('tasks')
@@ -188,13 +205,13 @@ export function CreateTaskDialog({
                 onChange={(e) => setDuration(parseInt(e.target.value) || 1)}
               />
               <p className="text-sm text-muted-foreground mt-1">
-                End date: {format(addDays(startDate, duration - 1), 'PPP')}
+                End date: {format(addDays(startDate, duration - 1), 'PPP')} (excluding weekends)
               </p>
             </div>
 
             <div>
               <Label htmlFor="status">Status</Label>
-              <Select value={status} onValueChange={setStatus}>
+              <Select value={status} onValueChange={(value) => setStatus(value as Task['status'])}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

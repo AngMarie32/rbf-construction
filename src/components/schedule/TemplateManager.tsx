@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -52,7 +53,7 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
   const [newTemplate, setNewTemplate] = useState({
     name: '',
     description: '',
-    items: [] as any[]
+    items: [] as Partial<ScheduleTemplateItem>[]
   });
 
   const [editingTemplate, setEditingTemplate] = useState<ScheduleTemplate | null>(null);
@@ -127,10 +128,10 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
       if (newTemplate.items.length > 0) {
         const itemsToInsert = newTemplate.items.map(item => ({
           template_id: template.id,
-          title: item.title,
-          description: item.description,
-          duration: item.duration,
-          category: item.category,
+          title: item.title || '',
+          description: item.description || '',
+          duration: item.duration || 1,
+          category: item.category || '',
           dependencies: item.dependencies || []
         }));
 
@@ -226,6 +227,22 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
     }
   };
 
+  // Calculate business days (skip weekends)
+  const calculateBusinessDays = (start: Date, days: number): Date => {
+    let result = new Date(start);
+    let addedDays = 0;
+    
+    while (addedDays < days) {
+      result = addDays(result, 1);
+      // Skip weekends (Saturday = 6, Sunday = 0)
+      if (result.getDay() !== 0 && result.getDay() !== 6) {
+        addedDays++;
+      }
+    }
+    
+    return result;
+  };
+
   const applyTemplate = async (template: ScheduleTemplate) => {
     if (!selectedProjectId) {
       toast.error('Please select a project first');
@@ -236,10 +253,10 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
       setLoading(true);
       const startDate = new Date();
       
-      // Create tasks from template items
+      // Create tasks from template items using business days
       const tasksToCreate = template.items.map((item, index) => {
-        const taskStartDate = addDays(startDate, index * item.duration);
-        const taskEndDate = addDays(taskStartDate, item.duration - 1);
+        const taskStartDate = index === 0 ? startDate : calculateBusinessDays(startDate, index * item.duration);
+        const taskEndDate = calculateBusinessDays(taskStartDate, item.duration - 1);
         
         return {
           title: item.title,
@@ -280,19 +297,20 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
   };
 
   const addTemplateItem = (isEditing = false) => {
-    const newItem = {
+    const newItem: Partial<ScheduleTemplateItem> = {
       id: `temp-${Date.now()}`,
       title: '',
       description: '',
       duration: 1,
       category: '',
-      dependencies: []
+      dependencies: [],
+      templateId: isEditing && editingTemplate ? editingTemplate.id : ''
     };
     
     if (isEditing && editingTemplate) {
       setEditingTemplate({
         ...editingTemplate,
-        items: [...editingTemplate.items, newItem]
+        items: [...editingTemplate.items, newItem as ScheduleTemplateItem]
       });
     } else {
       setNewTemplate({
@@ -327,9 +345,6 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
       });
     }
   };
-
-  const currentItems = editingTemplate ? editingTemplate.items : newTemplate.items;
-  const isEditMode = !!editingTemplate;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -526,14 +541,14 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
                             <TableCell>
                               <Input
                                 value={item.title}
-                                onChange={(e) => updateTemplateItem(index, 'title', e.target.value)}
+                                onChange={(e) => updateTemplateItem(index, 'title', e.target.value, true)}
                                 placeholder="Task title"
                               />
                             </TableCell>
                             <TableCell>
                               <Input
                                 value={item.description}
-                                onChange={(e) => updateTemplateItem(index, 'description', e.target.value)}
+                                onChange={(e) => updateTemplateItem(index, 'description', e.target.value, true)}
                                 placeholder="Task description"
                               />
                             </TableCell>
@@ -542,14 +557,14 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
                                 type="number"
                                 min="1"
                                 value={item.duration}
-                                onChange={(e) => updateTemplateItem(index, 'duration', parseInt(e.target.value) || 1)}
+                                onChange={(e) => updateTemplateItem(index, 'duration', parseInt(e.target.value) || 1, true)}
                                 placeholder="1"
                               />
                             </TableCell>
                             <TableCell>
                               <Input
                                 value={item.category}
-                                onChange={(e) => updateTemplateItem(index, 'category', e.target.value)}
+                                onChange={(e) => updateTemplateItem(index, 'category', e.target.value, true)}
                                 placeholder="Category"
                               />
                             </TableCell>
@@ -557,7 +572,7 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => removeTemplateItem(index)}
+                                onClick={() => removeTemplateItem(index, true)}
                                 className="text-red-600"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -614,7 +629,7 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
 
               <div className="flex items-center justify-between">
                 <h4 className="font-medium">Template Tasks</h4>
-                <Button onClick={addTemplateItem} size="sm">
+                <Button onClick={() => addTemplateItem(false)} size="sm">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Task
                 </Button>
@@ -637,15 +652,15 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
                         <TableRow key={item.id}>
                           <TableCell>
                             <Input
-                              value={item.title}
-                              onChange={(e) => updateTemplateItem(index, 'title', e.target.value)}
+                              value={item.title || ''}
+                              onChange={(e) => updateTemplateItem(index, 'title', e.target.value, false)}
                               placeholder="Task title"
                             />
                           </TableCell>
                           <TableCell>
                             <Input
-                              value={item.description}
-                              onChange={(e) => updateTemplateItem(index, 'description', e.target.value)}
+                              value={item.description || ''}
+                              onChange={(e) => updateTemplateItem(index, 'description', e.target.value, false)}
                               placeholder="Task description"
                             />
                           </TableCell>
@@ -653,15 +668,15 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
                             <Input
                               type="number"
                               min="1"
-                              value={item.duration}
-                              onChange={(e) => updateTemplateItem(index, 'duration', parseInt(e.target.value) || 1)}
+                              value={item.duration || 1}
+                              onChange={(e) => updateTemplateItem(index, 'duration', parseInt(e.target.value) || 1, false)}
                               placeholder="1"
                             />
                           </TableCell>
                           <TableCell>
                             <Input
-                              value={item.category}
-                              onChange={(e) => updateTemplateItem(index, 'category', e.target.value)}
+                              value={item.category || ''}
+                              onChange={(e) => updateTemplateItem(index, 'category', e.target.value, false)}
                               placeholder="Category"
                             />
                           </TableCell>
@@ -669,7 +684,7 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => removeTemplateItem(index)}
+                              onClick={() => removeTemplateItem(index, false)}
                               className="text-red-600"
                             >
                               <Trash2 className="w-4 h-4" />
