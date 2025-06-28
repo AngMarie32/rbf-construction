@@ -34,11 +34,11 @@ interface QuickPlannerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projects: Project[];
-  onTasksAdded?: (tasks: QuickTask[]) => void;
+  onTemplateApplied?: (templateTasks: any[]) => void;
   templateTasks?: any[];
 }
 
-export function QuickPlanner({ open, onOpenChange, projects, onTasksAdded, templateTasks = [] }: QuickPlannerProps) {
+export function QuickPlanner({ open, onOpenChange, projects, onTemplateApplied, templateTasks = [] }: QuickPlannerProps) {
   const [tasks, setTasks] = useState<QuickTask[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [saving, setSaving] = useState(false);
@@ -122,8 +122,8 @@ export function QuickPlanner({ open, onOpenChange, projects, onTasksAdded, templ
 
       if (error) throw error;
 
-      if (onTasksAdded) {
-        onTasksAdded(tasks);
+      if (onTemplateApplied) {
+        onTemplateApplied(tasks);
       }
       setTasks([]);
       setSelectedProject('');

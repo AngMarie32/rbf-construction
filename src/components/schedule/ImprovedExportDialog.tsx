@@ -1,22 +1,24 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, FileText, Image, Table, Calendar, BarChart3, Users, Clock, CheckCircle2, Network } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FileText, Printer, AlertCircle, BarChart3, Calendar, List, GitBranch } from 'lucide-react';
 import { Task } from '@/types';
-import { format, differenceInDays } from 'date-fns';
-import jsPDF from 'jspdf';
-import * as XLSX from 'xlsx';
+import { generateReport } from '@/utils/enhancedExports';
+import { validateTaskList, formatValidationMessage, getValidationSummary } from '@/utils/dataValidation';
+import { toast } from 'sonner';
 
 interface Project {
   id: string;
   name: string;
   color: string;
+  client?: string;
+  contractValue?: number;
+  status?: string;
 }
 
 interface ImprovedExportDialogProps {
@@ -24,492 +26,317 @@ interface ImprovedExportDialogProps {
   onOpenChange: (open: boolean) => void;
   tasks: Task[];
   projects: Project[];
+  selectedProjects?: string[];
+  title?: string;
 }
 
-export function ImprovedExportDialog({ open, onOpenChange, tasks, projects }: ImprovedExportDialogProps) {
-  const [exportFormat, setExportFormat] = useState<'pdf' | 'excel' | 'csv'>('pdf');
-  const [includeDetails, setIncludeDetails] = useState({
-    timeline: true,
-    progress: true,
-    dependencies: true,
-    projectBreakdown: true,
-    summary: true,
-    ganttChart: true,
-    dependencyMap: true
+export function ImprovedExportDialog({
+  open,
+  onOpenChange,
+  tasks,
+  projects,
+  selectedProjects = [],
+  title = 'Project Schedule Report'
+}: ImprovedExportDialogProps) {
+  const [reportOptions, setReportOptions] = useState({
+    includeGanttChart: true,
+    includeTaskList: true,
+    includeCalendarView: true,
+    includeCriticalPath: true,
+    includeProgress: true,
+    includeDependencies: true,
+    includeProjectInfo: true,
+    dateFormat: 'yyyy-MM-dd' as 'yyyy-MM-dd' | 'MM/dd/yyyy' | 'dd/MM/yyyy'
   });
-  const [exporting, setExporting] = useState(false);
 
-  const getProjectName = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
-    return project?.name || 'Unknown Project';
+  const [loading, setLoading] = useState(false);
+  const [validationResult, setValidationResult] = useState(validateTaskList(tasks));
+
+  const handleReportOption = (key: string, value: any) => {
+    setReportOptions(prev => ({ ...prev, [key]: value }));
   };
 
-  const getTaskStats = () => {
-    return {
-      total: tasks.length,
-      completed: tasks.filter(t => t.status === 'Completed').length,
-      inProgress: tasks.filter(t => t.status === 'In Progress').length,
-      notStarted: tasks.filter(t => t.status === 'Not Started').length,
-      onHold: tasks.filter(t => t.status === 'On Hold').length,
-      avgProgress: tasks.length > 0 ? Math.round(tasks.reduce((sum, t) => sum + t.progress, 0) / tasks.length) : 0,
-      withDependencies: tasks.filter(t => t.dependencies && t.dependencies.length > 0).length
-    };
-  };
-
-  const exportToPDF = async () => {
-    const pdf = new jsPDF('landscape');
-    let yPosition = 20;
-
-    // Title
-    pdf.setFontSize(20);
-    pdf.setTextColor(44, 82, 130);
-    pdf.text('Professional Project Schedule Report', 20, yPosition);
-    yPosition += 15;
-
-    // Date
-    pdf.setFontSize(10);
-    pdf.setTextColor(100, 100, 100);
-    pdf.text(`Generated on ${format(new Date(), 'PPP')}`, 20, yPosition);
-    yPosition += 20;
-
-    if (includeDetails.summary) {
-      const stats = getTaskStats();
-      
-      // Executive Summary Card
-      pdf.setFillColor(248, 250, 252);
-      pdf.rect(20, yPosition - 5, 250, 35, 'F');
-      
-      pdf.setFontSize(14);
-      pdf.setTextColor(0, 0, 0);
-      pdf.text('Executive Summary', 25, yPosition + 5);
-      
-      pdf.setFontSize(10);
-      pdf.text(`Total Tasks: ${stats.total}`, 25, yPosition + 15);
-      pdf.text(`Completed: ${stats.completed} (${Math.round((stats.completed/stats.total)*100)}%)`, 80, yPosition + 15);
-      pdf.text(`In Progress: ${stats.inProgress}`, 160, yPosition + 15);
-      pdf.text(`Average Progress: ${stats.avgProgress}%`, 210, yPosition + 15);
-      
-      pdf.text(`Tasks with Dependencies: ${stats.withDependencies}`, 25, yPosition + 25);
-      pdf.text(`Critical Path Items: ${Math.ceil(stats.total * 0.3)}`, 120, yPosition + 25);
-      
-      yPosition += 45;
-    }
-
-    if (includeDetails.projectBreakdown) {
-      // Project Breakdown
-      pdf.setFontSize(14);
-      pdf.setTextColor(0, 0, 0);
-      pdf.text('Project Breakdown', 20, yPosition);
-      yPosition += 10;
-
-      const projectGroups = projects.map(project => ({
-        ...project,
-        tasks: tasks.filter(t => t.projectId === project.id)
-      })).filter(p => p.tasks.length > 0);
-
-      projectGroups.forEach(project => {
-        pdf.setFontSize(10);
-        pdf.setFillColor(240, 240, 240);
-        pdf.rect(25, yPosition - 3, 200, 8, 'F');
-        pdf.text(`${project.name}: ${project.tasks.length} tasks`, 30, yPosition);
-        yPosition += 12;
-      });
-      yPosition += 10;
-    }
-
-    if (includeDetails.ganttChart) {
-      // Gantt Chart Visualization
-      pdf.setFontSize(14);
-      pdf.setTextColor(0, 0, 0);
-      pdf.text('Schedule Timeline (Gantt View)', 20, yPosition);
-      yPosition += 15;
-
-      // Gantt header
-      pdf.setFontSize(8);
-      pdf.setFillColor(248, 249, 250);
-      pdf.rect(20, yPosition - 5, 250, 10, 'F');
-      pdf.text('Task', 25, yPosition);
-      pdf.text('Project', 80, yPosition);
-      pdf.text('Start', 130, yPosition);
-      pdf.text('End', 160, yPosition);
-      pdf.text('Progress', 190, yPosition);
-      pdf.text('Timeline', 220, yPosition);
-      yPosition += 10;
-
-      // Gantt rows
-      tasks.slice(0, 15).forEach((task, index) => {
-        if (yPosition > 180) {
-          pdf.addPage('landscape');
-          yPosition = 20;
-        }
-
-        if (index % 2 === 0) {
-          pdf.setFillColor(250, 250, 250);
-          pdf.rect(20, yPosition - 5, 250, 10, 'F');
-        }
-
-        pdf.setFontSize(8);
-        pdf.text(task.title.substring(0, 20), 25, yPosition);
-        pdf.text(getProjectName(task.projectId).substring(0, 15), 80, yPosition);
-        pdf.text(format(task.startDate, 'MM/dd'), 130, yPosition);
-        pdf.text(format(task.endDate, 'MM/dd'), 160, yPosition);
-        pdf.text(`${task.progress}%`, 190, yPosition);
-        
-        // Timeline bar
-        const duration = differenceInDays(task.endDate, task.startDate) + 1;
-        const barWidth = Math.min(30, duration * 2);
-        pdf.setFillColor(59, 130, 246);
-        pdf.rect(220, yPosition - 3, barWidth, 6, 'F');
-        
-        // Progress indicator
-        const progressWidth = (barWidth * task.progress) / 100;
-        pdf.setFillColor(34, 197, 94);
-        pdf.rect(220, yPosition - 3, progressWidth, 6, 'F');
-        
-        yPosition += 8;
-      });
-      yPosition += 10;
-    }
-
-    if (includeDetails.dependencyMap && tasks.some(t => t.dependencies && t.dependencies.length > 0)) {
-      // Dependencies Section
-      pdf.setFontSize(14);
-      pdf.setTextColor(0, 0, 0);
-      pdf.text('Task Dependencies', 20, yPosition);
-      yPosition += 10;
-
-      const tasksWithDeps = tasks.filter(t => t.dependencies && t.dependencies.length > 0);
-      tasksWithDeps.forEach(task => {
-        if (yPosition > 180) {
-          pdf.addPage('landscape');
-          yPosition = 20;
-        }
-
-        pdf.setFontSize(9);
-        pdf.text(`${task.title} depends on:`, 25, yPosition);
-        yPosition += 8;
-
-        task.dependencies?.forEach(depId => {
-          const depTask = tasks.find(t => t.id === depId);
-          if (depTask) {
-            pdf.setFontSize(8);
-            pdf.text(`  → ${depTask.title}`, 30, yPosition);
-            yPosition += 6;
-          }
-        });
-        yPosition += 5;
-      });
-    }
-
-    pdf.save('professional-schedule-report.pdf');
-  };
-
-  const exportToExcel = () => {
-    const workbook = XLSX.utils.book_new();
-    
-    // Enhanced tasks sheet
-    const tasksData = tasks.map(task => ({
-      'Task Name': task.title,
-      'Project': getProjectName(task.projectId),
-      'Start Date': format(task.startDate, 'yyyy-MM-dd'),
-      'End Date': format(task.endDate, 'yyyy-MM-dd'),
-      'Duration (Days)': differenceInDays(task.endDate, task.startDate) + 1,
-      'Status': task.status,
-      'Progress (%)': task.progress,
-      'Has Dependencies': task.dependencies && task.dependencies.length > 0 ? 'Yes' : 'No',
-      'Dependency Count': task.dependencies?.length || 0,
-      'Dependencies': task.dependencies?.map(depId => {
-        const depTask = tasks.find(t => t.id === depId);
-        return depTask?.title || depId;
-      }).join(', ') || 'None'
-    }));
-
-    const tasksSheet = XLSX.utils.json_to_sheet(tasksData);
-    XLSX.utils.book_append_sheet(workbook, tasksSheet, 'Tasks');
-
-    if (includeDetails.summary) {
-      const stats = getTaskStats();
-      const summaryData = [
-        { Metric: 'Total Tasks', Value: stats.total },
-        { Metric: 'Completed Tasks', Value: stats.completed },
-        { Metric: 'In Progress Tasks', Value: stats.inProgress },
-        { Metric: 'Not Started Tasks', Value: stats.notStarted },
-        { Metric: 'On Hold Tasks', Value: stats.onHold },
-        { Metric: 'Average Progress (%)', Value: stats.avgProgress },
-        { Metric: 'Tasks with Dependencies', Value: stats.withDependencies }
-      ];
-
-      const summarySheet = XLSX.utils.json_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
-    }
-
-    if (includeDetails.projectBreakdown) {
-      const projectData = projects.map(project => {
-        const projectTasks = tasks.filter(t => t.projectId === project.id);
-        return {
-          'Project Name': project.name,
-          'Total Tasks': projectTasks.length,
-          'Completed': projectTasks.filter(t => t.status === 'Completed').length,
-          'In Progress': projectTasks.filter(t => t.status === 'In Progress').length,
-          'Average Progress': projectTasks.length > 0 ? 
-            Math.round(projectTasks.reduce((sum, t) => sum + t.progress, 0) / projectTasks.length) : 0
-        };
-      }).filter(p => p['Total Tasks'] > 0);
-
-      const projectSheet = XLSX.utils.json_to_sheet(projectData);
-      XLSX.utils.book_append_sheet(workbook, projectSheet, 'Projects');
-    }
-
-    XLSX.writeFile(workbook, 'professional-schedule-report.xlsx');
-  };
-
-  const exportToCSV = () => {
-    const csvData = tasks.map(task => ({
-      'Task Name': task.title,
-      'Project': getProjectName(task.projectId),
-      'Start Date': format(task.startDate, 'yyyy-MM-dd'),
-      'End Date': format(task.endDate, 'yyyy-MM-dd'),
-      'Duration': differenceInDays(task.endDate, task.startDate) + 1,
-      'Status': task.status,
-      'Progress (%)': task.progress,
-      'Dependencies': task.dependencies?.map(depId => {
-        const depTask = tasks.find(t => t.id === depId);
-        return depTask?.title || depId;
-      }).join('; ') || 'None'
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(csvData);
-    const csv = XLSX.utils.sheet_to_csv(worksheet);
-    
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'professional-schedule-report.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleExport = async () => {
-    setExporting(true);
+  const handleGenerateReport = () => {
     try {
-      switch (exportFormat) {
-        case 'pdf':
-          await exportToPDF();
-          break;
-        case 'excel':
-          exportToExcel();
-          break;
-        case 'csv':
-          exportToCSV();
-          break;
-      }
+      generateReport(tasks, projects, reportOptions, title);
+      toast.success('Report generated successfully');
+      onOpenChange(false);
     } catch (error) {
-      console.error('Export failed:', error);
-    } finally {
-      setExporting(false);
+      toast.error('Failed to generate report');
     }
   };
 
-  const stats = getTaskStats();
+  const validateAndUpdateData = () => {
+    const result = validateTaskList(tasks);
+    setValidationResult(result);
+    return result;
+  };
+
+  const getIncludedViewsCount = () => {
+    const views = [
+      reportOptions.includeGanttChart,
+      reportOptions.includeTaskList,
+      reportOptions.includeCalendarView,
+      reportOptions.includeCriticalPath
+    ];
+    return views.filter(Boolean).length;
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Download className="w-5 h-5" />
-            Professional Schedule Report
+            <FileText className="w-5 h-5" />
+            Generate Project Report
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Export Configuration */}
-          <div className="lg:col-span-1 space-y-4">
-            <Card className="border-blue-200">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Export Options
-                </CardTitle>
+        <Tabs defaultValue="views" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="views">Report Views</TabsTrigger>
+            <TabsTrigger value="options">Data Options</TabsTrigger>
+            <TabsTrigger value="validation">Validation</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="views" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Select Report Views</CardTitle>
+                <CardDescription>
+                  Choose which views to include in your comprehensive report ({getIncludedViewsCount()} selected)
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-gray-50">
+                    <Checkbox
+                      id="includeGanttChart"
+                      checked={reportOptions.includeGanttChart}
+                      onCheckedChange={(checked) => 
+                        handleReportOption('includeGanttChart', checked)
+                      }
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-blue-600" />
+                        <Label htmlFor="includeGanttChart" className="font-medium">Gantt Chart View</Label>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Timeline visualization showing task dependencies and project timeline
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-gray-50">
+                    <Checkbox
+                      id="includeTaskList"
+                      checked={reportOptions.includeTaskList}
+                      onCheckedChange={(checked) => 
+                        handleReportOption('includeTaskList', checked)
+                      }
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <List className="w-4 h-4 text-green-600" />
+                        <Label htmlFor="includeTaskList" className="font-medium">Task List</Label>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Detailed table with all tasks, dates, status, and progress information
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-gray-50">
+                    <Checkbox
+                      id="includeCalendarView"
+                      checked={reportOptions.includeCalendarView}
+                      onCheckedChange={(checked) => 
+                        handleReportOption('includeCalendarView', checked)
+                      }
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-purple-600" />
+                        <Label htmlFor="includeCalendarView" className="font-medium">Calendar Overview</Label>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Calendar-style view highlighting upcoming and overdue tasks
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-gray-50">
+                    <Checkbox
+                      id="includeCriticalPath"
+                      checked={reportOptions.includeCriticalPath}
+                      onCheckedChange={(checked) => 
+                        handleReportOption('includeCriticalPath', checked)
+                      }
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <GitBranch className="w-4 h-4 text-red-600" />
+                        <Label htmlFor="includeCriticalPath" className="font-medium">Critical Path Analysis</Label>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Analysis of critical tasks that impact project completion timeline
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="options" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Data & Formatting Options</CardTitle>
+                <CardDescription>
+                  Configure what data to include and how to format the report
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="includeProgress"
+                      checked={reportOptions.includeProgress}
+                      onCheckedChange={(checked) => 
+                        handleReportOption('includeProgress', checked)
+                      }
+                    />
+                    <Label htmlFor="includeProgress">Include Progress Bars</Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="includeDependencies"
+                      checked={reportOptions.includeDependencies}
+                      onCheckedChange={(checked) => 
+                        handleReportOption('includeDependencies', checked)
+                      }
+                    />
+                    <Label htmlFor="includeDependencies">Include Dependencies</Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="includeProjectInfo"
+                      checked={reportOptions.includeProjectInfo}
+                      onCheckedChange={(checked) => 
+                        handleReportOption('includeProjectInfo', checked)
+                      }
+                    />
+                    <Label htmlFor="includeProjectInfo">Include Project Details</Label>
+                  </div>
+                </div>
+
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Format</label>
-                  <Select value={exportFormat} onValueChange={(value: 'pdf' | 'excel' | 'csv') => setExportFormat(value)}>
+                  <Label>Date Format</Label>
+                  <Select
+                    value={reportOptions.dateFormat}
+                    onValueChange={(value) => handleReportOption('dateFormat', value)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pdf">
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4" />
-                          Professional PDF
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="excel">
-                        <div className="flex items-center gap-2">
-                          <Table className="w-4 h-4" />
-                          Excel Workbook
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="csv">
-                        <div className="flex items-center gap-2">
-                          <Table className="w-4 h-4" />
-                          CSV Data
-                        </div>
-                      </SelectItem>
+                      <SelectItem value="yyyy-MM-dd">YYYY-MM-DD (2025-06-15)</SelectItem>
+                      <SelectItem value="MM/dd/yyyy">MM/DD/YYYY (06/15/2025)</SelectItem>
+                      <SelectItem value="dd/MM/yyyy">DD/MM/YYYY (15/06/2025)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-
-                <Separator />
-
-                <div className="space-y-3">
-                  <label className="text-sm font-medium">Include Sections</label>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="summary"
-                        checked={includeDetails.summary}
-                        onCheckedChange={(checked) => 
-                          setIncludeDetails(prev => ({ ...prev, summary: !!checked }))
-                        }
-                      />
-                      <label htmlFor="summary" className="text-sm">Executive Summary</label>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="ganttChart"
-                        checked={includeDetails.ganttChart}
-                        onCheckedChange={(checked) => 
-                          setIncludeDetails(prev => ({ ...prev, ganttChart: !!checked }))
-                        }
-                      />
-                      <label htmlFor="ganttChart" className="text-sm">Gantt Chart View</label>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="projectBreakdown"
-                        checked={includeDetails.projectBreakdown}
-                        onCheckedChange={(checked) => 
-                          setIncludeDetails(prev => ({ ...prev, projectBreakdown: !!checked }))
-                        }
-                      />
-                      <label htmlFor="projectBreakdown" className="text-sm">Project Breakdown</label>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="dependencyMap"
-                        checked={includeDetails.dependencyMap}
-                        onCheckedChange={(checked) => 
-                          setIncludeDetails(prev => ({ ...prev, dependencyMap: !!checked }))
-                        }
-                      />
-                      <label htmlFor="dependencyMap" className="text-sm">Dependency Mapping</label>
-                    </div>
-                  </div>
-                </div>
               </CardContent>
             </Card>
-          </div>
+          </TabsContent>
 
-          {/* Enhanced Preview */}
-          <div className="lg:col-span-2 space-y-4">
-            <Card className="border-green-200">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4" />
-                  Report Preview
+          <TabsContent value="validation" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5" />
+                  Data Validation Results
                 </CardTitle>
+                <CardDescription>
+                  {getValidationSummary(validationResult)}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {/* Enhanced Stats Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg text-center border border-blue-200">
-                      <div className="text-2xl font-bold text-blue-700">{stats.total}</div>
-                      <div className="text-xs text-blue-600">Total Tasks</div>
-                    </div>
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-lg text-center border border-green-200">
-                      <div className="text-2xl font-bold text-green-700">{stats.completed}</div>
-                      <div className="text-xs text-green-600">Completed</div>
-                    </div>
-                    <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-3 rounded-lg text-center border border-yellow-200">
-                      <div className="text-2xl font-bold text-yellow-700">{stats.avgProgress}%</div>
-                      <div className="text-xs text-yellow-600">Avg Progress</div>
-                    </div>
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 rounded-lg text-center border border-purple-200">
-                      <div className="text-2xl font-bold text-purple-700">{stats.withDependencies}</div>
-                      <div className="text-xs text-purple-600">With Dependencies</div>
-                    </div>
-                  </div>
+                <Button
+                  onClick={validateAndUpdateData}
+                  variant="outline"
+                  className="mb-4"
+                >
+                  Re-validate Data
+                </Button>
 
-                  <Separator />
-
-                  {/* Sample Task Preview */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Network className="w-4 h-4 text-gray-600" />
-                      <h4 className="font-medium text-sm">Sample Tasks with Project Names</h4>
-                    </div>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {tasks.slice(0, 8).map((task, index) => (
-                        <div key={task.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                          <div className="flex items-center gap-3">
-                            <CheckCircle2 className={`w-4 h-4 ${task.status === 'Completed' ? 'text-green-500' : 'text-gray-400'}`} />
-                            <div>
-                              <div className="text-sm font-medium">{task.title}</div>
-                              <div className="text-xs text-gray-600 flex items-center gap-2">
-                                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                                  {getProjectName(task.projectId)}
-                                </span>
-                                {task.dependencies && task.dependencies.length > 0 && (
-                                  <span className="text-purple-600">→ {task.dependencies.length} deps</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <Badge variant="outline" className="bg-white">
-                            {task.progress}%
-                          </Badge>
+                {validationResult.errors.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="font-medium text-red-600 mb-2">Errors</h4>
+                    <div className="space-y-1">
+                      {validationResult.errors.map((error, index) => (
+                        <div key={index} className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                          {formatValidationMessage(error)}
                         </div>
                       ))}
                     </div>
                   </div>
-                </div>
+                )}
+
+                {validationResult.warnings.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="font-medium text-yellow-600 mb-2">Warnings</h4>
+                    <div className="space-y-1">  
+                      {validationResult.warnings.map((warning, index) => (
+                        <div key={index} className="text-sm text-yellow-600 bg-yellow-50 p-2 rounded">
+                          {formatValidationMessage(warning)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {validationResult.info.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="font-medium text-blue-600 mb-2">Information</h4>
+                    <div className="space-y-1">
+                      {validationResult.info.map((info, index) => (
+                        <div key={index} className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                          {formatValidationMessage(info)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {validationResult.isValid && validationResult.warnings.length === 0 && validationResult.info.length === 0 && (
+                  <div className="text-center py-8 text-green-600">
+                    ✓ All data validation checks passed successfully
+                  </div>
+                )}
               </CardContent>
             </Card>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
 
         <div className="flex justify-between items-center pt-4 border-t">
-          <div className="text-sm text-gray-600 flex items-center gap-4">
-            <span>{tasks.length} tasks • {projects.length} projects</span>
-            <span className="text-purple-600">{stats.withDependencies} with dependencies</span>
+          <div className="text-sm text-gray-500">
+            {tasks.length} tasks, {projects.length} projects • {getIncludedViewsCount()} views selected
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleExport} disabled={exporting} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800">
-              {exporting ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Generating...
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Download className="w-4 h-4" />
-                  Export Professional Report
-                </div>
-              )}
+            <Button 
+              onClick={handleGenerateReport}
+              disabled={loading || getIncludedViewsCount() === 0}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Generate Report
             </Button>
           </div>
         </div>
