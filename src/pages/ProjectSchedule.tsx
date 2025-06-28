@@ -10,11 +10,6 @@ import { Calendar, CalendarDays, BarChart3, Plus, Search, Filter, Eye, Download,
 import { GanttChart } from '@/components/schedule/GanttChart';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
 import { CriticalPath } from '@/components/schedule/CriticalPath';
-import { ImprovedExportDialog } from '@/components/schedule/ImprovedExportDialog';
-import { TaskDependencyManager } from '@/components/schedule/TaskDependencyManager';
-import { TaskEditDialog } from '@/components/schedule/TaskEditDialog';
-import { CreateTaskDialog } from '@/components/schedule/CreateTaskDialog';
-import { CollapsibleFilterSection } from '@/components/schedule/CollapsibleFilterSection';
 import { PlannerBoard } from '@/components/schedule/PlannerBoard';
 import { QuickPlanner } from '@/components/schedule/QuickPlanner';
 import { TemplateManager } from '@/components/schedule/TemplateManager';
@@ -22,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
 import { Task } from '@/types';
+import { EnhancedExportDialog } from '@/components/schedule/EnhancedExportDialog';
 
 interface Project {
   id: string;
@@ -288,24 +284,7 @@ export default function ProjectSchedule() {
         </Card>
 
         {/* Enhanced Filters & View Options */}
-        <CollapsibleFilterSection
-          projects={projects}
-          selectedProjects={selectedProjects}
-          onSelectionChange={setSelectedProjects}
-          searchQuery={searchTerm}
-          onSearchChange={setSearchTerm}
-          showDependencies={showDependencies}
-          onShowDependenciesChange={setShowDependencies}
-          showCriticalPath={showCriticalPath}
-          onShowCriticalPathChange={setShowCriticalPath}
-          showMilestones={showMilestones}
-          onShowMilestonesChange={setShowMilestones}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          dateRange={dateRange}
-          onNavigateDate={navigateDate}
-          currentDate={currentDate}
-        />
+        
 
         {/* Main Schedule Interface */}
         <Card>
@@ -332,189 +311,3 @@ export default function ProjectSchedule() {
                   <FileText className="w-4 h-4 mr-2" />
                   Templates
                 </Button>
-                <CreateTaskDialog 
-                  projects={projects}
-                  tasks={tasks}
-                  onTaskCreated={fetchTasks}
-                />
-                <Button onClick={() => setExportDialogOpen(true)} variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="gantt" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="gantt" className="flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4" />
-                  Gantt Chart
-                </TabsTrigger>
-                <TabsTrigger value="board" className="flex items-center gap-2">
-                  <Kanban className="w-4 h-4" />
-                  Board
-                </TabsTrigger>
-                <TabsTrigger value="calendar" className="flex items-center gap-2">
-                  <CalendarDays className="w-4 h-4" />
-                  Calendar
-                </TabsTrigger>
-                <TabsTrigger value="critical" className="flex items-center gap-2">
-                  <Target className="w-4 h-4" />
-                  Critical Path
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="gantt" className="space-y-4">
-                {loading ? (
-                  <div className="flex justify-center items-center h-64">
-                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-                  </div>
-                ) : (
-                  <GanttChart
-                    tasks={filteredTasks}
-                    onUpdateTask={handleUpdateTask}
-                    onDeleteTask={handleDeleteTask}
-                    onEditDependencies={setDependencyTask}
-                    projects={projects}
-                    selectedProjects={selectedProjects}
-                    dateRange={dateRange}
-                    showDependencies={showDependencies}
-                    showCriticalPath={showCriticalPath}
-                    showMilestones={showMilestones}
-                  />
-                )}
-              </TabsContent>
-
-              <TabsContent value="board" className="space-y-4">
-                {loading ? (
-                  <div className="flex justify-center items-center h-64">
-                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-                  </div>
-                ) : (
-                  <PlannerBoard
-                    tasks={filteredTasks}
-                    projects={projects}
-                    onTaskUpdate={handleUpdateTask}
-                    onTaskDelete={handleDeleteTask}
-                    onAddTask={handleAddTaskToStatus}
-                    onTaskCreated={fetchTasks}
-                    onEditTask={setEditTask}
-                    onEditDependencies={setDependencyTask}
-                  />
-                )}
-              </TabsContent>
-
-              <TabsContent value="calendar">
-                <ScheduleCalendar 
-                  tasks={filteredTasks}
-                  projects={projects}
-                  currentDate={currentDate}
-                  onDateChange={setCurrentDate}
-                  onTaskUpdate={handleUpdateTask}
-                />
-              </TabsContent>
-
-              <TabsContent value="critical">
-                <CriticalPath 
-                  tasks={filteredTasks}
-                  selectedProjects={selectedProjects}
-                />
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-
-        {/* Simplified Project Schedule Workflow */}
-        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Target className="w-5 h-5 text-blue-600" />
-              <CardTitle className="text-blue-900">Project Schedule Workflow</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3 mx-auto">
-                  <Calendar className="w-6 h-6 text-blue-600" />
-                </div>
-                <h3 className="font-semibold text-blue-900 mb-2">Plan</h3>
-                <p className="text-sm text-blue-700">Create tasks with timelines and assign to projects</p>
-              </div>
-              
-              <div className="text-center">
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-3 mx-auto">
-                  <Settings className="w-6 h-6 text-purple-600" />
-                </div>
-                <h3 className="font-semibold text-purple-900 mb-2">Organize</h3>
-                <p className="text-sm text-purple-700">Use Gantt charts and boards to visualize progress</p>
-              </div>
-              
-              <div className="text-center">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3 mx-auto">
-                  <Users className="w-6 h-6 text-green-600" />
-                </div>
-                <h3 className="font-semibold text-green-900 mb-2">Coordinate</h3>
-                <p className="text-sm text-green-700">Manage dependencies and team collaboration</p>
-              </div>
-              
-              <div className="text-center">
-                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-3 mx-auto">
-                  <TrendingUp className="w-6 h-6 text-orange-600" />
-                </div>
-                <h3 className="font-semibold text-orange-900 mb-2">Track</h3>
-                <p className="text-sm text-orange-700">Monitor progress and adjust timelines as needed</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Task Edit Dialog */}
-        {editTask && (
-          <TaskEditDialog
-            task={editTask}
-            projects={projects}
-            onTaskUpdate={handleUpdateTask}
-            onClose={() => setEditTask(null)}
-          />
-        )}
-
-        {/* Task Dependency Manager */}
-        {dependencyTask && (
-          <TaskDependencyManager
-            task={dependencyTask}
-            tasks={tasks}
-            onUpdateDependencies={handleUpdateDependencies}
-            onClose={() => setDependencyTask(null)}
-          />
-        )}
-
-        {/* Export Dialog */}
-        <ImprovedExportDialog
-          open={exportDialogOpen}
-          onOpenChange={setExportDialogOpen}
-          tasks={filteredTasks}
-          projects={projects}
-          selectedProjects={selectedProjects}
-        />
-
-        {/* Quick Planner */}
-        <QuickPlanner
-          open={quickPlannerOpen}
-          onOpenChange={setQuickPlannerOpen}
-          onTemplateApplied={handleTemplateApplied}
-          projects={projects}
-        />
-
-        {/* Template Manager */}
-        <TemplateManager
-          open={templateManagerOpen}
-          onOpenChange={setTemplateManagerOpen}
-          onTemplateApplied={handleTemplateApplied}
-          projects={projects}
-        />
-      </div>
-    </Layout>
-  );
-}
