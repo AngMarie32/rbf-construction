@@ -10,14 +10,20 @@ import { CalendarIcon } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { Task } from '@/types';
 
-interface TaskEditDialogProps {
-  task: Task | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSave: (taskId: string, updates: Partial<Task>) => void;
+interface Project {
+  id: string;
+  name: string;
+  color: string;
 }
 
-export function TaskEditDialog({ task, open, onOpenChange, onSave }: TaskEditDialogProps) {
+interface TaskEditDialogProps {
+  task: Task | null;
+  projects: Project[];
+  onTaskUpdate: (taskId: string, updates: Partial<Task>) => Promise<void>;
+  onClose: () => void;
+}
+
+export function TaskEditDialog({ task, projects, onTaskUpdate, onClose }: TaskEditDialogProps) {
   const [startDate, setStartDate] = useState<Date>(task?.startDate || new Date());
   const [duration, setDuration] = useState<number>(
     task ? Math.ceil((task.endDate.getTime() - task.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1 : 1
@@ -41,11 +47,11 @@ export function TaskEditDialog({ task, open, onOpenChange, onSave }: TaskEditDia
       ? addDays(startDate, duration - 1)
       : endDate;
 
-    onSave(task.id, {
+    onTaskUpdate(task.id, {
       startDate,
       endDate: finalEndDate
     });
-    onOpenChange(false);
+    onClose();
   };
 
   const handleDurationChange = (newDuration: number) => {
@@ -65,7 +71,7 @@ export function TaskEditDialog({ task, open, onOpenChange, onSave }: TaskEditDia
   if (!task) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={!!task} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit Task: {task.title}</DialogTitle>
@@ -158,7 +164,7 @@ export function TaskEditDialog({ task, open, onOpenChange, onSave }: TaskEditDia
           </Button>
           <Button 
             variant="outline" 
-            onClick={() => onOpenChange(false)}
+            onClick={onClose}
             className="flex-1"
           >
             Cancel

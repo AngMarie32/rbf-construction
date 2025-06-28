@@ -9,19 +9,17 @@ import { X, Plus } from 'lucide-react';
 import { Task } from '@/types';
 
 interface TaskDependencyManagerProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   task: Task | null;
   tasks: Task[];
-  onUpdateDependencies: (taskId: string, dependencies: string[]) => void;
+  onUpdateDependencies: (taskId: string, dependencies: string[]) => Promise<void>;
+  onClose: () => void;
 }
 
 export function TaskDependencyManager({
-  open,
-  onOpenChange,
   task,
   tasks,
-  onUpdateDependencies
+  onUpdateDependencies,
+  onClose
 }: TaskDependencyManagerProps) {
   const [selectedDependency, setSelectedDependency] = useState('');
   
@@ -48,7 +46,7 @@ export function TaskDependencyManager({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={!!task} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Manage Dependencies for "{task.title}"</DialogTitle>
@@ -99,7 +97,7 @@ export function TaskDependencyManager({
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={onClose}>
               Close
             </Button>
           </div>
