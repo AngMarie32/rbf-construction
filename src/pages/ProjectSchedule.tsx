@@ -15,9 +15,10 @@ import { EnhancedExportDialog } from '@/components/schedule/EnhancedExportDialog
 import { TaskDependencyManager } from '@/components/schedule/TaskDependencyManager';
 import { TaskEditDialog } from '@/components/schedule/TaskEditDialog';
 import { CreateTaskDialog } from '@/components/schedule/CreateTaskDialog';
+import { CollapsibleFilterSection } from '@/components/schedule/CollapsibleFilterSection';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { addDays, subDays } from 'date-fns';
+import { addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
 import { Task } from '@/types';
 
 interface Project {
@@ -31,6 +32,8 @@ export default function ProjectSchedule() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<'week' | 'month' | 'quarter'>('month');
   const [dateRange, setDateRange] = useState({
     from: subDays(new Date(), 30),
     to: addDays(new Date(), 60)
@@ -47,6 +50,56 @@ export default function ProjectSchedule() {
     fetchProjects();
     fetchTasks();
   }, []);
+
+  useEffect(() => {
+    updateDateRange();
+  }, [currentDate, viewMode]);
+
+  const updateDateRange = () => {
+    let newFrom: Date;
+    let newTo: Date;
+
+    switch (viewMode) {
+      case 'week':
+        newFrom = startOfWeek(currentDate);
+        newTo = endOfWeek(currentDate);
+        break;
+      case 'month':
+        newFrom = startOfMonth(currentDate);
+        newTo = endOfMonth(currentDate);
+        break;
+      case 'quarter':
+        newFrom = startOfQuarter(currentDate);
+        newTo = endOfQuarter(currentDate);
+        break;
+      default:
+        newFrom = startOfMonth(currentDate);
+        newTo = endOfMonth(currentDate);
+    }
+
+    setDateRange({ from: newFrom, to: newTo });
+  };
+
+  const navigateDate = (direction: 'prev' | 'next') => {
+    const multiplier = direction === 'next' ? 1 : -1;
+    let newDate: Date;
+
+    switch (viewMode) {
+      case 'week':
+        newDate = addDays(currentDate, 7 * multiplier);
+        break;
+      case 'month':
+        newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + multiplier, 1);
+        break;
+      case 'quarter':
+        newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + (3 * multiplier), 1);
+        break;
+      default:
+        newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + multiplier, 1);
+    }
+
+    setCurrentDate(newDate);
+  };
 
   const fetchProjects = async () => {
     try {
@@ -66,7 +119,7 @@ export default function ProjectSchedule() {
       setSelectedProjects(projectsWithColors.map(p => p.id));
     } catch (error) {
       console.error('Error fetching projects:', error);
-      toast.error('Failed to load projects'); 
+      toast.error('Failed to load projects');
     }
   };
 
@@ -217,6 +270,26 @@ export default function ProjectSchedule() {
           </CardContent>
         </Card>
 
+        {/* Enhanced Filters & View Options */}
+        <CollapsibleFilterSection
+          projects={projects}
+          selectedProjects={selectedProjects}
+          onSelectionChange={setSelectedProjects}
+          searchQuery={searchTerm}
+          onSearchChange={setSearchTerm}
+          showDependencies={showDependencies}
+          onShowDependenciesChange={setShowDependencies}
+          showCriticalPath={showCriticalPath}
+          onShowCriticalPathChange={setShowCriticalPath}
+          showMilestones={showMilestones}
+          onShowMilestonesChange={setShowMilestones}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          dateRange={dateRange}
+          onNavigateDate={navigateDate}
+          currentDate={currentDate}
+        />
+
         {/* Main Schedule Interface */}
         <Card>
           <CardHeader>
@@ -240,45 +313,20 @@ export default function ProjectSchedule() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="gantt" className="space-y-6">
-              <div className="flex justify-between items-center">
-                <TabsList>
-                  <TabsTrigger value="gantt" className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    Gantt Chart
-                  </TabsTrigger>
-                  <TabsTrigger value="calendar" className="flex items-center gap-2">
-                    <CalendarDays className="w-4 h-4" />
-                    Calendar
-                  </TabsTrigger>
-                  <TabsTrigger value="critical" className="flex items-center gap-2">
-                    <Target className="w-4 h-4" />
-                    Critical Path
-                  </TabsTrigger>
-                </TabsList>
-
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="dependencies" className="text-sm">Dependencies</Label>
-                    <input
-                      id="dependencies"
-                      type="checkbox"
-                      checked={showDependencies}
-                      onChange={(e) => setShowDependencies(e.target.checked)}
-                      className="rounded"
-                    />
-                  </div>
-                  
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      placeholder="Search tasks..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 w-64"
-                    />
-                  </div>
-                </div>
-              </div>
+              <TabsList>
+                <TabsTrigger value="gantt" className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4" />
+                  Gantt Chart
+                </TabsTrigger>
+                <TabsTrigger value="calendar" className="flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4" />
+                  Calendar
+                </TabsTrigger>
+                <TabsTrigger value="critical" className="flex items-center gap-2">
+                  <Target className="w-4 h-4" />
+                  Critical Path
+                </TabsTrigger>
+              </TabsList>
 
               <TabsContent value="gantt" className="space-y-4">
                 {loading ? (
@@ -305,8 +353,8 @@ export default function ProjectSchedule() {
                 <ScheduleCalendar 
                   tasks={filteredTasks}
                   projects={projects}
-                  currentDate={new Date()}
-                  onDateChange={() => {}}
+                  currentDate={currentDate}
+                  onDateChange={setCurrentDate}
                   onTaskUpdate={handleUpdateTask}
                 />
               </TabsContent>
@@ -318,6 +366,51 @@ export default function ProjectSchedule() {
                 />
               </TabsContent>
             </Tabs>
+          </CardContent>
+        </Card>
+
+        {/* Project Schedule Workflow */}
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Target className="w-5 h-5 text-blue-600" />
+              <CardTitle className="text-blue-900">Project Schedule Workflow</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="text-center">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3 mx-auto">
+                  <Calendar className="w-6 h-6 text-blue-600" />
+                </div>
+                <h3 className="font-semibold text-blue-900 mb-2">Plan</h3>
+                <p className="text-sm text-blue-700">Create tasks with timelines and assign to projects</p>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-3 mx-auto">
+                  <Settings className="w-6 h-6 text-purple-600" />
+                </div>
+                <h3 className="font-semibold text-purple-900 mb-2">Organize</h3>
+                <p className="text-sm text-purple-700">Use Gantt charts and boards to visualize progress</p>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3 mx-auto">
+                  <Eye className="w-6 h-6 text-green-600" />
+                </div>
+                <h3 className="font-semibold text-green-900 mb-2">Track</h3>
+                <p className="text-sm text-green-700">Monitor task progress and identify bottlenecks</p>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-3 mx-auto">
+                  <Download className="w-6 h-6 text-orange-600" />
+                </div>
+                <h3 className="font-semibold text-orange-900 mb-2">Complete</h3>
+                <p className="text-sm text-orange-700">Mark tasks complete and generate reports</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

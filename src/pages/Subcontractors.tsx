@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,8 +22,7 @@ import {
   Users,
   Grid3X3,
   List,
-  AlertTriangle,
-  Plus
+  AlertTriangle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -56,7 +56,6 @@ export default function Subcontractors() {
   const [specialtyFilter, setSpecialtyFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [showDocumentIssues, setShowDocumentIssues] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchSubcontractors();
