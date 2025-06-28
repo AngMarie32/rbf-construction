@@ -14,12 +14,14 @@ import {
   FileText, 
   TrendingUp,
   ArrowLeft,
-  Settings
+  Settings,
+  BarChart3
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BurnAnalysisTab } from '@/components/projects/BurnAnalysisTab';
 import { EditProjectDialog } from '@/components/projects/EditProjectDialog';
+import { ProjectScheduleTab } from '@/components/projects/ProjectScheduleTab';
 import { Project as GlobalProject } from '@/types';
 
 interface DatabaseProject {
@@ -271,9 +273,12 @@ export default function ProjectDetail() {
 
         {/* Tabbed Content */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            <TabsTrigger value="schedule">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Schedule
+            </TabsTrigger>
             <TabsTrigger value="payment-apps">Payment Apps</TabsTrigger>
             <TabsTrigger value="change-orders">Change Orders</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
@@ -345,32 +350,7 @@ export default function ProjectDetail() {
           </TabsContent>
 
           <TabsContent value="schedule">
-            <Card>
-              <CardHeader>
-                <CardTitle>Project Schedule</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {tasks.length > 0 ? (
-                  <div className="space-y-4">
-                    {tasks.map((task) => (
-                      <div key={task.id} className="border rounded p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-semibold">{task.title}</h4>
-                          <Badge variant="outline">{task.status}</Badge>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                          <div>Start: {new Date(task.start_date).toLocaleDateString()}</div>
-                          <div>End: {new Date(task.end_date).toLocaleDateString()}</div>
-                        </div>
-                        <Progress value={task.progress || 0} className="mt-2 h-2" />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">No tasks found for this project.</p>
-                )}
-              </CardContent>
-            </Card>
+            <ProjectScheduleTab projectId={project.id} />
           </TabsContent>
 
           <TabsContent value="payment-apps">

@@ -1,14 +1,14 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
-import { MoreHorizontal, Plus, Calendar, Clock, User, Flag } from 'lucide-react';
+import { Plus, Calendar, Clock, User, Flag } from 'lucide-react';
 import { Task } from '@/types';
 import { format } from 'date-fns';
 import { CreateTaskDialog } from './CreateTaskDialog';
+import { TaskQuickActions } from './TaskQuickActions';
 
 interface Project {
   id: string;
@@ -23,6 +23,8 @@ interface PlannerBoardProps {
   onTaskDelete: (taskId: string) => void;
   onAddTask: (status: Task['status']) => void;
   onTaskCreated: () => void;
+  onEditTask?: (task: Task) => void;
+  onEditDependencies?: (task: Task) => void;
 }
 
 const statusColumns: { status: Task['status']; title: string; color: string }[] = [
@@ -32,7 +34,16 @@ const statusColumns: { status: Task['status']; title: string; color: string }[] 
   { status: 'On Hold', title: 'On Hold', color: 'bg-yellow-100' }
 ];
 
-export function PlannerBoard({ tasks, projects, onTaskUpdate, onTaskDelete, onAddTask, onTaskCreated }: PlannerBoardProps) {
+export function PlannerBoard({ 
+  tasks, 
+  projects, 
+  onTaskUpdate, 
+  onTaskDelete, 
+  onAddTask, 
+  onTaskCreated,
+  onEditTask,
+  onEditDependencies 
+}: PlannerBoardProps) {
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [defaultStatus, setDefaultStatus] = useState<Task['status']>('Not Started');
@@ -91,6 +102,18 @@ export function PlannerBoard({ tasks, projects, onTaskUpdate, onTaskDelete, onAd
     setShowCreateDialog(false);
   };
 
+  const handleEdit = (task: Task) => {
+    if (onEditTask) {
+      onEditTask(task);
+    }
+  };
+
+  const handleEditDependencies = (task: Task) => {
+    if (onEditDependencies) {
+      onEditDependencies(task);
+    }
+  };
+
   return (
     <>
       <div className="flex gap-6 h-full overflow-x-auto pb-6">
@@ -139,9 +162,12 @@ export function PlannerBoard({ tasks, projects, onTaskUpdate, onTaskDelete, onAd
                           <h4 className="font-medium text-sm leading-tight pr-2">
                             {task.title}
                           </h4>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 flex-shrink-0">
-                            <MoreHorizontal className="w-3 h-3" />
-                          </Button>
+                          <TaskQuickActions
+                            task={task}
+                            onEdit={handleEdit}
+                            onDelete={onTaskDelete}
+                            onEditDependencies={handleEditDependencies}
+                          />
                         </div>
 
                         {/* Project Badge */}
