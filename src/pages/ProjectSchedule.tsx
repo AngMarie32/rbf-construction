@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -210,12 +209,16 @@ export default function ProjectSchedule() {
   };
 
   const handleAddTaskToStatus = (status: Task['status']) => {
+    // This will be handled by the PlannerBoard component now
     console.log('Add task with status:', status);
   };
 
   const handleTemplateApplied = (templateTasks: any[]) => {
-    setQuickPlannerOpen(true);
+    // Refresh tasks after template is applied
+    fetchTasks();
+    setQuickPlannerOpen(false);
     setTemplateManagerOpen(false);
+    toast.success('Template applied successfully');
   };
 
   const filteredTasks = tasks.filter(task => {
@@ -395,6 +398,7 @@ export default function ProjectSchedule() {
                     onTaskUpdate={handleUpdateTask}
                     onTaskDelete={handleDeleteTask}
                     onAddTask={handleAddTaskToStatus}
+                    onTaskCreated={fetchTasks}
                   />
                 )}
               </TabsContent>
@@ -501,6 +505,7 @@ export default function ProjectSchedule() {
           open={templateManagerOpen}
           onOpenChange={setTemplateManagerOpen}
           onTemplateApplied={handleTemplateApplied}
+          projects={projects}
         />
       </div>
     </Layout>

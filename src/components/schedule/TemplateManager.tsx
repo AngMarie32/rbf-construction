@@ -7,9 +7,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Trash2, Save, Copy } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Trash2, Save, Copy, Edit } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { addDays } from 'date-fns';
 
 interface ScheduleTemplate {
   id: string;
@@ -29,16 +31,23 @@ interface ScheduleTemplateItem {
   templateId: string;
 }
 
+interface Project {
+  id: string;
+  name: string;
+}
+
 interface TemplateManagerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onTemplateApplied: (tasks: any[]) => void;
+  projects: Project[];
 }
 
-export function TemplateManager({ open, onOpenChange, onTemplateApplied }: TemplateManagerProps) {
+export function TemplateManager({ open, onOpenChange, onTemplateApplied, projects }: TemplateManagerProps) {
   const [templates, setTemplates] = useState<ScheduleTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('browse');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   
   const [newTemplate, setNewTemplate] = useState({
     name: '',
@@ -46,6 +55,7 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
     items: [] as any[]
   });
 
+  const [editingTemplate, setEditingTemplate] = useState<ScheduleTemplate | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<ScheduleTemplate | null>(null);
 
   useEffect(() => {
@@ -143,6 +153,62 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
     }
   };
 
+  const updateTemplate = async () => {
+    if (!editingTemplate || !editingTemplate.name) {
+      toast.error('Template name is required');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Update template
+      const { error: templateError } = await supabase
+        .from('schedule_templates')
+        .update({
+          name: editingTemplate.name,
+          description: editingTemplate.description
+        })
+        .eq('id', editingTemplate.id);
+
+      if (templateError) throw templateError;
+
+      // Delete existing items
+      await supabase
+        .from('schedule_template_items')
+        .delete()
+        .eq('template_id', editingTemplate.id);
+
+      // Insert updated items
+      if (editingTemplate.items.length > 0) {
+        const itemsToInsert = editingTemplate.items.map(item => ({
+          template_id: editingTemplate.id,
+          title: item.title,
+          description: item.description,
+          duration: item.duration,
+          category: item.category,
+          dependencies: item.dependencies || []
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('schedule_template_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) throw itemsError;
+      }
+
+      toast.success('Template updated successfully');
+      fetchTemplates();
+      setEditingTemplate(null);
+      setActiveTab('browse');
+    } catch (error) {
+      console.error('Error updating template:', error);
+      toast.error('Failed to update template');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const deleteTemplate = async (id: string) => {
     try {
       const { error } = await supabase
@@ -160,22 +226,47 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
     }
   };
 
-  const applyTemplate = (template: ScheduleTemplate) => {
-    // Create a copy of the template items to avoid modifying the original
-    const templateTasks = template.items.map((item, index) => ({
-      id: `temp-${Date.now()}-${index}`,
-      item: item.title,
-      description: item.description,
-      startDate: new Date(),
-      duration: item.duration,
-      dependencies: [],
-      projectId: '',
-      category: item.category
-    }));
+  const applyTemplate = async (template: ScheduleTemplate) => {
+    if (!selectedProjectId) {
+      toast.error('Please select a project first');
+      return;
+    }
 
-    // Apply template and close dialog
-    onTemplateApplied(templateTasks);
-    toast.success(`Applied template: ${template.name}`);
+    try {
+      setLoading(true);
+      const startDate = new Date();
+      
+      // Create tasks from template items
+      const tasksToCreate = template.items.map((item, index) => {
+        const taskStartDate = addDays(startDate, index * item.duration);
+        const taskEndDate = addDays(taskStartDate, item.duration - 1);
+        
+        return {
+          title: item.title,
+          project_id: selectedProjectId,
+          start_date: taskStartDate.toISOString().split('T')[0],
+          end_date: taskEndDate.toISOString().split('T')[0],
+          status: 'Not Started',
+          progress: 0,
+          dependencies: [] // Will handle dependencies in a second pass
+        };
+      });
+
+      const { error } = await supabase
+        .from('tasks')
+        .insert(tasksToCreate);
+
+      if (error) throw error;
+
+      toast.success(`Applied template: ${template.name}`);
+      onTemplateApplied(tasksToCreate);
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error applying template:', error);
+      toast.error('Failed to apply template');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const previewTemplate = (template: ScheduleTemplate) => {
@@ -183,7 +274,12 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
     setActiveTab('preview');
   };
 
-  const addTemplateItem = () => {
+  const editTemplate = (template: ScheduleTemplate) => {
+    setEditingTemplate({ ...template });
+    setActiveTab('edit');
+  };
+
+  const addTemplateItem = (isEditing = false) => {
     const newItem = {
       id: `temp-${Date.now()}`,
       title: '',
@@ -192,24 +288,48 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
       category: '',
       dependencies: []
     };
-    setNewTemplate({
-      ...newTemplate,
-      items: [...newTemplate.items, newItem]
-    });
+    
+    if (isEditing && editingTemplate) {
+      setEditingTemplate({
+        ...editingTemplate,
+        items: [...editingTemplate.items, newItem]
+      });
+    } else {
+      setNewTemplate({
+        ...newTemplate,
+        items: [...newTemplate.items, newItem]
+      });
+    }
   };
 
-  const updateTemplateItem = (index: number, field: string, value: any) => {
-    const updatedItems = [...newTemplate.items];
-    updatedItems[index] = { ...updatedItems[index], [field]: value };
-    setNewTemplate({ ...newTemplate, items: updatedItems });
+  const updateTemplateItem = (index: number, field: string, value: any, isEditing = false) => {
+    if (isEditing && editingTemplate) {
+      const updatedItems = [...editingTemplate.items];
+      updatedItems[index] = { ...updatedItems[index], [field]: value };
+      setEditingTemplate({ ...editingTemplate, items: updatedItems });
+    } else {
+      const updatedItems = [...newTemplate.items];
+      updatedItems[index] = { ...updatedItems[index], [field]: value };
+      setNewTemplate({ ...newTemplate, items: updatedItems });
+    }
   };
 
-  const removeTemplateItem = (index: number) => {
-    setNewTemplate({
-      ...newTemplate,
-      items: newTemplate.items.filter((_, i) => i !== index)
-    });
+  const removeTemplateItem = (index: number, isEditing = false) => {
+    if (isEditing && editingTemplate) {
+      setEditingTemplate({
+        ...editingTemplate,
+        items: editingTemplate.items.filter((_, i) => i !== index)
+      });
+    } else {
+      setNewTemplate({
+        ...newTemplate,
+        items: newTemplate.items.filter((_, i) => i !== index)
+      });
+    }
   };
+
+  const currentItems = editingTemplate ? editingTemplate.items : newTemplate.items;
+  const isEditMode = !!editingTemplate;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -222,10 +342,27 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
           <TabsList>
             <TabsTrigger value="browse">Browse Templates</TabsTrigger>
             <TabsTrigger value="create">Create Template</TabsTrigger>
+            {editingTemplate && <TabsTrigger value="edit">Edit Template</TabsTrigger>}
             {selectedTemplate && <TabsTrigger value="preview">Preview Template</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="browse" className="space-y-4 overflow-y-auto max-h-[70vh]">
+            <div className="mb-4">
+              <Label htmlFor="project-select">Select Project for Template Application</Label>
+              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {loading ? (
               <div className="text-center py-8">Loading schedule templates...</div>
             ) : templates.length === 0 ? (
@@ -265,9 +402,18 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
                         size="sm" 
                         onClick={() => applyTemplate(template)}
                         className="flex-1"
+                        disabled={!selectedProjectId}
                       >
                         <Copy className="w-4 h-4 mr-2" />
                         Apply
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => editTemplate(template)}
+                        className="text-blue-600"
+                      >
+                        <Edit className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="outline"
@@ -324,6 +470,119 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied }: Templ
                   </Button>
                   <Button variant="outline" onClick={() => setActiveTab('browse')}>
                     Back to Templates
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+          )}
+
+          {editingTemplate && (
+            <TabsContent value="edit" className="space-y-4 overflow-y-auto max-h-[70vh]">
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="edit-template-name">Template Name</Label>
+                  <Input
+                    id="edit-template-name"
+                    value={editingTemplate.name}
+                    onChange={(e) => setEditingTemplate({ ...editingTemplate, name: e.target.value })}
+                    placeholder="Enter template name"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-template-description">Description</Label>
+                  <Textarea
+                    id="edit-template-description"
+                    value={editingTemplate.description}
+                    onChange={(e) => setEditingTemplate({ ...editingTemplate, description: e.target.value })}
+                    placeholder="Enter template description"
+                    rows={2}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Template Tasks</h4>
+                  <Button onClick={() => addTemplateItem(true)} size="sm">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Task
+                  </Button>
+                </div>
+
+                {editingTemplate.items.length > 0 && (
+                  <div className="border rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Title</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Duration (Days)</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead className="w-20">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {editingTemplate.items.map((item, index) => (
+                          <TableRow key={item.id}>
+                            <TableCell>
+                              <Input
+                                value={item.title}
+                                onChange={(e) => updateTemplateItem(index, 'title', e.target.value)}
+                                placeholder="Task title"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={item.description}
+                                onChange={(e) => updateTemplateItem(index, 'description', e.target.value)}
+                                placeholder="Task description"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={item.duration}
+                                onChange={(e) => updateTemplateItem(index, 'duration', parseInt(e.target.value) || 1)}
+                                placeholder="1"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={item.category}
+                                onChange={(e) => updateTemplateItem(index, 'category', e.target.value)}
+                                placeholder="Category"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeTemplateItem(index)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-4">
+                  <Button onClick={updateTemplate} disabled={loading}>
+                    <Save className="w-4 h-4 mr-2" />
+                    {loading ? 'Updating...' : 'Update Template'}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setEditingTemplate(null);
+                      setActiveTab('browse');
+                    }}
+                  >
+                    Cancel
                   </Button>
                 </div>
               </div>
