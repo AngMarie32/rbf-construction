@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,15 +6,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, CalendarDays, BarChart3, Plus, Search, Filter, Eye, Download, Settings, Target, Lightbulb, Users, Clock } from 'lucide-react';
+import { Calendar, CalendarDays, BarChart3, Plus, Search, Filter, Eye, Download, Settings, Target, Lightbulb, Users, Clock, Board, Zap, FileTemplate } from 'lucide-react';
 import { GanttChart } from '@/components/schedule/GanttChart';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
 import { CriticalPath } from '@/components/schedule/CriticalPath';
-import { EnhancedExportDialog } from '@/components/schedule/EnhancedExportDialog';
+import { ImprovedExportDialog } from '@/components/schedule/ImprovedExportDialog';
 import { TaskDependencyManager } from '@/components/schedule/TaskDependencyManager';
 import { TaskEditDialog } from '@/components/schedule/TaskEditDialog';
 import { CreateTaskDialog } from '@/components/schedule/CreateTaskDialog';
 import { CollapsibleFilterSection } from '@/components/schedule/CollapsibleFilterSection';
+import { PlannerBoard } from '@/components/schedule/PlannerBoard';
+import { QuickPlanner } from '@/components/schedule/QuickPlanner';
+import { TemplateManager } from '@/components/schedule/TemplateManager';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
@@ -45,6 +47,8 @@ export default function ProjectSchedule() {
   const [dependencyTask, setDependencyTask] = useState<Task | null>(null);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [quickPlannerOpen, setQuickPlannerOpen] = useState(false);
+  const [templateManagerOpen, setTemplateManagerOpen] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -204,6 +208,15 @@ export default function ProjectSchedule() {
     }
   };
 
+  const handleAddTaskToStatus = (status: Task['status']) => {
+    console.log('Add task with status:', status);
+  };
+
+  const handleTemplateApplied = (templateTasks: any[]) => {
+    setQuickPlannerOpen(true);
+    setTemplateManagerOpen(false);
+  };
+
   const filteredTasks = tasks.filter(task => {
     const matchesProject = selectedProjects.includes(task.projectId);
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
@@ -299,6 +312,22 @@ export default function ProjectSchedule() {
                 Project Schedule
               </CardTitle>
               <div className="flex items-center gap-2">
+                <Button 
+                  onClick={() => setQuickPlannerOpen(true)} 
+                  variant="outline"
+                  className="bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+                >
+                  <Zap className="w-4 h-4 mr-2" />
+                  Quick Planner
+                </Button>
+                <Button 
+                  onClick={() => setTemplateManagerOpen(true)} 
+                  variant="outline"
+                  className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                >
+                  <FileTemplate className="w-4 h-4 mr-2" />
+                  Templates
+                </Button>
                 <CreateTaskDialog 
                   projects={projects}
                   tasks={tasks}
@@ -313,10 +342,14 @@ export default function ProjectSchedule() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="gantt" className="space-y-6">
-              <TabsList>
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="gantt" className="flex items-center gap-2">
                   <BarChart3 className="w-4 h-4" />
                   Gantt Chart
+                </TabsTrigger>
+                <TabsTrigger value="board" className="flex items-center gap-2">
+                  <Board className="w-4 h-4" />
+                  Board
                 </TabsTrigger>
                 <TabsTrigger value="calendar" className="flex items-center gap-2">
                   <CalendarDays className="w-4 h-4" />
@@ -349,6 +382,22 @@ export default function ProjectSchedule() {
                 )}
               </TabsContent>
 
+              <TabsContent value="board" className="space-y-4">
+                {loading ? (
+                  <div className="flex justify-center items-center h-64">
+                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+                  </div>
+                ) : (
+                  <PlannerBoard
+                    tasks={filteredTasks}
+                    projects={projects}
+                    onTaskUpdate={handleUpdateTask}
+                    onTaskDelete={handleDeleteTask}
+                    onAddTask={handleAddTaskToStatus}
+                  />
+                )}
+              </TabsContent>
+
               <TabsContent value="calendar">
                 <ScheduleCalendar 
                   tasks={filteredTasks}
@@ -369,7 +418,7 @@ export default function ProjectSchedule() {
           </CardContent>
         </Card>
 
-        {/* Project Schedule Workflow */}
+        {/* Simplified Project Schedule Workflow */}
         <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -414,7 +463,7 @@ export default function ProjectSchedule() {
           </CardContent>
         </Card>
 
-        {/* Task Dependencies Dialog */}
+        {/* Dialogs */}
         <TaskDependencyManager
           open={!!dependencyTask}
           onOpenChange={(open) => !open && setDependencyTask(null)}
@@ -423,7 +472,6 @@ export default function ProjectSchedule() {
           onUpdateDependencies={handleUpdateDependencies}
         />
 
-        {/* Task Edit Dialog */}
         <TaskEditDialog
           task={editTask}
           open={!!editTask}
@@ -431,12 +479,27 @@ export default function ProjectSchedule() {
           onSave={handleUpdateTask}
         />
 
-        {/* Enhanced Export Dialog */}
-        <EnhancedExportDialog
+        <ImprovedExportDialog
           open={exportDialogOpen}
           onOpenChange={setExportDialogOpen}
           tasks={filteredTasks}
           projects={projects}
+        />
+
+        <QuickPlanner
+          open={quickPlannerOpen}
+          onOpenChange={setQuickPlannerOpen}
+          projects={projects}
+          onTasksAdded={() => {
+            fetchTasks();
+            setQuickPlannerOpen(false);
+          }}
+        />
+
+        <TemplateManager
+          open={templateManagerOpen}
+          onOpenChange={setTemplateManagerOpen}
+          onTemplateApplied={handleTemplateApplied}
         />
       </div>
     </Layout>
