@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -7,9 +6,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText, Printer, AlertCircle, BarChart3, Calendar, List, GitBranch } from 'lucide-react';
+import { FileText, Printer, AlertCircle, BarChart3, Calendar, List, GitBranch, Download } from 'lucide-react';
 import { Task } from '@/types';
-import { generateReport } from '@/utils/enhancedExports';
+import { generateProfessionalGanttPDF, generateProfessionalExcel } from './ProfessionalGanttExport';
 import { validateTaskList, formatValidationMessage, getValidationSummary } from '@/utils/dataValidation';
 import { toast } from 'sonner';
 
@@ -45,6 +44,7 @@ export function EnhancedExportDialog({
     includeProgress: true,
     includeDependencies: true,
     includeProjectInfo: true,
+    showBusinessDaysOnly: true,
     dateFormat: 'yyyy-MM-dd' as 'yyyy-MM-dd' | 'MM/dd/yyyy' | 'dd/MM/yyyy'
   });
 
@@ -55,13 +55,56 @@ export function EnhancedExportDialog({
     setReportOptions(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleGenerateReport = () => {
+  const handleGeneratePDF = async () => {
     try {
-      generateReport(tasks, projects, reportOptions, title);
-      toast.success('Report generated successfully');
+      setLoading(true);
+      const dateRange = {
+        from: new Date(Math.min(...tasks.map(t => t.startDate.getTime()))),
+        to: new Date(Math.max(...tasks.map(t => t.endDate.getTime())))
+      };
+      
+      const doc = generateProfessionalGanttPDF(tasks, projects, dateRange, {
+        title,
+        showProgress: reportOptions.includeProgress,
+        showDependencies: reportOptions.includeDependencies,
+        dateFormat: reportOptions.dateFormat
+      });
+      
+      doc.save(`${title.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast.success('PDF report generated successfully');
       onOpenChange(false);
     } catch (error) {
-      toast.error('Failed to generate report');
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF report');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateExcel = async () => {
+    try {
+      setLoading(true);
+      const dateRange = {
+        from: new Date(Math.min(...tasks.map(t => t.startDate.getTime()))),
+        to: new Date(Math.max(...tasks.map(t => t.endDate.getTime())))
+      };
+      
+      const workbook = generateProfessionalExcel(tasks, projects, dateRange, {
+        title,
+        showProgress: reportOptions.includeProgress,
+        showDependencies: reportOptions.includeDependencies,
+        dateFormat: reportOptions.dateFormat
+      });
+      
+      const XLSX = await import('xlsx');
+      XLSX.writeFile(workbook, `${title.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success('Excel report generated successfully');
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error generating Excel:', error);
+      toast.error('Failed to generate Excel report');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -87,7 +130,7 @@ export function EnhancedExportDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            Generate Project Report
+            Generate Professional Project Report
           </DialogTitle>
         </DialogHeader>
 
@@ -101,9 +144,9 @@ export function EnhancedExportDialog({
           <TabsContent value="views" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Select Report Views</CardTitle>
+                <CardTitle className="text-lg">Professional Report Views</CardTitle>
                 <CardDescription>
-                  Choose which views to include in your comprehensive report ({getIncludedViewsCount()} selected)
+                  Generate reports similar to Microsoft Project with business day calculations
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -119,10 +162,29 @@ export function EnhancedExportDialog({
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <BarChart3 className="w-4 h-4 text-blue-600" />
-                        <Label htmlFor="includeGanttChart" className="font-medium">Gantt Chart View</Label>
+                        <Label htmlFor="includeGanttChart" className="font-medium">Professional Gantt Chart</Label>
                       </div>
                       <p className="text-sm text-gray-600 mt-1">
-                        Timeline visualization showing task dependencies and project timeline
+                        High-quality timeline with business day calculations and professional formatting
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-gray-50">
+                    <Checkbox
+                      id="showBusinessDaysOnly"
+                      checked={reportOptions.showBusinessDaysOnly}
+                      onCheckedChange={(checked) => 
+                        handleReportOption('showBusinessDaysOnly', checked)
+                      }
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-green-600" />
+                        <Label htmlFor="showBusinessDaysOnly" className="font-medium">Business Days Only</Label>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Calculate durations excluding weekends and holidays for accurate project planning
                       </p>
                     </div>
                   </div>
@@ -191,9 +253,9 @@ export function EnhancedExportDialog({
           <TabsContent value="options" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Data & Formatting Options</CardTitle>
+                <CardTitle className="text-lg">Professional Formatting Options</CardTitle>
                 <CardDescription>
-                  Configure what data to include and how to format the report
+                  Configure report appearance and data presentation
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -206,7 +268,7 @@ export function EnhancedExportDialog({
                         handleReportOption('includeProgress', checked)
                       }
                     />
-                    <Label htmlFor="includeProgress">Include Progress Bars</Label>
+                    <Label htmlFor="includeProgress">Progress Indicators</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -217,7 +279,7 @@ export function EnhancedExportDialog({
                         handleReportOption('includeDependencies', checked)
                       }
                     />
-                    <Label htmlFor="includeDependencies">Include Dependencies</Label>
+                    <Label htmlFor="includeDependencies">Task Dependencies</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -228,7 +290,7 @@ export function EnhancedExportDialog({
                         handleReportOption('includeProjectInfo', checked)
                       }
                     />
-                    <Label htmlFor="includeProjectInfo">Include Project Details</Label>
+                    <Label htmlFor="includeProjectInfo">Project Details</Label>
                   </div>
                 </div>
 
@@ -323,19 +385,28 @@ export function EnhancedExportDialog({
 
         <div className="flex justify-between items-center pt-4 border-t">
           <div className="text-sm text-gray-500">
-            {tasks.length} tasks, {projects.length} projects • {getIncludedViewsCount()} views selected
+            {tasks.length} tasks, {projects.length} projects • Professional format with business days
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button 
-              onClick={handleGenerateReport}
-              disabled={loading || getIncludedViewsCount() === 0}
+              onClick={handleGenerateExcel}
+              disabled={loading}
+              variant="outline"
+              className="bg-green-50 hover:bg-green-100"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Excel Report
+            </Button>
+            <Button 
+              onClick={handleGeneratePDF}
+              disabled={loading}
               className="bg-blue-600 hover:bg-blue-700"
             >
               <Printer className="w-4 h-4 mr-2" />
-              Generate Report
+              PDF Report
             </Button>
           </div>
         </div>

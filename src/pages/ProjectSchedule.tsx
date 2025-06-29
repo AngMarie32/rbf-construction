@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +19,7 @@ import { CollapsibleFilterSection } from '@/components/schedule/CollapsibleFilte
 import { PlannerBoard } from '@/components/schedule/PlannerBoard';
 import { QuickPlanner } from '@/components/schedule/QuickPlanner';
 import { TemplateManager } from '@/components/schedule/TemplateManager';
+import { ProjectDelayDialog } from '@/components/schedule/ProjectDelayDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
@@ -49,6 +51,7 @@ export default function ProjectSchedule() {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [quickPlannerOpen, setQuickPlannerOpen] = useState(false);
   const [templateManagerOpen, setTemplateManagerOpen] = useState(false);
+  const [projectDelayDialogOpen, setProjectDelayDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -187,6 +190,48 @@ export default function ProjectSchedule() {
     }
   };
 
+  const handleBulkUpdateTasks = async (updates: { taskId: string; updates: Partial<Task> }[]) => {
+    try {
+      // Update all tasks in parallel
+      const updatePromises = updates.map(async ({ taskId, updates: taskUpdates }) => {
+        const updateData: any = {};
+        if (taskUpdates.startDate) updateData.start_date = taskUpdates.startDate.toISOString().split('T')[0];
+        if (taskUpdates.endDate) updateData.end_date = taskUpdates.endDate.toISOString().split('T')[0];
+        if (taskUpdates.status) updateData.status = taskUpdates.status;
+        if (taskUpdates.progress !== undefined) updateData.progress = taskUpdates.progress;
+        if (taskUpdates.dependencies) updateData.dependencies = taskUpdates.dependencies;
+
+        const { error } = await supabase
+          .from('tasks')
+          .update(updateData)
+          .eq('id', taskId);
+
+        if (error) throw error;
+        
+        return { taskId, updates: taskUpdates };
+      });
+
+      const results = await Promise.all(updatePromises);
+      
+      // Update local state
+      setTasks(prev => {
+        const updatedTasks = [...prev];
+        results.forEach(({ taskId, updates: taskUpdates }) => {
+          const index = updatedTasks.findIndex(t => t.id === taskId);
+          if (index !== -1) {
+            updatedTasks[index] = { ...updatedTasks[index], ...taskUpdates };
+          }
+        });
+        return updatedTasks;
+      });
+
+      toast.success(`Successfully updated ${updates.length} tasks`);
+    } catch (error) {
+      console.error('Error updating tasks:', error);
+      toast.error('Failed to update tasks');
+    }
+  };
+
   const handleUpdateDependencies = async (taskId: string, dependencies: string[]) => {
     await handleUpdateTask(taskId, { dependencies });
   };
@@ -317,6 +362,14 @@ export default function ProjectSchedule() {
               </CardTitle>
               <div className="flex items-center gap-2">
                 <Button 
+                  onClick={() => setProjectDelayDialogOpen(true)} 
+                  variant="outline"
+                  className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
+                >
+                  <Clock className="w-4 h-4 mr-2" />
+                  Project Delay
+                </Button>
+                <Button 
                   onClick={() => setQuickPlannerOpen(true)} 
                   variant="outline"
                   className="bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
@@ -376,6 +429,7 @@ export default function ProjectSchedule() {
                     onUpdateTask={handleUpdateTask}
                     onDeleteTask={handleDeleteTask}
                     onEditDependencies={setDependencyTask}
+                    onEditTask={setEditTask}
                     projects={projects}
                     selectedProjects={selectedProjects}
                     dateRange={dateRange}
@@ -497,6 +551,14 @@ export default function ProjectSchedule() {
           tasks={filteredTasks}
           projects={projects}
           selectedProjects={selectedProjects}
+        />
+
+        {/* Project Delay Dialog */}
+        <ProjectDelayDialog
+          open={projectDelayDialogOpen}
+          onOpenChange={setProjectDelayDialogOpen}
+          tasks={filteredTasks}
+          onUpdateTasks={handleBulkUpdateTasks}
         />
 
         {/* Quick Planner */}

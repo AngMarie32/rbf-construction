@@ -4,9 +4,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Edit, Trash2, Link } from 'lucide-react';
+import { Edit, Trash2, Link, Clock } from 'lucide-react';
 import { Task } from '@/types';
-import { format, differenceInDays, eachDayOfInterval, isWeekend } from 'date-fns';
+import { format, differenceInDays, eachDayOfInterval } from 'date-fns';
+import { isBusinessDay, isHoliday, getBusinessDaysBetween } from '@/utils/businessDays';
 
 interface Project {
   id: string;
@@ -19,6 +20,7 @@ interface GanttChartProps {
   onUpdateTask: (taskId: string, updates: Partial<Task>) => void;
   onDeleteTask: (taskId: string) => void;
   onEditDependencies?: (task: Task) => void;
+  onEditTask?: (task: Task) => void;
   projects: Project[];
   selectedProjects: string[];
   dateRange: { from: Date; to: Date };
@@ -27,30 +29,12 @@ interface GanttChartProps {
   showMilestones?: boolean;
 }
 
-// Common US holidays - you can expand this list as needed
-const getHolidays = (year: number) => {
-  return [
-    new Date(year, 0, 1), // New Year's Day
-    new Date(year, 6, 4), // Independence Day
-    new Date(year, 10, 11), // Veterans Day
-    new Date(year, 11, 25), // Christmas Day
-    // Add more holidays as needed
-  ];
-};
-
-const isHoliday = (date: Date) => {
-  const holidays = getHolidays(date.getFullYear());
-  return holidays.some(holiday => 
-    holiday.getDate() === date.getDate() && 
-    holiday.getMonth() === date.getMonth()
-  );
-};
-
 export function GanttChart({
   tasks,
   onUpdateTask,
   onDeleteTask,
   onEditDependencies,
+  onEditTask,
   projects,
   selectedProjects,
   dateRange,
@@ -101,10 +85,24 @@ export function GanttChart({
     if (isHoliday(day)) {
       return 'bg-red-100 border-red-200';
     }
-    if (isWeekend(day)) {
+    if (!isBusinessDay(day)) {
       return 'bg-blue-50 border-blue-200';
     }
     return 'bg-white border-gray-200';
+  };
+
+  const handleEditTask = (task: Task) => {
+    if (onEditTask) {
+      onEditTask(task);
+    } else {
+      console.log('Edit task:', task);
+    }
+  };
+
+  const handleEditDependencies = (task: Task) => {
+    if (onEditDependencies) {
+      onEditDependencies(task);
+    }
   };
 
   return (
@@ -122,6 +120,9 @@ export function GanttChart({
             <div className="w-28 px-2 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center text-xs">
               Finish
             </div>
+            <div className="w-24 px-2 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center text-xs">
+              Duration
+            </div>
             <div className="w-32 px-2 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center text-xs">
               % Complete
             </div>
@@ -133,7 +134,7 @@ export function GanttChart({
                     className={`flex-1 min-w-[30px] p-2 text-xs text-center border-r ${getDayBackgroundClass(day, index)}`}
                   >
                     <div className="font-medium text-gray-600">{format(day, 'dd')}</div>
-                    <div className={`text-[10px] ${isHoliday(day) ? 'text-red-600 font-medium' : isWeekend(day) ? 'text-blue-600' : 'text-gray-500'}`}>
+                    <div className={`text-[10px] ${isHoliday(day) ? 'text-red-600 font-medium' : !isBusinessDay(day) ? 'text-blue-600' : 'text-gray-500'}`}>
                       {format(day, 'EEE')}
                     </div>
                   </div>
@@ -151,6 +152,7 @@ export function GanttChart({
             tasks.map((task, taskIndex) => {
               const position = getTaskPosition(task);
               const isEvenRow = taskIndex % 2 === 0;
+              const businessDayDuration = getBusinessDaysBetween(task.startDate, task.endDate);
               
               return (
                 <div key={task.id} className={`flex border-b border-gray-200 hover:bg-blue-50 group ${isEvenRow ? 'bg-white' : 'bg-gray-50'}`}>
@@ -180,7 +182,7 @@ export function GanttChart({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => onEditDependencies(task)}
+                            onClick={() => handleEditDependencies(task)}
                             className="h-6 w-6 p-0"
                             title="Edit Dependencies"
                           >
@@ -190,8 +192,9 @@ export function GanttChart({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => console.log('Edit task:', task)}
+                          onClick={() => handleEditTask(task)}
                           className="h-6 w-6 p-0"
+                          title="Edit Task"
                         >
                           <Edit className="h-3 w-3" />
                         </Button>
@@ -200,6 +203,7 @@ export function GanttChart({
                           size="sm"
                           onClick={() => onDeleteTask(task.id)}
                           className="h-6 w-6 p-0 text-red-600 hover:text-red-800"
+                          title="Delete Task"
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -217,7 +221,18 @@ export function GanttChart({
                     <span className="text-xs text-gray-700">{format(task.endDate, 'MM/dd/yy')}</span>
                   </div>
 
-                  {/* Progress Column - Fixed width and better formatting */}
+                  {/* Duration Column - Business Days */}
+                  <div className="w-24 px-2 py-3 border-r border-gray-300 text-center">
+                    <div className="flex flex-col items-center justify-center h-full">
+                      <span className="text-xs font-medium text-gray-700">{businessDayDuration}d</span>
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-2 h-2 text-gray-400" />
+                        <span className="text-[10px] text-gray-500">bus</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Progress Column */}
                   <div className="w-32 px-2 py-3 border-r border-gray-300 text-center">
                     <div className="flex flex-col items-center justify-center h-full">
                       <span className="text-xs font-medium text-gray-700 mb-1">{task.progress}%</span>
@@ -243,7 +258,7 @@ export function GanttChart({
                         }}
                         onMouseEnter={() => setHoveredTask(task.id)}
                         onMouseLeave={() => setHoveredTask(null)}
-                        title={`${task.title} - ${task.progress}% complete`}
+                        title={`${task.title} - ${task.progress}% complete - ${businessDayDuration} business days`}
                       >
                         {/* Progress indicator within the bar */}
                         <div 
@@ -254,13 +269,13 @@ export function GanttChart({
                         {/* Task label on hover */}
                         {hoveredTask === task.id && position.width > 15 && (
                           <div className="absolute -top-8 left-0 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-20 shadow-lg">
-                            {task.title} - {task.progress}%
+                            {task.title} - {task.progress}% ({businessDayDuration} days)
                           </div>
                         )}
                       </div>
 
                       {/* Dependencies lines */}
-                      {showDependencies && task.dependencies.length > 0 && (
+                      {showDependencies && task.dependencies && task.dependencies.length > 0 && (
                         <div className="absolute inset-0 pointer-events-none">
                           {task.dependencies.map((depId) => {
                             const depTask = tasks.find(t => t.id === depId);
@@ -313,7 +328,7 @@ export function GanttChart({
           )}
         </div>
 
-        {/* Legend for holidays and weekends */}
+        {/* Legend */}
         <div className="border-t border-gray-200 p-4 bg-gray-50">
           <div className="flex items-center gap-6 text-xs text-gray-600">
             <div className="flex items-center gap-2">
@@ -323,6 +338,10 @@ export function GanttChart({
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-red-100 border border-red-200 rounded"></div>
               <span>Holidays</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="w-3 h-3 text-gray-400" />
+              <span>Duration shown in business days</span>
             </div>
           </div>
         </div>
