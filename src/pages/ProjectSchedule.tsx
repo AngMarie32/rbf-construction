@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -283,9 +284,6 @@ export default function ProjectSchedule() {
           </CardContent>
         </Card>
 
-        {/* Enhanced Filters & View Options */}
-        
-
         {/* Main Schedule Interface */}
         <Card>
           <CardHeader>
@@ -311,3 +309,93 @@ export default function ProjectSchedule() {
                   <FileText className="w-4 h-4 mr-2" />
                   Templates
                 </Button>
+                <Button 
+                  onClick={() => setExportDialogOpen(true)}
+                  variant="outline"
+                  className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export Report
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="gantt" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="gantt">Gantt Chart</TabsTrigger>
+                <TabsTrigger value="calendar">Calendar</TabsTrigger>
+                <TabsTrigger value="critical">Critical Path</TabsTrigger>
+                <TabsTrigger value="board">Kanban Board</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="gantt" className="space-y-4">
+                <GanttChart
+                  tasks={filteredTasks}
+                  onUpdateTask={handleUpdateTask}
+                  onDeleteTask={handleDeleteTask}
+                  onEditDependencies={(task) => setDependencyTask(task)}
+                  projects={projects}
+                  selectedProjects={selectedProjects}
+                  dateRange={dateRange}
+                  showDependencies={showDependencies}
+                  showCriticalPath={showCriticalPath}
+                  showMilestones={showMilestones}
+                />
+              </TabsContent>
+
+              <TabsContent value="calendar" className="space-y-4">
+                <ScheduleCalendar
+                  tasks={filteredTasks}
+                  projects={projects}
+                  onUpdateTask={handleUpdateTask}
+                  dateRange={dateRange}
+                />
+              </TabsContent>
+
+              <TabsContent value="critical" className="space-y-4">
+                <CriticalPath
+                  tasks={filteredTasks}
+                  projects={projects}
+                  onUpdateTask={handleUpdateTask}
+                />
+              </TabsContent>
+
+              <TabsContent value="board" className="space-y-4">
+                <PlannerBoard
+                  tasks={filteredTasks}
+                  projects={projects}
+                  onUpdateTask={handleUpdateTask}
+                  onDeleteTask={handleDeleteTask}
+                  onAddTask={handleAddTaskToStatus}
+                />
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+
+        {/* Dialogs */}
+        <EnhancedExportDialog
+          open={exportDialogOpen}
+          onOpenChange={setExportDialogOpen}
+          tasks={filteredTasks}
+          projects={projects}
+          selectedProjects={selectedProjects}
+        />
+
+        <QuickPlanner
+          open={quickPlannerOpen}
+          onOpenChange={setQuickPlannerOpen}
+          onTemplateApplied={handleTemplateApplied}
+          projects={projects}
+        />
+
+        <TemplateManager
+          open={templateManagerOpen}
+          onOpenChange={setTemplateManagerOpen}
+          onTemplateApplied={handleTemplateApplied}
+        />
+      </div>
+    </Layout>
+  );
+}
