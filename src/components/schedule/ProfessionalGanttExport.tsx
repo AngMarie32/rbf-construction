@@ -1,4 +1,3 @@
-
 import { Task } from '@/types';
 import { format, differenceInDays, eachDayOfInterval } from 'date-fns';
 import { getBusinessDaysBetween, isBusinessDay, isHoliday } from '@/utils/businessDays';
@@ -43,7 +42,7 @@ export const generateProfessionalGanttPDF = (
   doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, margin, 33);
   
   // Timeline header
-  const timelineDays = eachDayOfInterval(dateRange);
+  const timelineDays = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
   const headerY = 45;
   const rowHeight = 8;
   const taskNameWidth = 80;
@@ -180,7 +179,7 @@ export const generateProfessionalExcel = (
   XLSX.utils.book_append_sheet(workbook, taskSheet, 'Tasks');
   
   // Create timeline sheet
-  const timelineDays = eachDayOfInterval(dateRange);
+  const timelineDays = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
   const timelineHeaders = ['Task Name', ...timelineDays.map(day => format(day, 'MM/dd'))];
   
   const timelineData = tasks.map(task => {
