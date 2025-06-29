@@ -36,6 +36,13 @@ export interface ExportData {
   };
 }
 
+// Alternative interface for simple data exports
+export interface SimpleExportData {
+  title: string;
+  data: any[];
+  metadata: any;
+}
+
 export const exportToExcel = async (data: ExportData) => {
   const workbook = XLSX.utils.book_new();
 
@@ -396,3 +403,78 @@ export const exportToCSV = (data: ExportData) => {
   link.click();
   document.body.removeChild(link);
 };
+
+// Simple export functions for custom reports
+export const exportSimpleToExcel = (data: SimpleExportData) => {
+  const workbook = XLSX.utils.book_new();
+  
+  if (data.data.length > 0) {
+    const ws = XLSX.utils.json_to_sheet(data.data);
+    XLSX.utils.book_append_sheet(workbook, ws, 'Data');
+  }
+  
+  const fileName = `${data.title.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd_HHmm')}.xlsx`;
+  XLSX.writeFile(workbook, fileName);
+};
+
+export const exportSimpleToPDF = async (data: SimpleExportData) => {
+  const doc = new jsPDF();
+  
+  doc.setFontSize(18);
+  doc.text(data.title, 20, 30);
+  
+  doc.setFontSize(10);
+  doc.text(`Generated: ${data.metadata.generatedAt || new Date().toLocaleString()}`, 20, 50);
+  
+  // Simple data table
+  if (data.data.length > 0) {
+    const headers = Object.keys(data.data[0]).slice(0, 5);
+    let y = 70;
+    
+    headers.forEach((header, index) => {
+      doc.text(header, 20 + index * 30, y);
+    });
+    
+    y += 10;
+    data.data.slice(0, 20).forEach(row => {
+      headers.forEach((header, index) => {
+        const value = row[header]?.toString().substring(0, 15) || '';
+        doc.text(value, 20 + index * 30, y);
+      });
+      y += 8;
+    });
+  }
+  
+  const fileName = `${data.title.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`;
+  doc.save(fileName);
+};
+
+export const exportSimpleToCSV = (data: SimpleExportData) => {
+  if (data.data.length === 0) return;
+  
+  const headers = Object.keys(data.data[0]);
+  const csvContent = [headers];
+  
+  data.data.forEach(row => {
+    const values = headers.map(header => row[header]?.toString() || '');
+    csvContent.push(values);
+  });
+  
+  const csvString = csvContent
+    .map(row => row.map(cell => `"${cell}"`).join(','))
+    .join('\n');
+    
+  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', `${data.title.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd_HHmm')}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+// Aliases for backward compatibility
+export const generateExcelReport = exportToExcel;
+export const generatePDFReport = exportToPDF;

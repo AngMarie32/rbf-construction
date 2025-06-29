@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,7 @@ import { Download, FileText, BarChart3, Building2, TrendingUp, DollarSign } from
 import { DateRange } from 'react-day-picker';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { exportToExcel, exportToPDF, exportToCSV } from '@/utils/reportExports';
+import { exportSimpleToExcel, exportSimpleToPDF, exportSimpleToCSV } from '@/utils/reportExports';
 import jsPDF from 'jspdf';
 
 interface Project {
@@ -372,13 +371,13 @@ export function ProjectReportBuilder({ project }: ProjectReportBuilderProps) {
     try {
       switch (format) {
         case 'excel':
-          exportToExcel(exportData);
+          exportSimpleToExcel(exportData);
           break;
         case 'pdf':
-          await exportToPDF(exportData);
+          await exportSimpleToPDF(exportData);
           break;
         case 'csv':
-          exportToCSV(exportData);
+          exportSimpleToCSV(exportData);
           break;
       }
       toast.success(`Report exported as ${format.toUpperCase()}`);

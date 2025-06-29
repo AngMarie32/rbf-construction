@@ -12,7 +12,7 @@ import { Download, FileText, Settings, Plus, Trash2 } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { exportToExcel, exportToPDF, exportToCSV } from '@/utils/reportExports';
+import { exportSimpleToExcel, exportSimpleToPDF, exportSimpleToCSV } from '@/utils/reportExports';
 import jsPDF from 'jspdf';
 
 interface CustomReportBuilderProps {
@@ -392,10 +392,10 @@ export function CustomReportBuilder({ onClose }: CustomReportBuilderProps) {
 
         switch (format) {
           case 'excel':
-            exportToExcel(exportData);
+            exportSimpleToExcel(exportData);
             break;
           case 'csv':
-            exportToCSV(exportData);
+            exportSimpleToCSV(exportData);
             break;
         }
       }
