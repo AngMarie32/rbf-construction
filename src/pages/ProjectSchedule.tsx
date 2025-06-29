@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -348,7 +347,6 @@ export default function ProjectSchedule() {
                 <ScheduleCalendar
                   tasks={filteredTasks}
                   projects={projects}
-                  onUpdateTask={handleUpdateTask}
                   dateRange={dateRange}
                 />
               </TabsContent>
@@ -356,8 +354,7 @@ export default function ProjectSchedule() {
               <TabsContent value="critical" className="space-y-4">
                 <CriticalPath
                   tasks={filteredTasks}
-                  projects={projects}
-                  onUpdateTask={handleUpdateTask}
+                  selectedProjects={selectedProjects}
                 />
               </TabsContent>
 
@@ -365,7 +362,6 @@ export default function ProjectSchedule() {
                 <PlannerBoard
                   tasks={filteredTasks}
                   projects={projects}
-                  onUpdateTask={handleUpdateTask}
                   onDeleteTask={handleDeleteTask}
                   onAddTask={handleAddTaskToStatus}
                 />
@@ -394,6 +390,7 @@ export default function ProjectSchedule() {
           open={templateManagerOpen}
           onOpenChange={setTemplateManagerOpen}
           onTemplateApplied={handleTemplateApplied}
+          projects={projects}
         />
       </div>
     </Layout>

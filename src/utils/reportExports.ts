@@ -13,7 +13,7 @@ interface Project {
   status?: string;
 }
 
-interface ExportData {
+export interface ExportData {
   title: string;
   tasks: Task[];
   projects: Project[];
@@ -36,7 +36,7 @@ interface ExportData {
   };
 }
 
-export const generateExcelReport = async (data: ExportData) => {
+export const exportToExcel = async (data: ExportData) => {
   const workbook = XLSX.utils.book_new();
 
   // Summary Sheet
@@ -45,8 +45,8 @@ export const generateExcelReport = async (data: ExportData) => {
     [''],
     ['Report Generated:', data.metadata.generatedAt],
     ['Date Range:', data.metadata.dateRange],
-    ['Total Tasks:', data.metadata.taskCount],
-    ['Total Projects:', data.metadata.projectCount],
+    ['Total Tasks:', data.metadata.taskCount.toString()],
+    ['Total Projects:', data.metadata.projectCount.toString()],
     [''],
     ['Project Summary'],
     ['Project Name', 'Total Tasks', 'Completed', 'In Progress', 'Not Started', 'Avg Progress %']
@@ -64,11 +64,11 @@ export const generateExcelReport = async (data: ExportData) => {
 
     summaryData.push([
       project.name,
-      projectTasks.length,
-      completed,
-      inProgress,
-      notStarted,
-      avgProgress
+      projectTasks.length.toString(),
+      completed.toString(),
+      inProgress.toString(),
+      notStarted.toString(),
+      avgProgress.toString()
     ]);
   });
 
@@ -99,27 +99,14 @@ export const generateExcelReport = async (data: ExportData) => {
         project?.name || 'Unknown',
         format(task.startDate, data.options.dateFormat),
         format(task.endDate, data.options.dateFormat),
-        duration,
+        duration.toString(),
         task.status,
-        task.progress,
+        task.progress.toString(),
         task.dependencies?.join(', ') || 'None'
       ];
     });
 
     const taskWS = XLSX.utils.aoa_to_sheet([taskHeaders, ...taskData]);
-    
-    // Add styling to headers
-    const headerRange = XLSX.utils.decode_range(taskWS['!ref'] || 'A1');
-    for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-      if (!taskWS[cellAddress]) continue;
-      taskWS[cellAddress].s = {
-        font: { bold: true },
-        fill: { fgColor: { rgb: '4F81BD' } },
-        color: { rgb: 'FFFFFF' }
-      };
-    }
-
     XLSX.utils.book_append_sheet(workbook, taskWS, 'Task List');
   }
 
@@ -141,7 +128,7 @@ export const generateExcelReport = async (data: ExportData) => {
 
     Object.entries(statusCounts).forEach(([status, count]) => {
       const percentage = data.tasks.length > 0 ? Math.round((count / data.tasks.length) * 100) : 0;
-      progressData.push([status, count, `${percentage}%`]);
+      progressData.push([status, count.toString(), `${percentage}%`]);
     });
 
     progressData.push([''], ['Overall Progress']);
@@ -175,7 +162,7 @@ export const generateExcelReport = async (data: ExportData) => {
         task.title,
         format(task.startDate, data.options.dateFormat),
         format(task.endDate, data.options.dateFormat),
-        task.dependencies?.length || 0,
+        (task.dependencies?.length || 0).toString(),
         task.status,
         riskLevel
       ]);
@@ -190,7 +177,7 @@ export const generateExcelReport = async (data: ExportData) => {
   XLSX.writeFile(workbook, fileName);
 };
 
-export const generatePDFReport = async (data: ExportData) => {
+export const exportToPDF = async (data: ExportData) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
@@ -361,4 +348,51 @@ export const generatePDFReport = async (data: ExportData) => {
   // Save the PDF
   const fileName = `${data.title.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`;
   doc.save(fileName);
+};
+
+export const exportToCSV = (data: ExportData) => {
+  const csvContent = [];
+  
+  // Header
+  csvContent.push([
+    'Task ID',
+    'Task Name', 
+    'Project',
+    'Start Date',
+    'End Date',
+    'Status',
+    'Progress',
+    'Dependencies'
+  ]);
+
+  // Task data
+  data.tasks.forEach(task => {
+    const project = data.projects.find(p => p.id === task.projectId);
+    csvContent.push([
+      task.id,
+      task.title,
+      project?.name || 'Unknown',
+      format(task.startDate, data.options.dateFormat),
+      format(task.endDate, data.options.dateFormat),
+      task.status,
+      task.progress.toString(),
+      task.dependencies?.join('; ') || 'None'
+    ]);
+  });
+
+  // Convert to CSV string
+  const csvString = csvContent
+    .map(row => row.map(cell => `"${cell}"`).join(','))
+    .join('\n');
+
+  // Download
+  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', `${data.title.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd_HHmm')}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
