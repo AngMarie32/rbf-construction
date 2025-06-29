@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -221,13 +220,12 @@ export function GanttChart({
                     <span className="text-xs text-gray-700">{format(task.endDate, 'MM/dd/yy')}</span>
                   </div>
 
-                  {/* Duration Column - Business Days */}
+                  {/* Duration Column - Business Days (removed "bus" text) */}
                   <div className="w-24 px-2 py-3 border-r border-gray-300 text-center">
                     <div className="flex flex-col items-center justify-center h-full">
                       <span className="text-xs font-medium text-gray-700">{businessDayDuration}d</span>
                       <div className="flex items-center gap-1">
                         <Clock className="w-2 h-2 text-gray-400" />
-                        <span className="text-[10px] text-gray-500">bus</span>
                       </div>
                     </div>
                   </div>
