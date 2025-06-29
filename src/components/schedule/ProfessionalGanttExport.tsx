@@ -49,6 +49,9 @@ export const generateProfessionalGanttPDF = (
   // Reset text color
   doc.setTextColor(0, 0, 0);
   
+  // Generate date columns for the timeline
+  const timelineDays = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
+  
   // Report metadata section
   const metaY = 45;
   doc.setFontSize(9);
@@ -57,10 +60,9 @@ export const generateProfessionalGanttPDF = (
   doc.text(`Generated: ${format(new Date(), 'MMMM dd, yyyy \'at\' HH:mm')}`, margin, metaY);
   doc.text(`Total Tasks: ${tasks.length}`, margin + 80, metaY);
   doc.text(`Active Projects: ${projects.length}`, margin + 140, metaY);
-  doc.text(`Business Days Only`, margin + 200, metaY);
+  doc.text('Business Days Only', margin + 200, metaY);
   
   // Professional timeline setup
-  const timelineDays = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
   const headerY = 60;
   const rowHeight = 12;
   const taskNameWidth = 90;
@@ -96,12 +98,12 @@ export const generateProfessionalGanttPDF = (
     
     // Weekend/holiday background
     if (isWeekend || isHolidayDay) {
-      doc.setFillColor(isHolidayDay ? 252, 232, 230 : 248, 250, 252);
+      doc.setFillColor(isHolidayDay ? 252 : 248, isHolidayDay ? 232 : 250, isHolidayDay ? 230 : 252);
       doc.rect(x, headerY, dateColumnWidth, rowHeight * 2, 'F');
     }
     
     // Date text with better alignment
-    doc.setTextColor(isHolidayDay ? 185, 28, 28 : isWeekend ? 100, 116, 139 : 75, 85, 99);
+    doc.setTextColor(isHolidayDay ? 185 : isWeekend ? 100 : 75, isHolidayDay ? 28 : isWeekend ? 116 : 85, isHolidayDay ? 28 : isWeekend ? 139 : 99);
     const dayText = format(day, 'dd');
     const dayWidth = doc.getTextWidth(dayText);
     doc.text(dayText, x + (dateColumnWidth - dayWidth) / 2, headerY + 8);
