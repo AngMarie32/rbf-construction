@@ -347,6 +347,9 @@ export default function ProjectSchedule() {
                 <ScheduleCalendar
                   tasks={filteredTasks}
                   projects={projects}
+                  currentDate={currentDate}
+                  onDateChange={setCurrentDate}
+                  onTaskUpdate={handleUpdateTask}
                 />
               </TabsContent>
 
@@ -361,7 +364,10 @@ export default function ProjectSchedule() {
                 <PlannerBoard
                   tasks={filteredTasks}
                   projects={projects}
+                  onTaskUpdate={handleUpdateTask}
+                  onTaskDelete={handleDeleteTask}
                   onAddTask={handleAddTaskToStatus}
+                  onTaskCreated={fetchTasks}
                 />
               </TabsContent>
             </Tabs>

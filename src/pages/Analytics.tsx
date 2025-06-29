@@ -1,374 +1,431 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ReportCard } from '@/components/reports/ReportCard';
-import { ReportFilters } from '@/components/reports/ReportFilters';
-import { ExecutiveReports } from '@/components/reports/ExecutiveReports';
-import { ProjectReports } from '@/components/reports/ProjectReports';
-import { FinancialReports } from '@/components/reports/FinancialReports';
-import { CustomReportBuilder } from '@/components/reports/CustomReportBuilder';
-import { exportToExcel, exportToPDF, exportToCSV, ExportData } from '@/utils/reportExports';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar, CalendarDays, BarChart3, Plus, Search, Filter, Eye, Download, Settings, Target, Lightbulb, Users, Clock, Kanban, Zap, FileText, TrendingUp } from 'lucide-react';
+import { GanttChart } from '@/components/schedule/GanttChart';
+import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
+import { CriticalPath } from '@/components/schedule/CriticalPath';
+import { PlannerBoard } from '@/components/schedule/PlannerBoard';
+import { QuickPlanner } from '@/components/schedule/QuickPlanner';
+import { TemplateManager } from '@/components/schedule/TemplateManager';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { FileText, Download, BarChart3, TrendingUp, Building, Settings } from 'lucide-react';
+import { addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, format } from 'date-fns';
+import { Task } from '@/types';
+import { EnhancedExportDialog } from '@/components/schedule/EnhancedExportDialog';
+import { exportSimpleToExcel, exportSimpleToPDF, exportSimpleToCSV } from '@/utils/reportExports';
 
-interface ProjectManager {
+interface Project {
   id: string;
   name: string;
+  color: string;
+}
+
+interface AnalyticsData {
+  taskName: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  progress: number;
+  projectName: string;
 }
 
 export default function Analytics() {
-  const [activeTab, setActiveTab] = useState('gallery');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-    from: undefined,
-    to: undefined
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<'week' | 'month' | 'quarter'>('month');
+  const [dateRange, setDateRange] = useState({
+    from: subDays(new Date(), 30),
+    to: addDays(new Date(), 60)
   });
-  const [selectedProjectManager, setSelectedProjectManager] = useState<string>('all');
-  const [projectManagers, setProjectManagers] = useState<ProjectManager[]>([]);
-  const [reportData, setReportData] = useState<any>({});
-  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showDependencies, setShowDependencies] = useState(false);
+  const [showCriticalPath, setShowCriticalPath] = useState(false);
+  const [showMilestones, setShowMilestones] = useState(false);
+  const [dependencyTask, setDependencyTask] = useState<Task | null>(null);
+  const [editTask, setEditTask] = useState<Task | null>(null);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [quickPlannerOpen, setQuickPlannerOpen] = useState(false);
+  const [templateManagerOpen, setTemplateManagerOpen] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData[]>([]);
+  const [exportType, setExportType] = useState<'excel' | 'pdf' | 'csv'>('excel');
 
   useEffect(() => {
-    fetchProjectManagers();
-    fetchReportData();
+    fetchProjects();
+    fetchTasks();
   }, []);
 
-  const fetchProjectManagers = async () => {
+  useEffect(() => {
+    updateDateRange();
+  }, [currentDate, viewMode]);
+
+  useEffect(() => {
+    generateAnalyticsData();
+  }, [tasks, projects]);
+
+  const updateDateRange = () => {
+    let newFrom: Date;
+    let newTo: Date;
+
+    switch (viewMode) {
+      case 'week':
+        newFrom = startOfWeek(currentDate);
+        newTo = endOfWeek(currentDate);
+        break;
+      case 'month':
+        newFrom = startOfMonth(currentDate);
+        newTo = endOfMonth(currentDate);
+        break;
+      case 'quarter':
+        newFrom = startOfQuarter(currentDate);
+        newTo = endOfQuarter(currentDate);
+        break;
+      default:
+        newFrom = startOfMonth(currentDate);
+        newTo = endOfMonth(currentDate);
+    }
+
+    setDateRange({ from: newFrom, to: newTo });
+  };
+
+  const navigateDate = (direction: 'prev' | 'next') => {
+    const multiplier = direction === 'next' ? 1 : -1;
+    let newDate: Date;
+
+    switch (viewMode) {
+      case 'week':
+        newDate = addDays(currentDate, 7 * multiplier);
+        break;
+      case 'month':
+        newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + multiplier, 1);
+        break;
+      case 'quarter':
+        newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + (3 * multiplier), 1);
+        break;
+      default:
+        newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + multiplier, 1);
+    }
+
+    setCurrentDate(newDate);
+  };
+
+  const fetchProjects = async () => {
     try {
-      const { data: profiles, error } = await supabase
-        .from('profiles')
+      const { data, error } = await supabase
+        .from('projects')
         .select('id, name')
-        .not('name', 'is', null);
+        .order('name');
 
       if (error) throw error;
 
-      setProjectManagers(profiles || []);
+      const projectsWithColors = (data || []).map((project, index) => ({
+        ...project,
+        color: `hsl(${(index * 137.5) % 360}, 70%, 50%)`
+      }));
+
+      setProjects(projectsWithColors);
+      setSelectedProjects(projectsWithColors.map(p => p.id));
     } catch (error) {
-      console.error('Error fetching project managers:', error);
+      console.error('Error fetching projects:', error);
+      toast.error('Failed to load projects');
     }
   };
 
-  const fetchReportData = async () => {
+  const fetchTasks = async () => {
     try {
       setLoading(true);
-      
-      // Fetch actual data from database
-      const [
-        { data: projects },
-        { data: expenses },
-        { data: billing },
-        { data: changeOrders }
-      ] = await Promise.all([
-        supabase.from('projects').select('*'),
-        supabase.from('expenses').select('*'),
-        supabase.from('project_billing').select('*'),
-        supabase.from('change_orders').select('*')
-      ]);
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .order('start_date');
 
-      // Calculate real financial data
-      const totalRevenue = (billing || []).reduce((sum, bill) => sum + (Number(bill.billed_amount) || 0), 0);
-      const totalExpenses = (expenses || []).reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
-      const totalProfit = totalRevenue - totalExpenses;
+      if (error) throw error;
 
-      const monthlyRevenue = [
-        { month: 'Jan', revenue: totalRevenue * 0.15, costs: totalExpenses * 0.15, profit: totalProfit * 0.15 },
-        { month: 'Feb', revenue: totalRevenue * 0.18, costs: totalExpenses * 0.18, profit: totalProfit * 0.18 },
-        { month: 'Mar', revenue: totalRevenue * 0.16, costs: totalExpenses * 0.16, profit: totalProfit * 0.16 },
-        { month: 'Apr', revenue: totalRevenue * 0.20, costs: totalExpenses * 0.20, profit: totalProfit * 0.20 },
-        { month: 'May', revenue: totalRevenue * 0.17, costs: totalExpenses * 0.17, profit: totalProfit * 0.17 },
-        { month: 'Jun', revenue: totalRevenue * 0.14, costs: totalExpenses * 0.14, profit: totalProfit * 0.14 }
-      ];
-
-      const performanceByManager = projectManagers.slice(0, 5).map((pm, index) => ({
-        name: pm.name,
-        totalRevenue: totalRevenue / projectManagers.length * (1 + (index * 0.1)),
-        projectCount: Math.floor((projects?.length || 0) / projectManagers.length),
-        onTimeRate: 75 + (index * 5),
-        avgProfitMargin: 15 + (index * 2)
+      const formattedTasks = (data || []).map(task => ({
+        id: task.id,
+        title: task.title,
+        projectId: task.project_id,
+        startDate: new Date(task.start_date),
+        endDate: new Date(task.end_date),
+        status: task.status as 'Not Started' | 'In Progress' | 'On Hold' | 'Completed' || 'Not Started',
+        progress: task.progress || 0,
+        dependencies: task.dependencies || []
       }));
 
-      const projectSummary = {
-        totalRevenue: (projects || []).reduce((sum, p) => sum + (p.contract_value || 0), 0),
-        activeProjects: (projects || []).filter(p => p.status === 'Open').length,
-        avgProfitMargin: totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100) : 0,
-        onTimeRate: 87
-      };
-
-      const projectStatus = [
-        { name: 'Planning', value: (projects || []).filter(p => p.status === 'Planning').length },
-        { name: 'Open', value: (projects || []).filter(p => p.status === 'Open').length },
-        { name: 'Closed', value: (projects || []).filter(p => p.status === 'Closed').length }
-      ];
-
-      const budgetPerformance = (projects || []).slice(0, 6).map(project => ({
-        projectName: project.name.length > 15 ? project.name.substring(0, 15) + '...' : project.name,
-        budgeted: project.contract_value || 0,
-        actual: (project.contract_value || 0) * (0.85 + Math.random() * 0.3)
-      }));
-
-      const timelinePerformance = (projects || []).slice(0, 5).map(project => ({
-        projectName: project.name,
-        manager: 'Project Manager',
-        daysVariance: Math.floor(Math.random() * 20) - 10,
-        onTime: Math.random() > 0.3
-      }));
-
-      const changeOrderImpact = [
-        { month: 'Jan', changeOrderValue: (changeOrders || []).filter(co => co.date?.includes('2024-01')).reduce((sum, co) => sum + (co.amount || 0), 0) },
-        { month: 'Feb', changeOrderValue: (changeOrders || []).filter(co => co.date?.includes('2024-02')).reduce((sum, co) => sum + (co.amount || 0), 0) },
-        { month: 'Mar', changeOrderValue: (changeOrders || []).filter(co => co.date?.includes('2024-03')).reduce((sum, co) => sum + (co.amount || 0), 0) },
-        { month: 'Apr', changeOrderValue: (changeOrders || []).filter(co => co.date?.includes('2024-04')).reduce((sum, co) => sum + (co.amount || 0), 0) },
-        { month: 'May', changeOrderValue: (changeOrders || []).filter(co => co.date?.includes('2024-05')).reduce((sum, co) => sum + (co.amount || 0), 0) },
-        { month: 'Jun', changeOrderValue: (changeOrders || []).filter(co => co.date?.includes('2024-06')).reduce((sum, co) => sum + (co.amount || 0), 0) }
-      ];
-
-      const revenueRecognition = monthlyRevenue.map(item => ({
-        month: item.month,
-        recognized: item.revenue * 0.8,
-        deferred: item.revenue * 0.2
-      }));
-
-      const profitLossByProject = (projects || []).slice(0, 6).map(project => ({
-        projectName: project.name.length > 15 ? project.name.substring(0, 15) + '...' : project.name,
-        revenue: project.contract_value || 0,
-        costs: (project.contract_value || 0) * 0.75,
-        profit: (project.contract_value || 0) * 0.25
-      }));
-
-      const cashFlowProjection = [
-        { month: 'Jul', inflow: totalRevenue * 0.15, outflow: totalExpenses * 0.15, net: (totalRevenue - totalExpenses) * 0.15 },
-        { month: 'Aug', inflow: totalRevenue * 0.17, outflow: totalExpenses * 0.17, net: (totalRevenue - totalExpenses) * 0.17 },
-        { month: 'Sep', inflow: totalRevenue * 0.14, outflow: totalExpenses * 0.14, net: (totalRevenue - totalExpenses) * 0.14 },
-        { month: 'Oct', inflow: totalRevenue * 0.19, outflow: totalExpenses * 0.19, net: (totalRevenue - totalExpenses) * 0.19 },
-        { month: 'Nov', inflow: totalRevenue * 0.16, outflow: totalExpenses * 0.16, net: (totalRevenue - totalExpenses) * 0.16 },
-        { month: 'Dec', inflow: totalRevenue * 0.19, outflow: totalExpenses * 0.19, net: (totalRevenue - totalExpenses) * 0.19 }
-      ];
-
-      const profitMargins = monthlyRevenue.map(item => ({
-        month: item.month,
-        margin: item.revenue > 0 ? ((item.profit / item.revenue) * 100).toFixed(1) : '0.0'
-      }));
-
-      setReportData({
-        executive: {
-          monthlyRevenue,
-          projectSummary,
-          profitMargins,
-          performanceByManager
-        },
-        project: {
-          projectStatus,
-          budgetPerformance,
-          timelinePerformance,
-          changeOrderImpact
-        },
-        financial: {
-          revenueRecognition,
-          profitLossByProject,
-          cashFlowProjection
-        }
-      });
-
+      setTasks(formattedTasks);
     } catch (error) {
-      console.error('Error fetching report data:', error);
-      toast.error('Failed to load report data');
+      console.error('Error fetching tasks:', error);
+      toast.error('Failed to load tasks');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleExportReport = async (reportType: string, format: 'excel' | 'pdf' | 'csv') => {
-    const data = reportData[reportType];
-    if (!data) return;
-
-    const exportData: ExportData = {
-      title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`,
-      data: Object.values(data).flat(),
-      metadata: {
-        dateRange: dateRange.from && dateRange.to 
-          ? `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`
-          : 'All Time',
-        generatedBy: 'Construction Analytics',
-        generatedAt: new Date().toLocaleString(),
-        filters: {
-          category: selectedCategory,
-          projectManager: selectedProjectManager
-        }
-      }
-    };
-
+  const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
     try {
-      switch (format) {
-        case 'excel':
-          exportToExcel(exportData);
-          break;
-        case 'pdf':
-          await exportToPDF(exportData);
-          break;
-        case 'csv':
-          exportToCSV(exportData);
-          break;
-      }
-      toast.success(`Report exported as ${format.toUpperCase()}`);
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      const updateData: any = {};
+      if (updates.startDate) updateData.start_date = updates.startDate.toISOString().split('T')[0];
+      if (updates.endDate) updateData.end_date = updates.endDate.toISOString().split('T')[0];
+      if (updates.status) updateData.status = updates.status;
+      if (updates.progress !== undefined) updateData.progress = updates.progress;
+      if (updates.dependencies) updateData.dependencies = updates.dependencies;
+
+      const { error } = await supabase
+        .from('tasks')
+        .update(updateData)
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      setTasks(prev => prev.map(t => 
+        t.id === taskId ? { ...t, ...updates } : t
+      ));
+
+      toast.success('Task updated successfully');
     } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Failed to export report');
+      console.error('Error updating task:', error);
+      toast.error('Failed to update task');
     }
   };
 
-  const reports = [
-    {
-      title: 'Executive Dashboard',
-      description: 'High-level KPIs, revenue trends, and performance metrics',
-      category: 'executive',
-      lastUpdated: 'Today'
-    },
-    {
-      title: 'Project Performance',
-      description: 'Project status, budget vs actual, timeline analysis',
-      category: 'project',
-      lastUpdated: 'Today'
-    },
-    {
-      title: 'Financial Analysis',
-      description: 'Revenue recognition, P&L by project, cash flow',
-      category: 'financial',
-      lastUpdated: 'Today'
-    },
-    {
-      title: 'Custom Report Builder',
-      description: 'Build custom reports with any data from the application',
-      category: 'custom',
-      lastUpdated: 'Available'
-    }
-  ];
+  const handleUpdateDependencies = async (taskId: string, dependencies: string[]) => {
+    await handleUpdateTask(taskId, { dependencies });
+  };
 
-  const filteredReports = reports.filter(report => 
-    selectedCategory === 'all' || report.category === selectedCategory
-  );
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      setTasks(prev => prev.filter(t => t.id !== taskId));
+      toast.success('Task deleted successfully');
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete task');
+    }
+  };
+
+  const handleAddTaskToStatus = (status: Task['status']) => {
+    // This will be handled by the PlannerBoard component now
+    console.log('Add task with status:', status);
+  };
+
+  const handleTemplateApplied = (templateTasks: any[]) => {
+    // Refresh tasks after template is applied
+    fetchTasks();
+    setQuickPlannerOpen(false);
+    setTemplateManagerOpen(false);
+    toast.success('Template applied successfully');
+  };
+
+  const filteredTasks = tasks.filter(task => {
+    const matchesProject = selectedProjects.includes(task.projectId);
+    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const withinDateRange = task.startDate <= dateRange.to && task.endDate >= dateRange.from;
+    
+    return matchesProject && matchesSearch && withinDateRange;
+  });
+
+  const generateAnalyticsData = () => {
+    const data: AnalyticsData[] = filteredTasks.map(task => {
+      const project = projects.find(p => p.id === task.projectId);
+      return {
+        taskName: task.title,
+        startDate: format(task.startDate, 'yyyy-MM-dd'),
+        endDate: format(task.endDate, 'yyyy-MM-dd'),
+        status: task.status,
+        progress: task.progress,
+        projectName: project?.name || 'Unknown'
+      };
+    });
+    setAnalyticsData(data);
+  };
+
+  const handleExport = () => {
+    const exportData = {
+      title: 'Analytics Report',
+      data: analyticsData,
+      metadata: {
+        dateRange: `${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}`,
+        generatedBy: 'System',
+        generatedAt: new Date().toLocaleString(),
+        taskCount: tasks.length,
+        projectCount: projects.length
+      }
+    };
+
+    switch (exportType) {
+      case 'excel':
+        exportSimpleToExcel(exportData);
+        break;
+      case 'pdf':
+        exportSimpleToPDF(exportData);
+        break;
+      case 'csv':
+        exportSimpleToCSV(exportData);
+        break;
+      default:
+        toast.error('Invalid export type');
+    }
+  };
 
   return (
-    <Layout title="Analytics & Reporting" subtitle="Executive reports and business intelligence">
-      <div className="space-y-6">
-        <ReportFilters
-          selectedCategory={selectedCategory}
-          onCategoryChange={setSelectedCategory}
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
-          selectedProjectManager={selectedProjectManager}
-          onProjectManagerChange={setSelectedProjectManager}
-          projectManagers={projectManagers}
-          onApplyFilters={fetchReportData}
-          onClearFilters={() => {
-            setSelectedCategory('all');
-            setDateRange({ from: undefined, to: undefined });
-            setSelectedProjectManager('all');
-          }}
-        />
-
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="gallery" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Gallery
-            </TabsTrigger>
-            <TabsTrigger value="executive" className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              Executive
-            </TabsTrigger>
-            <TabsTrigger value="project" className="flex items-center gap-2">
-              <Building className="w-4 h-4" />
-              Projects
-            </TabsTrigger>
-            <TabsTrigger value="financial" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Financial
-            </TabsTrigger>
-            <TabsTrigger value="custom" className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              Custom Builder
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="gallery" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredReports.map((report, index) => (
-                <ReportCard
-                  key={index}
-                  title={report.title}
-                  description={report.description}
-                  category={report.category}
-                  lastUpdated={report.lastUpdated}
-                  onView={() => setActiveTab(report.category)}
-                  onExport={() => report.category !== 'custom' && handleExportReport(report.category, 'excel')}
-                  isLoading={loading}
-                />
-              ))}
+    <Layout title="Analytics" subtitle="Project data analytics and reporting">
+      <div className="space-y-8">
+        {/* Analytics Overview */}
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-blue-600" />
+              <CardTitle className="text-blue-900">Analytics Overview</CardTitle>
             </div>
-          </TabsContent>
-
-          <TabsContent value="executive" className="space-y-4">
-            <div className="flex justify-end gap-2 mb-4">
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('executive', 'excel')}>
-                <Download className="w-4 h-4 mr-1" />
-                Excel
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('executive', 'pdf')}>
-                <Download className="w-4 h-4 mr-1" />
-                PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('executive', 'csv')}>
-                <Download className="w-4 h-4 mr-1" />
-                CSV
-              </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <h4 className="font-semibold text-blue-900 flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Project Summary
+                </h4>
+                <ul className="space-y-2 text-sm text-blue-800">
+                  <li className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
+                    Total Projects: {projects.length}
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
+                    Total Tasks: {tasks.length}
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
+                    Completed Tasks: {tasks.filter(task => task.status === 'Completed').length}
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="space-y-3">
+                <h4 className="font-semibold text-blue-900 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4" />
+                  Task Progress
+                </h4>
+                <ul className="space-y-2 text-sm text-blue-800">
+                  <li className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
+                    Average Task Progress: {tasks.length > 0 ? Math.round(tasks.reduce((sum, t) => sum + t.progress, 0) / tasks.length) : 0}%
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
+                    Tasks In Progress: {tasks.filter(task => task.status === 'In Progress').length}
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
+                    Tasks On Hold: {tasks.filter(task => task.status === 'On Hold').length}
+                  </li>
+                </ul>
+              </div>
             </div>
-            {reportData.executive && <ExecutiveReports data={reportData.executive} />}
-          </TabsContent>
+          </CardContent>
+        </Card>
 
-          <TabsContent value="project" className="space-y-4">
-            <div className="flex justify-end gap-2 mb-4">
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('project', 'excel')}>
-                <Download className="w-4 h-4 mr-1" />
-                Excel
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('project', 'pdf')}>
-                <Download className="w-4 h-4 mr-1" />
-                PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('project', 'csv')}>
-                <Download className="w-4 h-4 mr-1" />
-                CSV
-              </Button>
+        {/* Data Table */}
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Task Analytics
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Select onValueChange={(value) => setExportType(value as 'excel' | 'pdf' | 'csv')}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Export Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="excel">Excel</SelectItem>
+                    <SelectItem value="pdf">PDF</SelectItem>
+                    <SelectItem value="csv">CSV</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button 
+                  onClick={handleExport}
+                  variant="outline"
+                  className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+              </div>
             </div>
-            {reportData.project && <ProjectReports data={reportData.project} />}
-          </TabsContent>
-
-          <TabsContent value="financial" className="space-y-4">
-            <div className="flex justify-end gap-2 mb-4">
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('financial', 'excel')}>
-                <Download className="w-4 h-4 mr-1" />
-                Excel
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('financial', 'pdf')}>
-                <Download className="w-4 h-4 mr-1" />
-                PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('financial', 'csv')}>
-                <Download className="w-4 h-4 mr-1" />
-                CSV
-              </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Task Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Project
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Start Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      End Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Progress
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {analyticsData.map((item, index) => (
+                    <tr key={index}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {item.taskName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.projectName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.startDate}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.endDate}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.status}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.progress}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            {reportData.financial && <FinancialReports data={reportData.financial} />}
-          </TabsContent>
-
-          <TabsContent value="custom" className="space-y-4">
-            <CustomReportBuilder />
-          </TabsContent>
-        </Tabs>
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );
