@@ -70,7 +70,7 @@ export default function Subcontractors() {
       const { data, error } = await supabase
         .from('subcontractors')
         .select('*')
-        .order('name');
+        .order('company');
 
       if (error) throw error;
       setSubcontractors(data || []);
@@ -87,7 +87,7 @@ export default function Subcontractors() {
 
     if (searchTerm) {
       filtered = filtered.filter(sub =>
-        sub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sub.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         sub.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         sub.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         sub.specialties?.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -249,8 +249,8 @@ export default function Subcontractors() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>CONTACT NAME</TableHead>
                     <TableHead>COMPANY</TableHead>
+                    <TableHead>CONTACT NAME</TableHead>
                     <TableHead>CONTACT INFO</TableHead>
                     <TableHead>SPECIALTIES</TableHead>
                     <TableHead>ACTIONS</TableHead>
@@ -261,7 +261,7 @@ export default function Subcontractors() {
                     <TableRow key={subcontractor.id}>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{subcontractor.name}</div>
+                          <div className="font-medium">{subcontractor.company || 'No Company'}</div>
                           {subcontractor.address && (
                             <div className="text-sm text-gray-500 flex items-center">
                               <MapPin className="w-3 h-3 mr-1" />
@@ -270,7 +270,7 @@ export default function Subcontractors() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{subcontractor.company || '-'}</TableCell>
+                      <TableCell>{subcontractor.name || '-'}</TableCell>
                       <TableCell>
                         <div className="space-y-1">
                           {subcontractor.email && (
@@ -321,7 +321,6 @@ export default function Subcontractors() {
                   <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No subcontractors found</h3>
                   <p className="text-gray-500 mb-6">Start building your network of trusted subcontractors.</p>
-                  <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
                 </div>
               )}
             </CardContent>
@@ -333,9 +332,9 @@ export default function Subcontractors() {
                 <CardContent className="p-6">
                   <div className="space-y-4">
                     <div>
-                      <h3 className="font-semibold text-lg">{subcontractor.name}</h3>
-                      {subcontractor.company && (
-                        <p className="text-gray-600">{subcontractor.company}</p>
+                      <h3 className="font-semibold text-lg">{subcontractor.company || 'No Company'}</h3>
+                      {subcontractor.name && (
+                        <p className="text-gray-600">{subcontractor.name}</p>
                       )}
                     </div>
                     
@@ -388,7 +387,6 @@ export default function Subcontractors() {
                 <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No subcontractors found</h3>
                 <p className="text-gray-500 mb-6">Start building your network of trusted subcontractors.</p>
-                <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
               </div>
             )}
           </div>

@@ -41,8 +41,8 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
     company: '',
+    name: '',
     email: '',
     phone: '',
     address: '',
@@ -57,8 +57,8 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
 
   const resetForm = () => {
     setFormData({
-      name: '',
       company: '',
+      name: '',
       email: '',
       phone: '',
       address: '',
@@ -75,16 +75,16 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name.trim() || !formData.company.trim()) {
-      toast.error('Name and Company are required fields');
+    if (!formData.company.trim()) {
+      toast.error('Company name is required');
       return;
     }
 
     setLoading(true);
     try {
       const insertData = {
-        name: formData.name.trim(),
         company: formData.company.trim(),
+        name: formData.name.trim() || null,
         email: formData.email.trim() || null,
         phone: formData.phone.trim() || null,
         address: formData.address.trim() || null,
@@ -159,23 +159,22 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="name">Contact Name *</Label>
-              <Input
-                id="name"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Enter contact name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="company">Company *</Label>
+              <Label htmlFor="company">Company Name *</Label>
               <Input
                 id="company"
                 required
                 value={formData.company}
                 onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
                 placeholder="Enter company name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="name">Contact Name</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter contact name (optional)"
               />
             </div>
           </div>
