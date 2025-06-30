@@ -1,27 +1,23 @@
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { 
-  Building, 
-  Truck, 
-  DollarSign,
+  MoreVertical, 
+  Edit2, 
+  Trash2, 
+  Wrench, 
+  Calculator,
   MapPin,
-  Wrench,
-  Settings,
-  MoreVertical,
-  Edit2,
-  Trash2,
   Calendar,
-  Hash
+  DollarSign,
+  Clock,
+  Settings
 } from 'lucide-react';
+import { MaintenanceAlertSettings } from './MaintenanceAlertSettings';
 import type { Equipment } from '@/types/equipment';
 
 interface EquipmentCardProps {
@@ -43,44 +39,46 @@ export function EquipmentCard({
   onMaintenance,
   onAddToEstimator
 }: EquipmentCardProps) {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Available': return 'bg-green-100 text-green-800 border-green-200';
-      case 'In Use': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Maintenance': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+  const [imageError, setImageError] = useState(false);
+
+  const handleDelete = () => {
+    if (confirm(`Are you sure you want to delete ${equipment.name}?`)) {
+      onDelete(equipment.id);
     }
   };
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'Heavy Machinery': return <Building className="w-4 h-4" />;
-      case 'Trucks': return <Truck className="w-4 h-4" />;
-      case 'Trailers': return <Truck className="w-4 h-4" />;
-      default: return <Wrench className="w-4 h-4" />;
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Available':
+        return 'bg-green-100 text-green-800';
+      case 'In Use':
+        return 'bg-blue-100 text-blue-800';
+      case 'Maintenance':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
   return (
-    <Card className={`transition-all duration-200 hover:shadow-lg ${isSelected ? 'ring-2 ring-blue-500 shadow-md' : 'shadow-sm'} bg-white border border-gray-200`}>
+    <Card className="relative group hover:shadow-lg transition-shadow">
+      <div className="absolute top-3 left-3 z-10">
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={() => onSelect(equipment.id)}
+          className="bg-white border-2"
+        />
+      </div>
+
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-3 flex-1">
-            <Checkbox
-              checked={isSelected}
-              onCheckedChange={() => onSelect(equipment.id)}
-              className="mt-1"
-            />
-            <div className="flex-1 min-w-0">
-              <CardTitle className="text-lg font-semibold text-gray-900 truncate">
-                {equipment.name}
-              </CardTitle>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge className={`text-xs font-medium border ${getStatusColor(equipment.status)}`} variant="outline">
-                  {equipment.status}
-                </Badge>
-              </div>
-            </div>
+        <div className="flex justify-between items-start">
+          <div className="flex-1 min-w-0 ml-8">
+            <CardTitle className="text-lg truncate" title={equipment.name}>
+              {equipment.name}
+            </CardTitle>
+            <Badge className={`mt-1 ${getStatusColor(equipment.status)}`}>
+              {equipment.status}
+            </Badge>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -93,10 +91,15 @@ export function EquipmentCard({
                 <Edit2 className="h-4 w-4 mr-2" />
                 Edit
               </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => onDelete(equipment.id)}
-                className="text-red-600 focus:text-red-600"
-              >
+              <DropdownMenuItem onClick={() => onMaintenance(equipment)}>
+                <Wrench className="h-4 w-4 mr-2" />
+                Maintenance
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAddToEstimator(equipment)}>
+                <Calculator className="h-4 w-4 mr-2" />
+                Add to Estimator
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDelete} className="text-red-600">
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete
               </DropdownMenuItem>
@@ -106,71 +109,78 @@ export function EquipmentCard({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {equipment.image && (
-          <div className="relative h-40 overflow-hidden rounded-lg bg-gray-100">
-            <img 
-              src={equipment.image} 
+        {/* Equipment Image */}
+        {equipment.image && !imageError ? (
+          <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
+            <img
+              src={equipment.image}
               alt={equipment.name}
-              className="w-full h-full object-cover object-center"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
+              className="w-full h-full object-cover"
+              onError={() => setImageError(true)}
             />
+          </div>
+        ) : (
+          <div className="aspect-video rounded-lg bg-gray-100 flex items-center justify-center">
+            <span className="text-gray-400 text-sm">No Image</span>
           </div>
         )}
 
-        <div className="space-y-3">
-          {equipment.year && (
-            <div className="text-sm text-gray-700">
-              <span className="font-medium">Year:</span> {equipment.year}
+        {/* Equipment Details */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <Badge variant="outline">{equipment.category}</Badge>
+            {equipment.year && <span>• {equipment.year}</span>}
+          </div>
+
+          {equipment.location && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <MapPin className="h-4 w-4" />
+              <span>{equipment.location}</span>
             </div>
           )}
-          
-          {equipment.qr_code && (
-            <div className="text-sm text-gray-700">
-              <span className="font-medium">VIN/Serial #:</span> {equipment.qr_code}
+
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <DollarSign className="h-4 w-4" />
+            <span>${equipment.hourly_rate}/hour</span>
+          </div>
+
+          {equipment.total_hours_used !== undefined && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Clock className="h-4 w-4" />
+              <span>{equipment.total_hours_used} hours used</span>
             </div>
           )}
-          
-          {equipment.value && (
-            <div className="text-sm text-gray-700">
-              <span className="font-medium">Value:</span> ${equipment.value.toLocaleString()}
+
+          {equipment.last_inspection_date && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Calendar className="h-4 w-4" />
+              <span>Last inspected: {new Date(equipment.last_inspection_date).toLocaleDateString()}</span>
             </div>
           )}
         </div>
 
+        {/* Description */}
         {equipment.description && (
           <p className="text-sm text-gray-600 line-clamp-2">
             {equipment.description}
           </p>
         )}
 
-        {equipment.location && (
-          <div className="flex items-center gap-2 text-sm text-gray-600 p-2 bg-gray-50 rounded-lg">
-            <MapPin className="w-3 h-3" />
-            <span className="text-xs">{equipment.location}</span>
-          </div>
-        )}
-
-        <div className="flex gap-2 pt-2 border-t">
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="flex-1"
+        {/* Action Buttons */}
+        <div className="flex gap-2 pt-2">
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => onMaintenance(equipment)}
+            className="flex items-center gap-2"
           >
-            <Settings className="w-4 h-4 mr-1" />
+            <Wrench className="h-4 w-4" />
             Maintenance
           </Button>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="flex-1"
-            onClick={() => onAddToEstimator(equipment)}
-          >
-            <DollarSign className="w-4 h-4 mr-1" />
-            Estimate
-          </Button>
+          <MaintenanceAlertSettings 
+            equipmentId={equipment.id} 
+            equipmentName={equipment.name} 
+          />
         </div>
       </CardContent>
     </Card>

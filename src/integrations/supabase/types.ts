@@ -993,6 +993,44 @@ export type Database = {
           },
         ]
       }
+      equipment_alert_settings: {
+        Row: {
+          alert_days_before: number
+          alert_type: string
+          created_at: string
+          equipment_id: string
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          alert_days_before?: number
+          alert_type: string
+          created_at?: string
+          equipment_id: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          alert_days_before?: number
+          alert_type?: string
+          created_at?: string
+          equipment_id?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_alert_settings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment_alerts: {
         Row: {
           acknowledged_at: string | null

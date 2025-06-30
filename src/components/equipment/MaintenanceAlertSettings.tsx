@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ interface AlertSetting {
   alert_type: 'maintenance' | 'inspection' | 'service';
   is_active: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 export function MaintenanceAlertSettings({ equipmentId, equipmentName }: MaintenanceAlertSettingsProps) {
