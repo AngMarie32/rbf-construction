@@ -55,43 +55,70 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
     notes: ''
   });
 
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      company: '',
+      email: '',
+      phone: '',
+      address: '',
+      city: '',
+      state: '',
+      zip_code: '',
+      specialties: [],
+      w9_on_file: false,
+      insurance_expiry: '',
+      notes: ''
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!formData.name.trim() || !formData.company.trim()) {
+      toast.error('Name and Company are required fields');
+      return;
+    }
+
     setLoading(true);
     try {
-      const { error } = await supabase
+      const insertData = {
+        name: formData.name.trim(),
+        company: formData.company.trim(),
+        email: formData.email.trim() || null,
+        phone: formData.phone.trim() || null,
+        address: formData.address.trim() || null,
+        city: formData.city.trim() || null,
+        state: formData.state.trim() || null,
+        zip_code: formData.zip_code.trim() || null,
+        specialties: formData.specialties.length > 0 ? formData.specialties : null,
+        w9_on_file: formData.w9_on_file,
+        insurance_expiry: formData.insurance_expiry || null,
+        notes: formData.notes.trim() || null,
+        status: 'Active'
+      };
+
+      console.log('Inserting subcontractor data:', insertData);
+
+      const { data, error } = await supabase
         .from('subcontractors')
-        .insert([{
-          ...formData,
-          status: 'Active'
-        }]);
+        .insert([insertData])
+        .select();
 
       if (error) {
         console.error('Supabase error:', error);
-        throw error;
+        toast.error(`Failed to add subcontractor: ${error.message}`);
+        return;
       }
 
+      console.log('Successfully inserted:', data);
       toast.success('Subcontractor added successfully');
       setOpen(false);
-      setFormData({
-        name: '',
-        company: '',
-        email: '',
-        phone: '',
-        address: '',
-        city: '',
-        state: '',
-        zip_code: '',
-        specialties: [],
-        w9_on_file: false,
-        insurance_expiry: '',
-        notes: ''
-      });
+      resetForm();
       onSubcontractorCreated();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding subcontractor:', error);
-      toast.error('Failed to add subcontractor');
+      toast.error(`Failed to add subcontractor: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -112,7 +139,12 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      setOpen(newOpen);
+      if (!newOpen) {
+        resetForm();
+      }
+    }}>
       <DialogTrigger asChild>
         <Button className="flex items-center gap-2">
           <Plus className="w-4 h-4" />
@@ -127,19 +159,23 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="name">Contact Name</Label>
+              <Label htmlFor="name">Contact Name *</Label>
               <Input
                 id="name"
+                required
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter contact name"
               />
             </div>
             <div>
-              <Label htmlFor="company">Company</Label>
+              <Label htmlFor="company">Company *</Label>
               <Input
                 id="company"
+                required
                 value={formData.company}
                 onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
+                placeholder="Enter company name"
               />
             </div>
           </div>
@@ -152,6 +188,7 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="Enter email address"
               />
             </div>
             <div>
@@ -160,6 +197,7 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="Enter phone number"
               />
             </div>
           </div>
@@ -170,6 +208,7 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
               id="address"
               value={formData.address}
               onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+              placeholder="Enter street address"
             />
           </div>
 
@@ -180,6 +219,7 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
                 id="city"
                 value={formData.city}
                 onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                placeholder="Enter city"
               />
             </div>
             <div>
@@ -188,6 +228,7 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
                 id="state"
                 value={formData.state}
                 onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                placeholder="Enter state"
               />
             </div>
             <div>
@@ -196,6 +237,7 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
                 id="zip_code"
                 value={formData.zip_code}
                 onChange={(e) => setFormData(prev => ({ ...prev, zip_code: e.target.value }))}
+                placeholder="Enter zip code"
               />
             </div>
           </div>
@@ -243,6 +285,7 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
               value={formData.notes}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               rows={3}
+              placeholder="Enter any additional notes"
             />
           </div>
 
@@ -250,7 +293,13 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
             <Button type="submit" disabled={loading} className="flex-1">
               {loading ? 'Adding...' : 'Add Subcontractor'}
             </Button>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setOpen(false)} 
+              className="flex-1"
+              disabled={loading}
+            >
               Cancel
             </Button>
           </div>
