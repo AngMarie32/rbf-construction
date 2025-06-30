@@ -1,4 +1,3 @@
-
 import { Task } from '@/types';
 import { format, differenceInDays, eachDayOfInterval } from 'date-fns';
 import { getBusinessDaysBetween, isBusinessDay, isHoliday } from '@/utils/businessDays';
@@ -31,79 +30,139 @@ export const generateProfessionalGanttPDF = (
   const pageHeight = doc.internal.pageSize.height;
   const margin = 15;
   
-  // Professional header with company styling
-  doc.setFillColor(41, 128, 185); // Professional blue
+  // Corporate header with professional gradient effect
+  doc.setFillColor(25, 55, 109); // Deep professional blue
+  doc.rect(0, 0, pageWidth, 40, 'F');
+  
+  // Add subtle gradient effect with overlays
+  doc.setFillColor(30, 64, 125);
   doc.rect(0, 0, pageWidth, 35, 'F');
+  doc.setFillColor(35, 73, 141);
+  doc.rect(0, 0, pageWidth, 30, 'F');
   
-  // Title in white
+  // Company logo area (placeholder)
+  doc.setFillColor(255, 255, 255);
+  doc.rect(margin, 8, 25, 24, 'F');
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.5);
+  doc.rect(margin, 8, 25, 24);
+  
+  // Professional title with enhanced typography
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(22);
+  doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.text(options.title || 'PROJECT SCHEDULE REPORT', margin, 20);
+  doc.text(options.title || 'PROJECT SCHEDULE REPORT', margin + 35, 20);
   
-  // Subtitle
-  doc.setFontSize(11);
+  // Subtitle with date range
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  doc.text(`${format(dateRange.from, 'MMMM dd, yyyy')} - ${format(dateRange.to, 'MMMM dd, yyyy')}`, margin, 28);
-  
-  // Reset text color
-  doc.setTextColor(0, 0, 0);
+  doc.text(`Report Period: ${format(dateRange.from, 'MMMM dd, yyyy')} - ${format(dateRange.to, 'MMMM dd, yyyy')}`, margin + 35, 28);
   
   // Generate date columns for the timeline
   const timelineDays = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
   
-  // Report metadata section
-  const metaY = 45;
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 100, 100);
-  doc.text(`Generated: ${format(new Date(), 'MMMM dd, yyyy \'at\' HH:mm')}`, margin, metaY);
-  doc.text(`Total Tasks: ${tasks.length}`, margin + 80, metaY);
-  doc.text(`Active Projects: ${projects.length}`, margin + 140, metaY);
-  doc.text('Business Days Only', margin + 200, metaY);
-  
-  // Professional timeline setup
-  const headerY = 60;
-  const rowHeight = 12;
-  const taskNameWidth = 90;
-  const dateColumnWidth = Math.min(25, (pageWidth - margin * 2 - taskNameWidth - 100) / Math.min(timelineDays.length, 20));
-  const visibleDays = Math.min(timelineDays.length, Math.floor((pageWidth - margin * 2 - taskNameWidth - 100) / dateColumnWidth));
-  
-  // Professional table header
-  doc.setFillColor(245, 245, 245);
-  doc.rect(margin, headerY, pageWidth - margin * 2, rowHeight * 2, 'F');
-  
-  // Add subtle borders
-  doc.setDrawColor(200, 200, 200);
+  // Professional metadata section with enhanced design
+  const metaY = 50;
+  doc.setFillColor(248, 249, 250);
+  doc.rect(margin, metaY - 5, pageWidth - margin * 2, 20, 'F');
+  doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.5);
-  doc.rect(margin, headerY, pageWidth - margin * 2, rowHeight * 2);
+  doc.rect(margin, metaY - 5, pageWidth - margin * 2, 20);
   
-  // Column headers with professional typography
-  doc.setTextColor(60, 60, 60);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text('TASK NAME', margin + 3, headerY + 8);
-  doc.text('START', margin + taskNameWidth + 5, headerY + 6);
-  doc.text('FINISH', margin + taskNameWidth + 35, headerY + 6);
-  doc.text('DAYS', margin + taskNameWidth + 65, headerY + 6);
-  doc.text('PROGRESS', margin + taskNameWidth + 85, headerY + 6);
+  doc.setTextColor(60, 60, 60);
+  doc.text('REPORT SUMMARY', margin + 5, metaY + 2);
   
-  // Timeline header with better formatting
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(80, 80, 80);
+  doc.text(`Generated: ${format(new Date(), 'MMMM dd, yyyy \'at\' HH:mm')}`, margin + 5, metaY + 8);
+  doc.text(`Total Tasks: ${tasks.length}`, margin + 80, metaY + 8);
+  doc.text(`Active Projects: ${projects.length}`, margin + 140, metaY + 8);
+  doc.text('Business Days Calculation', margin + 200, metaY + 8);
+  
+  // Project statistics
+  const completedTasks = tasks.filter(t => t.status === 'Completed').length;
+  const inProgressTasks = tasks.filter(t => t.status === 'In Progress').length;
+  const avgProgress = Math.round(tasks.reduce((sum, t) => sum + t.progress, 0) / tasks.length);
+  
+  doc.text(`Completed: ${completedTasks} (${Math.round((completedTasks/tasks.length)*100)}%)`, margin + 5, metaY + 12);
+  doc.text(`In Progress: ${inProgressTasks}`, margin + 80, metaY + 12);
+  doc.text(`Avg Progress: ${avgProgress}%`, margin + 140, metaY + 12);
+  
+  // Professional timeline setup with improved spacing
+  const headerY = 75;
+  const rowHeight = 14;
+  const taskNameWidth = 100;
+  const columnWidths = {
+    start: 30,
+    finish: 30,
+    duration: 25,
+    progress: 30,
+    status: 25
+  };
+  
+  const timelineStartX = margin + taskNameWidth + Object.values(columnWidths).reduce((sum, w) => sum + w, 0);
+  const availableTimelineWidth = pageWidth - timelineStartX - margin;
+  const dateColumnWidth = Math.min(20, availableTimelineWidth / Math.min(timelineDays.length, 30));
+  const visibleDays = Math.min(timelineDays.length, Math.floor(availableTimelineWidth / dateColumnWidth));
+  
+  // Enhanced table header with corporate styling
+  doc.setFillColor(241, 245, 249);
+  doc.rect(margin, headerY, pageWidth - margin * 2, rowHeight * 2.5, 'F');
+  
+  // Header borders with professional styling
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(1);
+  doc.rect(margin, headerY, pageWidth - margin * 2, rowHeight * 2.5);
+  
+  // Vertical separators
+  let currentX = margin + taskNameWidth;
+  Object.values(columnWidths).forEach(width => {
+    doc.line(currentX, headerY, currentX, headerY + rowHeight * 2.5);
+    currentX += width;
+  });
+  
+  // Timeline separator
+  doc.line(timelineStartX, headerY, timelineStartX, headerY + rowHeight * 2.5);
+  
+  // Column headers with enhanced typography
+  doc.setTextColor(51, 65, 85);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  
+  doc.text('TASK NAME', margin + 3, headerY + 8);
+  doc.text('START', margin + taskNameWidth + 8, headerY + 8);
+  doc.text('FINISH', margin + taskNameWidth + columnWidths.start + 8, headerY + 8);
+  doc.text('DAYS', margin + taskNameWidth + columnWidths.start + columnWidths.finish + 8, headerY + 8);
+  doc.text('PROGRESS', margin + taskNameWidth + columnWidths.start + columnWidths.finish + columnWidths.duration + 3, headerY + 8);
+  doc.text('STATUS', margin + taskNameWidth + columnWidths.start + columnWidths.finish + columnWidths.duration + columnWidths.progress + 3, headerY + 8);
+  
+  // Timeline header with enhanced date formatting
   doc.setFontSize(8);
-  const timelineStartX = margin + taskNameWidth + 100;
   timelineDays.slice(0, visibleDays).forEach((day, index) => {
     const x = timelineStartX + index * dateColumnWidth;
     const isWeekend = !isBusinessDay(day);
     const isHolidayDay = isHoliday(day);
     
-    // Weekend/holiday background
+    // Enhanced weekend/holiday background
     if (isWeekend || isHolidayDay) {
-      doc.setFillColor(isHolidayDay ? 252 : 248, isHolidayDay ? 232 : 250, isHolidayDay ? 230 : 252);
-      doc.rect(x, headerY, dateColumnWidth, rowHeight * 2, 'F');
+      doc.setFillColor(
+        isHolidayDay ? 254 : 248, 
+        isHolidayDay ? 242 : 250, 
+        isHolidayDay ? 242 : 252
+      );
+      doc.rect(x, headerY, dateColumnWidth, rowHeight * 2.5, 'F');
     }
     
-    // Date text with better alignment
-    doc.setTextColor(isHolidayDay ? 185 : isWeekend ? 100 : 75, isHolidayDay ? 28 : isWeekend ? 116 : 85, isHolidayDay ? 28 : isWeekend ? 139 : 99);
+    // Date text with improved contrast
+    doc.setTextColor(
+      isHolidayDay ? 185 : isWeekend ? 100 : 75, 
+      isHolidayDay ? 28 : isWeekend ? 116 : 85, 
+      isHolidayDay ? 28 : isWeekend ? 139 : 99
+    );
+    
     const dayText = format(day, 'dd');
     const dayWidth = doc.getTextWidth(dayText);
     doc.text(dayText, x + (dateColumnWidth - dayWidth) / 2, headerY + 8);
@@ -111,62 +170,94 @@ export const generateProfessionalGanttPDF = (
     const weekdayText = format(day, 'EEE');
     const weekdayWidth = doc.getTextWidth(weekdayText);
     doc.text(weekdayText, x + (dateColumnWidth - weekdayWidth) / 2, headerY + 16);
+    
+    // Month indicator for first day of month
+    if (day.getDate() === 1) {
+      doc.setFont('helvetica', 'bold');
+      const monthText = format(day, 'MMM');
+      const monthWidth = doc.getTextWidth(monthText);
+      doc.text(monthText, x + (dateColumnWidth - monthWidth) / 2, headerY + 24);
+      doc.setFont('helvetica', 'normal');
+    }
   });
   
-  // Draw tasks with professional styling
-  let currentY = headerY + rowHeight * 2;
+  // Enhanced task rows with professional styling
+  let currentY = headerY + rowHeight * 2.5;
   doc.setTextColor(0, 0, 0);
   
   tasks.forEach((task, index) => {
-    if (currentY > pageHeight - 30) {
-      // Add page footer before new page
-      addPageFooter(doc);
+    if (currentY > pageHeight - 35) {
+      // Professional page footer
+      addEnhancedPageFooter(doc, options.title || 'Project Schedule Report');
       doc.addPage();
       currentY = 30;
       
-      // Repeat header on new page
-      doc.setFillColor(245, 245, 245);
-      doc.rect(margin, currentY - 5, pageWidth - margin * 2, rowHeight, 'F');
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(60, 60, 60);
-      doc.text('TASK NAME', margin + 3, currentY);
-      doc.text('START', margin + taskNameWidth + 5, currentY);
-      doc.text('FINISH', margin + taskNameWidth + 35, currentY);
-      doc.text('DAYS', margin + taskNameWidth + 65, currentY);
-      doc.text('PROGRESS', margin + taskNameWidth + 85, currentY);
-      currentY += 8;
+      // Repeat simplified header on new page
+      addSimplifiedHeader(doc, currentY, margin, taskNameWidth, columnWidths, timelineStartX, options.title || 'Project Schedule Report');
+      currentY += 25;
     }
     
     const project = projects.find(p => p.id === task.projectId);
     const isEvenRow = index % 2 === 0;
     
-    // Professional row styling
+    // Enhanced row styling with subtle alternating colors
     if (isEvenRow) {
       doc.setFillColor(252, 252, 252);
-      doc.rect(margin, currentY, pageWidth - margin * 2, rowHeight, 'F');
+    } else {
+      doc.setFillColor(248, 250, 252);
     }
+    doc.rect(margin, currentY, pageWidth - margin * 2, rowHeight, 'F');
     
-    // Task information with better typography
+    // Row border
+    doc.setDrawColor(229, 231, 235);
+    doc.setLineWidth(0.25);
+    doc.line(margin, currentY + rowHeight, pageWidth - margin, currentY + rowHeight);
+    
+    // Task information with enhanced typography
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(30, 41, 59);
     
-    // Task name with truncation
-    const taskName = task.title.length > 30 ? task.title.substring(0, 27) + '...' : task.title;
-    doc.text(taskName, margin + 3, currentY + 8);
+    // Task name with better truncation
+    const maxTaskNameLength = 35;
+    const taskName = task.title.length > maxTaskNameLength ? task.title.substring(0, maxTaskNameLength - 3) + '...' : task.title;
+    doc.text(taskName, margin + 3, currentY + 9);
     
-    // Dates and duration with consistent formatting
+    // Project indicator
+    if (project) {
+      const rgb = hexToRgb(project.color);
+      if (rgb) {
+        doc.setFillColor(rgb.r, rgb.g, rgb.b);
+        doc.circle(margin + 3, currentY + 3, 1.5, 'F');
+      }
+    }
+    
+    // Enhanced date and information formatting
     doc.setFontSize(8);
     doc.setTextColor(100, 116, 139);
-    doc.text(format(task.startDate, 'MM/dd'), margin + taskNameWidth + 5, currentY + 8);
-    doc.text(format(task.endDate, 'MM/dd'), margin + taskNameWidth + 35, currentY + 8);
+    
+    const startDateX = margin + taskNameWidth + 3;
+    doc.text(format(task.startDate, 'MM/dd/yy'), startDateX, currentY + 9);
+    
+    const finishDateX = startDateX + columnWidths.start;
+    doc.text(format(task.endDate, 'MM/dd/yy'), finishDateX, currentY + 9);
     
     const businessDays = getBusinessDaysBetween(task.startDate, task.endDate);
-    doc.text(`${businessDays}`, margin + taskNameWidth + 68, currentY + 8);
-    doc.text(`${task.progress}%`, margin + taskNameWidth + 88, currentY + 8);
+    const durationX = finishDateX + columnWidths.finish;
+    doc.text(`${businessDays}d`, durationX + 3, currentY + 9);
     
-    // Professional Gantt bar
+    const progressX = durationX + columnWidths.duration;
+    doc.text(`${task.progress}%`, progressX + 3, currentY + 9);
+    
+    // Status with color coding
+    const statusX = progressX + columnWidths.progress;
+    const statusColor = getStatusColor(task.status);
+    doc.setTextColor(statusColor.r, statusColor.g, statusColor.b);
+    doc.setFont('helvetica', 'bold');
+    doc.text(task.status.toUpperCase(), statusX + 2, currentY + 9);
+    doc.setFont('helvetica', 'normal');
+    
+    // Enhanced Gantt bar with professional styling
     const taskStartPos = Math.max(0, differenceInDays(task.startDate, dateRange.from));
     const taskDuration = differenceInDays(task.endDate, task.startDate) + 1;
     
@@ -174,36 +265,47 @@ export const generateProfessionalGanttPDF = (
       const barX = timelineStartX + taskStartPos * dateColumnWidth;
       const barWidth = Math.min(taskDuration * dateColumnWidth, (visibleDays - taskStartPos) * dateColumnWidth);
       
-      // Task bar with gradient effect simulation
-      const color = project?.color || '#3b82f6';
-      const rgb = hexToRgb(color);
-      if (rgb && barWidth > 2) {
-        // Main bar
-        doc.setFillColor(rgb.r, rgb.g, rgb.b);
-        doc.rect(barX + 1, currentY + 2, barWidth - 2, rowHeight - 4, 'F');
-        
-        // Progress overlay with darker shade
-        if (options.showProgress && task.progress > 0) {
-          doc.setFillColor(Math.max(0, rgb.r - 40), Math.max(0, rgb.g - 40), Math.max(0, rgb.b - 40));
-          const progressWidth = ((barWidth - 2) * task.progress) / 100;
-          doc.rect(barX + 1, currentY + 2, progressWidth, rowHeight - 4, 'F');
+      if (barWidth > 2) {
+        const color = project?.color || '#3b82f6';
+        const rgb = hexToRgb(color);
+        if (rgb) {
+          // Task bar with enhanced visual effects
+          doc.setFillColor(rgb.r, rgb.g, rgb.b);
+          doc.roundedRect(barX + 1, currentY + 3, barWidth - 2, rowHeight - 6, 1, 1, 'F');
+          
+          // Progress overlay with gradient effect
+          if (options.showProgress && task.progress > 0) {
+            doc.setFillColor(Math.max(0, rgb.r - 50), Math.max(0, rgb.g - 50), Math.max(0, rgb.b - 50));
+            const progressWidth = ((barWidth - 2) * task.progress) / 100;
+            doc.roundedRect(barX + 1, currentY + 3, progressWidth, rowHeight - 6, 1, 1, 'F');
+          }
+          
+          // Enhanced border with shadow effect
+          doc.setDrawColor(Math.max(0, rgb.r - 70), Math.max(0, rgb.g - 70), Math.max(0, rgb.b - 70));
+          doc.setLineWidth(0.75);
+          doc.roundedRect(barX + 1, currentY + 3, barWidth - 2, rowHeight - 6, 1, 1);
+          
+          // Task label on bar if space allows
+          if (barWidth > 30) {
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'bold');
+            const labelText = `${task.progress}%`;
+            const labelWidth = doc.getTextWidth(labelText);
+            doc.text(labelText, barX + (barWidth - labelWidth) / 2, currentY + 8);
+          }
         }
-        
-        // Professional border
-        doc.setDrawColor(Math.max(0, rgb.r - 60), Math.max(0, rgb.g - 60), Math.max(0, rgb.b - 60));
-        doc.setLineWidth(0.5);
-        doc.rect(barX + 1, currentY + 2, barWidth - 2, rowHeight - 4);
       }
     }
     
     currentY += rowHeight;
   });
   
-  // Professional legend
-  addProfessionalLegend(doc, currentY + 15, options);
+  // Enhanced professional legend and summary
+  addEnhancedLegend(doc, currentY + 10, options, tasks, projects);
   
-  // Add footer to last page
-  addPageFooter(doc);
+  // Final page footer
+  addEnhancedPageFooter(doc, options.title || 'Project Schedule Report');
   
   return doc;
 };
@@ -216,7 +318,7 @@ export const generateProfessionalExcel = (
 ) => {
   const workbook = XLSX.utils.book_new();
   
-  // Executive Summary Sheet
+  // Executive Summary Sheet with enhanced formatting
   const summaryData = [{
     'Report Title': options.title || 'Project Schedule Report',
     'Report Period': `${format(dateRange.from, 'MMMM dd, yyyy')} - ${format(dateRange.to, 'MMMM dd, yyyy')}`,
@@ -358,6 +460,128 @@ function addProfessionalLegend(doc: jsPDF, startY: number, options: ExportOption
   legendItems.forEach((item, index) => {
     doc.text(item, margin + 5, startY + 15 + (index * 4));
   });
+}
+
+// Enhanced helper functions for professional formatting
+function addEnhancedPageFooter(doc: jsPDF, reportTitle: string) {
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+  const margin = 15;
+  
+  // Professional footer design
+  doc.setFillColor(248, 249, 250);
+  doc.rect(0, pageHeight - 25, pageWidth, 25, 'F');
+  
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.5);
+  doc.line(margin, pageHeight - 25, pageWidth - margin, pageHeight - 25);
+  
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  
+  // Company info (left)
+  doc.text('Confidential - ' + reportTitle, margin, pageHeight - 15);
+  doc.text(`Generated on ${format(new Date(), 'MM/dd/yyyy')} at ${format(new Date(), 'HH:mm')}`, margin, pageHeight - 8);
+  
+  // Page number (right)
+  const pageNum = `Page ${doc.getCurrentPageInfo().pageNumber}`;
+  const pageNumWidth = doc.getTextWidth(pageNum);
+  doc.text(pageNum, pageWidth - margin - pageNumWidth, pageHeight - 15);
+  
+  // Website/contact (right)
+  doc.text('www.company.com', pageWidth - margin - 40, pageHeight - 8);
+}
+
+function addSimplifiedHeader(doc: jsPDF, startY: number, margin: number, taskNameWidth: number, columnWidths: any, timelineStartX: number, title: string) {
+  const headerHeight = 20;
+  
+  doc.setFillColor(241, 245, 249);
+  doc.rect(margin, startY, doc.internal.pageSize.width - margin * 2, headerHeight, 'F');
+  
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.5);
+  doc.rect(margin, startY, doc.internal.pageSize.width - margin * 2, headerHeight);
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(51, 65, 85);
+  
+  doc.text('TASK', margin + 3, startY + 8);
+  doc.text('START', margin + taskNameWidth + 8, startY + 8);
+  doc.text('FINISH', margin + taskNameWidth + columnWidths.start + 8, startY + 8);
+  doc.text('DAYS', margin + taskNameWidth + columnWidths.start + columnWidths.finish + 8, startY + 8);
+  doc.text('PROGRESS', margin + taskNameWidth + columnWidths.start + columnWidths.finish + columnWidths.duration + 3, startY + 8);
+  doc.text('TIMELINE', timelineStartX + 10, startY + 8);
+  
+  doc.text(title + ' (Continued)', margin + 3, startY + 15);
+}
+
+function addEnhancedLegend(doc: jsPDF, startY: number, options: ExportOptions, tasks: Task[], projects: Project[]) {
+  const margin = 15;
+  const pageWidth = doc.internal.pageSize.width;
+  const legendHeight = 45;
+  
+  // Legend background
+  doc.setFillColor(248, 250, 252);
+  doc.rect(margin, startY, pageWidth - margin * 2, legendHeight, 'F');
+  
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.5);
+  doc.rect(margin, startY, pageWidth - margin * 2, legendHeight);
+  
+  // Legend title
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(60, 60, 60);
+  doc.text('LEGEND & PROJECT SUMMARY', margin + 5, startY + 8);
+  
+  // Legend items
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  
+  const legendItems = [
+    '• Duration calculated in business days (excludes weekends and holidays)',
+    '• Task bars show project timeline with color-coded progress indication',
+    '• Light blue columns = weekends, light red columns = holidays',
+    '• Progress percentages shown as darker portions within task bars'
+  ];
+  
+  legendItems.forEach((item, index) => {
+    doc.text(item, margin + 5, startY + 15 + (index * 4));
+  });
+  
+  // Project color legend
+  doc.setFont('helvetica', 'bold');
+  doc.text('PROJECT COLORS:', margin + 5, startY + 35);
+  
+  doc.setFont('helvetica', 'normal');
+  let legendX = margin + 70;
+  projects.slice(0, 8).forEach((project, index) => {
+    const rgb = hexToRgb(project.color);
+    if (rgb) {
+      doc.setFillColor(rgb.r, rgb.g, rgb.b);
+      doc.circle(legendX, startY + 33, 2, 'F');
+      doc.text(project.name.substring(0, 12), legendX + 5, startY + 35);
+      legendX += 60;
+      
+      if (index === 3) {
+        legendX = margin + 70;
+        startY += 6;
+      }
+    }
+  });
+}
+
+function getStatusColor(status: string) {
+  switch (status) {
+    case 'Completed': return { r: 34, g: 197, b: 94 };
+    case 'In Progress': return { r: 59, g: 130, b: 246 };
+    case 'On Hold': return { r: 245, g: 158, b: 11 };
+    case 'Not Started': return { r: 156, g: 163, b: 175 };
+    default: return { r: 156, g: 163, b: 175 };
+  }
 }
 
 // Helper function to convert hex to RGB
