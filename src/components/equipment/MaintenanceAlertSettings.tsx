@@ -19,7 +19,7 @@ interface AlertSetting {
   id: string;
   equipment_id: string;
   alert_days_before: number;
-  alert_type: 'maintenance' | 'inspection' | 'service';
+  alert_type: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
