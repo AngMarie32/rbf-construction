@@ -19,12 +19,14 @@ export function Layout({ children, title, subtitle }: LayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 flex">
       <Sidebar />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         <Header onMenuClick={handleMenuClick} />
-        <main className="flex-1 p-6">
-          {children}
+        <main className="flex-1 p-6 space-y-6 overflow-auto">
+          <div className="animate-fade-in-up">
+            {children}
+          </div>
         </main>
       </div>
     </div>
