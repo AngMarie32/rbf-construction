@@ -66,11 +66,13 @@ export default function ProjectBilling() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState({ 
-    type: 'custom' as 'year' | 'month' | 'custom' | 'range',
-    value: undefined as string | undefined,
-    startDate: undefined as Date | undefined,
-    endDate: undefined as Date | undefined
+  const [dateFilter, setDateFilter] = useState<{ 
+    type: 'year' | 'month' | 'custom' | 'range';
+    value?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }>({ 
+    type: 'custom'
   });
 
   useEffect(() => {
