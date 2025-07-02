@@ -1,18 +1,20 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfYear, endOfYear, eachMonthOfInterval, isWithinInterval, parseISO } from 'date-fns';
 import { exportToPDF, exportCSV } from '@/utils/pdfExport';
 import { BurnAnalysisFilters } from '@/components/burn-analysis/BurnAnalysisFilters';
 import { BurnAnalysisSummary } from '@/components/burn-analysis/BurnAnalysisSummary';
-import { BurnAnalysisChart } from '@/components/burn-analysis/BurnAnalysisChart';
-import { CategoryBreakdownTable } from '@/components/burn-analysis/CategoryBreakdownTable';
+import { EnhancedBurnChart } from '@/components/burn-analysis/EnhancedBurnChart';
+import { EnhancedCategoryBreakdown } from '@/components/burn-analysis/EnhancedCategoryBreakdown';
+import { MilestoneTracker } from '@/components/burn-analysis/MilestoneTracker';
 import { ProjectSelectionHeader } from '@/components/burn-analysis/ProjectSelectionHeader';
-import { BurnAnalyticsEngine } from '@/utils/burnAnalytics';
+import { EnhancedBurnAnalyticsEngine, EnhancedBurnData, CategoryAnalysis, MilestoneAnalysis } from '@/utils/enhancedBurnAnalytics';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle, Info, Settings, TrendingUp } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Project {
   id: string;
@@ -23,33 +25,15 @@ interface Project {
   status: string;
 }
 
-interface BurnData {
-  month: string;
-  plannedSpending: number;
-  actualSpending: number;
-  forecastedSpending: number;
-  budgetThreshold: number;
-}
-
-interface CategoryBreakdown {
-  category: string;
-  plannedBudget: number;
-  actualSpend: number;
-  variance: number;
-  variancePercent: number;
-  remaining: number;
-  status: 'On Track' | 'At Risk' | 'Over Budget';
-  hasRealData?: boolean;
-}
-
 export default function BurnRateAnalysis() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [costCategories, setCostCategories] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const [burnData, setBurnData] = useState<BurnData[]>([]);
-  const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([]);
+  const [burnData, setBurnData] = useState<EnhancedBurnData[]>([]);
+  const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryAnalysis[]>([]);
+  const [milestones, setMilestones] = useState<MilestoneAnalysis[]>([]);
   const [hasDetailedBudgets, setHasDetailedBudgets] = useState(false);
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
     from: undefined,
@@ -61,7 +45,10 @@ export default function BurnRateAnalysis() {
     remainingBudget: 0,
     monthlyBurnRate: 0,
     budgetPercentage: 0,
-    monthlyChange: 0
+    monthlyChange: 0,
+    schedulePerformanceIndex: 1,
+    costPerformanceIndex: 1,
+    estimateAtCompletion: 0
   });
 
   useEffect(() => {
@@ -70,7 +57,7 @@ export default function BurnRateAnalysis() {
 
   useEffect(() => {
     if (selectedProjects.length > 0) {
-      fetchAdvancedBurnAnalysisData();
+      fetchEnhancedBurnAnalysisData();
     }
   }, [selectedProjects, dateRange]);
 
@@ -96,17 +83,19 @@ export default function BurnRateAnalysis() {
     }
   };
 
-  const fetchAdvancedBurnAnalysisData = async () => {
+  const fetchEnhancedBurnAnalysisData = async () => {
     try {
       setLoading(true);
       
-      // Use the new analytics engine
-      const [burnAnalysisData, categoryAnalysisData] = await Promise.all([
-        BurnAnalyticsEngine.calculateAdvancedBurnData(selectedProjects, dateRange),
-        BurnAnalyticsEngine.calculateCategoryAnalysis(selectedProjects, dateRange)
+      // Use the enhanced analytics engine
+      const [burnAnalysisData, categoryAnalysisData, milestoneData] = await Promise.all([
+        EnhancedBurnAnalyticsEngine.calculateEnhancedBurnData(selectedProjects, dateRange),
+        EnhancedBurnAnalyticsEngine.calculateEnhancedCategoryAnalysis(selectedProjects, dateRange),
+        EnhancedBurnAnalyticsEngine.getMilestoneAnalysis(selectedProjects)
       ]);
 
       setBurnData(burnAnalysisData);
+      setMilestones(milestoneData);
       
       // Check if we have real budget data
       const hasRealBudgetData = categoryAnalysisData.some(cat => cat.hasRealData && cat.plannedBudget > 0);
@@ -121,7 +110,7 @@ export default function BurnRateAnalysis() {
 
       setCategoryBreakdown(filteredCategories);
 
-      // Calculate summary stats
+      // Calculate enhanced summary stats
       const selectedProjectsData = projects.filter(p => selectedProjects.includes(p.id));
       const totalBudget = selectedProjectsData.reduce((sum, p) => sum + p.contract_value, 0);
       const totalActualSpend = categoryAnalysisData.reduce((sum, cat) => sum + cat.actualSpend, 0);
@@ -129,29 +118,37 @@ export default function BurnRateAnalysis() {
       const budgetPercentage = totalBudget > 0 ? (totalActualSpend / totalBudget) * 100 : 0;
       const monthlyBurnRate = totalActualSpend / Math.max(1, new Date().getMonth() + 1);
 
+      // Get latest EVM metrics
+      const latestBurnData = burnAnalysisData[burnAnalysisData.length - 1];
+      const spi = latestBurnData?.schedulePerformanceIndex || 1;
+      const cpi = latestBurnData?.costPerformanceIndex || 1;
+      const eac = latestBurnData?.estimateAtCompletion || totalBudget;
+
       setSummaryStats({
         totalBudget,
         actualSpend: totalActualSpend,
         remainingBudget,
         monthlyBurnRate,
         budgetPercentage,
-        monthlyChange: Math.random() * 10 - 5 // This would come from historical data
+        monthlyChange: Math.random() * 10 - 5, // This would come from historical data
+        schedulePerformanceIndex: spi,
+        costPerformanceIndex: cpi,
+        estimateAtCompletion: eac
       });
 
     } catch (error) {
-      console.error('Error fetching advanced burn analysis data:', error);
+      console.error('Error fetching enhanced burn analysis data:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSetupBudgets = () => {
-    // Navigate to project settings or budget setup
     console.log('Navigate to budget setup');
   };
 
   const handleExportPDF = () => {
-    exportToPDF('burn-analysis-content', 'burn-rate-analysis.pdf');
+    exportToPDF('burn-analysis-content', 'enhanced-burn-rate-analysis.pdf');
   };
 
   const handleExportCSV = () => {
@@ -159,34 +156,20 @@ export default function BurnRateAnalysis() {
       ...categoryBreakdown.map(cat => ({
         Category: cat.category,
         'Planned Budget': cat.plannedBudget,
+        'Earned Value': cat.earnedValue,
         'Actual Spend': cat.actualSpend,
-        Variance: cat.variance,
+        'Cost Variance': cat.earnedValue - cat.actualSpend,
         'Variance %': cat.variancePercent,
-        Remaining: cat.remaining,
+        'Schedule Impact': cat.scheduleImpact,
         Status: cat.status
       }))
     ];
-    exportCSV(exportData, 'burn-rate-analysis.csv');
+    exportCSV(exportData, 'enhanced-burn-rate-analysis.csv');
   };
 
-  const handleProjectToggle = (projectId: string) => {
-    setSelectedProjects(prev => 
-      prev.includes(projectId) 
-        ? prev.filter(id => id !== projectId)
-        : [...prev, projectId]
-    );
-  };
-
-  const clearFilters = () => {
-    setSelectedProjects([]);
-    setCostCategories('All');
-    setSearchTerm('');
-    setDateRange({ from: undefined, to: undefined });
-  };
-
-  if (loading) {
+  if (loading && selectedProjects.length === 0) {
     return (
-      <Layout title="Burn Analysis" subtitle="Monitor project spending and budget performance">
+      <Layout title="Enhanced Burn Analysis" subtitle="Advanced project spending analysis with Earned Value Management">
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
         </div>
@@ -195,7 +178,7 @@ export default function BurnRateAnalysis() {
   }
 
   return (
-    <Layout title="Burn Analysis" subtitle="Monitor project spending and budget performance">
+    <Layout title="Enhanced Burn Analysis" subtitle="Advanced project spending analysis with Earned Value Management">
       <div id="burn-analysis-content" className="space-y-6">
         {/* Filters */}
         <BurnAnalysisFilters
@@ -220,7 +203,7 @@ export default function BurnRateAnalysis() {
             setSearchTerm('');
             setDateRange({ from: undefined, to: undefined });
           }}
-          onExport={() => exportCSV(categoryBreakdown, 'burn-rate-analysis.csv')}
+          onExport={handleExportCSV}
         />
 
         {/* Project Selection Header */}
@@ -238,8 +221,8 @@ export default function BurnRateAnalysis() {
                 <AlertDescription className="text-amber-800">
                   <div className="flex items-center justify-between">
                     <span>
-                      No detailed budget allocations found for selected projects. 
-                      Set up category budgets for more accurate burn analysis.
+                      Enhanced burn analysis works best with detailed budget allocations. 
+                      Set up category budgets and task schedules for full EVM capabilities.
                     </span>
                     <Button 
                       variant="outline" 
@@ -247,6 +230,7 @@ export default function BurnRateAnalysis() {
                       onClick={handleSetupBudgets}
                       className="ml-4"
                     >
+                      <Settings className="w-4 h-4 mr-1" />
                       Setup Budgets
                     </Button>
                   </div>
@@ -254,46 +238,85 @@ export default function BurnRateAnalysis() {
               </Alert>
             )}
 
-            {/* Summary Stats */}
-            <BurnAnalysisSummary 
-              summaryStats={summaryStats}
-              selectedProjectsCount={selectedProjects.length}
-              loading={loading}
-            />
-
-            {/* Burn Rate Chart */}
-            <BurnAnalysisChart
-              burnData={burnData}
-              onExport={() => exportToPDF('burn-analysis-content', 'burn-rate-analysis.pdf')}
-              loading={loading}
-            />
-
-            {/* Cost Category Breakdown */}
-            {categoryBreakdown.length > 0 ? (
-              <CategoryBreakdownTable
-                categoryBreakdown={categoryBreakdown}
-                onExport={() => exportCSV(categoryBreakdown, 'burn-rate-analysis.csv')}
-                loading={loading}
-              />
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Cost Category Breakdown</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8">
-                    <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                    <h3 className="text-lg font-semibold mb-2">No Category Data Available</h3>
-                    <p className="text-gray-500 mb-4">
-                      No expenses or budget allocations found for the selected projects and date range.
-                    </p>
-                    <Button variant="outline" onClick={handleSetupBudgets}>
-                      Setup Category Budgets
-                    </Button>
+            {/* Enhanced Summary Stats */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  Enhanced Performance Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <div className="text-blue-600 text-sm font-medium">Schedule Performance</div>
+                    <div className={`text-2xl font-bold ${summaryStats.schedulePerformanceIndex >= 1 ? 'text-green-600' : 'text-red-600'}`}>
+                      {summaryStats.schedulePerformanceIndex.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-gray-500">SPI (Target: ≥1.0)</div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <div className="text-green-600 text-sm font-medium">Cost Performance</div>
+                    <div className={`text-2xl font-bold ${summaryStats.costPerformanceIndex >= 1 ? 'text-green-600' : 'text-red-600'}`}>
+                      {summaryStats.costPerformanceIndex.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-gray-500">CPI (Target: ≥1.0)</div>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <div className="text-purple-600 text-sm font-medium">Forecast at Completion</div>
+                    <div className="text-2xl font-bold text-gray-900">
+                      ${summaryStats.estimateAtCompletion.toLocaleString()}
+                    </div>
+                    <div className={`text-xs ${summaryStats.estimateAtCompletion <= summaryStats.totalBudget ? 'text-green-600' : 'text-red-600'}`}>
+                      {summaryStats.estimateAtCompletion <= summaryStats.totalBudget ? 'Under Budget' : 'Over Budget'}
+                    </div>
+                  </div>
+                  <div className="bg-orange-50 p-4 rounded-lg">
+                    <div className="text-orange-600 text-sm font-medium">Project Health</div>
+                    <div className="text-2xl font-bold">
+                      {summaryStats.schedulePerformanceIndex >= 0.9 && summaryStats.costPerformanceIndex >= 0.9 ? 
+                        <span className="text-green-600">Healthy</span> : 
+                        <span className="text-red-600">At Risk</span>
+                      }
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Based on SPI & CPI
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Tabs defaultValue="analysis" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="analysis">EVM Analysis</TabsTrigger>
+                <TabsTrigger value="categories">Category Breakdown</TabsTrigger>
+                <TabsTrigger value="milestones">Milestones</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="analysis" className="space-y-6">
+                <EnhancedBurnChart
+                  burnData={burnData}
+                  onExport={handleExportPDF}
+                  loading={loading}
+                />
+              </TabsContent>
+
+              <TabsContent value="categories" className="space-y-6">
+                <EnhancedCategoryBreakdown
+                  categoryBreakdown={categoryBreakdown}
+                  onExport={handleExportCSV}
+                  loading={loading}
+                />
+              </TabsContent>
+
+              <TabsContent value="milestones" className="space-y-6">
+                <MilestoneTracker
+                  milestones={milestones}
+                  loading={loading}
+                />
+              </TabsContent>
+            </Tabs>
           </>
         )}
       </div>
