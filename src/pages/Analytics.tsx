@@ -9,12 +9,15 @@ import { ExecutiveReports } from '@/components/reports/ExecutiveReports';
 import { ProjectReports } from '@/components/reports/ProjectReports';
 import { FinancialReports } from '@/components/reports/FinancialReports';
 import { CustomReportBuilder } from '@/components/reports/CustomReportBuilder';
+import { ProjectReport } from '@/components/reports/ProjectReport';
+import { LaborReport } from '@/components/reports/LaborReport';
 import { exportToExcel, exportToPDF, exportToCSV, ExportData } from '@/utils/reportExports';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { FileText, Download, BarChart3, TrendingUp, Building, Settings } from 'lucide-react';
+import { FileText, Download, BarChart3, TrendingUp, Building, Settings, Users } from 'lucide-react';
+import { DateRange } from 'react-day-picker';
 
-interface ProjectManager {
+interface FieldLeader {
   id: string;
   name: string;
 }
@@ -22,21 +25,22 @@ interface ProjectManager {
 export default function Analytics() {
   const [activeTab, setActiveTab] = useState('gallery');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-    from: undefined,
-    to: undefined
-  });
-  const [selectedProjectManager, setSelectedProjectManager] = useState<string>('all');
-  const [projectManagers, setProjectManagers] = useState<ProjectManager[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [selectedFieldLeader, setSelectedFieldLeader] = useState<string>('all');
+  const [fieldLeaders, setFieldLeaders] = useState<FieldLeader[]>([]);
   const [reportData, setReportData] = useState<any>({});
   const [loading, setLoading] = useState(false);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [totalExpenses, setTotalExpenses] = useState<Record<string, number>>({});
+  const [totalBilled, setTotalBilled] = useState<Record<string, number>>({});
+  const [totalReceived, setTotalReceived] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    fetchProjectManagers();
+    fetchFieldLeaders();
     fetchReportData();
   }, []);
 
-  const fetchProjectManagers = async () => {
+  const fetchFieldLeaders = async () => {
     try {
       const { data: profiles, error } = await supabase
         .from('profiles')
@@ -45,9 +49,9 @@ export default function Analytics() {
 
       if (error) throw error;
 
-      setProjectManagers(profiles || []);
+      setFieldLeaders(profiles || []);
     } catch (error) {
-      console.error('Error fetching project managers:', error);
+      console.error('Error fetching field leaders:', error);
     }
   };
 
@@ -55,7 +59,7 @@ export default function Analytics() {
     try {
       setLoading(true);
       
-      // Fetch actual data from database
+      // Fetch actual data from database with all project information
       const [
         { data: projects },
         { data: expenses },
@@ -68,24 +72,51 @@ export default function Analytics() {
         supabase.from('change_orders').select('*')
       ]);
 
+      // Set projects data
+      setProjects(projects || []);
+
+      // Calculate expenses by project
+      const expensesByProject: Record<string, number> = {};
+      (expenses || []).forEach(expense => {
+        if (!expensesByProject[expense.project_id]) {
+          expensesByProject[expense.project_id] = 0;
+        }
+        expensesByProject[expense.project_id] += Number(expense.amount) || 0;
+      });
+      setTotalExpenses(expensesByProject);
+
+      // Calculate billing by project
+      const billedByProject: Record<string, number> = {};
+      const receivedByProject: Record<string, number> = {};
+      (billing || []).forEach(bill => {
+        if (!billedByProject[bill.project_id]) {
+          billedByProject[bill.project_id] = 0;
+          receivedByProject[bill.project_id] = 0;
+        }
+        billedByProject[bill.project_id] += Number(bill.billed_amount) || 0;
+        receivedByProject[bill.project_id] += Number(bill.paid_amount) || 0;
+      });
+      setTotalBilled(billedByProject);
+      setTotalReceived(receivedByProject);
+
       // Calculate real financial data
       const totalRevenue = (billing || []).reduce((sum, bill) => sum + (Number(bill.billed_amount) || 0), 0);
-      const totalExpenses = (expenses || []).reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
-      const totalProfit = totalRevenue - totalExpenses;
+      const totalExpensesSum = (expenses || []).reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
+      const totalProfit = totalRevenue - totalExpensesSum;
 
       const monthlyRevenue = [
-        { month: 'Jan', revenue: totalRevenue * 0.15, costs: totalExpenses * 0.15, profit: totalProfit * 0.15 },
-        { month: 'Feb', revenue: totalRevenue * 0.18, costs: totalExpenses * 0.18, profit: totalProfit * 0.18 },
-        { month: 'Mar', revenue: totalRevenue * 0.16, costs: totalExpenses * 0.16, profit: totalProfit * 0.16 },
-        { month: 'Apr', revenue: totalRevenue * 0.20, costs: totalExpenses * 0.20, profit: totalProfit * 0.20 },
-        { month: 'May', revenue: totalRevenue * 0.17, costs: totalExpenses * 0.17, profit: totalProfit * 0.17 },
-        { month: 'Jun', revenue: totalRevenue * 0.14, costs: totalExpenses * 0.14, profit: totalProfit * 0.14 }
+        { month: 'Jan', revenue: totalRevenue * 0.15, costs: totalExpensesSum * 0.15, profit: totalProfit * 0.15 },
+        { month: 'Feb', revenue: totalRevenue * 0.18, costs: totalExpensesSum * 0.18, profit: totalProfit * 0.18 },
+        { month: 'Mar', revenue: totalRevenue * 0.16, costs: totalExpensesSum * 0.16, profit: totalProfit * 0.16 },
+        { month: 'Apr', revenue: totalRevenue * 0.20, costs: totalExpensesSum * 0.20, profit: totalProfit * 0.20 },
+        { month: 'May', revenue: totalRevenue * 0.17, costs: totalExpensesSum * 0.17, profit: totalProfit * 0.17 },
+        { month: 'Jun', revenue: totalRevenue * 0.14, costs: totalExpensesSum * 0.14, profit: totalProfit * 0.14 }
       ];
 
-      const performanceByManager = projectManagers.slice(0, 5).map((pm, index) => ({
+      const performanceByManager = fieldLeaders.slice(0, 5).map((pm, index) => ({
         name: pm.name,
-        totalRevenue: totalRevenue / projectManagers.length * (1 + (index * 0.1)),
-        projectCount: Math.floor((projects?.length || 0) / projectManagers.length),
+        totalRevenue: totalRevenue / fieldLeaders.length * (1 + (index * 0.1)),
+        projectCount: Math.floor((projects?.length || 0) / fieldLeaders.length),
         onTimeRate: 75 + (index * 5),
         avgProfitMargin: 15 + (index * 2)
       }));
@@ -111,7 +142,7 @@ export default function Analytics() {
 
       const timelinePerformance = (projects || []).slice(0, 5).map(project => ({
         projectName: project.name,
-        manager: 'Project Manager',
+        manager: 'Field Leader',
         daysVariance: Math.floor(Math.random() * 20) - 10,
         onTime: Math.random() > 0.3
       }));
@@ -139,12 +170,12 @@ export default function Analytics() {
       }));
 
       const cashFlowProjection = [
-        { month: 'Jul', inflow: totalRevenue * 0.15, outflow: totalExpenses * 0.15, net: (totalRevenue - totalExpenses) * 0.15 },
-        { month: 'Aug', inflow: totalRevenue * 0.17, outflow: totalExpenses * 0.17, net: (totalRevenue - totalExpenses) * 0.17 },
-        { month: 'Sep', inflow: totalRevenue * 0.14, outflow: totalExpenses * 0.14, net: (totalRevenue - totalExpenses) * 0.14 },
-        { month: 'Oct', inflow: totalRevenue * 0.19, outflow: totalExpenses * 0.19, net: (totalRevenue - totalExpenses) * 0.19 },
-        { month: 'Nov', inflow: totalRevenue * 0.16, outflow: totalExpenses * 0.16, net: (totalRevenue - totalExpenses) * 0.16 },
-        { month: 'Dec', inflow: totalRevenue * 0.19, outflow: totalExpenses * 0.19, net: (totalRevenue - totalExpenses) * 0.19 }
+        { month: 'Jul', inflow: totalRevenue * 0.15, outflow: totalExpensesSum * 0.15, net: (totalRevenue - totalExpensesSum) * 0.15 },
+        { month: 'Aug', inflow: totalRevenue * 0.17, outflow: totalExpensesSum * 0.17, net: (totalRevenue - totalExpensesSum) * 0.17 },
+        { month: 'Sep', inflow: totalRevenue * 0.14, outflow: totalExpensesSum * 0.14, net: (totalRevenue - totalExpensesSum) * 0.14 },
+        { month: 'Oct', inflow: totalRevenue * 0.19, outflow: totalExpensesSum * 0.19, net: (totalRevenue - totalExpensesSum) * 0.19 },
+        { month: 'Nov', inflow: totalRevenue * 0.16, outflow: totalExpensesSum * 0.16, net: (totalRevenue - totalExpensesSum) * 0.16 },
+        { month: 'Dec', inflow: totalRevenue * 0.19, outflow: totalExpensesSum * 0.19, net: (totalRevenue - totalExpensesSum) * 0.19 }
       ];
 
       const profitMargins = monthlyRevenue.map(item => ({
@@ -169,6 +200,15 @@ export default function Analytics() {
           revenueRecognition,
           profitLossByProject,
           cashFlowProjection
+        },
+        labor: {
+          totalExpenses: totalExpensesSum,
+          expensesByCategory: expenses?.reduce((acc: any, exp: any) => {
+            if (!acc[exp.category]) acc[exp.category] = 0;
+            acc[exp.category] += Number(exp.amount) || 0;
+            return acc;
+          }, {}),
+          expensesByProject: expensesByProject
         }
       });
 
@@ -188,14 +228,14 @@ export default function Analytics() {
       title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`,
       data: Object.values(data).flat(),
       metadata: {
-        dateRange: dateRange.from && dateRange.to 
+        dateRange: dateRange?.from && dateRange?.to 
           ? `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`
           : 'All Time',
         generatedBy: 'Construction Analytics',
         generatedAt: new Date().toLocaleString(),
         filters: {
           category: selectedCategory,
-          projectManager: selectedProjectManager
+          fieldLeader: selectedFieldLeader
         }
       }
     };
@@ -220,11 +260,8 @@ export default function Analytics() {
   };
 
   const handleDeleteReport = (reportCategory: string) => {
-    // For now, just show a confirmation and remove from the local reports array
-    // In a real application, you might want to save user preferences
     if (window.confirm('Are you sure you want to delete this report template?')) {
       toast.success(`${reportCategory.charAt(0).toUpperCase() + reportCategory.slice(1)} report template removed`);
-      // The report will be hidden from the filtered results
     }
   };
 
@@ -251,6 +288,20 @@ export default function Analytics() {
       canDelete: true
     },
     {
+      title: 'Labor Report',
+      description: 'Labor costs, expense analysis by category and project, workforce productivity metrics',
+      category: 'labor',
+      lastUpdated: 'Today',
+      canDelete: true
+    },
+    {
+      title: 'Project Report',
+      description: 'Detailed project snapshot with comprehensive data including pending expenses and financial metrics',
+      category: 'snapshot',
+      lastUpdated: 'Today',
+      canDelete: true
+    },
+    {
       title: 'Custom Report Builder',
       description: 'Build custom reports with any data from the application using our advanced report designer',
       category: 'custom',
@@ -271,19 +322,19 @@ export default function Analytics() {
           onCategoryChange={setSelectedCategory}
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
-          selectedProjectManager={selectedProjectManager}
-          onProjectManagerChange={setSelectedProjectManager}
-          projectManagers={projectManagers}
+          selectedProjectManager={selectedFieldLeader}
+          onProjectManagerChange={setSelectedFieldLeader}
+          projectManagers={fieldLeaders}
           onApplyFilters={fetchReportData}
           onClearFilters={() => {
             setSelectedCategory('all');
-            setDateRange({ from: undefined, to: undefined });
-            setSelectedProjectManager('all');
+            setDateRange(undefined);
+            setSelectedFieldLeader('all');
           }}
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-white/80 backdrop-blur-sm border shadow-sm">
+          <TabsList className="grid w-full grid-cols-7 bg-white/80 backdrop-blur-sm border shadow-sm">
             <TabsTrigger value="gallery" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
               <FileText className="w-4 h-4" />
               Gallery
@@ -299,6 +350,14 @@ export default function Analytics() {
             <TabsTrigger value="financial" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
               <BarChart3 className="w-4 h-4" />
               Financial
+            </TabsTrigger>
+            <TabsTrigger value="labor" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
+              <Users className="w-4 h-4" />
+              Labor
+            </TabsTrigger>
+            <TabsTrigger value="snapshot" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
+              <FileText className="w-4 h-4" />
+              Snapshot
             </TabsTrigger>
             <TabsTrigger value="custom" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
               <Settings className="w-4 h-4" />
@@ -385,6 +444,47 @@ export default function Analytics() {
               </Button>
             </div>
             {reportData.financial && <FinancialReports data={reportData.financial} />}
+          </TabsContent>
+
+          <TabsContent value="labor" className="space-y-4">
+            <div className="flex justify-end gap-2 mb-4">
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('labor', 'excel')}>
+                <Download className="w-4 h-4 mr-1" />
+                Excel
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('labor', 'pdf')}>
+                <Download className="w-4 h-4 mr-1" />
+                PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('labor', 'csv')}>
+                <Download className="w-4 h-4 mr-1" />
+                CSV
+              </Button>
+            </div>
+            {reportData.labor && <LaborReport data={reportData.labor} />}
+          </TabsContent>
+
+          <TabsContent value="snapshot" className="space-y-4">
+            <div className="flex justify-end gap-2 mb-4">
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('snapshot', 'excel')}>
+                <Download className="w-4 h-4 mr-1" />
+                Excel
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('snapshot', 'pdf')}>
+                <Download className="w-4 h-4 mr-1" />
+                PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('snapshot', 'csv')}>
+                <Download className="w-4 h-4 mr-1" />
+                CSV
+              </Button>
+            </div>
+            <ProjectReport 
+              projects={projects}
+              totalExpenses={totalExpenses}
+              totalBilled={totalBilled}
+              totalReceived={totalReceived}
+            />
           </TabsContent>
 
           <TabsContent value="custom" className="space-y-4">
