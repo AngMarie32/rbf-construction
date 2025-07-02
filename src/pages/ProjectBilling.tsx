@@ -1,32 +1,37 @@
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { 
-  Plus, 
   DollarSign, 
-  Calendar, 
-  FileText,
-  TrendingUp,
-  AlertCircle,
+  Download,
+  Plus,
+  Search,
   CheckCircle,
-  Clock,
-  Bell
+  AlertTriangle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { NewBillingDialog } from '@/components/billing/NewBillingDialog';
-import { EditBillingDialog } from '@/components/billing/EditBillingDialog';
-import { PaymentReminderSettings } from '@/components/billing/PaymentReminderSettings';
+import { ImprovedBillingDialog } from '@/components/billing/ImprovedBillingDialog';
 import { format } from 'date-fns';
+import { FinancialDateFilter } from '@/components/dashboard/FinancialDateFilter';
 
 interface Project {
   id: string;
   name: string;
+  client?: string;
 }
 
 interface BillingRecord {
@@ -36,59 +41,59 @@ interface BillingRecord {
   billing_period_end: string;
   billed_amount: number;
   paid_amount: number;
+  remaining_amount: number;
   status: string;
   invoice_number: string | null;
+  invoice_date: string | null;
+  due_date: string | null;
   notes: string | null;
   created_at: string;
-}
-
-interface PaymentApplication {
-  id: string;
-  project_id: string;
-  application_number: number;
-  period_end_date: string;
-  original_contract_sum: number;
-  net_changes: number;
-  contract_sum_to_date: number;
-  total_completed_and_stored: number;
-  retainage: number;
-  total_earned_less_retainage: number;
-  less_previous_payments: number;
-  current_payment_due: number;
-  balance_to_finish: number;
-  created_at: string;
+  project?: {
+    name: string;
+    client?: string;
+  };
 }
 
 export default function ProjectBilling() {
-  const { projectId } = useParams<{ projectId: string }>();
-  const [project, setProject] = useState<Project | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [billingRecords, setBillingRecords] = useState<BillingRecord[]>([]);
-  const [paymentApplications, setPaymentApplications] = useState<PaymentApplication[]>([]);
+  const [filteredRecords, setFilteredRecords] = useState<BillingRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [billingDialogOpen, setBillingDialogOpen] = useState(false);
-  const [editingBillingId, setEditingBillingId] = useState<string | null>(null);
+  const [editingBilling, setEditingBilling] = useState<BillingRecord | null>(null);
+  
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [projectFilter, setProjectFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState({ 
+    type: 'custom' as 'year' | 'month' | 'custom' | 'range',
+    value: undefined as string | undefined,
+    startDate: undefined as Date | undefined,
+    endDate: undefined as Date | undefined
+  });
 
   useEffect(() => {
-    if (projectId) {
-      fetchProject();
-      fetchBillingRecords();
-      fetchPaymentApplications();
-    }
-  }, [projectId]);
+    fetchProjects();
+    fetchBillingRecords();
+  }, []);
 
-  const fetchProject = async () => {
+  useEffect(() => {
+    filterRecords();
+  }, [billingRecords, searchQuery, statusFilter, projectFilter, dateFilter]);
+
+  const fetchProjects = async () => {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name')
-        .eq('id', projectId)
-        .single();
+        .select('id, name, client')
+        .order('name');
 
       if (error) throw error;
-      setProject(data);
+      setProjects(data || []);
     } catch (error) {
-      console.error('Error fetching project:', error);
-      toast.error('Failed to load project');
+      console.error('Error fetching projects:', error);
+      toast.error('Failed to load projects');
     }
   };
 
@@ -97,12 +102,20 @@ export default function ProjectBilling() {
       setLoading(true);
       const { data, error } = await supabase
         .from('project_billing')
-        .select('*')
-        .eq('project_id', projectId)
+        .select(`
+          *,
+          projects!inner(name, client)
+        `)
         .order('billing_period_end', { ascending: false });
 
       if (error) throw error;
-      setBillingRecords(data || []);
+      
+      const recordsWithProject = (data || []).map(record => ({
+        ...record,
+        project: record.projects
+      }));
+      
+      setBillingRecords(recordsWithProject);
     } catch (error) {
       console.error('Error fetching billing records:', error);
       toast.error('Failed to load billing records');
@@ -111,32 +124,55 @@ export default function ProjectBilling() {
     }
   };
 
-  const fetchPaymentApplications = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('payment_applications')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('period_end_date', { ascending: false });
+  const filterRecords = () => {
+    let filtered = [...billingRecords];
 
-      if (error) throw error;
-      setPaymentApplications(data || []);
-    } catch (error) {
-      console.error('Error fetching payment applications:', error);
-      toast.error('Failed to load payment applications');
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(record => 
+        record.project?.name?.toLowerCase().includes(query) ||
+        record.invoice_number?.toLowerCase().includes(query) ||
+        record.notes?.toLowerCase().includes(query)
+      );
     }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(record => record.status.toLowerCase() === statusFilter.toLowerCase());
+    }
+
+    // Project filter
+    if (projectFilter !== 'all') {
+      filtered = filtered.filter(record => record.project_id === projectFilter);
+    }
+
+    // Date filter
+    if (dateFilter.type === 'range' && dateFilter.startDate && dateFilter.endDate) {
+      filtered = filtered.filter(record => {
+        const recordDate = new Date(record.billing_period_end);
+        return recordDate >= dateFilter.startDate! && recordDate <= dateFilter.endDate!;
+      });
+    } else if (dateFilter.type === 'year' && dateFilter.value) {
+      filtered = filtered.filter(record => {
+        const recordYear = new Date(record.billing_period_end).getFullYear();
+        return recordYear.toString() === dateFilter.value;
+      });
+    } else if (dateFilter.type === 'month' && dateFilter.value) {
+      filtered = filtered.filter(record => {
+        const recordDate = new Date(record.billing_period_end);
+        const recordMonth = `${recordDate.getFullYear()}-${(recordDate.getMonth() + 1).toString().padStart(2, '0')}`;
+        return recordMonth === dateFilter.value;
+      });
+    }
+
+    setFilteredRecords(filtered);
   };
 
-  const handleBillingCreated = () => {
+  const handleBillingSuccess = () => {
     fetchBillingRecords();
     setBillingDialogOpen(false);
-    toast.success('Billing record created successfully');
-  };
-
-  const handleBillingUpdated = () => {
-    fetchBillingRecords();
-    setEditingBillingId(null);
-    toast.success('Billing record updated successfully');
+    setEditingBilling(null);
   };
 
   const handleDeleteBilling = async (id: string) => {
@@ -161,253 +197,237 @@ export default function ProjectBilling() {
   };
 
   const totalBilled = billingRecords.reduce((sum, record) => sum + record.billed_amount, 0);
-  const totalPaid = billingRecords.reduce((sum, record) => sum + record.paid_amount, 0);
-  const overdueBalance = billingRecords.filter(record => record.status === 'Overdue').reduce((sum, record) => sum + record.billed_amount, 0);
+  const totalReceived = billingRecords.reduce((sum, record) => sum + record.paid_amount, 0);
+  const totalOutstanding = totalBilled - totalReceived;
+
+  const getStatusBadgeColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'paid':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'overdue':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'sent':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
 
   return (
-    <Layout title="Project Billing" subtitle={`Manage billing for ${project?.name || 'Project'}`}>
+    <Layout title="Project Billing" subtitle="Manage billing records across all projects">
       <div className="space-y-6">
+        {/* Header Actions */}
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <Button onClick={() => setBillingDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="w-4 h-4 mr-2" />
+              Add New Billing
+            </Button>
+            <Button variant="outline">
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+        </div>
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-white">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Billed</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-gray-600">Total Billed</CardTitle>
+              <DollarSign className="h-5 w-5 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${totalBilled.toLocaleString()}</div>
-              <p className="text-sm text-muted-foreground">All billing records</p>
+              <div className="text-2xl font-bold text-blue-600">${totalBilled.toLocaleString()}</div>
             </CardContent>
           </Card>
           
-          <Card className="bg-white">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Paid</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-500" />
+              <CardTitle className="text-sm font-medium text-gray-600">Total Payments Received</CardTitle>
+              <CheckCircle className="h-5 w-5 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-500">${totalPaid.toLocaleString()}</div>
-              <p className="text-sm text-muted-foreground">Received payments</p>
+              <div className="text-2xl font-bold text-green-600">${totalReceived.toLocaleString()}</div>
             </CardContent>
           </Card>
           
-          <Card className="bg-white">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Overdue Balance</CardTitle>
-              <AlertCircle className="h-4 w-4 text-red-500" />
+              <CardTitle className="text-sm font-medium text-gray-600">Outstanding</CardTitle>
+              <AlertTriangle className="h-5 w-5 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-500">${overdueBalance.toLocaleString()}</div>
-              <p className="text-sm text-muted-foreground">Unpaid invoices</p>
+              <div className="text-2xl font-bold text-red-600">${totalOutstanding.toLocaleString()}</div>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="billing" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="billing">Billing Records</TabsTrigger>
-            <TabsTrigger value="payment-apps">Payment Applications</TabsTrigger>
-            <TabsTrigger value="reminders" className="flex items-center gap-2">
-              <Bell className="w-4 h-4" />
-              Reminders
-            </TabsTrigger>
-          </TabsList>
+        {/* Filters */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+              <div className="relative flex-1 min-w-[300px]">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search by project, invoice number, or notes..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                </SelectContent>
+              </Select>
 
-          <TabsContent value="billing" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <CardTitle>Billing Records</CardTitle>
-              <Button onClick={() => setBillingDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Billing Record
-              </Button>
+              <Select value={projectFilter} onValueChange={setProjectFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="All Projects" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Projects</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <FinancialDateFilter
+                currentFilter={dateFilter}
+                onFilterChange={setDateFilter}
+              />
             </div>
+          </CardContent>
+        </Card>
 
+        {/* Results Summary */}
+        <div className="text-sm text-gray-600">
+          Showing {filteredRecords.length} of {billingRecords.length} billing records
+        </div>
+
+        {/* Billing Records Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Billing Records</CardTitle>
+          </CardHeader>
+          <CardContent>
             {loading ? (
               <div className="flex justify-center items-center h-48">
                 <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
               </div>
-            ) : billingRecords.length === 0 ? (
-              <Card className="border-dashed">
-                <CardContent className="text-center py-12">
-                  <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No billing records yet</h3>
-                  <p className="text-gray-600 mb-4">Add your first billing record to get started</p>
-                  <Button onClick={() => setBillingDialogOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Billing Record
-                  </Button>
-                </CardContent>
-              </Card>
+            ) : filteredRecords.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No billing records found
+              </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Period
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Billed Amount
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Paid Amount
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {billingRecords.map((record) => (
-                      <tr key={record.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Invoice #</TableHead>
+                      <TableHead>Period</TableHead>
+                      <TableHead>Billed</TableHead>
+                      <TableHead>Paid</TableHead>
+                      <TableHead>Remaining</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredRecords.map((record) => (
+                      <TableRow key={record.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{record.project?.name}</div>
+                            {record.project?.client && (
+                              <div className="text-sm text-gray-500">{record.project.client}</div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{record.invoice_number || '-'}</TableCell>
+                        <TableCell>
                           {format(new Date(record.billing_period_start), 'MMM dd')} - {format(new Date(record.billing_period_end), 'MMM dd, yyyy')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          ${record.billed_amount.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          ${record.paid_amount.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge
-                            className={
-                              record.status === 'Paid'
-                                ? 'bg-green-100 text-green-800 border-green-200'
-                                : record.status === 'Overdue'
-                                ? 'bg-red-100 text-red-800 border-red-200'
-                                : 'bg-yellow-100 text-yellow-800 border-yellow-200'
-                            }
-                          >
+                        </TableCell>
+                        <TableCell>${record.billed_amount.toLocaleString()}</TableCell>
+                        <TableCell>${record.paid_amount.toLocaleString()}</TableCell>
+                        <TableCell>${(record.billed_amount - record.paid_amount).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusBadgeColor(record.status)}>
                             {record.status}
                           </Badge>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditingBillingId(record.id)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-red-600 hover:text-red-700 ml-2"
-                            onClick={() => handleDeleteBilling(record.id)}
-                          >
-                            Delete
-                          </Button>
-                        </td>
-                      </tr>
+                        </TableCell>
+                        <TableCell>
+                          {record.due_date ? format(new Date(record.due_date), 'MMM dd, yyyy') : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditingBilling(record)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 hover:text-red-700"
+                              onClick={() => handleDeleteBilling(record.id)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
-          </TabsContent>
-
-          <TabsContent value="payment-apps" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <CardTitle>Payment Applications</CardTitle>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Payment Application
-              </Button>
-            </div>
-
-            {loading ? (
-              <div className="flex justify-center items-center h-48">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
-              </div>
-            ) : paymentApplications.length === 0 ? (
-              <Card className="border-dashed">
-                <CardContent className="text-center py-12">
-                  <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No payment applications yet</h3>
-                  <p className="text-gray-600 mb-4">Create your first payment application to get started</p>
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Payment Application
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Application #
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Period End
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Contract Sum
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Current Payment Due
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {paymentApplications.map((app) => (
-                      <tr key={app.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          #{app.application_number}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {format(new Date(app.period_end_date), 'MMM dd, yyyy')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          ${app.contract_sum_to_date?.toLocaleString() || app.original_contract_sum.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          ${app.current_payment_due?.toLocaleString() || '0'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <Button size="sm" variant="outline">
-                            View Details
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="reminders" className="space-y-4">
-            {project && (
-              <PaymentReminderSettings 
-                projectId={project.id} 
-                projectName={project.name}
-              />
-            )}
-          </TabsContent>
-        </Tabs>
+          </CardContent>
+        </Card>
 
         {/* Dialogs */}
-        <NewBillingDialog
+        <ImprovedBillingDialog
           open={billingDialogOpen}
           onOpenChange={setBillingDialogOpen}
-          onBillingCreated={handleBillingCreated}
+          projects={projects}
+          onSuccess={handleBillingSuccess}
         />
 
-        {editingBillingId && (
-          <EditBillingDialog
-            billing={billingRecords.find(b => b.id === editingBillingId) || null}
-            open={!!editingBillingId}
-            onOpenChange={(open) => !open && setEditingBillingId(null)}
-            onBillingUpdated={handleBillingUpdated}
+        {editingBilling && (
+          <ImprovedBillingDialog
+            open={!!editingBilling}
+            onOpenChange={(open) => !open && setEditingBilling(null)}
+            billing={{
+              id: editingBilling.id,
+              project_id: editingBilling.project_id,
+              billing_period_start: editingBilling.billing_period_start,
+              billing_period_end: editingBilling.billing_period_end,
+              billed_amount: editingBilling.billed_amount,
+              paid_amount: editingBilling.paid_amount,
+              status: editingBilling.status,
+              invoice_number: editingBilling.invoice_number,
+              invoice_date: editingBilling.invoice_date,
+              due_date: editingBilling.due_date,
+              notes: editingBilling.notes
+            }}
+            projects={projects}
+            onSuccess={handleBillingSuccess}
           />
         )}
       </div>
