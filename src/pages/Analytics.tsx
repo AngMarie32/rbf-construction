@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,7 +6,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ReportCard } from '@/components/reports/ReportCard';
 import { ReportFilters } from '@/components/reports/ReportFilters';
-import { ExecutiveReports } from '@/components/reports/ExecutiveReports';
 import { ProjectReports } from '@/components/reports/ProjectReports';
 import { FinancialReports } from '@/components/reports/FinancialReports';
 import { CustomReportBuilder } from '@/components/reports/CustomReportBuilder';
@@ -23,7 +23,7 @@ interface FieldLeader {
 }
 
 export default function Analytics() {
-  const [activeTab, setActiveTab] = useState('gallery');
+  const [activeTab, setActiveTab] = useState('snapshot');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedFieldLeader, setSelectedFieldLeader] = useState<string>('all');
@@ -36,23 +36,23 @@ export default function Analytics() {
   const [totalReceived, setTotalReceived] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    fetchFieldLeaders();
     fetchReportData();
   }, []);
 
-  const fetchFieldLeaders = async () => {
-    try {
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('id, name')
-        .not('name', 'is', null);
-
-      if (error) throw error;
-
-      setFieldLeaders(profiles || []);
-    } catch (error) {
-      console.error('Error fetching field leaders:', error);
-    }
+  // Fetch field leaders from actual project data
+  const fetchFieldLeaders = (projectsData: any[]) => {
+    const uniqueLeaders = [...new Set(
+      projectsData
+        .filter(project => project.field_leader)
+        .map(project => project.field_leader)
+    )];
+    
+    const leadersArray = uniqueLeaders.map(name => ({
+      id: name,
+      name: name
+    }));
+    
+    setFieldLeaders(leadersArray);
   };
 
   const fetchReportData = async () => {
@@ -72,8 +72,10 @@ export default function Analytics() {
         supabase.from('change_orders').select('*')
       ]);
 
-      // Set projects data
-      setProjects(projects || []);
+      // Set projects data and extract field leaders
+      const projectsData = projects || [];
+      setProjects(projectsData);
+      fetchFieldLeaders(projectsData);
 
       // Calculate expenses by project
       const expensesByProject: Record<string, number> = {};
@@ -99,10 +101,11 @@ export default function Analytics() {
       setTotalBilled(billedByProject);
       setTotalReceived(receivedByProject);
 
-      // Calculate real financial data
+      // Calculate enhanced financial data
       const totalRevenue = (billing || []).reduce((sum, bill) => sum + (Number(bill.billed_amount) || 0), 0);
       const totalExpensesSum = (expenses || []).reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
       const totalProfit = totalRevenue - totalExpensesSum;
+      const totalContractValue = projectsData.reduce((sum, p) => sum + (p.contract_value || 0), 0);
 
       const monthlyRevenue = [
         { month: 'Jan', revenue: totalRevenue * 0.15, costs: totalExpensesSum * 0.15, profit: totalProfit * 0.15 },
@@ -113,38 +116,28 @@ export default function Analytics() {
         { month: 'Jun', revenue: totalRevenue * 0.14, costs: totalExpensesSum * 0.14, profit: totalProfit * 0.14 }
       ];
 
-      const performanceByManager = fieldLeaders.slice(0, 5).map((pm, index) => ({
-        name: pm.name,
-        totalRevenue: totalRevenue / fieldLeaders.length * (1 + (index * 0.1)),
-        projectCount: Math.floor((projects?.length || 0) / fieldLeaders.length),
-        onTimeRate: 75 + (index * 5),
-        avgProfitMargin: 15 + (index * 2)
-      }));
-
-      const projectSummary = {
-        totalRevenue: (projects || []).reduce((sum, p) => sum + (p.contract_value || 0), 0),
-        activeProjects: (projects || []).filter(p => p.status === 'Open').length,
-        avgProfitMargin: totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100) : 0,
-        onTimeRate: 87
-      };
-
       const projectStatus = [
-        { name: 'Planning', value: (projects || []).filter(p => p.status === 'Planning').length },
-        { name: 'Open', value: (projects || []).filter(p => p.status === 'Open').length },
-        { name: 'Closed', value: (projects || []).filter(p => p.status === 'Closed').length }
+        { name: 'Planning', value: projectsData.filter(p => p.status === 'Planning').length },
+        { name: 'Open', value: projectsData.filter(p => p.status === 'Open').length },
+        { name: 'Closed', value: projectsData.filter(p => p.status === 'Closed').length }
       ];
 
-      const budgetPerformance = (projects || []).slice(0, 6).map(project => ({
-        projectName: project.name.length > 15 ? project.name.substring(0, 15) + '...' : project.name,
+      const budgetPerformance = projectsData.slice(0, 6).map(project => ({
+        projectName: project.name.length > 20 ? project.name.substring(0, 20) + '...' : project.name,
         budgeted: project.contract_value || 0,
-        actual: (project.contract_value || 0) * (0.85 + Math.random() * 0.3)
+        actual: (expensesByProject[project.id] || 0),
+        variance: (project.contract_value || 0) - (expensesByProject[project.id] || 0),
+        completion: project.completion_percentage || 0
       }));
 
-      const timelinePerformance = (projects || []).slice(0, 5).map(project => ({
+      const timelinePerformance = projectsData.slice(0, 5).map(project => ({
         projectName: project.name,
-        manager: 'Field Leader',
+        fieldLeader: project.field_leader || 'Unassigned',
         daysVariance: Math.floor(Math.random() * 20) - 10,
-        onTime: Math.random() > 0.3
+        onTime: Math.random() > 0.3,
+        startDate: project.start_date,
+        dueDate: project.due_date,
+        completion: project.completion_percentage || 0
       }));
 
       const changeOrderImpact = [
@@ -159,14 +152,16 @@ export default function Analytics() {
       const revenueRecognition = monthlyRevenue.map(item => ({
         month: item.month,
         recognized: item.revenue * 0.8,
-        deferred: item.revenue * 0.2
+        deferred: item.revenue * 0.2,
+        outstanding: item.revenue - (item.revenue * 0.8)
       }));
 
-      const profitLossByProject = (projects || []).slice(0, 6).map(project => ({
+      const profitLossByProject = projectsData.slice(0, 6).map(project => ({
         projectName: project.name.length > 15 ? project.name.substring(0, 15) + '...' : project.name,
-        revenue: project.contract_value || 0,
-        costs: (project.contract_value || 0) * 0.75,
-        profit: (project.contract_value || 0) * 0.25
+        revenue: billedByProject[project.id] || 0,
+        costs: expensesByProject[project.id] || 0,
+        profit: (billedByProject[project.id] || 0) - (expensesByProject[project.id] || 0),
+        margin: billedByProject[project.id] > 0 ? (((billedByProject[project.id] || 0) - (expensesByProject[project.id] || 0)) / (billedByProject[project.id] || 0)) * 100 : 0
       }));
 
       const cashFlowProjection = [
@@ -178,28 +173,26 @@ export default function Analytics() {
         { month: 'Dec', inflow: totalRevenue * 0.19, outflow: totalExpensesSum * 0.19, net: (totalRevenue - totalExpensesSum) * 0.19 }
       ];
 
-      const profitMargins = monthlyRevenue.map(item => ({
-        month: item.month,
-        margin: item.revenue > 0 ? ((item.profit / item.revenue) * 100).toFixed(1) : '0.0'
-      }));
-
       setReportData({
-        executive: {
-          monthlyRevenue,
-          projectSummary,
-          profitMargins,
-          performanceByManager
-        },
         project: {
           projectStatus,
           budgetPerformance,
           timelinePerformance,
-          changeOrderImpact
+          changeOrderImpact,
+          totalProjects: projectsData.length,
+          activeProjects: projectsData.filter(p => p.status === 'Open').length,
+          completedProjects: projectsData.filter(p => p.status === 'Closed').length,
+          totalContractValue: totalContractValue
         },
         financial: {
           revenueRecognition,
           profitLossByProject,
-          cashFlowProjection
+          cashFlowProjection,
+          totalRevenue,
+          totalExpenses: totalExpensesSum,
+          totalProfit,
+          profitMargin: totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0,
+          outstandingReceivables: Object.values(billedByProject).reduce((sum, val) => sum + val, 0) - Object.values(receivedByProject).reduce((sum, val) => sum + val, 0)
         },
         labor: {
           totalExpenses: totalExpensesSum,
@@ -218,6 +211,12 @@ export default function Analytics() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleApplyFilters = () => {
+    // Apply filters and refresh data
+    fetchReportData();
+    toast.success('Filters applied successfully');
   };
 
   const handleExportReport = async (reportType: string, format: 'excel' | 'pdf' | 'csv') => {
@@ -267,9 +266,9 @@ export default function Analytics() {
 
   const reports = [
     {
-      title: 'Executive Dashboard',
-      description: 'High-level KPIs, revenue trends, and performance metrics for leadership teams',
-      category: 'executive',
+      title: 'Project Report',
+      description: 'Detailed project snapshot with comprehensive data including pending expenses and financial metrics',
+      category: 'snapshot',
       lastUpdated: 'Today',
       canDelete: true
     },
@@ -291,13 +290,6 @@ export default function Analytics() {
       title: 'Labor Report',
       description: 'Labor costs, expense analysis by category and project, workforce productivity metrics',
       category: 'labor',
-      lastUpdated: 'Today',
-      canDelete: true
-    },
-    {
-      title: 'Project Report',
-      description: 'Detailed project snapshot with comprehensive data including pending expenses and financial metrics',
-      category: 'snapshot',
       lastUpdated: 'Today',
       canDelete: true
     },
@@ -325,7 +317,7 @@ export default function Analytics() {
           selectedProjectManager={selectedFieldLeader}
           onProjectManagerChange={setSelectedFieldLeader}
           projectManagers={fieldLeaders}
-          onApplyFilters={fetchReportData}
+          onApplyFilters={handleApplyFilters}
           onClearFilters={() => {
             setSelectedCategory('all');
             setDateRange(undefined);
@@ -334,14 +326,14 @@ export default function Analytics() {
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-7 bg-white/80 backdrop-blur-sm border shadow-sm">
+          <TabsList className="grid w-full grid-cols-6 bg-white/80 backdrop-blur-sm border shadow-sm">
             <TabsTrigger value="gallery" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
               <FileText className="w-4 h-4" />
               Gallery
             </TabsTrigger>
-            <TabsTrigger value="executive" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
-              <TrendingUp className="w-4 h-4" />
-              Executive
+            <TabsTrigger value="snapshot" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
+              <FileText className="w-4 h-4" />
+              Snapshot
             </TabsTrigger>
             <TabsTrigger value="project" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
               <Building className="w-4 h-4" />
@@ -354,10 +346,6 @@ export default function Analytics() {
             <TabsTrigger value="labor" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
               <Users className="w-4 h-4" />
               Labor
-            </TabsTrigger>
-            <TabsTrigger value="snapshot" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
-              <FileText className="w-4 h-4" />
-              Snapshot
             </TabsTrigger>
             <TabsTrigger value="custom" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
               <Settings className="w-4 h-4" />
@@ -392,22 +380,27 @@ export default function Analytics() {
             )}
           </TabsContent>
 
-          <TabsContent value="executive" className="space-y-4">
+          <TabsContent value="snapshot" className="space-y-4">
             <div className="flex justify-end gap-2 mb-4">
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('executive', 'excel')}>
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('snapshot', 'excel')}>
                 <Download className="w-4 h-4 mr-1" />
                 Excel
               </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('executive', 'pdf')}>
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('snapshot', 'pdf')}>
                 <Download className="w-4 h-4 mr-1" />
                 PDF
               </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('executive', 'csv')}>
+              <Button variant="outline" size="sm" onClick={() => handleExportReport('snapshot', 'csv')}>
                 <Download className="w-4 h-4 mr-1" />
                 CSV
               </Button>
             </div>
-            {reportData.executive && <ExecutiveReports data={reportData.executive} />}
+            <ProjectReport 
+              projects={projects}
+              totalExpenses={totalExpenses}
+              totalBilled={totalBilled}
+              totalReceived={totalReceived}
+            />
           </TabsContent>
 
           <TabsContent value="project" className="space-y-4">
@@ -462,29 +455,6 @@ export default function Analytics() {
               </Button>
             </div>
             {reportData.labor && <LaborReport data={reportData.labor} />}
-          </TabsContent>
-
-          <TabsContent value="snapshot" className="space-y-4">
-            <div className="flex justify-end gap-2 mb-4">
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('snapshot', 'excel')}>
-                <Download className="w-4 h-4 mr-1" />
-                Excel
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('snapshot', 'pdf')}>
-                <Download className="w-4 h-4 mr-1" />
-                PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('snapshot', 'csv')}>
-                <Download className="w-4 h-4 mr-1" />
-                CSV
-              </Button>
-            </div>
-            <ProjectReport 
-              projects={projects}
-              totalExpenses={totalExpenses}
-              totalBilled={totalBilled}
-              totalReceived={totalReceived}
-            />
           </TabsContent>
 
           <TabsContent value="custom" className="space-y-4">
