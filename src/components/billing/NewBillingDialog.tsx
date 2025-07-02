@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -21,6 +20,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface NewBillingDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onBillingCreated?: () => void;
 }
 
@@ -37,8 +38,7 @@ interface FormData {
   notes: string;
 }
 
-export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
-  const [open, setOpen] = useState(false);
+export function NewBillingDialog({ open, onOpenChange, onBillingCreated }: NewBillingDialogProps) {
   const [loading, setLoading] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
   const [formData, setFormData] = useState<FormData>({
@@ -122,7 +122,7 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
       if (error) throw error;
 
       toast.success('Billing record created successfully');
-      setOpen(false);
+      onOpenChange(false);
       setFormData({
         projectId: '',
         billingPeriodStart: undefined,
@@ -148,10 +148,7 @@ export function NewBillingDialog({ onBillingCreated }: NewBillingDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline">Add Billing</Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Billing Record</DialogTitle>

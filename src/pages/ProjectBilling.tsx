@@ -36,7 +36,7 @@ interface BillingRecord {
   billing_period_end: string;
   billed_amount: number;
   paid_amount: number;
-  status: 'Draft' | 'Sent' | 'Paid' | 'Overdue';
+  status: string;
   invoice_number: string | null;
   notes: string | null;
   created_at: string;
@@ -397,7 +397,6 @@ export default function ProjectBilling() {
 
         {/* Dialogs */}
         <NewBillingDialog
-          project_id={projectId || ''}
           open={billingDialogOpen}
           onOpenChange={setBillingDialogOpen}
           onBillingCreated={handleBillingCreated}

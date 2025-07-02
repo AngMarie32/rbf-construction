@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,7 +31,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from '@/components/ui/badge';
-import { CalendarDateRangePicker } from "@/components/ui/calendar-date-range-picker"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
@@ -149,15 +149,16 @@ export default function Subcontractors() {
     }
   };
 
-  const topTrades = Object.entries(
-    subcontractors.reduce((acc: { [key: string]: number }, s) => {
-      s.specialties?.forEach((trade) => {
-        acc[trade] = (acc[trade] || 0) + 1;
-      });
-      return acc;
-    }, {})
-  )
-    .sort(([, a], [, b]) => b - a)
+  // Calculate trades statistics
+  const tradeStats = subcontractors.reduce((acc: { [key: string]: number }, s) => {
+    s.specialties?.forEach((trade) => {
+      acc[trade] = (acc[trade] || 0) + 1;
+    });
+    return acc;
+  }, {});
+
+  const topTrades = Object.entries(tradeStats)
+    .sort(([a], [b]) => a.localeCompare(b)) // Sort alphabetically
     .slice(0, 4);
 
   if (showDocumentIssues) {
@@ -287,7 +288,7 @@ export default function Subcontractors() {
                       <TableCell>
                         {subcontractor.specialties ? subcontractor.specialties.join(', ') : 'N/A'}
                       </TableCell>
-                      <TableCell>{subcontractor.travel_radius || 'N/A'}</TableCell>
+                      <TableCell>{subcontractor.travel_radius ? `${subcontractor.travel_radius} miles` : 'N/A'}</TableCell>
                       <TableCell>
                         {subcontractor.insurance_expiry ? format(new Date(subcontractor.insurance_expiry), 'MMM dd, yyyy') : 'N/A'}
                       </TableCell>
@@ -338,7 +339,7 @@ export default function Subcontractors() {
                     </Avatar>
                     <div className="space-y-1">
                       <CardTitle className="text-lg font-semibold">{subcontractor.name}</CardTitle>
-                      <CardContent className="text-sm text-gray-500">{subcontractor.company || 'N/A'}</CardContent>
+                      <div className="text-sm text-gray-500">{subcontractor.company || 'N/A'}</div>
                     </div>
                   </div>
                 </CardHeader>
