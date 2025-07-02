@@ -1,0 +1,255 @@
+
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+interface Subcontractor {
+  id: string;
+  name: string;
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+  specialties: string[] | null;
+  status: string;
+  rating: number | null;
+  notes: string | null;
+  w9_on_file: boolean;
+  insurance_expiry: string | null;
+  travel_radius: number | null;
+}
+
+interface EditSubcontractorDialogProps {
+  subcontractor: Subcontractor;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubcontractorUpdated: () => void;
+}
+
+export const EditSubcontractorDialog: React.FC<EditSubcontractorDialogProps> = ({
+  subcontractor,
+  open,
+  onOpenChange,
+  onSubcontractorUpdated
+}) => {
+  const [formData, setFormData] = useState<Partial<Subcontractor>>(subcontractor);
+  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>(subcontractor.specialties || []);
+  const [loading, setLoading] = useState(false);
+
+  const specialties = [
+    'Concrete', 'Electrical', 'HVAC', 'Insulation', 'Landscaping', 'Masonry',
+    'Painting', 'Plumbing', 'Roofing', 'Siding', 'Tile/Flooring', 'Windows/Doors'
+  ].sort();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from('subcontractors')
+        .update({
+          ...formData,
+          specialties: selectedSpecialties,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', subcontractor.id);
+
+      if (error) throw error;
+
+      toast.success('Subcontractor updated successfully');
+      onSubcontractorUpdated();
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error updating subcontractor:', error);
+      toast.error('Failed to update subcontractor');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleSpecialty = (specialty: string) => {
+    setSelectedSpecialties(prev =>
+      prev.includes(specialty)
+        ? prev.filter(s => s !== specialty)
+        : [...prev, specialty]
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Subcontractor</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="name">Contact Name</Label>
+              <Input
+                id="name"
+                value={formData.name || ''}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="company">Company</Label>
+              <Input
+                id="company"
+                value={formData.company || ''}
+                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email || ''}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                value={formData.phone || ''}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="address">Address</Label>
+            <Input
+              id="address"
+              value={formData.address || ''}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="city">City</Label>
+              <Input
+                id="city"
+                value={formData.city || ''}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="state">State</Label>
+              <Input
+                id="state"
+                value={formData.state || ''}
+                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="zip_code">ZIP Code</Label>
+              <Input
+                id="zip_code"
+                value={formData.zip_code || ''}
+                onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="travel_radius">Travel Radius (miles)</Label>
+              <Input
+                id="travel_radius"
+                type="number"
+                value={formData.travel_radius || ''}
+                onChange={(e) => setFormData({ ...formData, travel_radius: parseInt(e.target.value) || null })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="insurance_expiry">Insurance Expiry</Label>
+              <Input
+                id="insurance_expiry"
+                type="date"
+                value={formData.insurance_expiry || ''}
+                onChange={(e) => setFormData({ ...formData, insurance_expiry: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="w9_on_file"
+              checked={formData.w9_on_file || false}
+              onCheckedChange={(checked) => setFormData({ ...formData, w9_on_file: checked as boolean })}
+            />
+            <Label htmlFor="w9_on_file">W9 on File</Label>
+          </div>
+
+          <div>
+            <Label htmlFor="status">Status</Label>
+            <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Inactive">Inactive</SelectItem>
+                <SelectItem value="Suspended">Suspended</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>Specialties</Label>
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              {specialties.map(specialty => (
+                <div key={specialty} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={specialty}
+                    checked={selectedSpecialties.includes(specialty)}
+                    onCheckedChange={() => toggleSpecialty(specialty)}
+                  />
+                  <Label htmlFor={specialty} className="text-sm">{specialty}</Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              value={formData.notes || ''}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              rows={3}
+            />
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,12 +21,18 @@ import {
   Users,
   Grid3X3,
   List,
-  AlertTriangle
+  AlertTriangle,
+  Edit,
+  CheckCircle,
+  XCircle,
+  Calendar
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AddSubcontractorDialog } from '@/components/subcontractors/AddSubcontractorDialog';
+import { EditSubcontractorDialog } from '@/components/subcontractors/EditSubcontractorDialog';
 import { DocumentIssues } from '@/components/subcontractors/DocumentIssues';
+import { format } from 'date-fns';
 
 interface Subcontractor {
   id: string;
@@ -45,6 +50,7 @@ interface Subcontractor {
   notes: string | null;
   w9_on_file: boolean;
   insurance_expiry: string | null;
+  travel_radius: number | null;
   created_at: string;
 }
 
@@ -56,6 +62,7 @@ export default function Subcontractors() {
   const [specialtyFilter, setSpecialtyFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [showDocumentIssues, setShowDocumentIssues] = useState(false);
+  const [editingSubcontractor, setEditingSubcontractor] = useState<Subcontractor | null>(null);
 
   useEffect(() => {
     fetchSubcontractors();
@@ -125,6 +132,16 @@ export default function Subcontractors() {
   };
 
   const allSpecialties = [...new Set(subcontractors.flatMap(s => s.specialties || []))].sort();
+  
+  // Calculate subcontractors by trade
+  const subcontractorsByTrade = allSpecialties.reduce((acc, specialty) => {
+    acc[specialty] = subcontractors.filter(s => s.specialties?.includes(specialty)).length;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const topTrades = Object.entries(subcontractorsByTrade)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 4);
 
   if (loading) {
     return (
@@ -147,46 +164,20 @@ export default function Subcontractors() {
   return (
     <Layout title="Subcontractors" subtitle="Manage your network of subcontractors">
       <div className="space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-white">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Subcontractors</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{subcontractors.length}</div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-white">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active</CardTitle>
-              <Users className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {subcontractors.filter(s => s.status === 'Active').length}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-white">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Document Issues</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">0</div>
-              <Button 
-                variant="link" 
-                className="p-0 h-auto text-sm text-blue-600"
-                onClick={() => setShowDocumentIssues(true)}
-              >
-                View Issues
-              </Button>
-            </CardContent>
-          </Card>
+        {/* Trade Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {topTrades.map(([trade, count]) => (
+            <Card key={trade} className="bg-white">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{trade}</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{count}</div>
+                <p className="text-xs text-muted-foreground">subcontractors</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {/* Controls */}
@@ -250,9 +241,11 @@ export default function Subcontractors() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>COMPANY</TableHead>
-                    <TableHead>CONTACT NAME</TableHead>
-                    <TableHead>CONTACT INFO</TableHead>
+                    <TableHead>CONTACT</TableHead>
                     <TableHead>SPECIALTIES</TableHead>
+                    <TableHead>TRAVEL RADIUS</TableHead>
+                    <TableHead>INSURANCE</TableHead>
+                    <TableHead>W9</TableHead>
                     <TableHead>ACTIONS</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -265,51 +258,84 @@ export default function Subcontractors() {
                           {subcontractor.address && (
                             <div className="text-sm text-gray-500 flex items-center">
                               <MapPin className="w-3 h-3 mr-1" />
-                              {subcontractor.city}, {subcontractor.state}
+                              {subcontractor.city}, {subcontractactor.state}
                             </div>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{subcontractor.name || '-'}</TableCell>
                       <TableCell>
-                        <div className="space-y-1">
-                          {subcontractor.email && (
-                            <div className="flex items-center text-sm">
-                              <Mail className="w-3 h-3 mr-1" />
-                              {subcontractor.email}
-                            </div>
-                          )}
-                          {subcontractor.phone && (
-                            <div className="flex items-center text-sm">
-                              <Phone className="w-3 h-3 mr-1" />
-                              {subcontractor.phone}
-                            </div>
-                          )}
+                        <div>
+                          <div className="font-medium">{subcontractor.name || '-'}</div>
+                          <div className="space-y-1">
+                            {subcontractor.email && (
+                              <div className="flex items-center text-sm text-gray-600">
+                                <Mail className="w-3 h-3 mr-1" />
+                                {subcontractor.email}
+                              </div>
+                            )}
+                            {subcontractor.phone && (
+                              <div className="flex items-center text-sm text-gray-600">
+                                <Phone className="w-3 h-3 mr-1" />
+                                {subcontractor.phone}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          {subcontractor.specialties?.slice(0, 2).map((specialty, index) => (
+                          {subcontractor.specialties?.slice(0, 3).map((specialty, index) => (
                             <Badge key={index} variant="secondary" className="text-xs">
                               {specialty}
                             </Badge>
                           ))}
-                          {subcontractor.specialties && subcontractor.specialties.length > 2 && (
+                          {subcontractor.specialties && subcontractor.specialties.length > 3 && (
                             <Badge variant="outline" className="text-xs">
-                              +{subcontractor.specialties.length - 2} more
+                              +{subcontractor.specialties.length - 3} more
                             </Badge>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => deleteSubcontractor(subcontractor.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          Delete
-                        </Button>
+                        {subcontractor.travel_radius ? `${subcontractor.travel_radius} mi` : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {subcontractor.insurance_expiry ? (
+                          <div className="flex items-center">
+                            <Calendar className="w-3 h-3 mr-1" />
+                            <span className="text-sm">
+                              {format(new Date(subcontractor.insurance_expiry), 'MMM dd, yyyy')}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">Not set</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {subcontractor.w9_on_file ? (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-red-600" />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingSubcontractor(subcontractor)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => deleteSubcontractor(subcontractor.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            Delete
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -369,14 +395,25 @@ export default function Subcontractors() {
                       </div>
                     )}
 
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => deleteSubcontractor(subcontractor.id)}
-                      className="w-full text-red-600 hover:text-red-700"
-                    >
-                      Delete
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEditingSubcontractor(subcontractor)}
+                        className="flex-1"
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => deleteSubcontractor(subcontractor.id)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -390,6 +427,16 @@ export default function Subcontractors() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Edit Dialog */}
+        {editingSubcontractor && (
+          <EditSubcontractorDialog
+            subcontractor={editingSubcontractor}
+            open={!!editingSubcontractor}
+            onOpenChange={(open) => !open && setEditingSubcontractor(null)}
+            onSubcontractorUpdated={fetchSubcontractors}
+          />
         )}
       </div>
     </Layout>
