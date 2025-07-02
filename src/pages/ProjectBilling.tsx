@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -31,23 +32,30 @@ interface Project {
 interface BillingRecord {
   id: string;
   project_id: string;
-  date: string;
-  amount: number;
-  description: string;
-  status: 'Pending' | 'Paid' | 'Overdue';
+  billing_period_start: string;
+  billing_period_end: string;
+  billed_amount: number;
+  paid_amount: number;
+  status: 'Draft' | 'Sent' | 'Paid' | 'Overdue';
+  invoice_number: string | null;
+  notes: string | null;
   created_at: string;
 }
 
 interface PaymentApplication {
   id: string;
   project_id: string;
-  application_date: string;
-  period_start: string;
-  period_end: string;
-  amount_due: number;
-  amount_paid: number;
-  status: 'Submitted' | 'Approved' | 'Rejected' | 'Paid';
-  notes: string | null;
+  application_number: number;
+  period_end_date: string;
+  original_contract_sum: number;
+  net_changes: number;
+  contract_sum_to_date: number;
+  total_completed_and_stored: number;
+  retainage: number;
+  total_earned_less_retainage: number;
+  less_previous_payments: number;
+  current_payment_due: number;
+  balance_to_finish: number;
   created_at: string;
 }
 
@@ -88,10 +96,10 @@ export default function ProjectBilling() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('billing_records')
+        .from('project_billing')
         .select('*')
         .eq('project_id', projectId)
-        .order('date', { ascending: false });
+        .order('billing_period_end', { ascending: false });
 
       if (error) throw error;
       setBillingRecords(data || []);
@@ -109,7 +117,7 @@ export default function ProjectBilling() {
         .from('payment_applications')
         .select('*')
         .eq('project_id', projectId)
-        .order('application_date', { ascending: false });
+        .order('period_end_date', { ascending: false });
 
       if (error) throw error;
       setPaymentApplications(data || []);
@@ -138,7 +146,7 @@ export default function ProjectBilling() {
 
     try {
       const { error } = await supabase
-        .from('billing_records')
+        .from('project_billing')
         .delete()
         .eq('id', id);
 
@@ -152,9 +160,9 @@ export default function ProjectBilling() {
     }
   };
 
-  const totalBilled = billingRecords.reduce((sum, record) => sum + record.amount, 0);
-  const totalPaid = billingRecords.filter(record => record.status === 'Paid').reduce((sum, record) => sum + record.amount, 0);
-  const overdueBalance = billingRecords.filter(record => record.status === 'Overdue').reduce((sum, record) => sum + record.amount, 0);
+  const totalBilled = billingRecords.reduce((sum, record) => sum + record.billed_amount, 0);
+  const totalPaid = billingRecords.reduce((sum, record) => sum + record.paid_amount, 0);
+  const overdueBalance = billingRecords.filter(record => record.status === 'Overdue').reduce((sum, record) => sum + record.billed_amount, 0);
 
   return (
     <Layout title="Project Billing" subtitle={`Manage billing for ${project?.name || 'Project'}`}>
@@ -236,13 +244,13 @@ export default function ProjectBilling() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Date
+                        Period
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Amount
+                        Billed Amount
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Description
+                        Paid Amount
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
@@ -256,12 +264,14 @@ export default function ProjectBilling() {
                     {billingRecords.map((record) => (
                       <tr key={record.id}>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {format(new Date(record.date), 'MMM dd, yyyy')}
+                          {format(new Date(record.billing_period_start), 'MMM dd')} - {format(new Date(record.billing_period_end), 'MMM dd, yyyy')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          ${record.amount.toLocaleString()}
+                          ${record.billed_amount.toLocaleString()}
                         </td>
-                        <td className="px-6 py-4">{record.description}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          ${record.paid_amount.toLocaleString()}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <Badge
                             className={
@@ -286,7 +296,7 @@ export default function ProjectBilling() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="text-red-600 hover:text-red-700"
+                            className="text-red-600 hover:text-red-700 ml-2"
                             onClick={() => handleDeleteBilling(record.id)}
                           >
                             Delete
@@ -331,19 +341,16 @@ export default function ProjectBilling() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Application Date
+                        Application #
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Period
+                        Period End
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Amount Due
+                        Contract Sum
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Amount Paid
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
+                        Current Payment Due
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
@@ -354,31 +361,16 @@ export default function ProjectBilling() {
                     {paymentApplications.map((app) => (
                       <tr key={app.id}>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {format(new Date(app.application_date), 'MMM dd, yyyy')}
+                          #{app.application_number}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {format(new Date(app.period_start), 'MMM dd, yyyy')} - {format(new Date(app.period_end), 'MMM dd, yyyy')}
+                          {format(new Date(app.period_end_date), 'MMM dd, yyyy')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          ${app.amount_due.toLocaleString()}
+                          ${app.contract_sum_to_date?.toLocaleString() || app.original_contract_sum.toLocaleString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          ${app.amount_paid.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge
-                            className={
-                              app.status === 'Paid'
-                                ? 'bg-green-100 text-green-800 border-green-200'
-                                : app.status === 'Approved'
-                                ? 'bg-blue-100 text-blue-800 border-blue-200'
-                                : app.status === 'Rejected'
-                                ? 'bg-red-100 text-red-800 border-red-200'
-                                : 'bg-yellow-100 text-yellow-800 border-yellow-200'
-                            }
-                          >
-                            {app.status}
-                          </Badge>
+                          ${app.current_payment_due?.toLocaleString() || '0'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           <Button size="sm" variant="outline">
@@ -405,7 +397,7 @@ export default function ProjectBilling() {
 
         {/* Dialogs */}
         <NewBillingDialog
-          projectId={projectId || ''}
+          project_id={projectId || ''}
           open={billingDialogOpen}
           onOpenChange={setBillingDialogOpen}
           onBillingCreated={handleBillingCreated}
@@ -413,7 +405,7 @@ export default function ProjectBilling() {
 
         {editingBillingId && (
           <EditBillingDialog
-            billingId={editingBillingId}
+            billing={billingRecords.find(b => b.id === editingBillingId) || null}
             open={!!editingBillingId}
             onOpenChange={(open) => !open && setEditingBillingId(null)}
             onBillingUpdated={handleBillingUpdated}
