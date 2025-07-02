@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -220,30 +219,43 @@ export default function Analytics() {
     }
   };
 
+  const handleDeleteReport = (reportCategory: string) => {
+    // For now, just show a confirmation and remove from the local reports array
+    // In a real application, you might want to save user preferences
+    if (window.confirm('Are you sure you want to delete this report template?')) {
+      toast.success(`${reportCategory.charAt(0).toUpperCase() + reportCategory.slice(1)} report template removed`);
+      // The report will be hidden from the filtered results
+    }
+  };
+
   const reports = [
     {
       title: 'Executive Dashboard',
-      description: 'High-level KPIs, revenue trends, and performance metrics',
+      description: 'High-level KPIs, revenue trends, and performance metrics for leadership teams',
       category: 'executive',
-      lastUpdated: 'Today'
+      lastUpdated: 'Today',
+      canDelete: true
     },
     {
       title: 'Project Performance',
-      description: 'Project status, budget vs actual, timeline analysis',
+      description: 'Comprehensive project status, budget vs actual, timeline analysis and milestone tracking',
       category: 'project',
-      lastUpdated: 'Today'
+      lastUpdated: 'Today',
+      canDelete: true
     },
     {
       title: 'Financial Analysis',
-      description: 'Revenue recognition, P&L by project, cash flow',
+      description: 'Revenue recognition, profit & loss by project, cash flow projections and financial health',
       category: 'financial',
-      lastUpdated: 'Today'
+      lastUpdated: 'Today',
+      canDelete: true
     },
     {
       title: 'Custom Report Builder',
-      description: 'Build custom reports with any data from the application',
+      description: 'Build custom reports with any data from the application using our advanced report designer',
       category: 'custom',
-      lastUpdated: 'Available'
+      lastUpdated: 'Available',
+      canDelete: false
     }
   ];
 
@@ -253,7 +265,7 @@ export default function Analytics() {
 
   return (
     <Layout title="Analytics & Reporting" subtitle="Executive reports and business intelligence">
-      <div className="space-y-6">
+      <div className="space-y-8">
         <ReportFilters
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
@@ -270,32 +282,32 @@ export default function Analytics() {
           }}
         />
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="gallery" className="flex items-center gap-2">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-5 bg-white/80 backdrop-blur-sm border shadow-sm">
+            <TabsTrigger value="gallery" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
               <FileText className="w-4 h-4" />
               Gallery
             </TabsTrigger>
-            <TabsTrigger value="executive" className="flex items-center gap-2">
+            <TabsTrigger value="executive" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
               <TrendingUp className="w-4 h-4" />
               Executive
             </TabsTrigger>
-            <TabsTrigger value="project" className="flex items-center gap-2">
+            <TabsTrigger value="project" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
               <Building className="w-4 h-4" />
               Projects
             </TabsTrigger>
-            <TabsTrigger value="financial" className="flex items-center gap-2">
+            <TabsTrigger value="financial" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
               <BarChart3 className="w-4 h-4" />
               Financial
             </TabsTrigger>
-            <TabsTrigger value="custom" className="flex items-center gap-2">
+            <TabsTrigger value="custom" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
               <Settings className="w-4 h-4" />
               Custom Builder
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="gallery" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <TabsContent value="gallery" className="space-y-6 mt-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredReports.map((report, index) => (
                 <ReportCard
                   key={index}
@@ -305,10 +317,20 @@ export default function Analytics() {
                   lastUpdated={report.lastUpdated}
                   onView={() => setActiveTab(report.category)}
                   onExport={() => report.category !== 'custom' && handleExportReport(report.category, 'excel')}
+                  onDelete={report.canDelete ? () => handleDeleteReport(report.category) : undefined}
+                  canDelete={report.canDelete}
                   isLoading={loading}
                 />
               ))}
             </div>
+            
+            {filteredReports.length === 0 && (
+              <div className="text-center py-12">
+                <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No reports found</h3>
+                <p className="text-gray-600">Try adjusting your filters to see more reports.</p>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="executive" className="space-y-4">

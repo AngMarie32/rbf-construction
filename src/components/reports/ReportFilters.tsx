@@ -1,20 +1,24 @@
 
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DateFilter } from '@/components/dashboard/DateFilter';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { X, Filter } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DatePickerWithRange } from '@/components/ui/date-picker-with-range';
+import { Filter, RotateCcw, Search } from 'lucide-react';
+import { DateRange } from 'react-day-picker';
+
+interface ProjectManager {
+  id: string;
+  name: string;
+}
 
 interface ReportFiltersProps {
   selectedCategory: string;
   onCategoryChange: (category: string) => void;
-  dateRange: { from: Date | undefined; to: Date | undefined };
-  onDateRangeChange: (range: { from: Date | undefined; to: Date | undefined }) => void;
-  selectedProjectManager?: string;
-  onProjectManagerChange?: (pm: string) => void;
-  projectManagers?: { id: string; name: string }[];
+  dateRange: DateRange | undefined;
+  onDateRangeChange: (range: DateRange | undefined) => void;
+  selectedProjectManager: string;
+  onProjectManagerChange: (manager: string) => void;
+  projectManagers: ProjectManager[];
   onApplyFilters: () => void;
   onClearFilters: () => void;
 }
@@ -26,94 +30,79 @@ export function ReportFilters({
   onDateRangeChange,
   selectedProjectManager,
   onProjectManagerChange,
-  projectManagers = [],
+  projectManagers,
   onApplyFilters,
   onClearFilters
 }: ReportFiltersProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const activeFiltersCount = [
-    selectedCategory !== 'all',
-    dateRange.from || dateRange.to,
-    selectedProjectManager && selectedProjectManager !== 'all'
-  ].filter(Boolean).length;
-
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-lg">Filters</CardTitle>
-            {activeFiltersCount > 0 && (
-              <Badge variant="secondary">{activeFiltersCount} active</Badge>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
-            <Filter className="w-4 h-4" />
-          </Button>
+    <Card className="border-0 shadow-lg bg-white/90 backdrop-blur-sm">
+      <CardContent className="p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Filter className="w-5 h-5 text-primary" />
+          <h3 className="text-lg font-semibold text-gray-900">Report Filters</h3>
         </div>
-      </CardHeader>
-      {isExpanded && (
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Report Category</label>
-              <Select value={selectedCategory} onValueChange={onCategoryChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="executive">Executive Dashboard</SelectItem>
-                  <SelectItem value="project">Project Reports</SelectItem>
-                  <SelectItem value="financial">Financial Reports</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {onProjectManagerChange && (
-              <div>
-                <label className="text-sm font-medium mb-2 block">Project Manager</label>
-                <Select value={selectedProjectManager || 'all'} onValueChange={onProjectManagerChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Managers" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Managers</SelectItem>
-                    {projectManagers.map((pm) => (
-                      <SelectItem key={pm.id} value={pm.id}>
-                        {pm.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div>
-              <label className="text-sm font-medium mb-2 block">Date Range</label>
-              <DateFilter 
-                dateRange={dateRange} 
-                onDateRangeChange={onDateRangeChange} 
-              />
-            </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Category</label>
+            <Select value={selectedCategory} onValueChange={onCategoryChange}>
+              <SelectTrigger className="bg-white border-gray-200 hover:border-primary/30 transition-colors">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="executive">📊 Executive</SelectItem>
+                <SelectItem value="project">🏗️ Project</SelectItem>
+                <SelectItem value="financial">💰 Financial</SelectItem>
+                <SelectItem value="custom">⚙️ Custom</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="flex justify-between pt-4 border-t">
-            <Button variant="outline" size="sm" onClick={onClearFilters}>
-              <X className="w-4 h-4 mr-1" />
-              Clear All
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Date Range</label>
+            <DatePickerWithRange 
+              date={dateRange} 
+              onDateChange={onDateRangeChange}
+              className="bg-white border-gray-200 hover:border-primary/30 transition-colors"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Project Manager</label>
+            <Select value={selectedProjectManager} onValueChange={onProjectManagerChange}>
+              <SelectTrigger className="bg-white border-gray-200 hover:border-primary/30 transition-colors">
+                <SelectValue placeholder="All Managers" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Managers</SelectItem>
+                {projectManagers.map((manager) => (
+                  <SelectItem key={manager.id} value={manager.id}>
+                    {manager.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-end gap-2">
+            <Button 
+              onClick={onApplyFilters}
+              className="flex-1 bg-gradient-to-r from-primary to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+            >
+              <Search className="w-4 h-4 mr-2" />
+              Apply
             </Button>
-            <Button size="sm" onClick={onApplyFilters}>
-              Apply Filters
+            <Button 
+              variant="outline" 
+              onClick={onClearFilters}
+              className="bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" />
             </Button>
           </div>
-        </CardContent>
-      )}
+        </div>
+      </CardContent>
     </Card>
   );
 }
