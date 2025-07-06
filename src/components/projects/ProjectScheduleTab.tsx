@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,6 +35,7 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
   const [dependencyTask, setDependencyTask] = useState<Task | null>(null);
   const [resourceLevelingOpen, setResourceLevelingOpen] = useState(false);
   const [weatherAdjusterOpen, setWeatherAdjusterOpen] = useState(false);
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
 
   useEffect(() => {
     fetchProjectAndTasks();
@@ -138,7 +138,7 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
   };
 
   const handleAddTaskToStatus = (status: Task['status']) => {
-    console.log('Add task with status:', status);
+    setCreateTaskOpen(true);
   };
 
   const handleUpdateDependencies = async (taskId: string, dependencies: string[]) => {
@@ -185,7 +185,7 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Project Schedule Header */}
+      {/* Enhanced Project Schedule Header */}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -193,7 +193,7 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
               <BarChart3 className="w-5 h-5" />
               Advanced Project Schedule
             </CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button 
                 onClick={() => setResourceLevelingOpen(true)} 
                 variant="outline"
@@ -210,11 +210,13 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
                 <CloudRain className="w-4 h-4 mr-2" />
                 Weather Adjustments
               </Button>
-              <CreateTaskDialog 
-                projects={projects}
-                tasks={tasks}
-                onTaskCreated={fetchProjectAndTasks}
-              />
+              <Button 
+                onClick={() => setCreateTaskOpen(true)}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Task
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -302,6 +304,18 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Task Creation Dialog */}
+      <CreateTaskDialog
+        projects={projects}
+        tasks={tasks}
+        onTaskCreated={() => {
+          fetchProjectAndTasks();
+          setCreateTaskOpen(false);
+        }}
+        open={createTaskOpen}
+        onOpenChange={setCreateTaskOpen}
+      />
 
       {/* Task Edit Dialog */}
       {editTask && (
