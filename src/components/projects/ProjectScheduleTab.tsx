@@ -4,14 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, CalendarDays, BarChart3, Plus, Search, Filter, Eye, Download, Settings, Target, Lightbulb, Users, Clock, Kanban, Zap, FileText } from 'lucide-react';
+import { Calendar, CalendarDays, BarChart3, Plus, Search, Filter, Eye, Download, Settings, Target, Lightbulb, Users, Clock, Kanban, Zap, FileText, CloudRain } from 'lucide-react';
 import { GanttChart } from '@/components/schedule/GanttChart';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
-import { CriticalPath } from '@/components/schedule/CriticalPath';
+import { EnhancedCriticalPath } from '@/components/schedule/EnhancedCriticalPath';
 import { PlannerBoard } from '@/components/schedule/PlannerBoard';
 import { CreateTaskDialog } from '@/components/schedule/CreateTaskDialog';
 import { TaskEditDialog } from '@/components/schedule/TaskEditDialog';
 import { TaskDependencyManager } from '@/components/schedule/TaskDependencyManager';
+import { ResourceLevelingManager } from '@/components/schedule/ResourceLevelingManager';
+import { WeatherScheduleAdjuster } from '@/components/schedule/WeatherScheduleAdjuster';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Task } from '@/types';
@@ -32,6 +34,8 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
   const [loading, setLoading] = useState(true);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [dependencyTask, setDependencyTask] = useState<Task | null>(null);
+  const [resourceLevelingOpen, setResourceLevelingOpen] = useState(false);
+  const [weatherAdjusterOpen, setWeatherAdjusterOpen] = useState(false);
 
   useEffect(() => {
     fetchProjectAndTasks();
@@ -141,6 +145,44 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
     await handleUpdateTask(taskId, { dependencies });
   };
 
+  const handleBulkTaskUpdate = async (updates: { taskId: string; updates: Partial<Task> }[]) => {
+    try {
+      const updatePromises = updates.map(async ({ taskId, updates: taskUpdates }) => {
+        const updateData: any = {};
+        if (taskUpdates.startDate) updateData.start_date = taskUpdates.startDate.toISOString().split('T')[0];
+        if (taskUpdates.endDate) updateData.end_date = taskUpdates.endDate.toISOString().split('T')[0];
+        if (taskUpdates.status) updateData.status = taskUpdates.status;
+        if (taskUpdates.progress !== undefined) updateData.progress = taskUpdates.progress;
+
+        const { error } = await supabase
+          .from('tasks')
+          .update(updateData)
+          .eq('id', taskId);
+
+        if (error) throw error;
+        return { taskId, updates: taskUpdates };
+      });
+
+      const results = await Promise.all(updatePromises);
+      
+      setTasks(prev => {
+        const updatedTasks = [...prev];
+        results.forEach(({ taskId, updates: taskUpdates }) => {
+          const index = updatedTasks.findIndex(t => t.id === taskId);
+          if (index !== -1) {
+            updatedTasks[index] = { ...updatedTasks[index], ...taskUpdates };
+          }
+        });
+        return updatedTasks;
+      });
+
+      toast.success(`Successfully updated ${updates.length} tasks`);
+    } catch (error) {
+      console.error('Error updating tasks:', error);
+      toast.error('Failed to update tasks');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Project Schedule Header */}
@@ -149,9 +191,25 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
           <div className="flex justify-between items-center">
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="w-5 h-5" />
-              Project Schedule
+              Advanced Project Schedule
             </CardTitle>
             <div className="flex items-center gap-2">
+              <Button 
+                onClick={() => setResourceLevelingOpen(true)} 
+                variant="outline"
+                className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Resource Leveling
+              </Button>
+              <Button 
+                onClick={() => setWeatherAdjusterOpen(true)} 
+                variant="outline"
+                className="bg-sky-50 border-sky-200 text-sky-700 hover:bg-sky-100"
+              >
+                <CloudRain className="w-4 h-4 mr-2" />
+                Weather Adjustments
+              </Button>
               <CreateTaskDialog 
                 projects={projects}
                 tasks={tasks}
@@ -177,7 +235,7 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
               </TabsTrigger>
               <TabsTrigger value="critical" className="flex items-center gap-2">
                 <Target className="w-4 h-4" />
-                Critical Path
+                Critical Path Analysis
               </TabsTrigger>
             </TabsList>
 
@@ -235,8 +293,9 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
             </TabsContent>
 
             <TabsContent value="critical">
-              <CriticalPath 
+              <EnhancedCriticalPath 
                 tasks={tasks}
+                projects={projects}
                 selectedProjects={[projectId]}
               />
             </TabsContent>
@@ -263,6 +322,22 @@ export function ProjectScheduleTab({ projectId }: ProjectScheduleTabProps) {
           onClose={() => setDependencyTask(null)}
         />
       )}
+
+      {/* Resource Leveling Manager */}
+      <ResourceLevelingManager
+        open={resourceLevelingOpen}
+        onOpenChange={setResourceLevelingOpen}
+        tasks={tasks}
+        onUpdateTasks={handleBulkTaskUpdate}
+      />
+
+      {/* Weather Schedule Adjuster */}
+      <WeatherScheduleAdjuster
+        open={weatherAdjusterOpen}
+        onOpenChange={setWeatherAdjusterOpen}
+        tasks={tasks}
+        onUpdateTasks={handleBulkTaskUpdate}
+      />
     </div>
   );
 }

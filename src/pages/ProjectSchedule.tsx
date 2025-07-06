@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,10 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, CalendarDays, BarChart3, Plus, Search, Filter, Eye, Download, Settings, Target, Lightbulb, Users, Clock, Kanban, Zap, FileText, TrendingUp } from 'lucide-react';
+import { Calendar, CalendarDays, BarChart3, Plus, Search, Filter, Eye, Download, Settings, Target, Lightbulb, Users, Clock, Kanban, Zap, FileText, TrendingUp, CloudRain } from 'lucide-react';
 import { GanttChart } from '@/components/schedule/GanttChart';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
-import { CriticalPath } from '@/components/schedule/CriticalPath';
+import { EnhancedCriticalPath } from '@/components/schedule/EnhancedCriticalPath';
 import { ImprovedExportDialog } from '@/components/schedule/ImprovedExportDialog';
 import { TaskDependencyManager } from '@/components/schedule/TaskDependencyManager';
 import { TaskEditDialog } from '@/components/schedule/TaskEditDialog';
@@ -24,6 +23,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
 import { Task } from '@/types';
+import { ResourceLevelingManager } from '@/components/schedule/ResourceLevelingManager';
+import { WeatherScheduleAdjuster } from '@/components/schedule/WeatherScheduleAdjuster';
 
 interface Project {
   id: string;
@@ -52,6 +53,8 @@ export default function ProjectSchedule() {
   const [quickPlannerOpen, setQuickPlannerOpen] = useState(false);
   const [templateManagerOpen, setTemplateManagerOpen] = useState(false);
   const [projectDelayDialogOpen, setProjectDelayDialogOpen] = useState(false);
+  const [resourceLevelingOpen, setResourceLevelingOpen] = useState(false);
+  const [weatherAdjusterOpen, setWeatherAdjusterOpen] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -275,56 +278,77 @@ export default function ProjectSchedule() {
   });
 
   return (
-    <Layout title="Project Schedule" subtitle="Manage project timelines and dependencies">
+    <Layout title="Project Schedule" subtitle="Advanced project timeline management with critical path analysis">
       <div className="space-y-8">
-        {/* Quick Start Guide */}
+        {/* Enhanced Quick Start Guide */}
         <Card className="border-blue-200 bg-blue-50">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Lightbulb className="w-5 h-5 text-blue-600" />
-              <CardTitle className="text-blue-900">Quick Start Guide</CardTitle>
+              <CardTitle className="text-blue-900">Advanced Scheduling Features</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-3 gap-6">
               <div className="space-y-3">
                 <h4 className="font-semibold text-blue-900 flex items-center gap-2">
                   <Target className="w-4 h-4" />
-                  Getting Started
+                  Critical Path Analysis
                 </h4>
                 <ul className="space-y-2 text-sm text-blue-800">
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
-                    Create tasks by clicking "Add Task" and fill in project details, dates, and dependencies
+                    Automatically identify critical tasks that affect project completion
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
-                    Use the Gantt chart to visualize project timelines and identify scheduling conflicts
+                    Visual dependency mapping shows task relationships
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
-                    Set task dependencies to ensure proper work sequencing
+                    Float analysis helps optimize scheduling flexibility
                   </li>
                 </ul>
               </div>
               
               <div className="space-y-3">
                 <h4 className="font-semibold text-blue-900 flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4" />
-                  Key Features
+                  <Users className="w-4 h-4" />
+                  Resource Leveling
                 </h4>
                 <ul className="space-y-2 text-sm text-blue-800">
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
-                    Track progress with percentage completion for each task
+                    Detect and resolve resource over-allocation conflicts
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
-                    Export comprehensive reports with enhanced formatting
+                    Multiple resolution strategies: delay, extend, or split tasks
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
-                    View critical path analysis to identify bottlenecks
+                    Optimize crew and equipment utilization
+                  </li>
+                </ul>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-semibold text-blue-900 flex items-center gap-2">
+                  <CloudRain className="w-4 h-4" />
+                  Weather-Based Adjustments
+                </h4>
+                <ul className="space-y-2 text-sm text-blue-800">
+                  <li className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
+                    Automatically adjust schedules based on weather forecasts
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
+                    Configurable rules for different weather conditions
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></span>
+                    Protect weather-sensitive tasks like concrete and roofing
                   </li>
                 </ul>
               </div>
@@ -358,9 +382,9 @@ export default function ProjectSchedule() {
             <div className="flex justify-between items-center">
               <CardTitle className="flex items-center gap-2">
                 <BarChart3 className="w-5 h-5" />
-                Project Schedule
+                Advanced Project Schedule
               </CardTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button 
                   onClick={() => setProjectDelayDialogOpen(true)} 
                   variant="outline"
@@ -414,7 +438,7 @@ export default function ProjectSchedule() {
                 </TabsTrigger>
                 <TabsTrigger value="critical" className="flex items-center gap-2">
                   <Target className="w-4 h-4" />
-                  Critical Path
+                  Critical Path Analysis
                 </TabsTrigger>
               </TabsList>
 
@@ -470,8 +494,9 @@ export default function ProjectSchedule() {
               </TabsContent>
 
               <TabsContent value="critical">
-                <CriticalPath 
+                <EnhancedCriticalPath 
                   tasks={filteredTasks}
+                  projects={projects}
                   selectedProjects={selectedProjects}
                 />
               </TabsContent>
@@ -479,46 +504,46 @@ export default function ProjectSchedule() {
           </CardContent>
         </Card>
 
-        {/* Simplified Project Schedule Workflow */}
-        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        {/* Advanced Scheduling Workflow */}
+        <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Target className="w-5 h-5 text-blue-600" />
-              <CardTitle className="text-blue-900">Project Schedule Workflow</CardTitle>
+              <Target className="w-5 h-5 text-purple-600" />
+              <CardTitle className="text-purple-900">Advanced Scheduling Workflow</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="text-center">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3 mx-auto">
-                  <Calendar className="w-6 h-6 text-blue-600" />
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-3 mx-auto">
+                  <Target className="w-6 h-6 text-purple-600" />
                 </div>
-                <h3 className="font-semibold text-blue-900 mb-2">Plan</h3>
-                <p className="text-sm text-blue-700">Create tasks with timelines and assign to projects</p>
+                <h3 className="font-semibold text-purple-900 mb-2">Analyze</h3>
+                <p className="text-sm text-purple-700">Identify critical path and resource conflicts</p>
               </div>
               
               <div className="text-center">
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-3 mx-auto">
-                  <Settings className="w-6 h-6 text-purple-600" />
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3 mx-auto">
+                  <Users className="w-6 h-6 text-blue-600" />
                 </div>
-                <h3 className="font-semibold text-purple-900 mb-2">Organize</h3>
-                <p className="text-sm text-purple-700">Use Gantt charts and boards to visualize progress</p>
+                <h3 className="font-semibold text-blue-900 mb-2">Level</h3>
+                <p className="text-sm text-blue-700">Resolve resource conflicts and optimize allocation</p>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center mb-3 mx-auto">
+                  <CloudRain className="w-6 h-6 text-sky-600" />
+                </div>
+                <h3 className="font-semibold text-sky-900 mb-2">Adjust</h3>
+                <p className="text-sm text-sky-700">Apply weather-based schedule modifications</p>
               </div>
               
               <div className="text-center">
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3 mx-auto">
-                  <Users className="w-6 h-6 text-green-600" />
+                  <TrendingUp className="w-6 h-6 text-green-600" />
                 </div>
-                <h3 className="font-semibold text-green-900 mb-2">Coordinate</h3>
-                <p className="text-sm text-green-700">Manage dependencies and team collaboration</p>
-              </div>
-              
-              <div className="text-center">
-                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-3 mx-auto">
-                  <TrendingUp className="w-6 h-6 text-orange-600" />
-                </div>
-                <h3 className="font-semibold text-orange-900 mb-2">Track</h3>
-                <p className="text-sm text-orange-700">Monitor progress and adjust timelines as needed</p>
+                <h3 className="font-semibold text-green-900 mb-2">Optimize</h3>
+                <p className="text-sm text-green-700">Continuously monitor and improve schedules</p>
               </div>
             </div>
           </CardContent>
@@ -575,6 +600,22 @@ export default function ProjectSchedule() {
           onOpenChange={setTemplateManagerOpen}
           onTemplateApplied={handleTemplateApplied}
           projects={projects}
+        />
+
+        {/* Resource Leveling Manager */}
+        <ResourceLevelingManager
+          open={resourceLevelingOpen}
+          onOpenChange={setResourceLevelingOpen}
+          tasks={filteredTasks}
+          onUpdateTasks={handleBulkUpdateTasks}
+        />
+
+        {/* Weather Schedule Adjuster */}
+        <WeatherScheduleAdjuster
+          open={weatherAdjusterOpen}
+          onOpenChange={setWeatherAdjusterOpen}
+          tasks={filteredTasks}
+          onUpdateTasks={handleBulkUpdateTasks}
         />
       </div>
     </Layout>
