@@ -48,8 +48,8 @@ export default function Expenses() {
   const [projectFilter, setProjectFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [attachingInvoice, setAttachingInvoice] = useState<Expense | null>(null);
-  const [viewingInvoice, setViewingInvoice] = useState<Expense | null>(null);
+  const [attachingInvoice, setAttachingInvoice] = useState<{ id: string; description: string } | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<{ id: string; description: string } | null>(null);
   const [vendorAnalysisOpen, setVendorAnalysisOpen] = useState(false);
 
   useEffect(() => {
@@ -359,9 +359,16 @@ export default function Expenses() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setAttachingInvoice(expense)}
+                            onClick={() => setAttachingInvoice({ id: expense.id, description: expense.description })}
                           >
                             <FileText className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setViewingInvoice({ id: expense.id, description: expense.description })}
+                          >
+                            <Eye className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="outline"
@@ -392,16 +399,20 @@ export default function Expenses() {
 
         {attachingInvoice && (
           <AttachInvoiceDialog
-            expense={attachingInvoice}
-            onClose={() => setAttachingInvoice(null)}
+            open={!!attachingInvoice}
+            onOpenChange={(open) => !open && setAttachingInvoice(null)}
+            expenseId={attachingInvoice.id}
+            expenseDescription={attachingInvoice.description}
             onInvoiceAttached={fetchExpenses}
           />
         )}
 
         {viewingInvoice && (
           <ViewInvoiceDialog
-            expense={viewingInvoice}
-            onClose={() => setViewingInvoice(null)}
+            open={!!viewingInvoice}
+            onOpenChange={(open) => !open && setViewingInvoice(null)}
+            expenseId={viewingInvoice.id}
+            expenseDescription={viewingInvoice.description}
           />
         )}
 

@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,9 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface BulkExpenseDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   onExpensesCreated: () => void;
+  projects: Array<{ id: string; name: string }>;
 }
 
 interface ExpenseEntry {
@@ -35,8 +33,8 @@ const EXPENSE_CATEGORIES = [
   'Equipment'
 ];
 
-export function BulkExpenseDialog({ open, onOpenChange, onExpensesCreated }: BulkExpenseDialogProps) {
-  const [projects, setProjects] = useState<any[]>([]);
+export function BulkExpenseDialog({ onExpensesCreated, projects }: BulkExpenseDialogProps) {
+  const [open, setOpen] = useState(false);
   const [expenses, setExpenses] = useState<ExpenseEntry[]>([
     {
       id: '1',
@@ -50,27 +48,6 @@ export function BulkExpenseDialog({ open, onOpenChange, onExpensesCreated }: Bul
     }
   ]);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      fetchProjects();
-    }
-  }, [open]);
-
-  const fetchProjects = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('id, name')
-        .order('name');
-
-      if (error) throw error;
-      setProjects(data || []);
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-      toast.error('Failed to load projects');
-    }
-  };
 
   const addExpenseRow = () => {
     const newExpense: ExpenseEntry = {
@@ -130,7 +107,7 @@ export function BulkExpenseDialog({ open, onOpenChange, onExpensesCreated }: Bul
 
       toast.success(`${validExpenses.length} expenses created successfully`);
       onExpensesCreated();
-      onOpenChange(false);
+      setOpen(false);
       
       // Reset form
       setExpenses([{
@@ -152,123 +129,130 @@ export function BulkExpenseDialog({ open, onOpenChange, onExpensesCreated }: Bul
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Bulk Expense Entry</DialogTitle>
-        </DialogHeader>
+    <>
+      <Button onClick={() => setOpen(true)} variant="outline">
+        <Plus className="w-4 h-4 mr-2" />
+        Bulk Entry
+      </Button>
+      
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Bulk Expense Entry</DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <Button onClick={addExpenseRow} variant="outline" size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Row
-            </Button>
-          </div>
-
-          <div className="border rounded-lg overflow-hidden">
-            <div className="bg-gray-50 grid grid-cols-8 gap-2 p-2 text-xs font-medium text-gray-700 border-b">
-              <div>Project</div>
-              <div>Description</div>
-              <div>Category</div>
-              <div>Amount</div>
-              <div>Date</div>
-              <div>Vendor</div>
-              <div>Receipt #</div>
-              <div>Actions</div>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <Button onClick={addExpenseRow} variant="outline" size="sm">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Row
+              </Button>
             </div>
 
-            <div className="max-h-96 overflow-y-auto">
-              {expenses.map((expense, index) => (
-                <div key={expense.id} className="grid grid-cols-8 gap-2 p-2 border-b hover:bg-gray-50">
-                  <Select value={expense.project_id} onValueChange={(value) => updateExpense(expense.id, 'project_id', value)}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Select..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-gray-50 grid grid-cols-8 gap-2 p-2 text-xs font-medium text-gray-700 border-b">
+                <div>Project</div>
+                <div>Description</div>
+                <div>Category</div>
+                <div>Amount</div>
+                <div>Date</div>
+                <div>Vendor</div>
+                <div>Receipt #</div>
+                <div>Actions</div>
+              </div>
 
-                  <Input
-                    value={expense.description}
-                    onChange={(e) => updateExpense(expense.id, 'description', e.target.value)}
-                    placeholder="Description..."
-                    className="h-8 text-xs"
-                  />
+              <div className="max-h-96 overflow-y-auto">
+                {expenses.map((expense, index) => (
+                  <div key={expense.id} className="grid grid-cols-8 gap-2 p-2 border-b hover:bg-gray-50">
+                    <Select value={expense.project_id} onValueChange={(value) => updateExpense(expense.id, 'project_id', value)}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {projects.map((project) => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                  <Select value={expense.category} onValueChange={(value) => updateExpense(expense.id, 'category', value)}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Category..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EXPENSE_CATEGORIES.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <Input
+                      value={expense.description}
+                      onChange={(e) => updateExpense(expense.id, 'description', e.target.value)}
+                      placeholder="Description..."
+                      className="h-8 text-xs"
+                    />
 
-                  <Input
-                    type="number"
-                    value={expense.amount}
-                    onChange={(e) => updateExpense(expense.id, 'amount', e.target.value)}
-                    placeholder="0.00"
-                    className="h-8 text-xs"
-                    step="0.01"
-                  />
+                    <Select value={expense.category} onValueChange={(value) => updateExpense(expense.id, 'category', value)}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Category..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EXPENSE_CATEGORIES.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                  <Input
-                    type="date"
-                    value={expense.date}
-                    onChange={(e) => updateExpense(expense.id, 'date', e.target.value)}
-                    className="h-8 text-xs"
-                  />
+                    <Input
+                      type="number"
+                      value={expense.amount}
+                      onChange={(e) => updateExpense(expense.id, 'amount', e.target.value)}
+                      placeholder="0.00"
+                      className="h-8 text-xs"
+                      step="0.01"
+                    />
 
-                  <Input
-                    value={expense.vendor}
-                    onChange={(e) => updateExpense(expense.id, 'vendor', e.target.value)}
-                    placeholder="Vendor..."
-                    className="h-8 text-xs"
-                  />
+                    <Input
+                      type="date"
+                      value={expense.date}
+                      onChange={(e) => updateExpense(expense.id, 'date', e.target.value)}
+                      className="h-8 text-xs"
+                    />
 
-                  <Input
-                    value={expense.receipt_number}
-                    onChange={(e) => updateExpense(expense.id, 'receipt_number', e.target.value)}
-                    placeholder="Receipt #..."
-                    className="h-8 text-xs"
-                  />
+                    <Input
+                      value={expense.vendor}
+                      onChange={(e) => updateExpense(expense.id, 'vendor', e.target.value)}
+                      placeholder="Vendor..."
+                      className="h-8 text-xs"
+                    />
 
-                  <Button
-                    onClick={() => removeExpenseRow(expense.id)}
-                    variant="outline"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    disabled={expenses.length === 1}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              ))}
+                    <Input
+                      value={expense.receipt_number}
+                      onChange={(e) => updateExpense(expense.id, 'receipt_number', e.target.value)}
+                      placeholder="Receipt #..."
+                      className="h-8 text-xs"
+                    />
+
+                    <Button
+                      onClick={() => removeExpenseRow(expense.id)}
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      disabled={expenses.length === 1}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4 border-t">
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmit} disabled={loading}>
+                <Save className="w-4 h-4 mr-2" />
+                {loading ? 'Creating...' : `Create ${expenses.length} Expenses`}
+              </Button>
             </div>
           </div>
-
-          <div className="flex justify-end space-x-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit} disabled={loading}>
-              <Save className="w-4 h-4 mr-2" />
-              {loading ? 'Creating...' : `Create ${expenses.length} Expenses`}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
