@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -121,6 +120,30 @@ export default function Expenses() {
     }
   };
 
+  const handleStatusChange = async (expenseId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .update({ status: newStatus })
+        .eq('id', expenseId);
+
+      if (error) throw error;
+
+      setExpenses(prev => 
+        prev.map(expense => 
+          expense.id === expenseId 
+            ? { ...expense, status: newStatus }
+            : expense
+        )
+      );
+      
+      toast.success('Status updated successfully');
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Failed to update status');
+    }
+  };
+
   const filteredExpenses = expenses.filter(expense => {
     const matchesSearch = expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          expense.vendor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -144,17 +167,16 @@ export default function Expenses() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Paid':
-        return 'bg-green-100 text-green-800';
+        return 'success';
       case 'Approved':
-        return 'bg-blue-100 text-blue-800';
+        return 'info';
       case 'Pending Field Approval':
-        return 'bg-yellow-100 text-yellow-800';
       case 'Pending Office Approval':
-        return 'bg-orange-100 text-orange-800';
+        return 'warning';
       case 'Rejected':
-        return 'bg-red-100 text-red-800';
+        return 'destructive';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'secondary';
     }
   };
 
@@ -396,9 +418,20 @@ export default function Expenses() {
                       <TableCell>{expense.vendor || 'N/A'}</TableCell>
                       <TableCell className="font-medium">${expense.amount.toLocaleString()}</TableCell>
                       <TableCell>
-                        <Badge className={getStatusColor(expense.status)}>
-                          {getStatusIcon(expense.status)} {expense.status}
-                        </Badge>
+                        <Select value={expense.status} onValueChange={(newStatus) => handleStatusChange(expense.id, newStatus)}>
+                          <SelectTrigger className="w-auto">
+                            <Badge variant={getStatusColor(expense.status) as any} className="cursor-pointer">
+                              {getStatusIcon(expense.status)} {expense.status}
+                            </Badge>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Pending Field Approval">Pending Field Approval</SelectItem>
+                            <SelectItem value="Pending Office Approval">Pending Office Approval</SelectItem>
+                            <SelectItem value="Approved">Approved</SelectItem>
+                            <SelectItem value="Paid">Paid</SelectItem>
+                            <SelectItem value="Rejected">Rejected</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
