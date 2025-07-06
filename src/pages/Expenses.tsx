@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -224,21 +223,7 @@ export default function Expenses() {
     <Layout title="Expense Management" subtitle="Track and manage project expenses">
       <div className="space-y-6">
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="border-0 shadow-sm bg-gradient-to-r from-blue-50 to-blue-100">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-600 rounded-lg">
-                  <DollarSign className="w-6 h-6 text-white" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-blue-600">Total Expenses</p>
-                  <p className="text-2xl font-bold text-blue-900">${expenseSummary.total.toLocaleString()}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="border-0 shadow-sm bg-gradient-to-r from-green-50 to-green-100">
             <CardContent className="p-6">
               <div className="flex items-center">
@@ -312,6 +297,7 @@ export default function Expenses() {
                   <TrendingUp className="w-4 h-4 mr-2" />
                   Vendor Analysis
                 </Button>
+                <ImportExpensesDialog onExpensesImported={fetchExpenses} projects={projects} />
                 <BulkExpenseDialog onExpensesCreated={fetchExpenses} projects={projects} />
                 <CreateExpenseDialog onExpenseCreated={fetchExpenses} projects={projects} />
               </div>
