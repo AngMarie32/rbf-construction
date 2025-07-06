@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -7,15 +8,18 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Search, Filter, FileText, Download, Edit, Trash2, Eye, DollarSign, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Filter, FileText, Download, Edit, Trash2, Eye, DollarSign, TrendingUp, AlertTriangle, Calendar } from 'lucide-react';
 import { CreateExpenseDialog } from '@/components/expenses/CreateExpenseDialog';
 import { EditExpenseDialog } from '@/components/expenses/EditExpenseDialog';
 import { BulkExpenseDialog } from '@/components/expenses/BulkExpenseDialog';
 import { AttachInvoiceDialog } from '@/components/expenses/AttachInvoiceDialog';
 import { ViewInvoiceDialog } from '@/components/expenses/ViewInvoiceDialog';
 import { VendorAnalysisDialog } from '@/components/expenses/VendorAnalysisDialog';
+import { DatePickerWithRange } from '@/components/ui/date-picker-with-range';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { DateRange } from 'react-day-picker';
+import { exportToExcel, exportToPDF, exportToCSV } from '@/utils/reportExports';
 
 interface Expense {
   id: string;
@@ -47,6 +51,7 @@ export default function Expenses() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [attachingInvoice, setAttachingInvoice] = useState<{ id: string; description: string } | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<{ id: string; description: string } | null>(null);
@@ -122,8 +127,17 @@ export default function Expenses() {
     const matchesStatus = statusFilter === 'all' || expense.status === statusFilter;
     const matchesProject = projectFilter === 'all' || expense.project_id === projectFilter;
     const matchesCategory = categoryFilter === 'all' || expense.category === categoryFilter;
+    
+    let matchesDateRange = true;
+    if (dateRange?.from && dateRange?.to) {
+      const expenseDate = new Date(expense.date);
+      matchesDateRange = expenseDate >= dateRange.from && expenseDate <= dateRange.to;
+    } else if (dateRange?.from) {
+      const expenseDate = new Date(expense.date);
+      matchesDateRange = expenseDate >= dateRange.from;
+    }
 
-    return matchesSearch && matchesStatus && matchesProject && matchesCategory;
+    return matchesSearch && matchesStatus && matchesProject && matchesCategory && matchesDateRange;
   });
 
   const getStatusColor = (status: string) => {
@@ -161,75 +175,109 @@ export default function Expenses() {
 
   const expenseSummary = filteredExpenses.reduce((acc, expense) => {
     acc.total += expense.amount;
-    acc.count += 1;
     if (expense.status === 'Paid') acc.paid += expense.amount;
     if (expense.status === 'Approved') acc.approved += expense.amount;
     if (expense.status.includes('Pending')) acc.pending += expense.amount;
     return acc;
-  }, { total: 0, paid: 0, approved: 0, pending: 0, count: 0 });
+  }, { total: 0, paid: 0, approved: 0, pending: 0 });
 
   const categories = [...new Set(expenses.map(e => e.category))];
+
+  const handleExport = (format: 'excel' | 'pdf' | 'csv') => {
+    const exportData = {
+      title: 'Expense Report',
+      data: filteredExpenses.map(expense => ({
+        Date: new Date(expense.date).toLocaleDateString(),
+        Project: expense.projects?.name || 'Unknown',
+        Description: expense.description,
+        Category: expense.category,
+        Vendor: expense.vendor || 'N/A',
+        Amount: `$${expense.amount.toLocaleString()}`,
+        Status: expense.status
+      })),
+      metadata: {
+        generatedAt: new Date().toLocaleString(),
+        dateRange: dateRange?.from && dateRange?.to 
+          ? `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`
+          : 'All dates',
+        totalExpenses: filteredExpenses.length,
+        totalAmount: `$${expenseSummary.total.toLocaleString()}`
+      }
+    };
+
+    switch (format) {
+      case 'excel':
+        exportToExcel(exportData);
+        break;
+      case 'pdf':
+        exportToPDF(exportData);
+        break;
+      case 'csv':
+        exportToCSV(exportData);
+        break;
+    }
+
+    toast.success(`Expense report exported as ${format.toUpperCase()}`);
+  };
 
   return (
     <Layout title="Expense Management" subtitle="Track and manage project expenses">
       <div className="space-y-6">
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-blue-600" />
-                <div>
-                  <p className="text-sm text-gray-600">Total Expenses</p>
-                  <p className="text-xl font-bold">${expenseSummary.total.toLocaleString()}</p>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="border-0 shadow-sm bg-gradient-to-r from-blue-50 to-blue-100">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-600 rounded-lg">
+                  <DollarSign className="w-6 h-6 text-white" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-blue-600">Total Expenses</p>
+                  <p className="text-2xl font-bold text-blue-900">${expenseSummary.total.toLocaleString()}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-green-600 rounded-full"></div>
-                <div>
-                  <p className="text-sm text-gray-600">Paid</p>
-                  <p className="text-xl font-bold text-green-600">${expenseSummary.paid.toLocaleString()}</p>
+          <Card className="border-0 shadow-sm bg-gradient-to-r from-green-50 to-green-100">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-600 rounded-lg">
+                  <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
+                    <div className="w-3 h-3 bg-green-600 rounded-full"></div>
+                  </div>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-green-600">Paid</p>
+                  <p className="text-2xl font-bold text-green-900">${expenseSummary.paid.toLocaleString()}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-blue-600 rounded-full"></div>
-                <div>
-                  <p className="text-sm text-gray-600">Approved</p>
-                  <p className="text-xl font-bold text-blue-600">${expenseSummary.approved.toLocaleString()}</p>
+          <Card className="border-0 shadow-sm bg-gradient-to-r from-orange-50 to-orange-100">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-orange-600 rounded-lg">
+                  <AlertTriangle className="w-6 h-6 text-white" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-orange-600">Approved</p>
+                  <p className="text-2xl font-bold text-orange-900">${expenseSummary.approved.toLocaleString()}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-yellow-600 rounded-full"></div>
-                <div>
-                  <p className="text-sm text-gray-600">Pending</p>
-                  <p className="text-xl font-bold text-yellow-600">${expenseSummary.pending.toLocaleString()}</p>
+          <Card className="border-0 shadow-sm bg-gradient-to-r from-yellow-50 to-yellow-100">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-yellow-600 rounded-lg">
+                  <FileText className="w-6 h-6 text-white" />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-purple-600" />
-                <div>
-                  <p className="text-sm text-gray-600">Total Count</p>
-                  <p className="text-xl font-bold text-purple-600">{expenseSummary.count}</p>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-yellow-600">Pending</p>
+                  <p className="text-2xl font-bold text-yellow-900">${expenseSummary.pending.toLocaleString()}</p>
                 </div>
               </div>
             </CardContent>
@@ -245,6 +293,17 @@ export default function Expenses() {
                 Expense Records
               </CardTitle>
               <div className="flex gap-2">
+                <Select onValueChange={(value) => handleExport(value as 'excel' | 'pdf' | 'csv')}>
+                  <SelectTrigger className="w-40">
+                    <Download className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Export" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="excel">Export Excel</SelectItem>
+                    <SelectItem value="pdf">Export PDF</SelectItem>
+                    <SelectItem value="csv">Export CSV</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button 
                   onClick={() => setVendorAnalysisOpen(true)}
                   variant="outline"
@@ -270,6 +329,12 @@ export default function Expenses() {
                   className="pl-10"
                 />
               </div>
+              
+              <DatePickerWithRange
+                date={dateRange}
+                onDateChange={setDateRange}
+                className="w-auto"
+              />
               
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-48">

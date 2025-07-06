@@ -8,10 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, DollarSign, AlertTriangle, FileText, Search } from 'lucide-react';
+import { TrendingUp, DollarSign, AlertTriangle, FileText, Search, Download, ArrowUpDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { exportToExcel, exportToPDF, exportToCSV } from '@/utils/reportExports';
 
 interface VendorAnalysisDialogProps {
   open: boolean;
@@ -29,23 +29,13 @@ interface VendorExpenseData {
   lastExpenseDate: string;
 }
 
-interface ExpenseDetail {
-  id: string;
-  description: string;
-  amount: number;
-  date: string;
-  status: string;
-  project_name: string;
-  category: string;
-}
-
 export function VendorAnalysisDialog({ open, onOpenChange, projects }: VendorAnalysisDialogProps) {
   const [vendorData, setVendorData] = useState<VendorExpenseData[]>([]);
-  const [expenseDetails, setExpenseDetails] = useState<ExpenseDetail[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedVendor, setSelectedVendor] = useState<string>('');
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'total' | 'date'>('total');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     if (open) {
@@ -120,75 +110,44 @@ export function VendorAnalysisDialog({ open, onOpenChange, projects }: VendorAna
         }
       });
 
-      const sortedVendorData = Array.from(vendorMap.values())
-        .sort((a, b) => (b.totalPaid + b.totalPending + b.totalOutstanding) - (a.totalPaid + a.totalPending + a.totalOutstanding));
+      let sortedVendorData = Array.from(vendorMap.values());
+
+      // Apply sorting
+      sortedVendorData.sort((a, b) => {
+        let aValue, bValue;
+        
+        switch (sortBy) {
+          case 'name':
+            aValue = a.vendor.toLowerCase();
+            bValue = b.vendor.toLowerCase();
+            break;
+          case 'total':
+            aValue = a.totalPaid + a.totalPending + a.totalOutstanding;
+            bValue = b.totalPaid + b.totalPending + b.totalOutstanding;
+            break;
+          case 'date':
+            aValue = new Date(a.lastExpenseDate).getTime();
+            bValue = new Date(b.lastExpenseDate).getTime();
+            break;
+          default:
+            aValue = a.totalPaid + a.totalPending + a.totalOutstanding;
+            bValue = b.totalPaid + b.totalPending + b.totalOutstanding;
+        }
+
+        if (sortOrder === 'asc') {
+          return aValue > bValue ? 1 : -1;
+        } else {
+          return aValue < bValue ? 1 : -1;
+        }
+      });
 
       setVendorData(sortedVendorData);
-
-      // If a vendor is selected, fetch detailed expenses
-      if (selectedVendor) {
-        fetchVendorDetails(selectedVendor);
-      }
 
     } catch (error) {
       console.error('Error fetching vendor analysis:', error);
       toast.error('Failed to load vendor analysis');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchVendorDetails = async (vendor: string) => {
-    try {
-      let query = supabase
-        .from('expenses')
-        .select(`
-          *,
-          projects!inner(name)
-        `)
-        .eq('vendor', vendor);
-
-      if (selectedProject !== 'all') {
-        query = query.eq('project_id', selectedProject);
-      }
-
-      const { data: expenses, error } = await query;
-
-      if (error) throw error;
-
-      const details = (expenses || []).map(expense => ({
-        id: expense.id,
-        description: expense.description,
-        amount: Number(expense.amount) || 0,
-        date: expense.date,
-        status: expense.status,
-        project_name: expense.projects?.name || 'Unknown Project',
-        category: expense.category
-      })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-      setExpenseDetails(details);
-    } catch (error) {
-      console.error('Error fetching vendor details:', error);
-      toast.error('Failed to load vendor details');
-    }
-  };
-
-  const handleVendorSelect = (vendor: string) => {
-    setSelectedVendor(vendor);
-    fetchVendorDetails(vendor);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Paid':
-        return 'bg-green-100 text-green-800';
-      case 'Approved':
-        return 'bg-orange-100 text-orange-800';
-      case 'Pending Field Approval':
-      case 'Pending Office Approval':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -199,9 +158,51 @@ export function VendorAnalysisDialog({ open, onOpenChange, projects }: VendorAna
   const totalSummary = vendorData.reduce((acc, vendor) => ({
     totalPaid: acc.totalPaid + vendor.totalPaid,
     totalPending: acc.totalPending + vendor.totalPending,
-    totalOutstanding: acc.totalOutstanding + vendor.totalOutstanding,
-    totalVendors: vendorData.length
-  }), { totalPaid: 0, totalPending: 0, totalOutstanding: 0, totalVendors: 0 });
+    totalOutstanding: acc.totalOutstanding + vendor.totalOutstanding
+  }), { totalPaid: 0, totalPending: 0, totalOutstanding: 0 });
+
+  const handleExport = (format: 'excel' | 'pdf' | 'csv') => {
+    const exportData = {
+      title: 'Vendor Expense Analysis',
+      data: filteredVendorData.map(vendor => ({
+        Vendor: vendor.vendor,
+        'Total Paid': `$${vendor.totalPaid.toLocaleString()}`,
+        'Outstanding': `$${vendor.totalOutstanding.toLocaleString()}`,
+        'Pending': `$${vendor.totalPending.toLocaleString()}`,
+        'Total Expenses': vendor.expenseCount,
+        'Projects': vendor.projects.join(', '),
+        'Last Expense': new Date(vendor.lastExpenseDate).toLocaleDateString()
+      })),
+      metadata: {
+        generatedAt: new Date().toLocaleString(),
+        project: selectedProject === 'all' ? 'All Projects' : projects.find(p => p.id === selectedProject)?.name
+      }
+    };
+
+    switch (format) {
+      case 'excel':
+        exportToExcel(exportData);
+        break;
+      case 'pdf':
+        exportToPDF(exportData);
+        break;
+      case 'csv':
+        exportToCSV(exportData);
+        break;
+    }
+
+    toast.success(`Report exported as ${format.toUpperCase()}`);
+  };
+
+  const toggleSort = (newSortBy: 'name' | 'total' | 'date') => {
+    if (sortBy === newSortBy) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(newSortBy);
+      setSortOrder('desc');
+    }
+    fetchVendorAnalysis();
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -214,41 +215,57 @@ export function VendorAnalysisDialog({ open, onOpenChange, projects }: VendorAna
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Filters */}
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
-              <Label htmlFor="search">Search Vendors</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="search"
-                  placeholder="Search by vendor name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+          {/* Filters and Export */}
+          <div className="flex gap-4 items-end justify-between">
+            <div className="flex gap-4 items-end flex-1">
+              <div className="flex-1">
+                <Label htmlFor="search">Search Vendors</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="search"
+                    placeholder="Search by vendor name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="project">Project Filter</Label>
+                <Select value={selectedProject} onValueChange={setSelectedProject}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Projects</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <div>
-              <Label htmlFor="project">Project Filter</Label>
-              <Select value={selectedProject} onValueChange={setSelectedProject}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
+            
+            <div className="flex gap-2">
+              <Select onValueChange={(value) => handleExport(value as 'excel' | 'pdf' | 'csv')}>
+                <SelectTrigger className="w-40">
+                  <Download className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Export" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Projects</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="excel">Export Excel</SelectItem>
+                  <SelectItem value="pdf">Export PDF</SelectItem>
+                  <SelectItem value="csv">Export CSV</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
@@ -290,141 +307,84 @@ export function VendorAnalysisDialog({ open, onOpenChange, projects }: VendorAna
                 </div>
               </CardContent>
             </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-blue-600" />
-                  <div>
-                    <p className="text-sm text-gray-600">Total Vendors</p>
-                    <p className="text-xl font-bold text-blue-600">
-                      {totalSummary.totalVendors}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
-          <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="overview">Vendor Overview</TabsTrigger>
-              <TabsTrigger value="details" disabled={!selectedVendor}>
-                Vendor Details {selectedVendor && `(${selectedVendor})`}
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="overview">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Vendor Summary</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="flex justify-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Vendor</TableHead>
-                          <TableHead>Total Paid</TableHead>
-                          <TableHead>Outstanding</TableHead>
-                          <TableHead>Pending</TableHead>
-                          <TableHead>Total Expenses</TableHead>
-                          <TableHead>Projects</TableHead>
-                          <TableHead>Last Expense</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredVendorData.map((vendor) => (
-                          <TableRow key={vendor.vendor}>
-                            <TableCell className="font-medium">{vendor.vendor}</TableCell>
-                            <TableCell className="text-green-600">
-                              ${vendor.totalPaid.toLocaleString()}
-                            </TableCell>
-                            <TableCell className="text-orange-600">
-                              ${vendor.totalOutstanding.toLocaleString()}
-                            </TableCell>
-                            <TableCell className="text-yellow-600">
-                              ${vendor.totalPending.toLocaleString()}
-                            </TableCell>
-                            <TableCell>{vendor.expenseCount}</TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                {vendor.projects.slice(0, 2).map((project) => (
-                                  <Badge key={project} variant="outline" className="text-xs">
-                                    {project}
-                                  </Badge>
-                                ))}
-                                {vendor.projects.length > 2 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    +{vendor.projects.length - 2} more
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>{new Date(vendor.lastExpenseDate).toLocaleDateString()}</TableCell>
-                            <TableCell>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleVendorSelect(vendor.vendor)}
-                              >
-                                View Details
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="details">
-              {selectedVendor && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Detailed Expenses - {selectedVendor}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Project</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Category</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {expenseDetails.map((expense) => (
-                          <TableRow key={expense.id}>
-                            <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
-                            <TableCell>{expense.project_name}</TableCell>
-                            <TableCell>{expense.description}</TableCell>
-                            <TableCell>{expense.category}</TableCell>
-                            <TableCell>${expense.amount.toLocaleString()}</TableCell>
-                            <TableCell>
-                              <Badge className={getStatusColor(expense.status)}>
-                                {expense.status}
+          {/* Vendor Overview Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Vendor Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="cursor-pointer" onClick={() => toggleSort('name')}>
+                        <div className="flex items-center gap-2">
+                          Vendor
+                          <ArrowUpDown className="w-4 h-4" />
+                        </div>
+                      </TableHead>
+                      <TableHead>Total Paid</TableHead>
+                      <TableHead>Outstanding</TableHead>
+                      <TableHead>Pending</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => toggleSort('total')}>
+                        <div className="flex items-center gap-2">
+                          Total Amount
+                          <ArrowUpDown className="w-4 h-4" />
+                        </div>
+                      </TableHead>
+                      <TableHead>Projects</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => toggleSort('date')}>
+                        <div className="flex items-center gap-2">
+                          Last Expense
+                          <ArrowUpDown className="w-4 h-4" />
+                        </div>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredVendorData.map((vendor) => (
+                      <TableRow key={vendor.vendor}>
+                        <TableCell className="font-medium">{vendor.vendor}</TableCell>
+                        <TableCell className="text-green-600">
+                          ${vendor.totalPaid.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-orange-600">
+                          ${vendor.totalOutstanding.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-yellow-600">
+                          ${vendor.totalPending.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="font-semibold">
+                          ${(vendor.totalPaid + vendor.totalPending + vendor.totalOutstanding).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            {vendor.projects.slice(0, 2).map((project) => (
+                              <Badge key={project} variant="outline" className="text-xs">
+                                {project}
                               </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
+                            ))}
+                            {vendor.projects.length > 2 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{vendor.projects.length - 2} more
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{new Date(vendor.lastExpenseDate).toLocaleDateString()}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
-            </TabsContent>
-          </Tabs>
+            </CardContent>
+          </Card>
         </div>
       </DialogContent>
     </Dialog>
