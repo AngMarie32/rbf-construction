@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import { BulkExpenseDialog } from '@/components/expenses/BulkExpenseDialog';
 import { AttachInvoiceDialog } from '@/components/expenses/AttachInvoiceDialog';
 import { ViewInvoiceDialog } from '@/components/expenses/ViewInvoiceDialog';
 import { VendorAnalysisDialog } from '@/components/expenses/VendorAnalysisDialog';
+import { ImportExpensesDialog } from '@/components/expenses/ImportExpensesDialog';
 import { DatePickerWithRange } from '@/components/ui/date-picker-with-range';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
