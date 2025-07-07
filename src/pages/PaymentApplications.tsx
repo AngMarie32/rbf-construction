@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -102,13 +101,15 @@ export default function PaymentApplications() {
   };
 
   const handleNewApplication = () => {
-    setSelectedApplication(null);
-    setDialogOpen(true);
+    if (!selectedProject) {
+      toast.error('Please select a project first');
+      return;
+    }
+    window.location.href = `/payment-apps/${selectedProject}/application/new`;
   };
 
   const handleEditApplication = (application: PaymentApplication) => {
-    setSelectedApplication(application);
-    setDialogOpen(true);
+    window.location.href = `/payment-apps/${selectedProject}/application/${application.id}`;
   };
 
   const handleDeleteApplication = async (id: string, applicationNumber: number) => {
@@ -338,10 +339,6 @@ export default function PaymentApplications() {
                       <Plus className="w-4 h-4 mr-2" />
                       New Application
                     </Button>
-                    <Button variant="outline">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export G702/G703
-                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -386,13 +383,6 @@ export default function PaymentApplications() {
                               >
                                 <Eye className="w-4 h-4 mr-1" />
                                 View
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                              >
-                                <Download className="w-4 h-4 mr-1" />
-                                Export
                               </Button>
                               <Button
                                 variant="outline"
