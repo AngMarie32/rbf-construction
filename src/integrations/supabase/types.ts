@@ -2014,6 +2014,7 @@ export type Database = {
           project_id: string
           retainage_percentage: number | null
           scheduled_value: number
+          subcategory: string | null
           this_period: number | null
           total_completed_and_stored: number | null
           updated_at: string | null
@@ -2033,6 +2034,7 @@ export type Database = {
           project_id: string
           retainage_percentage?: number | null
           scheduled_value?: number
+          subcategory?: string | null
           this_period?: number | null
           total_completed_and_stored?: number | null
           updated_at?: string | null
@@ -2052,6 +2054,7 @@ export type Database = {
           project_id?: string
           retainage_percentage?: number | null
           scheduled_value?: number
+          subcategory?: string | null
           this_period?: number | null
           total_completed_and_stored?: number | null
           updated_at?: string | null
