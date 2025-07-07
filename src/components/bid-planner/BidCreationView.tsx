@@ -132,7 +132,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const handleSaveBid = async () => {
-    console.log('🚀 STARTING BID SAVE - COMPREHENSIVE FIX');
+    console.log('🚀 STARTING BID SAVE - FINAL FIX');
     console.log('=' .repeat(80));
     
     if (!projectId) {
@@ -144,31 +144,31 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     console.log('📊 CURRENT BID ITEMS STATE:');
     console.log('- Project ID:', projectId);
     console.log('- Total bid items in state:', bidItems.length);
-    console.log('- Raw bid items array:', JSON.stringify(bidItems, null, 2));
+    console.log('- ALL bid items array:', JSON.stringify(bidItems, null, 2));
 
-    // Create a deep copy and filter for valid items
+    // Get ALL items from the form - not filtering here, we save everything
     const allItems = [...bidItems];
     console.log('📋 PROCESSING ALL ITEMS:', allItems.length);
+    console.log('- Items to process:', allItems);
 
-    // More permissive filtering - only require description OR category to be non-empty
+    // Very simple filtering - only exclude items with BOTH empty description AND empty category
     const validItems = allItems.filter((item, index) => {
-      const hasDescription = item.description && item.description.trim().length > 0;
-      const hasCategory = item.category && item.category.trim().length > 0;
-      const isValid = hasDescription || hasCategory;
+      const hasContent = (item.description && item.description.trim().length > 0) || 
+                        (item.category && item.category.trim().length > 0);
       
       console.log(`Item ${index + 1}:`, {
         id: item.id,
         description: item.description || 'EMPTY',
         category: item.category || 'EMPTY',
-        hasDescription,
-        hasCategory,
-        isValid
+        hasContent,
+        willBeSaved: hasContent
       });
       
-      return isValid;
+      return hasContent;
     });
 
     console.log('✅ VALID ITEMS AFTER FILTERING:', validItems.length);
+    console.log('- Valid items:', validItems);
 
     if (validItems.length === 0) {
       console.log('🛑 NO VALID ITEMS TO SAVE');
@@ -176,13 +176,13 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       return;
     }
 
-    // Convert to database format
+    // Convert to database format with safe defaults
     const itemsForDatabase = validItems.map((item, index) => {
       const dbItem = {
         project_id: projectId,
         category: (item.category || 'General').trim(),
         subcategory: (item.subcategory || '').trim() || null,
-        description: (item.description || 'Item ' + (index + 1)).trim(),
+        description: (item.description || `Item ${index + 1}`).trim(),
         quantity: Math.max(Number(item.quantity) || 1, 1),
         unit: (item.unit || 'each').trim(),
         unit_cost: Number(item.unitCost) || 0
@@ -194,25 +194,28 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
     console.log('💾 FINAL DATABASE PAYLOAD:');
     console.log('- Items to save:', itemsForDatabase.length);
-    console.log('- Payload:', JSON.stringify(itemsForDatabase, null, 2));
+    console.log('- Complete payload:', JSON.stringify(itemsForDatabase, null, 2));
 
     setSaving(true);
     try {
-      // Delete existing items
-      console.log('🗑️ Deleting existing items...');
+      // Step 1: Delete existing items
+      console.log('🗑️ Step 1: Deleting existing items...');
       const { error: deleteError } = await supabase
         .from('bid_items')
         .delete()
         .eq('project_id', projectId);
 
       if (deleteError) {
+        console.error('❌ DELETE ERROR:', deleteError);
         throw new Error(`Failed to delete existing items: ${deleteError.message}`);
       }
 
-      console.log('✅ Existing items deleted');
+      console.log('✅ Step 1 Complete: Existing items deleted');
 
-      // Insert new items
-      console.log('💾 Inserting items...');
+      // Step 2: Insert new items
+      console.log('💾 Step 2: Inserting new items...');
+      console.log('- Inserting items count:', itemsForDatabase.length);
+      
       const { data: savedData, error: insertError } = await supabase
         .from('bid_items')
         .insert(itemsForDatabase)
@@ -220,14 +223,18 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
       if (insertError) {
         console.error('❌ INSERT ERROR:', insertError);
+        console.error('- Error details:', insertError.details);
+        console.error('- Error hint:', insertError.hint);
+        console.error('- Error message:', insertError.message);
         throw new Error(`Database insert error: ${insertError.message}`);
       }
 
-      console.log('🎉 SUCCESS! Items saved:', savedData?.length || 0);
-      console.log('📊 Saved data:', savedData);
+      console.log('🎉 Step 2 Complete: Items saved successfully!');
+      console.log('- Saved items count:', savedData?.length || 0);
+      console.log('- Saved data:', savedData);
 
       const successMessage = `Successfully saved ${savedData?.length || 0} bid items!`;
-      console.log('✅', successMessage);
+      console.log('✅ SUCCESS:', successMessage);
       toast.success(successMessage);
       
       onItemsChange(savedData || []);
@@ -235,10 +242,12 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       
     } catch (error: any) {
       console.error('💥 SAVE FAILED:', error);
+      console.error('- Error stack:', error.stack);
       toast.error(`Failed to save bid: ${error.message || 'Unknown error'}`);
     } finally {
       setSaving(false);
       console.log('🏁 SAVE PROCESS COMPLETED');
+      console.log('=' .repeat(80));
     }
   };
 
