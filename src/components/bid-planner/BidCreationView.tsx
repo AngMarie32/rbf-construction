@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -224,7 +223,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
     const itemsForSaving = itemsToSave || bidItems;
 
-    // Filter items - keep items with either category OR description
+    // Filter items - only keep items with category OR description (not both required)
     const validItems = itemsForSaving.filter((item) => {
       const hasCategory = item.category && item.category.trim().length > 0;
       const hasDescription = item.description && item.description.trim().length > 0;
@@ -236,16 +235,16 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       return;
     }
 
-    // Convert to database format with proper description handling
+    // Convert to database format - do NOT automatically insert description
     const itemsForDatabase = validItems.map((item, index) => {
-      // Ensure description is never null or empty - use category as fallback
-      const description = (item.description || '').trim() || (item.category || '').trim() || 'Bid Item';
+      // Only use description if it's actually provided, don't use category as fallback
+      const description = (item.description || '').trim() || ''; // Keep empty if not provided
       
       return {
         project_id: projectId,
         category: (item.category || '').trim() || 'General',
         subcategory: (item.subcategory || '').trim() || null,
-        description: description,
+        description: description, // Don't force a description
         quantity: Math.max(Number(item.quantity) || 1, 1),
         unit: (item.unit || 'each').trim(),
         unit_cost: Number(item.unitCost) || 0
@@ -353,7 +352,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         item_number: String(index + 1).padStart(3, '0'),
         category: item.category || 'General',
         subcategory: item.subcategory || null,
-        description: item.description || item.category || 'Imported from Bid',
+        description: item.description || '', // Don't force fallback description
         scheduled_value: (item.unitCost || 0) * (item.quantity || 1),
         previous_applications: 0,
         this_period: 0,

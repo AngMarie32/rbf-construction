@@ -307,9 +307,9 @@ export default function ScheduleOfValues() {
                       <thead>
                         <tr className="bg-gray-50">
                           <th className="border border-gray-200 px-4 py-2 text-left">#</th>
-                          <th className="border border-gray-200 px-4 py-2 text-left">Description</th>
                           <th className="border border-gray-200 px-4 py-2 text-left">Category</th>
                           <th className="border border-gray-200 px-4 py-2 text-left">Subcategory</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Description</th>
                           <th className="border border-gray-200 px-4 py-2 text-right">Scheduled Value</th>
                           <th className="border border-gray-200 px-4 py-2 text-right">Work Completed</th>
                           <th className="border border-gray-200 px-4 py-2 text-right">Materials Stored</th>
@@ -321,19 +321,13 @@ export default function ScheduleOfValues() {
                         {filteredItems.map((item) => (
                           <tr key={item.id} className="hover:bg-gray-50">
                             <td className="border border-gray-200 px-4 py-2">{item.item_number}</td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              {item.category}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              {item.subcategory || '-'}
+                            </td>
                             <td className="border border-gray-200 px-4 py-2">{item.description}</td>
-                            <td className="border border-gray-200 px-4 py-2">
-                              <Badge variant="outline">{item.category}</Badge>
-                            </td>
-                            <td className="border border-gray-200 px-4 py-2">
-                              {item.subcategory ? (
-                                <Badge variant="secondary" className="text-xs">
-                                  {item.subcategory}
-                                </Badge>
-                              ) : (
-                                <span className="text-gray-400 text-xs">-</span>
-                              )}
-                            </td>
                             <td className="border border-gray-200 px-4 py-2 text-right font-medium">
                               ${(Number(item.scheduled_value) || 0).toLocaleString()}
                             </td>
