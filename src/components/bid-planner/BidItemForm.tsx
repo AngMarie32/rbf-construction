@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, MoreHorizontal } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { ImportBidItemsDialog } from './ImportBidItemsDialog';
 
 interface BidItem {
   id: string;
@@ -271,6 +271,51 @@ const subcategoryOptions = [
 
 const allowedUnits = ['each', 'SF', 'LY', 'CY', 'CF', 'AC', 'Day', 'Week', 'Lot', 'Ton', 'LFT', 'SY', 'LS'];
 
+const getDivisionFromCategory = (category: string): string => {
+  const lowerCategory = category.toLowerCase();
+  
+  if (lowerCategory.includes('site') || 
+      lowerCategory.includes('excavation') || 
+      lowerCategory.includes('grading') || 
+      lowerCategory.includes('landscaping') ||
+      lowerCategory.includes('erosion') ||
+      lowerCategory.includes('clearing') ||
+      lowerCategory.includes('demolition')) {
+    return 'Site Work';
+  }
+  
+  if (lowerCategory.includes('concrete') || 
+      lowerCategory.includes('masonry') || 
+      lowerCategory.includes('carpentry') ||
+      lowerCategory.includes('framing') ||
+      lowerCategory.includes('roofing') ||
+      lowerCategory.includes('insulation') ||
+      lowerCategory.includes('doors') ||
+      lowerCategory.includes('windows') ||
+      lowerCategory.includes('finishes') ||
+      lowerCategory.includes('painting') ||
+      lowerCategory.includes('flooring') ||
+      lowerCategory.includes('mechanical') ||
+      lowerCategory.includes('plumbing') ||
+      lowerCategory.includes('electrical') ||
+      lowerCategory.includes('fire')) {
+    return 'Building';
+  }
+  
+  if (lowerCategory.includes('general') || 
+      lowerCategory.includes('supervision') || 
+      lowerCategory.includes('management') ||
+      lowerCategory.includes('labor') ||
+      lowerCategory.includes('design') ||
+      lowerCategory.includes('permits') ||
+      lowerCategory.includes('bonds') ||
+      lowerCategory.includes('insurance')) {
+    return 'General Conditions';
+  }
+  
+  return 'Other';
+};
+
 interface SearchableSelectProps {
   value: string;
   onValueChange: (value: string) => void;
@@ -353,6 +398,7 @@ function SearchableSelect({ value, onValueChange, options, placeholder, allowCus
 }
 
 export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProps) {
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const currentItems = items;
 
   // Set up real-time subscription for bid items
@@ -371,7 +417,6 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
         },
         (payload) => {
           console.log('Real-time bid items change:', payload);
-          // Reload items when changes occur from other sessions
           loadBidItems();
         }
       )
@@ -401,11 +446,8 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
         const formattedItems: BidItem[] = existingItems.map((item, index) => {
           return {
             id: item.id || String(Date.now() + index),
-            division: item.category?.includes('Site') ? 'Site Work' : 
-                     item.category?.includes('Building') || item.category?.includes('Masonry') || item.category?.includes('Concrete') ? 'Building' : 
-                     item.category?.includes('General') ? 'General Conditions' : 
-                     'Other',
-            category: item.category || 'General',
+            division: getDivisionFromCategory(item.category || ''),
+            category: item.category || '',
             subcategory: item.subcategory || '',
             description: item.description || '',
             quantity: item.quantity || 1,
@@ -426,7 +468,7 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
     const newItem: BidItem = {
       id: Date.now().toString(),
       division: 'General Conditions',
-      category: 'Labor/Supervision',
+      category: '',
       subcategory: '',
       description: '',
       quantity: 1,
@@ -442,6 +484,12 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
     const updatedItems = currentItems.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
+        
+        // Auto-update division based on category
+        if (field === 'category' && value) {
+          updated.division = getDivisionFromCategory(value);
+        }
+        
         if (field === 'quantity' || field === 'unitCost') {
           updated.total = updated.quantity * updated.unitCost;
         }
@@ -461,6 +509,45 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
     return currentItems.reduce((sum, item) => sum + item.total, 0);
   };
 
+  const handleStartFromScratch = async () => {
+    if (!projectId) return;
+    
+    try {
+      // Delete all existing items from database
+      const { error } = await supabase
+        .from('bid_items')
+        .delete()
+        .eq('project_id', projectId);
+
+      if (error) {
+        console.error('Error clearing bid items:', error);
+        return;
+      }
+
+      // Reset to single empty item
+      const emptyItem: BidItem = {
+        id: Date.now().toString(),
+        division: 'General Conditions',
+        category: '',
+        subcategory: '',
+        description: '',
+        quantity: 1,
+        unit: 'each',
+        unitCost: 0,
+        total: 0
+      };
+      
+      onItemsChange([emptyItem]);
+    } catch (error) {
+      console.error('Error starting from scratch:', error);
+    }
+  };
+
+  const handleItemsImported = () => {
+    setShowImportDialog(false);
+    loadBidItems();
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -469,17 +556,35 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
             Line Items 
             <span className="text-lg font-bold text-blue-600">({currentItems.length} items)</span>
           </CardTitle>
-          <Button onClick={addItem} size="sm">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Line Item
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={addItem} size="sm">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Line Item
+            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setShowImportDialog(true)}>
+                  Import from Images
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleStartFromScratch}>
+                  Start from Scratch
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
         <div className="w-full overflow-x-auto">
           <div className="min-w-[1400px]">
             {/* Header Row */}
-            <div className="grid grid-cols-12 gap-2 pb-3 mb-3 border-b-2 border-gray-200 text-xs font-semibold text-gray-700 bg-gray-50 px-3 py-3 rounded-t">
+            <div className="grid grid-cols-12 gap-2 pb-3 mb-3 text-xs font-semibold text-gray-700 bg-gray-50 px-3 py-3 rounded-t">
               <div className="col-span-1">Division</div>
               <div className="col-span-2">Category</div>
               <div className="col-span-2">Subcategory</div>
@@ -493,7 +598,7 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
             {/* Item Rows */}
             <div className="space-y-2">
               {currentItems.map((item, index) => (
-                <div key={item.id} className={`grid grid-cols-12 gap-2 items-center py-3 px-3 rounded-lg border ${index % 2 === 0 ? 'bg-white border-gray-100' : 'bg-gray-50 border-gray-100'} hover:bg-blue-50 hover:border-blue-200 transition-all duration-200`}>
+                <div key={item.id} className={`grid grid-cols-12 gap-2 items-center py-3 px-3 rounded-lg ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-all duration-200`}>
                   <div className="col-span-1">
                     <SearchableSelect
                       value={item.division}
@@ -529,7 +634,7 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
                       value={item.description}
                       onChange={(e) => updateItem(item.id, 'description', e.target.value)}
                       className="h-8 text-xs"
-                      placeholder="Enter description..."
+                      placeholder=""
                     />
                   </div>
 
@@ -600,6 +705,13 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
           </div>
         )}
       </CardContent>
+
+      <ImportBidItemsDialog 
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        onItemsImported={handleItemsImported} 
+        projects={projectId ? [{ id: projectId, name: 'Current Project' }] : []} 
+      />
     </Card>
   );
 }

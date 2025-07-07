@@ -1,11 +1,12 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Save, FileText, Edit, Trash2, Download, Settings } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, MoreHorizontal } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BidItemForm } from './BidItemForm';
-import { ImportBidItemsDialog } from './ImportBidItemsDialog';
 import { ProposalCustomizationDialog } from './ProposalCustomizationDialog';
 
 interface BidCreationViewProps {
@@ -31,8 +32,6 @@ interface BidItem {
 export function BidCreationView({ projectId, selectedTemplate, onItemsChange, showCreateView, onShowCreateViewChange }: BidCreationViewProps) {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [exportingPDF, setExportingPDF] = useState(false);
-  const [currentBidId, setCurrentBidId] = useState<string | null>(null);
   const [showProposalDialog, setShowProposalDialog] = useState(false);
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
 
@@ -40,7 +39,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     {
       id: '1',
       division: 'General Conditions',
-      category: 'Labor/Supervision',
+      category: '',
       subcategory: '',
       description: '',
       quantity: 1,
@@ -75,13 +74,11 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       if (existingItems && existingItems.length > 0) {
         // Convert ALL database items to UI format
         const formattedItems: BidItem[] = existingItems.map((item, index) => {
+          const division = getDivisionFromCategory(item.category || '');
           return {
             id: item.id || String(Date.now() + index),
-            division: item.category?.includes('Site') ? 'Site Work' : 
-                     item.category?.includes('Building') || item.category?.includes('Masonry') || item.category?.includes('Concrete') ? 'Building' : 
-                     item.category?.includes('General') ? 'General Conditions' : 
-                     'Other',
-            category: item.category || 'General',
+            division: division,
+            category: item.category || '',
             subcategory: item.subcategory || '',
             description: item.description || '',
             quantity: item.quantity || 1,
@@ -99,7 +96,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         setBidItems([{
           id: String(Date.now()),
           division: 'General Conditions',
-          category: 'Labor/Supervision',
+          category: '',
           subcategory: '',
           description: '',
           quantity: 1,
@@ -116,9 +113,50 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     }
   };
 
-  // Function to handle items imported from dialog
-  const handleItemsImported = async () => {
-    await loadExistingBidItems();
+  // Division mapping function (matching BidItemForm)
+  const getDivisionFromCategory = (category: string): string => {
+    const lowerCategory = category.toLowerCase();
+    
+    if (lowerCategory.includes('site') || 
+        lowerCategory.includes('excavation') || 
+        lowerCategory.includes('grading') || 
+        lowerCategory.includes('landscaping') ||
+        lowerCategory.includes('erosion') ||
+        lowerCategory.includes('clearing') ||
+        lowerCategory.includes('demolition')) {
+      return 'Site Work';
+    }
+    
+    if (lowerCategory.includes('concrete') || 
+        lowerCategory.includes('masonry') || 
+        lowerCategory.includes('carpentry') ||
+        lowerCategory.includes('framing') ||
+        lowerCategory.includes('roofing') ||
+        lowerCategory.includes('insulation') ||
+        lowerCategory.includes('doors') ||
+        lowerCategory.includes('windows') ||
+        lowerCategory.includes('finishes') ||
+        lowerCategory.includes('painting') ||
+        lowerCategory.includes('flooring') ||
+        lowerCategory.includes('mechanical') ||
+        lowerCategory.includes('plumbing') ||
+        lowerCategory.includes('electrical') ||
+        lowerCategory.includes('fire')) {
+      return 'Building';
+    }
+    
+    if (lowerCategory.includes('general') || 
+        lowerCategory.includes('supervision') || 
+        lowerCategory.includes('management') ||
+        lowerCategory.includes('labor') ||
+        lowerCategory.includes('design') ||
+        lowerCategory.includes('permits') ||
+        lowerCategory.includes('bonds') ||
+        lowerCategory.includes('insurance')) {
+      return 'General Conditions';
+    }
+    
+    return 'Other';
   };
 
   // Auto-save functionality
@@ -200,9 +238,9 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     const itemsForDatabase = validItems.map((item, index) => {
       return {
         project_id: projectId,
-        category: (item.category || 'General').trim(),
+        category: (item.category || '').trim() || 'General',
         subcategory: (item.subcategory || '').trim() || null,
-        description: (item.description || `Item ${index + 1}`).trim(),
+        description: (item.description || '').trim() || null,
         quantity: Math.max(Number(item.quantity) || 1, 1),
         unit: (item.unit || 'each').trim(),
         unit_cost: Number(item.unitCost) || 0
@@ -235,8 +273,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         toast.success(`Successfully saved ${savedData?.length || 0} bid items!`);
       }
       
-      setCurrentBidId(projectId);
-      
     } catch (error: any) {
       console.error('Save failed:', error);
       if (!isAutoSave) {
@@ -266,7 +302,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       setBidItems([{
         id: '1',
         division: 'General Conditions',
-        category: 'Labor/Supervision',
+        category: '',
         subcategory: '',
         description: '',
         quantity: 1,
@@ -275,7 +311,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         total: 0
       }]);
       
-      setCurrentBidId(null);
       onItemsChange([]);
       
       toast.success('Bid deleted successfully');
@@ -283,6 +318,16 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       console.error('Error deleting bid:', error);
       toast.error(`Failed to delete bid: ${error.message}`);
     }
+  };
+
+  const handleExportToSOV = () => {
+    // TODO: Implement SOV export functionality
+    toast.info('Export to SOV functionality coming soon');
+  };
+
+  const handleExportToPDF = () => {
+    // TODO: Implement PDF export functionality
+    toast.info('Export to PDF functionality coming soon');
   };
 
   const handleBack = () => {
@@ -318,10 +363,33 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         </div>
         
         <div className="flex gap-2">
-          <ImportBidItemsDialog 
-            onItemsImported={handleItemsImported} 
-            projects={[{ id: projectId, name: 'Current Project' }]} 
-          />
+          <Button 
+            onClick={() => handleSaveBid()} 
+            disabled={saving} 
+            size="sm"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {saving ? 'Saving...' : 'Save Bid'}
+          </Button>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportToSOV}>
+                Export to SOV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowProposalDialog(true)}>
+                Create Proposal
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportToPDF}>
+                Export to PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -335,36 +403,15 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Bid Summary</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button 
-                onClick={() => handleSaveBid()} 
-                disabled={saving} 
-                size="sm"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                {saving ? 'Saving...' : 'Save Bid'}
-              </Button>
-              
-              <Button 
-                onClick={() => setShowProposalDialog(true)} 
-                disabled={bidItems.length === 0}
-                variant="outline"
-                size="sm"
-              >
-                <Settings className="w-4 h-4 mr-2" />
-                Export Proposal
-              </Button>
-
-              <Button 
-                onClick={handleDeleteBid} 
-                disabled={bidItems.length === 0}
-                variant="destructive"
-                size="sm"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete Bid
-              </Button>
-            </div>
+            <Button 
+              onClick={handleDeleteBid} 
+              disabled={bidItems.length === 0}
+              variant="destructive"
+              size="sm"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Bid
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
