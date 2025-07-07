@@ -136,7 +136,27 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     console.log('🔍 === COMPREHENSIVE BID SAVE ANALYSIS START ===');
     console.log('📊 Current bidItems state - Total count:', bidItems.length);
     
-    // Log a complete summary first
+    // Log EVERY SINGLE BID ITEM in complete detail
+    console.log('📋 === COMPLETE BID ITEMS INVENTORY ===');
+    bidItems.forEach((item, index) => {
+      console.log(`📝 Item ${index + 1}/${bidItems.length}:`, {
+        id: item.id,
+        division: `"${item.division}"`,
+        category: `"${item.category}"`,
+        subcategory: `"${item.subcategory}"`,
+        description: `"${item.description}"`,
+        descriptionLength: item.description?.length || 0,
+        quantity: item.quantity,
+        unit: item.unit,
+        unitCost: item.unitCost,
+        total: item.total,
+        hasDescription: !!(item.description && item.description.trim().length > 0),
+        hasCategory: !!(item.category && item.category.trim().length > 0),
+        willBeSaved: !!(item.description && item.description.trim().length > 0 && item.category && item.category.trim().length > 0)
+      });
+    });
+    
+    // Create summary stats
     const summary = {
       totalItems: bidItems.length,
       itemsWithDescription: bidItems.filter(item => item.description && item.description.trim().length > 0).length,
@@ -150,32 +170,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     };
     
     console.log('📈 SUMMARY ANALYSIS:', summary);
-    
-    // Log every single item in detail
-    console.log('📋 DETAILED ITEM ANALYSIS:');
-    bidItems.forEach((item, index) => {
-      const hasDesc = item.description && item.description.trim().length > 0;
-      const hasCat = item.category && item.category.trim().length > 0;
-      const hasValidQty = !isNaN(Number(item.quantity)) && Number(item.quantity) > 0;
-      const hasValidCost = !isNaN(Number(item.unitCost));
-      
-      console.log(`Item ${index + 1}/${bidItems.length}:`, {
-        id: item.id,
-        description: `"${item.description}"`,
-        descriptionLength: item.description?.length || 0,
-        hasDescription: hasDesc,
-        category: `"${item.category}"`,
-        hasCategory: hasCat,
-        subcategory: `"${item.subcategory}"`,
-        quantity: item.quantity,
-        hasValidQuantity: hasValidQty,
-        unit: item.unit,
-        unitCost: item.unitCost,
-        hasValidUnitCost: hasValidCost,
-        total: item.total,
-        WILL_BE_SAVED: hasDesc && hasCat
-      });
-    });
 
     if (bidItems.length === 0) {
       console.log('❌ ERROR: No bid items found in state');
