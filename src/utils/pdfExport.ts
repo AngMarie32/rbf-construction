@@ -1,3 +1,4 @@
+
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -118,7 +119,7 @@ export const exportToPDF = async (elementId: string, filename: string) => {
     console.log(`Exporting element ${elementId} to PDF...`);
     
     // Wait for rendering to complete
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     const element = document.getElementById(elementId);
     console.log(`Element ${elementId} found:`, !!element);

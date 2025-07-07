@@ -6,8 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChevronUp, ChevronDown, ChevronsUpDown, Download } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronsUpDown, Download, Trash2 } from 'lucide-react';
 import { exportToCSV, exportToPDF } from '@/utils/pdfExport';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface SOVItem {
   id: string;
@@ -30,6 +32,7 @@ interface SOVTableProps {
   projectId: string;
   selectedApplication: string;
   onUpdateItem: (itemId: string, value: number) => void;
+  contingencyValue?: number;
 }
 
 type SortField = 'itemNumber' | 'category' | 'subcategory' | 'description' | 'scheduledValue' | 'division';
@@ -40,17 +43,17 @@ const getDivisionFromCategory = (category: string): string => {
   if (!category) return 'Other';
   const categoryLower = category.toLowerCase();
   
-  if (categoryLower.includes('site') || categoryLower.includes('earthwork') || categoryLower.includes('concrete')) {
+  if (categoryLower.includes('site') || categoryLower.includes('earthwork') || categoryLower.includes('concrete') || categoryLower.includes('foundation') || categoryLower.includes('excavation')) {
     return 'Site';
-  } else if (categoryLower.includes('building') || categoryLower.includes('structure') || categoryLower.includes('frame')) {
+  } else if (categoryLower.includes('building') || categoryLower.includes('structure') || categoryLower.includes('frame') || categoryLower.includes('wall') || categoryLower.includes('roof')) {
     return 'Building';
-  } else if (categoryLower.includes('general') || categoryLower.includes('mobilization')) {
+  } else if (categoryLower.includes('general') || categoryLower.includes('mobilization') || categoryLower.includes('temp') || categoryLower.includes('overhead')) {
     return 'General';
   }
   return 'Other';
 };
 
-export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication, onUpdateItem }: SOVTableProps) {
+export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication, onUpdateItem, contingencyValue = 0 }: SOVTableProps) {
   const [sortField, setSortField] = useState<SortField>('itemNumber');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [breakdownLevel, setBreakdownLevel] = useState<BreakdownLevel>('line-items');
@@ -66,6 +69,27 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
     }
   };
 
+  const handleDeleteSOVItem = async (itemId: string) => {
+    if (!confirm('Are you sure you want to delete this SOV item?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('sov_items')
+        .delete()
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      setSovItems(prev => prev.filter(item => item.id !== itemId));
+      toast.success('SOV item deleted successfully');
+    } catch (error) {
+      console.error('Error deleting SOV item:', error);
+      toast.error('Failed to delete SOV item');
+    }
+  };
+
   const getDisplayItems = () => {
     switch (breakdownLevel) {
       case 'line-items':
@@ -73,7 +97,8 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
           ...item,
           displayDescription: item.subcategory || item.description,
           displayCategory: item.category,
-          displayDivision: getDivisionFromCategory(item.category)
+          displayDivision: getDivisionFromCategory(item.category),
+          displaySubcategory: item.subcategory || 'N/A'
         }));
       
       case 'category':
@@ -86,6 +111,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
               displayDescription: category,
               displayCategory: category,
               displayDivision: getDivisionFromCategory(category),
+              displaySubcategory: 'Category Summary',
               scheduledValue: 0,
               changeOrders: 0,
               previousApplications: 0,
@@ -119,6 +145,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
               displayDescription: `${division} Work`,
               displayCategory: division,
               displayDivision: division,
+              displaySubcategory: 'Division Summary',
               scheduledValue: 0,
               changeOrders: 0,
               previousApplications: 0,
@@ -235,6 +262,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
       'Item #': item.itemNumber,
       'Division': item.displayDivision,
       'Category': item.displayCategory,
+      'Subcategory': item.displaySubcategory,
       'Description': item.displayDescription,
       'Scheduled Value': item.scheduledValue,
       'Change Orders': item.changeOrders,
@@ -256,8 +284,33 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
       await exportToPDF('sov-table', `SOV-${projectId}-${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error('Error exporting PDF:', error);
+      toast.error('Failed to export PDF');
     }
   };
+
+  // Calculate totals including contingency
+  const totals = useMemo(() => {
+    const totalScheduledValue = sovItems.reduce((sum, item) => sum + (item.scheduledValue || 0), 0);
+    const totalChangeOrders = sovItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
+    const totalContract = totalScheduledValue + totalChangeOrders + contingencyValue;
+    const totalFromPrevious = sovItems.reduce((sum, item) => sum + (item.previousApplications || 0), 0);
+    const totalThisPeriod = sovItems.reduce((sum, item) => sum + (item.thisPeriod || 0), 0);
+    const totalMaterials = sovItems.reduce((sum, item) => sum + (item.materialsStored || 0), 0);
+    const totalCompleted = sovItems.reduce((sum, item) => sum + (item.totalCompletedAndStored || 0), 0);
+    const balanceToFinish = totalContract - totalCompleted;
+
+    return {
+      totalScheduledValue,
+      totalChangeOrders,
+      totalContract,
+      totalFromPrevious,
+      totalThisPeriod,
+      totalMaterials,
+      totalCompleted,
+      balanceToFinish,
+      percentComplete: totalContract > 0 ? (totalCompleted / totalContract) * 100 : 0
+    };
+  }, [sovItems, contingencyValue]);
 
   return (
     <div className="space-y-4">
@@ -300,7 +353,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
         <Table>
           <TableHeader>
             <TableRow className="bg-gray-50">
-              <TableHead className="w-20 p-2">
+              <TableHead className="w-16 p-2">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -311,7 +364,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                   {getSortIcon('itemNumber')}
                 </Button>
               </TableHead>
-              <TableHead className="w-24 p-2">
+              <TableHead className="w-20 p-2">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -322,7 +375,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                   {getSortIcon('division')}
                 </Button>
               </TableHead>
-              <TableHead className="w-32 p-2">
+              <TableHead className="w-24 p-2">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -333,7 +386,18 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                   {getSortIcon('category')}
                 </Button>
               </TableHead>
-              <TableHead className="min-w-[250px] p-2">
+              <TableHead className="w-24 p-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleSort('subcategory')}
+                  className="h-8 p-0 font-medium hover:bg-transparent text-xs"
+                >
+                  Subcategory
+                  {getSortIcon('subcategory')}
+                </Button>
+              </TableHead>
+              <TableHead className="w-48 p-2">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -344,7 +408,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                   {getSortIcon('description')}
                 </Button>
               </TableHead>
-              <TableHead className="w-28 p-2 text-center">
+              <TableHead className="w-24 p-2 text-center">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -355,12 +419,15 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                   {getSortIcon('scheduledValue')}
                 </Button>
               </TableHead>
-              <TableHead className="w-24 p-2 text-center text-xs">Change Orders</TableHead>
-              <TableHead className="w-24 p-2 text-center text-xs">Previous Apps</TableHead>
-              <TableHead className="w-32 p-2 text-center text-xs">This Period</TableHead>
-              <TableHead className="w-24 p-2 text-center text-xs">Materials Stored</TableHead>
-              <TableHead className="w-24 p-2 text-center text-xs">Total Complete</TableHead>
-              <TableHead className="w-20 p-2 text-center text-xs">% Complete</TableHead>
+              <TableHead className="w-20 p-2 text-center text-xs">Change Orders</TableHead>
+              <TableHead className="w-20 p-2 text-center text-xs">Previous Apps</TableHead>
+              <TableHead className="w-24 p-2 text-center text-xs">This Period</TableHead>
+              <TableHead className="w-20 p-2 text-center text-xs">Materials Stored</TableHead>
+              <TableHead className="w-20 p-2 text-center text-xs">Total Complete</TableHead>
+              <TableHead className="w-16 p-2 text-center text-xs">% Complete</TableHead>
+              {breakdownLevel === 'line-items' && (
+                <TableHead className="w-12 p-2 text-center text-xs">Actions</TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -369,7 +436,8 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                 <TableCell className="font-medium p-2 text-sm">{item.itemNumber}</TableCell>
                 <TableCell className="p-2 text-sm">{item.displayDivision}</TableCell>
                 <TableCell className="p-2 text-sm">{item.displayCategory}</TableCell>
-                <TableCell className="p-2 text-sm">{item.displayDescription}</TableCell>
+                <TableCell className="p-2 text-sm">{item.displaySubcategory}</TableCell>
+                <TableCell className="p-2 text-sm max-w-48 truncate" title={item.displayDescription}>{item.displayDescription}</TableCell>
                 <TableCell className="p-2 text-right text-sm">${item.scheduledValue?.toLocaleString()}</TableCell>
                 <TableCell className="p-2 text-right text-sm">${item.changeOrders?.toLocaleString()}</TableCell>
                 <TableCell className="p-2 text-right text-sm">${item.previousApplications?.toLocaleString()}</TableCell>
@@ -386,8 +454,42 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                 <TableCell className="p-2 text-right text-sm">${item.materialsStored?.toLocaleString()}</TableCell>
                 <TableCell className="p-2 text-right text-sm">${item.totalCompletedAndStored?.toLocaleString()}</TableCell>
                 <TableCell className="p-2 text-right text-sm">{item.percentComplete?.toFixed(1)}%</TableCell>
+                {breakdownLevel === 'line-items' && (
+                  <TableCell className="p-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteSOVItem(item.id)}
+                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
+            
+            {/* Summary row with contingency */}
+            <TableRow className="bg-blue-50 font-semibold border-t-2">
+              <TableCell colSpan={5} className="p-2 text-sm">TOTALS (Including ${contingencyValue?.toLocaleString()} Contingency)</TableCell>
+              <TableCell className="p-2 text-right text-sm">${totals.totalScheduledValue?.toLocaleString()}</TableCell>
+              <TableCell className="p-2 text-right text-sm">${totals.totalChangeOrders?.toLocaleString()}</TableCell>
+              <TableCell className="p-2 text-right text-sm">${totals.totalFromPrevious?.toLocaleString()}</TableCell>
+              <TableCell className="p-2 text-right text-sm">${totals.totalThisPeriod?.toLocaleString()}</TableCell>
+              <TableCell className="p-2 text-right text-sm">${totals.totalMaterials?.toLocaleString()}</TableCell>
+              <TableCell className="p-2 text-right text-sm">${totals.totalCompleted?.toLocaleString()}</TableCell>
+              <TableCell className="p-2 text-right text-sm">{totals.percentComplete?.toFixed(1)}%</TableCell>
+              {breakdownLevel === 'line-items' && (
+                <TableCell className="p-2"></TableCell>
+              )}
+            </TableRow>
+            <TableRow className="bg-yellow-50 font-medium">
+              <TableCell colSpan={breakdownLevel === 'line-items' ? 12 : 11} className="p-2 text-sm">Balance to Finish</TableCell>
+              <TableCell className="p-2 text-right text-sm font-bold">${totals.balanceToFinish?.toLocaleString()}</TableCell>
+              {breakdownLevel === 'line-items' && (
+                <TableCell className="p-2"></TableCell>
+              )}
+            </TableRow>
           </TableBody>
         </Table>
       </div>
