@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calculator, FileText, Download, Settings, Plus } from 'lucide-react';
+import { Calculator, FileText, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BidTemplateSelector } from './BidTemplateSelector';
@@ -123,21 +123,6 @@ export function TabbedBidInterface({
               Settings
             </TabsTrigger>
           </TabsList>
-
-          <div className="flex gap-2">
-            <Button onClick={handleExportSOV} variant="outline" disabled={!bidItems || bidItems.length === 0}>
-              <Download className="w-4 h-4 mr-2" />
-              Export to SOV
-            </Button>
-            <Button onClick={handleCreateProposal} variant="outline">
-              <Plus className="w-4 h-4 mr-2" />
-              Create Proposal
-            </Button>
-            <Button onClick={onExportReport} variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              Export PDF
-            </Button>
-          </div>
         </div>
 
         <TabsContent value="templates">

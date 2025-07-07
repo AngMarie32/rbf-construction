@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -159,7 +158,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     return 'Other';
   };
 
-  // Auto-save functionality
+  // Auto-save functionality with more frequent saves
   const triggerAutoSave = (items: BidItem[]) => {
     if (autoSaveTimeout) {
       clearTimeout(autoSaveTimeout);
@@ -167,7 +166,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
     const timeout = setTimeout(() => {
       handleSaveBid(items, true);
-    }, 2000); // Auto-save after 2 seconds of no changes
+    }, 1000); // Auto-save after 1 second of no changes (reduced from 2 seconds)
 
     setAutoSaveTimeout(timeout);
   };
