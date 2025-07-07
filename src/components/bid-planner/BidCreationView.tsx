@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -133,13 +134,23 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const handleSaveBid = async () => {
+    console.log('Starting bid save process with items:', bidItems);
+    console.log('Total bid items to process:', bidItems.length);
+
     if (bidItems.length === 0) {
       toast.error('Please add at least one bid item');
       return;
     }
 
-    // Filter out items without description
-    const validItems = bidItems.filter(item => item.description && item.description.trim());
+    // More lenient filtering - only require description to be present and not empty
+    const validItems = bidItems.filter(item => {
+      const hasDescription = item.description && item.description.trim().length > 0;
+      console.log(`Item ${item.id}: description="${item.description}", valid=${hasDescription}`);
+      return hasDescription;
+    });
+    
+    console.log('Valid items after filtering:', validItems.length);
+    console.log('Valid items details:', validItems);
     
     if (validItems.length === 0) {
       toast.error('Please add at least one bid item with a description');
@@ -161,19 +172,24 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         // Don't throw here, continue with insert
       }
 
-      // Prepare items for database insert
-      const itemsToSave = validItems.map(item => ({
-        project_id: projectId,
-        category: item.category || 'Other',
-        subcategory: item.subcategory || '',
-        description: item.description.trim(),
-        quantity: Number(item.quantity) || 1,
-        unit: item.unit || 'each',
-        unit_cost: Number(item.unitCost) || 0
-        // Note: 'total' is computed in the database, not inserted
-      }));
+      // Prepare items for database insert with proper validation
+      const itemsToSave = validItems.map((item, index) => {
+        const itemToSave = {
+          project_id: projectId,
+          category: item.category && item.category.trim() ? item.category.trim() : 'General',
+          subcategory: item.subcategory && item.subcategory.trim() ? item.subcategory.trim() : null,
+          description: item.description.trim(),
+          quantity: Math.max(Number(item.quantity) || 1, 1), // Ensure quantity is at least 1
+          unit: item.unit && item.unit.trim() ? item.unit.trim() : 'each',
+          unit_cost: Number(item.unitCost) || 0
+        };
+        
+        console.log(`Preparing item ${index + 1}:`, itemToSave);
+        return itemToSave;
+      });
 
-      console.log('Saving bid items:', itemsToSave);
+      console.log('Final items to save:', itemsToSave);
+      console.log('Number of items to save:', itemsToSave.length);
 
       const { data, error } = await supabase
         .from('bid_items')
@@ -186,7 +202,9 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       }
 
       console.log('Bid items saved successfully:', data);
-      toast.success(`Bid saved successfully with ${itemsToSave.length} items`);
+      console.log('Number of items actually saved:', data?.length || 0);
+      
+      toast.success(`Bid saved successfully with ${data?.length || itemsToSave.length} items`);
       
       // Update parent component with the saved data
       onItemsChange(data || itemsToSave);
