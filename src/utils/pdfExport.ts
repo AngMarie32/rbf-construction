@@ -1,3 +1,4 @@
+
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -5,6 +6,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
   try {
     console.log('Starting PDF export...');
     
+    // Wait for any rendering to complete
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     const g702Element = document.getElementById('g702-document');
@@ -21,12 +23,14 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
 
     console.log('Found documents, creating PDF...');
 
+    // Create PDF with landscape orientation
     const pdf = new jsPDF({
       orientation: 'landscape',
       unit: 'in',
       format: 'letter'
     });
 
+    // Enhanced canvas options for better quality
     const canvasOptions = {
       scale: 3,
       useCORS: true,
@@ -42,9 +46,11 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
       }
     };
 
+    // Capture G702
     console.log('Capturing G702...');
     const g702Canvas = await html2canvas(g702Element, canvasOptions);
 
+    // Add G702 to PDF
     const g702ImgData = g702Canvas.toDataURL('image/png', 1.0);
     const pageWidth = 11;
     const pageHeight = 8.5;
@@ -60,8 +66,10 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
     
     pdf.addImage(g702ImgData, 'PNG', 0.25, 0.25, finalWidth, finalHeight);
 
+    // Add new page for G703
     pdf.addPage();
 
+    // Capture G703
     console.log('Capturing G703...');
     const g703Canvas = await html2canvas(g703Element, canvasOptions);
 
@@ -78,6 +86,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
     
     pdf.addImage(g703ImgData, 'PNG', 0.25, 0.25, g703FinalWidth, g703FinalHeight);
 
+    // Save the PDF
     console.log('Saving PDF...');
     pdf.save(filename);
     
@@ -93,6 +102,7 @@ export const exportToPDF = async (elementId: string, filename: string) => {
   try {
     console.log(`Exporting element ${elementId} to PDF...`);
     
+    // Wait for rendering to complete
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     const element = document.getElementById(elementId);
@@ -105,11 +115,8 @@ export const exportToPDF = async (elementId: string, filename: string) => {
     }
 
     console.log('Capturing element...');
-    
-    // Special handling for G703 documents to make them full page width
-    const isG703 = elementId.includes('g703');
-    const canvasOptions = {
-      scale: isG703 ? 2 : 3,
+    const canvas = await html2canvas(element, {
+      scale: 3,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
@@ -118,79 +125,33 @@ export const exportToPDF = async (elementId: string, filename: string) => {
       logging: false,
       removeContainer: true,
       foreignObjectRendering: false,
-      ignoreElements: (element: Element) => {
+      ignoreElements: (element) => {
         return element.classList.contains('print:hidden') ||
                element.tagName === 'BUTTON' ||
                element.classList.contains('no-print');
       }
-    };
-
-    const canvas = await html2canvas(element, canvasOptions);
+    });
 
     const pdf = new jsPDF({
-      orientation: isG703 ? 'landscape' : 'landscape',
+      orientation: 'landscape',
       unit: 'in',
       format: 'letter'
     });
 
     const imgData = canvas.toDataURL('image/png', 1.0);
-    const pageWidth = isG703 ? 11 : 11;
-    const pageHeight = isG703 ? 8.5 : 8.5;
+    const pageWidth = 11;
+    const pageHeight = 8.5;
+    const imgWidth = pageWidth - 0.5;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
     
-    // For G703, make it full width and allow multiple pages if needed
-    if (isG703) {
-      const imgWidth = pageWidth - 0.5;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      if (imgHeight <= pageHeight - 0.5) {
-        // Fits on one page
-        pdf.addImage(imgData, 'PNG', 0.25, 0.25, imgWidth, imgHeight);
-      } else {
-        // Split across multiple pages
-        const ratio = canvas.width / canvas.height;
-        const pageImgHeight = pageHeight - 0.5;
-        const pageImgWidth = pageImgHeight * ratio;
-        
-        let remainingHeight = imgHeight;
-        let currentY = 0;
-        let pageCount = 0;
-        
-        while (remainingHeight > 0) {
-          const heightForThisPage = Math.min(pageImgHeight, remainingHeight);
-          
-          if (pageCount > 0) {
-            pdf.addPage();
-          }
-          
-          // Fixed the addImage call to use correct number of parameters
-          pdf.addImage(
-            imgData, 
-            'PNG', 
-            0.25, 
-            0.25, 
-            imgWidth, 
-            heightForThisPage
-          );
-          
-          remainingHeight -= heightForThisPage;
-          currentY += heightForThisPage;
-          pageCount++;
-        }
-      }
-    } else {
-      // Standard single page handling for other documents
-      const imgWidth = pageWidth - 0.5;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      let finalWidth = imgWidth;
-      let finalHeight = imgHeight;
-      if (imgHeight > pageHeight - 0.5) {
-        finalHeight = pageHeight - 0.5;
-        finalWidth = (canvas.width * finalHeight) / canvas.height;
-      }
-      
-      pdf.addImage(imgData, 'PNG', 0.25, 0.25, finalWidth, finalHeight);
+    let finalWidth = imgWidth;
+    let finalHeight = imgHeight;
+    if (imgHeight > pageHeight - 0.5) {
+      finalHeight = pageHeight - 0.5;
+      finalWidth = (canvas.width * finalHeight) / canvas.height;
     }
+    
+    pdf.addImage(imgData, 'PNG', 0.25, 0.25, finalWidth, finalHeight);
     
     console.log('Saving PDF...');
     pdf.save(filename);
@@ -214,6 +175,7 @@ export const exportCSV = (data: any[], filename: string) => {
       ...data.map(row => 
         headers.map(header => {
           const value = row[header];
+          // Escape commas and quotes in CSV
           if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
             return `"${value.replace(/"/g, '""')}"`;
           }
@@ -306,6 +268,10 @@ export const generateBidReport = async (exportData: any) => {
           </tr>
         </tfoot>
       </table>
+
+      <div style="margin-top: 50px; text-align: center; color: #6b7280; font-size: 10px;">
+        <p>Report generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+      </div>
     `;
 
     document.body.appendChild(reportElement);

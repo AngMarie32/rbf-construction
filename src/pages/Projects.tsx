@@ -1,4 +1,6 @@
+
 import { useState, useEffect, useMemo } from 'react';
+import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -177,22 +179,18 @@ export default function Projects() {
 
   if (loading) {
     return (
-      <div className="min-h-screen p-6">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Projects</h1>
-          <p className="text-gray-600 mb-8">Manage your construction projects</p>
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-          </div>
+      <Layout title="Projects" subtitle="Manage your construction projects">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   if (showReports) {
     return (
-      <div className="min-h-screen p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
+      <Layout title="Report Snapshot" subtitle="Professional project reports">
+        <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Button variant="outline" onClick={() => setShowReports(false)}>
               Back to Projects
@@ -219,18 +217,13 @@ export default function Projects() {
             totalReceived={{}}
           />
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Projects</h1>
-          <p className="text-gray-600 mb-8">Manage your construction projects</p>
-        </div>
-
+    <Layout title="Projects" subtitle="Manage your construction projects">
+      <div className="space-y-6">
         {/* Controls */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
           <div className="flex gap-4 flex-1 flex-wrap">
@@ -310,6 +303,6 @@ export default function Projects() {
           )}
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }

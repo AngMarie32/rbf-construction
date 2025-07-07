@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -112,8 +111,8 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
 
   return (
     <div className="space-y-4">
-      {/* Breakdown Level Selector - Only show in preview, hide in PDF */}
-      <Card className="bg-white print:hidden">
+      {/* Breakdown Level Selector */}
+      <Card className="bg-white">
         <CardHeader>
           <CardTitle>G703 Display Options</CardTitle>
         </CardHeader>
@@ -134,8 +133,8 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
         </CardContent>
       </Card>
 
-      {/* G703 Document - Full page width */}
-      <div className="bg-white p-4 mx-auto text-black print:shadow-none" style={{ width: '100%', minHeight: '8.5in' }}>
+      {/* G703 Document - Landscape orientation */}
+      <div className="bg-white p-4 mx-auto text-black print:shadow-none" style={{ width: '11in', minHeight: '8.5in' }}>
         {/* Header */}
         <div className="text-center mb-4">
           <div className="grid grid-cols-3 items-center">

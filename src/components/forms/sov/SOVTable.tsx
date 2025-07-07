@@ -3,8 +3,6 @@ import React, { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 
 interface SOVItem {
@@ -32,12 +30,10 @@ interface SOVTableProps {
 
 type SortField = 'itemNumber' | 'category' | 'subcategory' | 'description' | 'scheduledValue';
 type SortDirection = 'asc' | 'desc' | null;
-type WorkApplicationLevel = 'line-items' | 'category' | 'division';
 
 export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication, onUpdateItem }: SOVTableProps) {
   const [sortField, setSortField] = useState<SortField>('itemNumber');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [workApplicationLevel, setWorkApplicationLevel] = useState<WorkApplicationLevel>('line-items');
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -57,10 +53,12 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
       let aValue = a[sortField];
       let bValue = b[sortField];
 
+      // Handle numeric fields
       if (typeof aValue === 'number' && typeof bValue === 'number') {
         return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
       }
 
+      // Handle string fields
       const aStr = String(aValue || '').toLowerCase();
       const bStr = String(bValue || '').toLowerCase();
       
@@ -71,88 +69,6 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
       }
     });
   }, [sovItems, sortField, sortDirection]);
-
-  const getDisplayItems = () => {
-    switch (workApplicationLevel) {
-      case 'line-items':
-        return sortedItems.map(item => ({
-          ...item,
-          displayDescription: `${item.category} - ${item.subcategory} - ${item.description}`,
-          isGrouped: false
-        }));
-      
-      case 'category':
-        const categoryGroups = sortedItems.reduce((acc, item) => {
-          const category = item.category || 'Other';
-          if (!acc[category]) {
-            acc[category] = {
-              id: `category-${category}`,
-              itemNumber: `C-${Object.keys(acc).length + 1}`,
-              category,
-              subcategory: '',
-              description: category,
-              displayDescription: category,
-              scheduledValue: 0,
-              changeOrders: 0,
-              previousApplications: 0,
-              thisPeriod: 0,
-              materialsStored: 0,
-              totalCompletedAndStored: 0,
-              percentComplete: 0,
-              isGrouped: true,
-              originalItems: []
-            };
-          }
-          acc[category].scheduledValue += item.scheduledValue || 0;
-          acc[category].changeOrders += item.changeOrders || 0;
-          acc[category].previousApplications += item.previousApplications || 0;
-          acc[category].thisPeriod += item.thisPeriod || 0;
-          acc[category].materialsStored += item.materialsStored || 0;
-          acc[category].totalCompletedAndStored += item.totalCompletedAndStored || 0;
-          acc[category].originalItems.push(item.id);
-          return acc;
-        }, {} as Record<string, any>);
-        return Object.values(categoryGroups);
-      
-      case 'division':
-        const divisionGroups = sortedItems.reduce((acc, item) => {
-          const division = item.category?.split(' ')[0] || 'General';
-          if (!acc[division]) {
-            acc[division] = {
-              id: `division-${division}`,
-              itemNumber: `D-${Object.keys(acc).length + 1}`,
-              category: division,
-              subcategory: '',
-              description: `${division} Division`,
-              displayDescription: `${division} Division`,
-              scheduledValue: 0,
-              changeOrders: 0,
-              previousApplications: 0,
-              thisPeriod: 0,
-              materialsStored: 0,
-              totalCompletedAndStored: 0,
-              percentComplete: 0,
-              isGrouped: true,
-              originalItems: []
-            };
-          }
-          acc[division].scheduledValue += item.scheduledValue || 0;
-          acc[division].changeOrders += item.changeOrders || 0;
-          acc[division].previousApplications += item.previousApplications || 0;
-          acc[division].thisPeriod += item.thisPeriod || 0;
-          acc[division].materialsStored += item.materialsStored || 0;
-          acc[division].totalCompletedAndStored += item.totalCompletedAndStored || 0;
-          acc[division].originalItems.push(item.id);
-          return acc;
-        }, {} as Record<string, any>);
-        return Object.values(divisionGroups);
-      
-      default:
-        return sortedItems;
-    }
-  };
-
-  const displayItems = getDisplayItems();
 
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) {
@@ -166,63 +82,23 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
     return <ChevronsUpDown className="w-4 h-4 text-gray-400" />;
   };
 
-  const handleThisPeriodChange = (itemId: string, value: string, isGrouped: boolean = false, originalItems: string[] = []) => {
+  const handleThisPeriodChange = (itemId: string, value: string) => {
     const numericValue = parseFloat(value) || 0;
+    onUpdateItem(itemId, numericValue);
     
-    if (isGrouped && originalItems.length > 0) {
-      // Distribute the value evenly across original items in the group
-      const valuePerItem = numericValue / originalItems.length;
-      originalItems.forEach(originalItemId => {
-        onUpdateItem(originalItemId, valuePerItem);
-      });
-      
-      setSovItems(prev => prev.map(item => 
-        originalItems.includes(item.id)
-          ? { 
-              ...item, 
-              thisPeriod: valuePerItem,
-              totalCompletedAndStored: item.previousApplications + valuePerItem + item.materialsStored
-            }
-          : item
-      ));
-    } else {
-      onUpdateItem(itemId, numericValue);
-      setSovItems(prev => prev.map(item => 
-        item.id === itemId 
-          ? { 
-              ...item, 
-              thisPeriod: numericValue,
-              totalCompletedAndStored: item.previousApplications + numericValue + item.materialsStored
-            }
-          : item
-      ));
-    }
+    setSovItems(prev => prev.map(item => 
+      item.id === itemId 
+        ? { 
+            ...item, 
+            thisPeriod: numericValue,
+            totalCompletedAndStored: item.previousApplications + numericValue + item.materialsStored
+          }
+        : item
+    ));
   };
 
   return (
     <div className="space-y-4">
-      {/* Work Application Level Selector */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Schedule of Values Options</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <label htmlFor="work-level" className="text-sm font-medium">Apply Work At Level:</label>
-            <Select value={workApplicationLevel} onValueChange={(value: WorkApplicationLevel) => setWorkApplicationLevel(value)}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="line-items">Line Items (Detailed)</SelectItem>
-                <SelectItem value="category">Category Level</SelectItem>
-                <SelectItem value="division">Division Level</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
       <Table>
         <TableHeader>
           <TableRow>
@@ -290,12 +166,12 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
           </TableRow>
         </TableHeader>
         <TableBody>
-          {displayItems.map((item) => (
-            <TableRow key={item.id} className={item.isGrouped ? 'bg-blue-50 font-medium' : ''}>
+          {sortedItems.map((item) => (
+            <TableRow key={item.id}>
               <TableCell className="font-medium">{item.itemNumber}</TableCell>
               <TableCell>{item.category}</TableCell>
               <TableCell>{item.subcategory}</TableCell>
-              <TableCell>{workApplicationLevel === 'line-items' ? item.description : item.displayDescription}</TableCell>
+              <TableCell>{item.description}</TableCell>
               <TableCell>${item.scheduledValue.toLocaleString()}</TableCell>
               <TableCell>${item.changeOrders.toLocaleString()}</TableCell>
               <TableCell>${item.previousApplications.toLocaleString()}</TableCell>
@@ -303,7 +179,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                 <Input
                   type="number"
                   value={item.thisPeriod}
-                  onChange={(e) => handleThisPeriodChange(item.id, e.target.value, item.isGrouped, item.originalItems)}
+                  onChange={(e) => handleThisPeriodChange(item.id, e.target.value)}
                   className="w-full min-w-[120px]"
                   step="0.01"
                   placeholder="Enter amount"
