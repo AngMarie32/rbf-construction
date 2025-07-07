@@ -533,8 +533,13 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
           {calculatedTotals && (
             <G702Document
               project={project}
-              formData={formData}
-              totals={calculatedTotals}
+              formData={{ ...formData, ...calculatedTotals }}
+              companyInfo={{
+                name: 'Your Construction Company',
+                address: '123 Construction Ave, Builder City, BC 12345',
+                phone: '(555) 123-4567',
+                email: 'info@yourcompany.com'
+              }}
             />
           )}
         </div>
@@ -551,8 +556,14 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
         >
           <G703Document
             project={project}
-            formData={formData}
+            formData={{ ...formData, ...calculatedTotals }}
             sovItems={sovItems}
+            companyInfo={{
+              name: 'Your Construction Company',
+              address: '123 Construction Ave, Builder City, BC 12345',
+              phone: '(555) 123-4567',
+              email: 'info@yourcompany.com'
+            }}
           />
         </div>
       </div>

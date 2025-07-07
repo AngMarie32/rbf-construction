@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -150,7 +151,7 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
           applicationNumber: data.application_number,
           periodTo: data.period_to,
           projectNumber: data.project_number || '',
-          architectName: data.architect_name || '',
+          architectName: '', // This field doesn't exist in the database, so we'll leave it empty
           contractorName: data.contractor_name,
           contractorAddress: data.contractor_address || '',
           originalContractSum: data.original_contract_sum,
@@ -219,6 +220,7 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
         application_number: formData.applicationNumber,
         period_to: formData.periodTo,
         project_number: formData.projectNumber,
+        project_name: project?.name || '', // Add the missing project_name field
         contractor_name: formData.contractorName,
         contractor_address: formData.contractorAddress,
         original_contract_sum: formData.originalContractSum,

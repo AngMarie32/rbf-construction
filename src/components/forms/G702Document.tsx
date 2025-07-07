@@ -31,16 +31,16 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
         </div>
         <div className="border border-black p-3">
           <div className="font-bold mb-2">TO:</div>
-          <div>{project.client || 'Client Name'}</div>
-          <div>{project.address || 'Project Address'}</div>
+          <div>{project?.client || 'Client Name'}</div>
+          <div>{project?.address || 'Project Address'}</div>
         </div>
       </div>
 
       {/* Project Information */}
       <div className="grid grid-cols-2 gap-6 mb-6 text-sm">
         <div>
-          <div className="mb-2"><span className="font-bold">PROJECT:</span> {project.name}</div>
-          <div className="mb-2"><span className="font-bold">PROJECT NUMBER:</span> {formData.projectNumber || project.projectCode}</div>
+          <div className="mb-2"><span className="font-bold">PROJECT:</span> {project?.name}</div>
+          <div className="mb-2"><span className="font-bold">PROJECT NUMBER:</span> {formData.projectNumber || project?.projectCode}</div>
           <div className="mb-2"><span className="font-bold">APPLICATION NUMBER:</span> {formData.applicationNumber}</div>
         </div>
         <div>
@@ -67,7 +67,7 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
             </tr>
             <tr className="border-b border-black">
               <td className="p-2 border-r border-black font-bold">4. TOTAL COMPLETED AND STORED TO DATE</td>
-              <td className="p-2 text-right">${formData.totalCompletedAndStored?.toLocaleString() || '0.00'}</td>
+              <td className="p-2 text-right">${formData.totalCompleted?.toLocaleString() || '0.00'}</td>
             </tr>
             <tr className="border-b border-black">
               <td className="p-2 border-r border-black font-bold">5. RETAINAGE</td>
