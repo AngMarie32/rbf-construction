@@ -71,28 +71,45 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       }
 
       console.log('✅ Found existing bid items:', existingItems?.length || 0, 'items');
+      console.log('📋 Raw database items:', existingItems?.slice(0, 3)); // Show first 3 for debugging
 
       if (existingItems && existingItems.length > 0) {
-        // Convert ALL database items to UI format
-        const formattedItems: BidItem[] = existingItems.map((item, index) => ({
-          id: item.id || String(index + 1),
-          division: item.category?.includes('Site') ? 'Site Work' : 
-                   item.category?.includes('Building') || item.category?.includes('Masonry') || item.category?.includes('Concrete') ? 'Building' : 
-                   item.category?.includes('General') ? 'General Conditions' : 'Other',
-          category: item.category || 'General',
-          subcategory: item.subcategory || '',
-          description: item.description || '',
-          quantity: item.quantity || 1,
-          unit: item.unit || 'each',
-          unitCost: item.unit_cost || 0,
-          total: (item.unit_cost || 0) * (item.quantity || 1)
-        }));
+        // Convert ALL database items to UI format - NO FILTERING
+        const formattedItems: BidItem[] = existingItems.map((item, index) => {
+          const formattedItem = {
+            id: item.id || String(index + 1),
+            division: item.category?.includes('Site') ? 'Site Work' : 
+                     item.category?.includes('Building') || item.category?.includes('Masonry') || item.category?.includes('Concrete') ? 'Building' : 
+                     item.category?.includes('General') ? 'General Conditions' : 
+                     item.category?.includes('MEP') ? 'MEP' : 'Other',
+            category: item.category || 'General',
+            subcategory: item.subcategory || '',
+            description: item.description || '',
+            quantity: item.quantity || 1,
+            unit: item.unit || 'each',
+            unitCost: item.unit_cost || 0,
+            total: (item.unit_cost || 0) * (item.quantity || 1)
+          };
+          
+          // Log each item conversion for debugging
+          if (index < 5) {
+            console.log(`📝 Item ${index + 1} conversion:`, {
+              from: { category: item.category, description: item.description, unit_cost: item.unit_cost },
+              to: { category: formattedItem.category, description: formattedItem.description, unitCost: formattedItem.unitCost }
+            });
+          }
+          
+          return formattedItem;
+        });
 
         console.log('🎯 Setting ALL formatted items in state:', formattedItems.length, 'items');
-        console.log('📋 Sample of items being loaded:', formattedItems.slice(0, 5));
+        console.log('💰 Total value of all items:', formattedItems.reduce((sum, item) => sum + item.total, 0).toLocaleString());
         
         setBidItems(formattedItems);
         onItemsChange(existingItems);
+        
+        // Show success message with count
+        toast.success(`Loaded ${formattedItems.length} bid items successfully`);
       } else {
         // No existing items, keep default empty item
         console.log('📝 No existing items found, keeping default state');
@@ -110,6 +127,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       }
     } catch (error) {
       console.error('❌ Error loading existing bid items:', error);
+      toast.error('Failed to load existing bid items');
     } finally {
       setLoading(false);
     }
@@ -492,7 +510,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           <div>
             <h1 className="text-2xl font-bold">Create New Bid</h1>
             <p className="text-sm text-muted-foreground">
-              {bidItems.length} line items loaded
+              📊 {bidItems.length} line items loaded | 💰 Total: ${calculateTotalValue().toLocaleString()}
             </p>
           </div>
         </div>

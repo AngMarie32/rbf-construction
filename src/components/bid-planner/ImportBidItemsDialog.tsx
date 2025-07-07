@@ -42,7 +42,12 @@ export function ImportBidItemsDialog({ onItemsImported, projects }: ImportBidIte
 
     setLoading(true);
     try {
+      console.log('🚀 STARTING IMPORT PROCESS');
+      console.log('- Selected project:', selectedProject);
+      console.log('- Uploaded images:', uploadedImages.length);
+
       // Clear existing bid items for this project first to avoid duplicates
+      console.log('🗑️ Clearing existing bid items...');
       const { error: deleteError } = await supabase
         .from('bid_items')
         .delete()
@@ -136,8 +141,8 @@ export function ImportBidItemsDialog({ onItemsImported, projects }: ImportBidIte
         { category: 'Building', subcategory: 'Finishes', description: 'Countertops-Laminate', quantity: 1, unit: 'lump sum', unit_cost: 500 },
 
         // Install Specialities - $1,700
-        { category: 'Building', subcategory: 'Specialties', description: 'Toilet Accessories', quantity: 1, unit: 'lump sum', unit_cost: 1200 },
-        { category: 'Building', subcategory: 'Specialties', description: 'ABC Fire Extinguishers', quantity: 1, unit: 'lump sum', unit_cost: 500 },
+        { category: 'Building', subcategory: 'Specialities', description: 'Toilet Accessories', quantity: 1, unit: 'lump sum', unit_cost: 1200 },
+        { category: 'Building', subcategory: 'Specialities', description: 'ABC Fire Extinguishers', quantity: 1, unit: 'lump sum', unit_cost: 500 },
 
         // MEP Systems
         { category: 'MEP', subcategory: 'Mechanical', description: 'Mechanical Systems', quantity: 1, unit: 'lump sum', unit_cost: 67000 },
@@ -153,7 +158,8 @@ export function ImportBidItemsDialog({ onItemsImported, projects }: ImportBidIte
 
       // Calculate total to verify it matches expected amount
       const totalCost = bidItemsToCreate.reduce((sum, item) => sum + item.unit_cost, 0);
-      console.log('Total bid cost calculated:', totalCost.toLocaleString());
+      console.log('💰 Total bid cost calculated:', totalCost.toLocaleString());
+      console.log('📊 Total items to import:', bidItemsToCreate.length);
 
       const itemsToInsert = bidItemsToCreate.map(item => ({
         project_id: selectedProject,
@@ -165,19 +171,30 @@ export function ImportBidItemsDialog({ onItemsImported, projects }: ImportBidIte
         unit_cost: item.unit_cost
       }));
 
-      const { error } = await supabase
+      console.log('💾 Inserting items into database...');
+      const { data: insertedData, error } = await supabase
         .from('bid_items')
-        .insert(itemsToInsert);
+        .insert(itemsToInsert)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Insert error:', error);
+        throw error;
+      }
+
+      console.log('✅ Successfully inserted items:', insertedData?.length || 0);
+      console.log('🎯 Items inserted:', insertedData?.slice(0, 5)); // Show first 5 for verification
 
       toast.success(`Successfully imported ${bidItemsToCreate.length} bid items with total cost of $${totalCost.toLocaleString()}`);
+      
+      // Call the callback to refresh the parent component
       onItemsImported();
+      
       setOpen(false);
       setUploadedImages([]);
       setSelectedProject('');
     } catch (error) {
-      console.error('Error importing bid items:', error);
+      console.error('💥 Error importing bid items:', error);
       toast.error('Failed to import bid items from images');
     } finally {
       setLoading(false);
@@ -255,7 +272,7 @@ export function ImportBidItemsDialog({ onItemsImported, projects }: ImportBidIte
             <div className="bg-blue-50 p-4 rounded-lg">
               <h4 className="font-medium mb-2">💡 Expected Results:</h4>
               <p className="text-sm text-gray-600">
-                This will import comprehensive bid items totaling approximately $1,479,940 (before contingency).
+                This will import 68 comprehensive bid items totaling approximately $1,479,940 (before contingency).
                 The system will extract categories, descriptions, quantities, and costs from your uploaded images.
               </p>
             </div>
@@ -266,7 +283,7 @@ export function ImportBidItemsDialog({ onItemsImported, projects }: ImportBidIte
               </Button>
               <Button onClick={handleImport} disabled={loading || !selectedProject || uploadedImages.length === 0}>
                 <Save className="w-4 h-4 mr-2" />
-                {loading ? 'Importing...' : 'Import Bid Items'}
+                {loading ? 'Importing...' : `Import 68 Bid Items`}
               </Button>
             </div>
           </div>
