@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -307,7 +306,7 @@ function SearchableSelect({ value, onValueChange, options, placeholder, allowCus
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between text-left font-normal h-8 text-xs"
+          className="w-full justify-between text-left font-normal h-9 text-xs"
         >
           {value || placeholder}
         </Button>
@@ -351,20 +350,9 @@ function SearchableSelect({ value, onValueChange, options, placeholder, allowCus
 }
 
 export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
-  console.log('🎯 BidItemForm RENDER - Received items:', items.length);
-  
-  // 🔥 CRITICAL: Use items directly from props, don't maintain separate state
   const currentItems = items;
 
-  useEffect(() => {
-    console.log('🔄 BidItemForm props.items changed - count:', items.length);
-    if (items.length > 10) {
-      console.log('📊 Large dataset detected with', items.length, 'items');
-    }
-  }, [items]);
-
   const addItem = () => {
-    console.log('➕ Adding new item to form');
     const newItem: BidItem = {
       id: Date.now().toString(),
       division: 'General Conditions',
@@ -377,12 +365,10 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
       total: 0
     };
     const updatedItems = [newItem, ...currentItems];
-    console.log('➕ New item count after addition:', updatedItems.length);
     onItemsChange(updatedItems);
   };
 
   const updateItem = (id: string, field: keyof BidItem, value: any) => {
-    console.log(`🔧 Updating item ${id}, field: ${field}`);
     const updatedItems = currentItems.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
@@ -393,22 +379,17 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
       }
       return item;
     });
-    console.log('🔧 Items count after update:', updatedItems.length);
     onItemsChange(updatedItems);
   };
 
   const removeItem = (id: string) => {
-    console.log('🗑️ Removing item:', id);
     const updatedItems = currentItems.filter(item => item.id !== id);
-    console.log('🗑️ Items count after removal:', updatedItems.length);
     onItemsChange(updatedItems);
   };
 
   const calculateGrandTotal = () => {
     return currentItems.reduce((sum, item) => sum + item.total, 0);
   };
-
-  console.log('🎯 RENDERING BidItemForm with', currentItems.length, 'items');
 
   return (
     <Card>
@@ -424,143 +405,130 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {/* Header Row */}
-        <div className="grid grid-cols-12 gap-2 pb-2 border-b text-xs font-medium text-muted-foreground">
-          <div className="col-span-1">Division</div>
-          <div className="col-span-2">Category</div>
-          <div className="col-span-2">Subcategory</div>
-          <div className="col-span-3">Description</div>
-          <div className="col-span-1">Unit</div>
-          <div className="col-span-1">Quantity</div>
-          <div className="col-span-1">Unit Cost</div>
-          <div className="col-span-1">Total</div>
-        </div>
-
-        {/* Item Rows */}
-        {currentItems.map((item) => (
-          <div key={item.id} className="grid grid-cols-12 gap-2 items-center py-1 border-b border-gray-100">
-            <div className="col-span-1">
-              <SearchableSelect
-                value={item.division}
-                onValueChange={(value) => updateItem(item.id, 'division', value)}
-                options={divisions}
-                placeholder="Division"
-                allowCustom={true}
-              />
+      <CardContent>
+        <div className="overflow-x-auto">
+          <div className="min-w-[1200px]">
+            {/* Header Row */}
+            <div className="grid grid-cols-12 gap-3 pb-3 border-b-2 border-gray-200 text-xs font-semibold text-gray-700 bg-gray-50 px-2 py-2 rounded-t">
+              <div className="col-span-1">Division</div>
+              <div className="col-span-2">Category</div>
+              <div className="col-span-2">Subcategory</div>
+              <div className="col-span-3">Description</div>
+              <div className="col-span-1">Unit</div>
+              <div className="col-span-1">Quantity</div>
+              <div className="col-span-1">Unit Cost</div>
+              <div className="col-span-1">Total</div>
             </div>
 
-            <div className="col-span-2">
-              <SearchableSelect
-                value={item.category}
-                onValueChange={(value) => updateItem(item.id, 'category', value)}
-                options={categoryOptions}
-                placeholder="Category"
-                allowCustom={true}
-              />
-            </div>
+            {/* Item Rows */}
+            <div className="space-y-1">
+              {currentItems.map((item, index) => (
+                <div key={item.id} className={`grid grid-cols-12 gap-3 items-center py-2 px-2 rounded ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
+                  <div className="col-span-1">
+                    <SearchableSelect
+                      value={item.division}
+                      onValueChange={(value) => updateItem(item.id, 'division', value)}
+                      options={divisions}
+                      placeholder="Division"
+                      allowCustom={true}
+                    />
+                  </div>
 
-            <div className="col-span-2">
-              <SearchableSelect
-                value={item.subcategory}
-                onValueChange={(value) => updateItem(item.id, 'subcategory', value)}
-                options={subcategoryOptions}
-                placeholder="Subcategory"
-                allowCustom={true}
-              />
-            </div>
+                  <div className="col-span-2">
+                    <SearchableSelect
+                      value={item.category}
+                      onValueChange={(value) => updateItem(item.id, 'category', value)}
+                      options={categoryOptions}
+                      placeholder="Category"
+                      allowCustom={true}
+                    />
+                  </div>
 
-            <div className="col-span-3">
-              <Input
-                value={item.description}
-                onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                className="h-8 text-xs"
-                placeholder=""
-              />
-            </div>
+                  <div className="col-span-2">
+                    <SearchableSelect
+                      value={item.subcategory}
+                      onValueChange={(value) => updateItem(item.id, 'subcategory', value)}
+                      options={subcategoryOptions}
+                      placeholder="Subcategory"
+                      allowCustom={true}
+                    />
+                  </div>
 
-            <div className="col-span-1">
-              <SearchableSelect
-                value={item.unit}
-                onValueChange={(value) => updateItem(item.id, 'unit', value)}
-                options={allowedUnits}
-                placeholder="Unit"
-              />
-            </div>
+                  <div className="col-span-3">
+                    <Input
+                      value={item.description}
+                      onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                      className="h-9 text-xs"
+                      placeholder="Enter description..."
+                    />
+                  </div>
 
-            <div className="col-span-1">
-              <Input
-                type="number"
-                value={item.quantity}
-                onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                min="0"
-                step="0.01"
-                className="h-8 text-xs"
-              />
-            </div>
+                  <div className="col-span-1">
+                    <SearchableSelect
+                      value={item.unit}
+                      onValueChange={(value) => updateItem(item.id, 'unit', value)}
+                      options={allowedUnits}
+                      placeholder="Unit"
+                    />
+                  </div>
 
-            <div className="col-span-1">
-              <Input
-                type="number"
-                value={item.unitCost}
-                onChange={(e) => updateItem(item.id, 'unitCost', parseFloat(e.target.value) || 0)}
-                min="0"
-                step="0.01"
-                className="h-8 text-xs"
-              />
-            </div>
+                  <div className="col-span-1">
+                    <Input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                      min="0"
+                      step="0.01"
+                      className="h-9 text-xs"
+                    />
+                  </div>
 
-            <div className="col-span-1 flex items-center justify-between">
-              <div className="text-xs font-medium">
-                ${item.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-              {currentItems.length > 1 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => removeItem(item.id)}
-                  className="h-6 w-6 p-0 ml-1"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </Button>
-              )}
+                  <div className="col-span-1">
+                    <Input
+                      type="number"
+                      value={item.unitCost}
+                      onChange={(e) => updateItem(item.id, 'unitCost', parseFloat(e.target.value) || 0)}
+                      min="0"
+                      step="0.01"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+
+                  <div className="col-span-1 flex items-center justify-between">
+                    <div className="text-xs font-semibold text-green-700">
+                      ${item.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    {currentItems.length > 1 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeItem(item.id)}
+                        className="h-7 w-7 p-0 ml-2 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        ))}
+        </div>
 
         {currentItems.length > 0 && (
-          <div className="border-t pt-4 mt-6">
+          <div className="border-t-2 border-gray-200 pt-4 mt-6 bg-gray-50 px-4 py-4 rounded">
             <div className="flex justify-end">
               <div className="text-right">
-                <div className="text-lg font-bold">
+                <div className="text-2xl font-bold text-blue-700">
                   Grand Total: ${calculateGrandTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 mt-1">
                   {currentItems.length} line item{currentItems.length !== 1 ? 's' : ''}
                 </div>
               </div>
             </div>
           </div>
         )}
-
-        {/* 🔥 DEBUG INFO PANEL */}
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h4 className="font-semibold text-blue-800 mb-2">🔍 BidItemForm Debug Info</h4>
-          <div className="text-sm space-y-1">
-            <div><strong>Items received from props:</strong> {items.length}</div>
-            <div><strong>Items being rendered:</strong> {currentItems.length}</div>
-            <div><strong>Grand total:</strong> ${calculateGrandTotal().toLocaleString()}</div>
-            <div><strong>Sample items:</strong></div>
-            <ul className="ml-4 text-xs">
-              {currentItems.slice(0, 3).map((item, index) => (
-                <li key={item.id}>
-                  {index + 1}. {item.description || 'No description'} - ${item.total.toLocaleString()}
-                </li>
-              ))}
-              {currentItems.length > 3 && <li>... and {currentItems.length - 3} more items</li>}
-            </ul>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );

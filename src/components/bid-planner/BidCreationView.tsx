@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Save, FileText, Edit, Trash2, Download } from 'lucide-react';
+import { ArrowLeft, Save, FileText, Edit, Trash2, Download, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BidItemForm } from './BidItemForm';
 import { ImportBidItemsDialog } from './ImportBidItemsDialog';
+import { ProposalCustomizationDialog } from './ProposalCustomizationDialog';
 
 interface BidCreationViewProps {
   projectId: string;
@@ -32,6 +33,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   const [loading, setLoading] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
   const [currentBidId, setCurrentBidId] = useState<string | null>(null);
+  const [showProposalDialog, setShowProposalDialog] = useState(false);
 
   const [bidItems, setBidItems] = useState<BidItem[]>([
     {
@@ -47,8 +49,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     }
   ]);
 
-  console.log('🎯 BidCreationView RENDER - bidItems count:', bidItems.length);
-
   // Load existing bid items for this project on component mount
   useEffect(() => {
     if (projectId) {
@@ -59,7 +59,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   const loadExistingBidItems = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Loading existing bid items for project:', projectId);
 
       const { data: existingItems, error } = await supabase
         .from('bid_items')
@@ -68,11 +67,9 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         .order('created_at', { ascending: true });
 
       if (error) {
-        console.error('❌ Error loading bid items:', error);
+        console.error('Error loading bid items:', error);
         return;
       }
-
-      console.log('✅ DATABASE QUERY RESULT:', existingItems?.length || 0, 'items found');
 
       if (existingItems && existingItems.length > 0) {
         // Convert ALL database items to UI format
@@ -93,14 +90,11 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           };
         });
 
-        console.log('🎯 SETTING bidItems STATE WITH:', formattedItems.length, 'items');
         setBidItems(formattedItems);
         onItemsChange(existingItems);
         
-        console.log(`✅ SUCCESS: Loaded ${formattedItems.length} bid items into state`);
         toast.success(`Loaded ${formattedItems.length} existing bid items`);
       } else {
-        console.log('📝 No existing items found, using default state');
         setBidItems([{
           id: String(Date.now()),
           division: 'General Conditions',
@@ -114,7 +108,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         }]);
       }
     } catch (error) {
-      console.error('❌ Error loading existing bid items:', error);
+      console.error('Error loading existing bid items:', error);
       toast.error('Failed to load existing bid items');
     } finally {
       setLoading(false);
@@ -123,7 +117,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
   // Function to handle items imported from dialog
   const handleItemsImported = async () => {
-    console.log('🔄 ITEMS IMPORTED - Reloading from database...');
     await loadExistingBidItems();
   };
 
@@ -164,27 +157,10 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const handleSaveBid = async () => {
-    console.log('🚀 STARTING BID SAVE');
-    console.log('=' .repeat(80));
-    console.log('📊 CURRENT bidItems STATE:', bidItems.length, 'items');
-    
     if (!projectId) {
-      console.log('❌ No project ID provided');
       toast.error('No project selected');
       return;
     }
-
-    // Log first few items for verification
-    bidItems.slice(0, 5).forEach((item, index) => {
-      console.log(`Item ${index + 1}:`, {
-        id: item.id,
-        category: item.category || 'EMPTY',
-        description: item.description || 'EMPTY',
-        quantity: item.quantity,
-        unitCost: item.unitCost,
-        total: item.total
-      });
-    });
 
     // Filter items - keep items with either category OR description
     const validItems = bidItems.filter((item) => {
@@ -193,10 +169,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       return hasCategory || hasDescription;
     });
 
-    console.log('📋 VALID ITEMS TO SAVE:', validItems.length);
-
     if (validItems.length === 0) {
-      console.log('🛑 NO VALID ITEMS TO SAVE');
       toast.error('No valid items to save');
       return;
     }
@@ -214,35 +187,28 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       };
     });
 
-    console.log('🎯 FINAL DATABASE PAYLOAD:', itemsForDatabase.length, 'items');
-
     setSaving(true);
     try {
       // Delete existing items
-      console.log('🗑️ Deleting existing items...');
       const { error: deleteError } = await supabase
         .from('bid_items')
         .delete()
         .eq('project_id', projectId);
 
       if (deleteError) {
-        console.error('❌ DELETE ERROR:', deleteError);
         throw new Error(`Failed to delete existing items: ${deleteError.message}`);
       }
 
       // Insert new items
-      console.log('💾 Inserting', itemsForDatabase.length, 'new items...');
       const { data: savedData, error: insertError } = await supabase
         .from('bid_items')
         .insert(itemsForDatabase)
         .select();
 
       if (insertError) {
-        console.error('❌ INSERT ERROR:', insertError);
         throw new Error(`Database insert error: ${insertError.message}`);
       }
 
-      console.log('🎉 SUCCESS: Saved', savedData?.length || 0, 'items');
       toast.success(`Successfully saved ${savedData?.length || 0} bid items!`);
       
       // Reload items to refresh UI
@@ -250,7 +216,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       setCurrentBidId(projectId);
       
     } catch (error: any) {
-      console.error('💥 SAVE FAILED:', error);
+      console.error('Save failed:', error);
       toast.error(`Failed to save bid: ${error.message}`);
     } finally {
       setSaving(false);
@@ -259,7 +225,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
   // Handler to update items from BidItemForm
   const handleItemsChange = (newItems: BidItem[]) => {
-    console.log('🔄 BidCreationView: Items changed from', bidItems.length, 'to', newItems.length);
     setBidItems(newItems);
   };
 
@@ -269,15 +234,12 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     }
 
     try {
-      console.log('Deleting bid for project:', projectId);
-
       const { error } = await supabase
         .from('bid_items')
         .delete()
         .eq('project_id', projectId);
 
       if (error) {
-        console.error('Error deleting bid:', error);
         throw new Error(`Failed to delete bid: ${error.message}`);
       }
 
@@ -297,151 +259,15 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       setCurrentBidId(null);
       onItemsChange([]);
       
+      toast.success('Bid deleted successfully');
     } catch (error: any) {
       console.error('Error deleting bid:', error);
-    }
-  };
-
-  const handleExportPDF = async () => {
-    if (bidItems.length === 0) {
-      return;
-    }
-
-    setExportingPDF(true);
-    try {
-      // Get company settings for logo
-      const { data: companyData } = await supabase
-        .from('company_settings')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
-
-      // Get project data
-      const { data: projectData } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .single();
-
-      // Create a temporary element to render the bid report
-      const reportElement = document.createElement('div');
-      reportElement.id = 'bid-report';
-      reportElement.style.position = 'absolute';
-      reportElement.style.left = '-9999px';
-      reportElement.style.background = 'white';
-      reportElement.style.padding = '40px';
-      reportElement.style.width = '800px';
-      reportElement.style.fontFamily = 'Arial, sans-serif';
-      
-      const totalValue = bidItems.reduce((sum, item) => sum + item.total, 0);
-      const breakdown = getDivisionBreakdown();
-      
-      reportElement.innerHTML = `
-        <div style="text-align: center; margin-bottom: 30px;">
-          ${companyData?.logo_url ? `<img src="${companyData.logo_url}" alt="Company Logo" style="height: 60px; margin-bottom: 20px;" />` : ''}
-          <h1 style="font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 5px;">${companyData?.company_name || 'Company Name'}</h1>
-          <h2 style="font-size: 18px; color: #374151; margin-bottom: 20px;">BID PROPOSAL</h2>
-          <div style="border-bottom: 2px solid #3b82f6; margin-bottom: 30px;"></div>
-        </div>
-
-        <div style="margin-bottom: 30px;">
-          <h3 style="font-size: 16px; font-weight: bold; color: #374151; margin-bottom: 15px; text-transform: uppercase; background-color: #f3f4f6; padding: 8px;">${projectData?.name || 'Project Name'}</h3>
-          <div style="margin-bottom: 20px;">
-            <p style="margin-bottom: 5px;"><strong>Project:</strong> ${projectData?.name || 'N/A'}</p>
-            <p style="margin-bottom: 5px;"><strong>Client:</strong> ${projectData?.client || 'N/A'}</p>
-            <p style="margin-bottom: 5px;"><strong>Address:</strong> ${projectData?.address || 'N/A'}</p>
-            <p style="margin-bottom: 5px;"><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
-          </div>
-        </div>
-
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 11px;">
-          <thead>
-            <tr style="background-color: #f8fafc;">
-              <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-weight: bold;">Division</th>
-              <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-weight: bold;">Category</th>
-              <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-weight: bold;">Subcategory</th>
-              <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-weight: bold;">Description</th>
-              <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">Qty</th>
-              <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">Unit</th>
-              <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">Unit Cost</th>
-              <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${bidItems.map(item => `
-              <tr>
-                <td style="border: 1px solid #d1d5db; padding: 6px;">${item.division || ''}</td>
-                <td style="border: 1px solid #d1d5db; padding: 6px;">${item.category || ''}</td>
-                <td style="border: 1px solid #d1d5db; padding: 6px;">${item.subcategory || ''}</td>
-                <td style="border: 1px solid #d1d5db; padding: 6px;">${item.description || ''}</td>
-                <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${item.quantity || 0}</td>
-                <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${item.unit || 'each'}</td>
-                <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${(item.unitCost || 0).toLocaleString()}</td>
-                <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${(item.total || 0).toLocaleString()}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-
-        <div style="margin-bottom: 30px;">
-          <h3 style="font-size: 14px; font-weight: bold; color: #374151; margin-bottom: 15px; text-transform: uppercase; background-color: #f3f4f6; padding: 8px;">SUMMARY BY DIVISION</h3>
-          ${Object.entries(breakdown).map(([division, categories]) => `
-            <div style="margin-bottom: 15px;">
-              <h4 style="font-size: 12px; font-weight: bold; color: #4b5563; margin-bottom: 8px;">${division}</h4>
-              <table style="width: 100%; font-size: 11px; margin-left: 20px;">
-                ${Object.entries(categories).map(([category, amount]) => `
-                  <tr>
-                    <td style="padding: 2px 0; width: 70%;">${category}</td>
-                    <td style="padding: 2px 0; text-align: right; font-weight: bold;">$${amount.toLocaleString()}</td>
-                  </tr>
-                `).join('')}
-                <tr style="border-top: 1px solid #ccc;">
-                  <td style="padding: 4px 0; font-weight: bold;">Division Total:</td>
-                  <td style="padding: 4px 0; text-align: right; font-weight: bold;">$${Object.values(categories).reduce((sum, val) => sum + val, 0).toLocaleString()}</td>
-                </tr>
-              </table>
-            </div>
-          `).join('')}
-        </div>
-
-        <div style="border-top: 2px solid #3b82f6; padding-top: 20px; margin-top: 30px;">
-          <table style="width: 100%; font-size: 14px; font-weight: bold;">
-            <tr>
-              <td style="text-align: right; padding: 8px;">TOTAL BID AMOUNT:</td>
-              <td style="text-align: right; padding: 8px; font-size: 18px; color: #3b82f6;">$${totalValue.toLocaleString()}</td>
-            </tr>
-          </table>
-        </div>
-
-        <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 10px;">
-          <p>Bid proposal generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-        </div>
-      `;
-
-      document.body.appendChild(reportElement);
-      
-      const { exportToPDF } = await import('@/utils/pdfExport');
-      await exportToPDF('bid-report', `Bid-Proposal-${projectData?.name?.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`);
-      
-      document.body.removeChild(reportElement);
-    } catch (error) {
-      console.error('Error exporting PDF:', error);
-    } finally {
-      setExportingPDF(false);
+      toast.error(`Failed to delete bid: ${error.message}`);
     }
   };
 
   const handleBack = () => {
     onShowCreateViewChange(false);
-  };
-
-  const handleExportToSOV = async () => {
-    try {
-      // Navigate to Schedule of Values page
-      window.location.href = '/schedule-of-values';
-    } catch (error) {
-      console.error('Error navigating to SOV:', error);
-    }
   };
 
   const breakdown = getDivisionBreakdown();
@@ -466,7 +292,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           <div>
             <h1 className="text-2xl font-bold">Create New Bid</h1>
             <p className="text-sm text-muted-foreground">
-              📊 {bidItems.length} line items loaded | 💰 Total: ${calculateTotalValue().toLocaleString()}
+              {bidItems.length} line items | Total: ${calculateTotalValue().toLocaleString()}
             </p>
           </div>
         </div>
@@ -478,18 +304,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           />
         </div>
       </div>
-
-      {/* 🔥 STATE DEBUG PANEL */}
-      <Card className="border-2 border-red-200 bg-red-50">
-        <CardContent className="p-4">
-          <h4 className="font-bold text-red-800 mb-2">🔍 STATE DEBUG INFO</h4>
-          <div className="text-sm space-y-1">
-            <div><strong>bidItems in BidCreationView:</strong> {bidItems.length}</div>
-            <div><strong>Total calculated:</strong> ${calculateTotalValue().toLocaleString()}</div>
-            <div><strong>Project ID:</strong> {projectId}</div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Bid Items Form */}
       <div className="w-full">
@@ -512,13 +326,13 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
               </Button>
               
               <Button 
-                onClick={handleExportPDF} 
-                disabled={exportingPDF || bidItems.length === 0}
+                onClick={() => setShowProposalDialog(true)} 
+                disabled={bidItems.length === 0}
                 variant="outline"
                 size="sm"
               >
-                <FileText className="w-4 h-4 mr-2" />
-                {exportingPDF ? 'Exporting...' : 'Export PDF'}
+                <Settings className="w-4 h-4 mr-2" />
+                Export Proposal
               </Button>
 
               <Button 
@@ -581,6 +395,13 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           </div>
         </CardContent>
       </Card>
+
+      <ProposalCustomizationDialog
+        open={showProposalDialog}
+        onOpenChange={setShowProposalDialog}
+        bidItems={bidItems}
+        projectId={projectId}
+      />
     </div>
   );
 }
