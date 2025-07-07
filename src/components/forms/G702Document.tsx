@@ -67,7 +67,7 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
             </div>
           </div>
           
-          <div className="mt-3 grid grid-cols-1 gap-3 text-sm">
+          <div className="mt-3 text-sm">
             <div className="flex items-center gap-4">
               <div>
                 <div className="font-bold">PERIOD TO:</div>
@@ -103,7 +103,7 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
             </div>
             <div className="flex justify-between">
               <span>3. CONTRACT SUM TO DATE</span>
-              <span>$ {contractSumToDate.toLocaleString()}</span>
+              <span>$ {contractSumWithContingency.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
               <span>4. TOTAL COMPLETED & STORED TO DATE</span>
@@ -143,8 +143,8 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
             </div>
           </div>
 
-          {/* Change Order Summary - Moved directly under the 1-9 section */}
-          <div className="mt-6">
+          {/* Change Order Summary - Directly under the 1-9 section */}
+          <div className="mt-4">
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="bg-gray-100">

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -23,6 +22,7 @@ interface G702DialogProps {
 
 export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSave }: G702DialogProps) {
   const [loading, setLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const [project, setProject] = useState<any>(null);
   const [sovItems, setSovItems] = useState<any[]>([]);
   const [companyInfo, setCompanyInfo] = useState({
@@ -276,14 +276,19 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
 
   const handleExportPDF = async () => {
     try {
-      setLoading(true);
+      setExportLoading(true);
+      console.log('Starting PDF export from dialog...');
+      
+      // Give a moment for any state updates to render
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       await exportG702G703ToPDF(`G702-G703-App-${formData.applicationNumber}.pdf`);
       toast.success('PDF exported successfully');
     } catch (error) {
       console.error('Error exporting PDF:', error);
-      toast.error('Failed to export PDF. Please try again.');
+      toast.error(`Failed to export PDF: ${error instanceof Error ? error.message : 'Please try again'}`);
     } finally {
-      setLoading(false);
+      setExportLoading(false);
     }
   };
 
@@ -389,9 +394,9 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
           <Button 
             variant="outline" 
             onClick={handleExportPDF}
-            disabled={loading}
+            disabled={exportLoading}
           >
-            {loading ? 'Exporting...' : 'Export PDF'}
+            {exportLoading ? 'Exporting...' : 'Export PDF'}
           </Button>
           <Button onClick={handleSave} disabled={loading}>
             {loading ? 'Saving...' : 'Save Application'}

@@ -4,13 +4,20 @@ import jsPDF from 'jspdf';
 
 export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') => {
   try {
+    console.log('Starting PDF export...');
+    
+    // Wait a bit for any rendering to complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     const g702Element = document.getElementById('g702-document');
     const g703Element = document.getElementById('g703-document');
     
     if (!g702Element || !g703Element) {
       console.error('G702 or G703 document not found');
-      throw new Error('G702 or G703 document not found');
+      throw new Error('Documents not found for export');
     }
+
+    console.log('Found documents, creating PDF...');
 
     // Create PDF with landscape orientation for better formatting
     const pdf = new jsPDF({
@@ -20,14 +27,18 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
     });
 
     // Capture G702 with higher resolution and better scaling
+    console.log('Capturing G702...');
     const g702Canvas = await html2canvas(g702Element, {
-      scale: 2,
+      scale: 1.5,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       width: g702Element.scrollWidth,
       height: g702Element.scrollHeight,
-      logging: false
+      logging: false,
+      ignoreElements: (element) => {
+        return element.classList.contains('print:hidden');
+      }
     });
 
     // Add G702 to PDF - landscape dimensions (11 x 8.5)
@@ -51,14 +62,18 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
     pdf.addPage();
 
     // Capture G703 with higher resolution
+    console.log('Capturing G703...');
     const g703Canvas = await html2canvas(g703Element, {
-      scale: 2,
+      scale: 1.5,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       width: g703Element.scrollWidth,
       height: g703Element.scrollHeight,
-      logging: false
+      logging: false,
+      ignoreElements: (element) => {
+        return element.classList.contains('print:hidden');
+      }
     });
 
     const g703ImgData = g703Canvas.toDataURL('image/png');
@@ -76,6 +91,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
     pdf.addImage(g703ImgData, 'PNG', 0.25, 0.25, g703FinalWidth, g703FinalHeight);
 
     // Save the PDF
+    console.log('Saving PDF...');
     pdf.save(filename);
     
     console.log('PDF exported successfully');
@@ -88,30 +104,39 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
 
 export const exportToPDF = async (elementId: string, filename: string) => {
   try {
+    console.log(`Exporting element ${elementId} to PDF...`);
+    
+    // Wait a bit for any rendering to complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     const element = document.getElementById(elementId);
     if (!element) {
       throw new Error(`Element with ID '${elementId}' not found`);
     }
 
+    console.log('Capturing element...');
     const canvas = await html2canvas(element, {
-      scale: 2,
+      scale: 1.5,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       width: element.scrollWidth,
       height: element.scrollHeight,
-      logging: false
+      logging: false,
+      ignoreElements: (element) => {
+        return element.classList.contains('print:hidden');
+      }
     });
 
     const pdf = new jsPDF({
-      orientation: 'portrait',
+      orientation: 'landscape',
       unit: 'in',
       format: 'letter'
     });
 
     const imgData = canvas.toDataURL('image/png');
-    const pageWidth = 8.5;
-    const pageHeight = 11;
+    const pageWidth = 11;
+    const pageHeight = 8.5;
     const imgWidth = pageWidth - 0.5;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     
@@ -123,6 +148,8 @@ export const exportToPDF = async (elementId: string, filename: string) => {
     }
     
     pdf.addImage(imgData, 'PNG', 0.25, 0.25, finalWidth, finalHeight);
+    
+    console.log('Saving PDF...');
     pdf.save(filename);
     
     return true;

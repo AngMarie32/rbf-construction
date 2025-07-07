@@ -7,6 +7,7 @@ interface SOVItem {
   id: string;
   itemNumber: string;
   description: string;
+  subcategory: string;
   scheduledValue: number;
   changeOrders: number;
   previousApplications: number;
@@ -61,7 +62,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
           {sovItems.map((item) => (
             <TableRow key={item.id}>
               <TableCell className="font-medium">{item.itemNumber}</TableCell>
-              <TableCell>{item.description}</TableCell>
+              <TableCell>{item.subcategory || item.description}</TableCell>
               <TableCell>${item.scheduledValue.toLocaleString()}</TableCell>
               <TableCell>${item.changeOrders.toLocaleString()}</TableCell>
               <TableCell>${item.previousApplications.toLocaleString()}</TableCell>

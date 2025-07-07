@@ -57,7 +57,7 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
           if (!acc[category]) {
             acc[category] = {
               itemNumber: `C-${Object.keys(acc).length + 1}`,
-              displayDescription: item.subcategory || category,
+              displayDescription: category,
               scheduledValue: 0,
               changeOrders: 0,
               previousApplications: 0,
@@ -82,7 +82,7 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
           if (!acc[division]) {
             acc[division] = {
               itemNumber: `D-${Object.keys(acc).length + 1}`,
-              displayDescription: item.subcategory || `${division} Division`,
+              displayDescription: `${division} Division`,
               scheduledValue: 0,
               changeOrders: 0,
               previousApplications: 0,
@@ -145,30 +145,8 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
               <p className="text-xs">APPLICATION AND CERTIFICATE FOR PAYMENT</p>
             </div>
             <div className="text-right text-xs">
+              <div>APPLICATION NUMBER: {formData.applicationNumber}</div>
               <div>PERIOD TO: {new Date(formData.periodTo).toLocaleDateString()}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Project Information Header */}
-        <div className="grid grid-cols-4 gap-1 mb-4 text-xs">
-          <div className="border border-black p-1">
-            <div className="font-bold">ITEM NO.</div>
-          </div>
-          <div className="border border-black p-1 col-span-3">
-            <div className="grid grid-cols-3 gap-1">
-              <div>
-                <div className="font-bold">APPLICATION NUMBER:</div>
-                <div>{formData.applicationNumber}</div>
-              </div>
-              <div>
-                <div className="font-bold">PERIOD TO:</div>
-                <div>{new Date(formData.periodTo).toLocaleDateString()}</div>
-              </div>
-              <div>
-                <div className="font-bold">PROJECT:</div>
-                <div>{project.name}</div>
-              </div>
             </div>
           </div>
         </div>
@@ -185,6 +163,7 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
             <div className="font-bold mb-1">TO:</div>
             <div>{project.client || 'Client Name'}</div>
             <div>{project.address || 'Project Address'}</div>
+            <div className="font-bold mt-2">PROJECT: {project.name}</div>
           </div>
         </div>
 
