@@ -147,6 +147,7 @@ export type Database = {
           category: string
           created_at: string | null
           description: string
+          division: string | null
           id: string
           project_id: string
           quantity: number
@@ -161,6 +162,7 @@ export type Database = {
           category: string
           created_at?: string | null
           description: string
+          division?: string | null
           id?: string
           project_id: string
           quantity?: number
@@ -175,6 +177,7 @@ export type Database = {
           category?: string
           created_at?: string | null
           description?: string
+          division?: string | null
           id?: string
           project_id?: string
           quantity?: number

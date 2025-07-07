@@ -488,6 +488,8 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
       if (error) {
         console.error('Error saving bid item:', error);
         toast.error('Failed to save item changes');
+      } else {
+        console.log('Successfully saved bid item with division:', item.division);
       }
     } catch (error) {
       console.error('Error saving bid item:', error);
@@ -539,7 +541,27 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
     onItemsChange(updatedItems);
   };
 
-  const removeItem = (id: string) => {
+  const removeItem = async (id: string) => {
+    // Delete from database first
+    if (projectId) {
+      try {
+        const { error } = await supabase
+          .from('bid_items')
+          .delete()
+          .eq('id', id);
+
+        if (error) {
+          console.error('Error deleting bid item:', error);
+          toast.error('Failed to delete item');
+          return;
+        }
+      } catch (error) {
+        console.error('Error deleting bid item:', error);
+        toast.error('Failed to delete item');
+        return;
+      }
+    }
+
     const updatedItems = currentItems.filter(item => item.id !== id);
     onItemsChange(updatedItems);
   };
