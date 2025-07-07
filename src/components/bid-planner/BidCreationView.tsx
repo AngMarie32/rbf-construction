@@ -133,81 +133,92 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const handleSaveBid = async () => {
-    console.log('=== BID SAVE DEBUG START ===');
-    console.log('Total bidItems state length:', bidItems.length);
-    console.log('Full bidItems array:', JSON.stringify(bidItems, null, 2));
+    console.log('🔍 === COMPREHENSIVE BID SAVE ANALYSIS START ===');
+    console.log('📊 Current bidItems state - Total count:', bidItems.length);
     
-    // Log each item individually for detailed inspection
+    // Log a complete summary first
+    const summary = {
+      totalItems: bidItems.length,
+      itemsWithDescription: bidItems.filter(item => item.description && item.description.trim().length > 0).length,
+      itemsWithCategory: bidItems.filter(item => item.category && item.category.trim().length > 0).length,
+      itemsWithBothDescAndCategory: bidItems.filter(item => 
+        item.description && item.description.trim().length > 0 && 
+        item.category && item.category.trim().length > 0
+      ).length,
+      emptyDescriptions: bidItems.filter(item => !item.description || item.description.trim().length === 0).length,
+      emptyCategories: bidItems.filter(item => !item.category || item.category.trim().length === 0).length
+    };
+    
+    console.log('📈 SUMMARY ANALYSIS:', summary);
+    
+    // Log every single item in detail
+    console.log('📋 DETAILED ITEM ANALYSIS:');
     bidItems.forEach((item, index) => {
-      console.log(`Item ${index + 1}:`, {
+      const hasDesc = item.description && item.description.trim().length > 0;
+      const hasCat = item.category && item.category.trim().length > 0;
+      const hasValidQty = !isNaN(Number(item.quantity)) && Number(item.quantity) > 0;
+      const hasValidCost = !isNaN(Number(item.unitCost));
+      
+      console.log(`Item ${index + 1}/${bidItems.length}:`, {
         id: item.id,
-        category: item.category,
-        subcategory: item.subcategory,
-        description: item.description,
+        description: `"${item.description}"`,
         descriptionLength: item.description?.length || 0,
+        hasDescription: hasDesc,
+        category: `"${item.category}"`,
+        hasCategory: hasCat,
+        subcategory: `"${item.subcategory}"`,
         quantity: item.quantity,
+        hasValidQuantity: hasValidQty,
         unit: item.unit,
         unitCost: item.unitCost,
-        total: item.total
+        hasValidUnitCost: hasValidCost,
+        total: item.total,
+        WILL_BE_SAVED: hasDesc && hasCat
       });
     });
 
     if (bidItems.length === 0) {
+      console.log('❌ ERROR: No bid items found in state');
       toast.error('Please add at least one bid item');
-      console.log('ERROR: No bid items found');
       return;
     }
 
-    // Enhanced validation - check what makes items invalid
-    const itemValidation = bidItems.map((item, index) => {
+    // Filter valid items with detailed logging
+    const validItems = bidItems.filter((item, index) => {
       const hasDescription = item.description && item.description.trim().length > 0;
       const hasCategory = item.category && item.category.trim().length > 0;
-      const hasValidQuantity = !isNaN(Number(item.quantity)) && Number(item.quantity) > 0;
-      const hasValidUnitCost = !isNaN(Number(item.unitCost));
+      const isValid = hasDescription && hasCategory;
       
-      return {
-        index: index + 1,
-        id: item.id,
-        hasDescription,
-        hasCategory,
-        hasValidQuantity,
-        hasValidUnitCost,
-        isValid: hasDescription && hasCategory,
-        description: item.description,
-        category: item.category,
-        quantity: item.quantity,
-        unitCost: item.unitCost
-      };
+      if (!isValid) {
+        console.log(`❌ Item ${index + 1} REJECTED:`, {
+          reason: !hasDescription ? 'Missing description' : 'Missing category',
+          description: `"${item.description}"`,
+          category: `"${item.category}"`
+        });
+      } else {
+        console.log(`✅ Item ${index + 1} ACCEPTED for saving`);
+      }
+      
+      return isValid;
     });
 
-    console.log('Item validation results:', itemValidation);
-    
-    const validItems = bidItems.filter((item, index) => {
-      return itemValidation[index].isValid;
-    });
-    
-    const invalidItems = bidItems.filter((item, index) => {
-      return !itemValidation[index].isValid;
-    });
-
-    console.log(`Valid items count: ${validItems.length}`);
-    console.log(`Invalid items count: ${invalidItems.length}`);
-    console.log('Invalid items details:', invalidItems);
+    console.log(`📊 FILTERING RESULTS: ${validItems.length} valid items out of ${bidItems.length} total items`);
     
     if (validItems.length === 0) {
-      toast.error('No valid bid items found. Items need description and category.');
-      console.log('ERROR: No valid items after filtering');
+      console.log('❌ ERROR: No valid items after filtering');
+      toast.error('No valid bid items found. Items need both description and category.');
       return;
     }
 
-    if (invalidItems.length > 0) {
-      console.log(`WARNING: ${invalidItems.length} items will be skipped due to missing required fields`);
-      toast.warning(`${invalidItems.length} items will be skipped (missing description or category)`);
+    const skippedCount = bidItems.length - validItems.length;
+    if (skippedCount > 0) {
+      console.log(`⚠️  WARNING: ${skippedCount} items will be skipped due to missing required fields`);
+      toast.warning(`${skippedCount} items will be skipped (missing description or category)`);
     }
 
     setSaving(true);
     try {
-      console.log('Saving bid for project:', projectId);
+      console.log('💾 Starting database save process...');
 
       // First, delete existing bid items for this project to avoid duplicates
       const { error: deleteError } = await supabase
@@ -217,12 +228,13 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
       if (deleteError) {
         console.error('Error deleting existing bid items:', deleteError);
-        // Don't throw here, continue with insert
+      } else {
+        console.log('✅ Existing bid items cleared successfully');
       }
 
-      // Prepare items for database insert with enhanced validation
+      // Prepare items for database insert
       const itemsToSave = validItems.map((item, index) => {
-        const itemToSave = {
+        const preparedItem = {
           project_id: projectId,
           category: item.category.trim(),
           subcategory: item.subcategory && item.subcategory.trim() ? item.subcategory.trim() : null,
@@ -232,13 +244,13 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           unit_cost: Number(item.unitCost) || 0
         };
         
-        console.log(`Prepared item ${index + 1} for save:`, itemToSave);
-        return itemToSave;
+        console.log(`📝 Prepared item ${index + 1} for database:`, preparedItem);
+        return preparedItem;
       });
 
-      console.log('=== FINAL SAVE PAYLOAD ===');
+      console.log('💾 FINAL DATABASE PAYLOAD:');
       console.log('Items to save count:', itemsToSave.length);
-      console.log('Items to save:', JSON.stringify(itemsToSave, null, 2));
+      console.log('Full payload:', JSON.stringify(itemsToSave, null, 2));
 
       const { data, error } = await supabase
         .from('bid_items')
@@ -246,14 +258,13 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         .select();
 
       if (error) {
-        console.error('Supabase error saving bid items:', error);
+        console.error('❌ DATABASE ERROR:', error);
         throw new Error(`Database error: ${error.message}`);
       }
 
-      console.log('=== SAVE RESULT ===');
-      console.log('Bid items saved successfully. Database returned:', data);
-      console.log('Number of items actually saved:', data?.length || 0);
-      console.log('=== BID SAVE DEBUG END ===');
+      console.log('✅ DATABASE SUCCESS:');
+      console.log('Items actually saved:', data?.length || 0);
+      console.log('Database response:', data);
       
       const savedCount = data?.length || itemsToSave.length;
       toast.success(`Bid saved successfully! ${savedCount} out of ${bidItems.length} total items saved.`);
@@ -268,8 +279,10 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       // Mark that we have a current bid
       setCurrentBidId(projectId);
       
+      console.log('🔍 === COMPREHENSIVE BID SAVE ANALYSIS END ===');
+      
     } catch (error) {
-      console.error('Error saving bid:', error);
+      console.error('❌ SAVE ERROR:', error);
       toast.error(`Failed to save bid: ${error.message || 'Unknown error'}`);
     } finally {
       setSaving(false);
