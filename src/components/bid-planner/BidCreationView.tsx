@@ -132,7 +132,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const handleSaveBid = async () => {
-    console.log('🚀 STARTING BID SAVE - FINAL FIX');
+    console.log('🚀 STARTING BID SAVE - ENHANCED DEBUGGING');
     console.log('=' .repeat(80));
     
     if (!projectId) {
@@ -144,31 +144,45 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     console.log('📊 CURRENT BID ITEMS STATE:');
     console.log('- Project ID:', projectId);
     console.log('- Total bid items in state:', bidItems.length);
-    console.log('- ALL bid items array:', JSON.stringify(bidItems, null, 2));
-
-    // Get ALL items from the form - not filtering here, we save everything
-    const allItems = [...bidItems];
-    console.log('📋 PROCESSING ALL ITEMS:', allItems.length);
-    console.log('- Items to process:', allItems);
-
-    // Very simple filtering - only exclude items with BOTH empty description AND empty category
-    const validItems = allItems.filter((item, index) => {
-      const hasContent = (item.description && item.description.trim().length > 0) || 
-                        (item.category && item.category.trim().length > 0);
-      
+    
+    // Log each item individually for detailed inspection
+    bidItems.forEach((item, index) => {
       console.log(`Item ${index + 1}:`, {
         id: item.id,
-        description: item.description || 'EMPTY',
         category: item.category || 'EMPTY',
-        hasContent,
-        willBeSaved: hasContent
+        description: item.description || 'EMPTY',
+        quantity: item.quantity,
+        unitCost: item.unitCost,
+        total: item.total,
+        hasCategory: !!(item.category && item.category.trim()),
+        hasDescription: !!(item.description && item.description.trim())
       });
-      
-      return hasContent;
     });
 
-    console.log('✅ VALID ITEMS AFTER FILTERING:', validItems.length);
-    console.log('- Valid items:', validItems);
+    // Filter items - keep items with either category OR description (not both required)
+    const validItems = bidItems.filter((item, index) => {
+      const hasCategory = item.category && item.category.trim().length > 0;
+      const hasDescription = item.description && item.description.trim().length > 0;
+      const isValid = hasCategory || hasDescription;
+      
+      console.log(`✅ Item ${index + 1} validation:`, {
+        hasCategory,
+        hasDescription,
+        isValid,
+        willBeSaved: isValid
+      });
+      
+      return isValid;
+    });
+
+    console.log('📋 ITEMS AFTER FILTERING:');
+    console.log('- Valid items count:', validItems.length);
+    console.log('- Valid items:', validItems.map(item => ({
+      category: item.category,
+      description: item.description,
+      quantity: item.quantity,
+      unitCost: item.unitCost
+    })));
 
     if (validItems.length === 0) {
       console.log('🛑 NO VALID ITEMS TO SAVE');
@@ -176,7 +190,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       return;
     }
 
-    // Convert to database format with safe defaults
+    // Convert to database format
     const itemsForDatabase = validItems.map((item, index) => {
       const dbItem = {
         project_id: projectId,
@@ -188,11 +202,11 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         unit_cost: Number(item.unitCost) || 0
       };
       
-      console.log(`DB Item ${index + 1}:`, dbItem);
+      console.log(`💾 DB Item ${index + 1}:`, dbItem);
       return dbItem;
     });
 
-    console.log('💾 FINAL DATABASE PAYLOAD:');
+    console.log('🎯 FINAL DATABASE PAYLOAD:');
     console.log('- Items to save:', itemsForDatabase.length);
     console.log('- Complete payload:', JSON.stringify(itemsForDatabase, null, 2));
 
