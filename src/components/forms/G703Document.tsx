@@ -1,7 +1,11 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
 import { useState } from 'react';
+import { exportToPDF, exportToCSV } from '@/utils/pdfExport';
 
 interface G703DocumentProps {
   project: any;
@@ -43,6 +47,20 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
     };
   };
 
+  const getDivisionFromCategory = (category: string): string => {
+    if (!category) return 'Other';
+    const categoryLower = category.toLowerCase();
+    
+    if (categoryLower.includes('site') || categoryLower.includes('earthwork') || categoryLower.includes('concrete')) {
+      return 'Site';
+    } else if (categoryLower.includes('building') || categoryLower.includes('structure') || categoryLower.includes('frame')) {
+      return 'Building';
+    } else if (categoryLower.includes('general') || categoryLower.includes('mobilization')) {
+      return 'General';
+    }
+    return 'Other';
+  };
+
   const getDisplayItems = () => {
     switch (breakdownLevel) {
       case 'line-items':
@@ -78,11 +96,11 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
       
       case 'division':
         const divisionGroups = sovItems.reduce((acc, item) => {
-          const division = item.category?.split(' ')[0] || 'General';
+          const division = getDivisionFromCategory(item.category);
           if (!acc[division]) {
             acc[division] = {
               itemNumber: `${Object.keys(acc).length + 1}`,
-              displayDescription: `${division}`,
+              displayDescription: `${division} Work`,
               scheduledValue: 0,
               changeOrders: 0,
               previousApplications: 0,
@@ -109,33 +127,73 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
   const displayItems = getDisplayItems();
   const totals = calculateTotals();
 
+  const handleExportPDF = async () => {
+    try {
+      await exportToPDF('g703-document', `G703-${project.name}-App-${formData.applicationNumber}.pdf`);
+    } catch (error) {
+      console.error('Error exporting G703 PDF:', error);
+    }
+  };
+
+  const handleExportCSV = () => {
+    const exportData = displayItems.map(item => ({
+      'Item #': item.itemNumber,
+      'Description': item.displayDescription,
+      'Scheduled Value': item.scheduledValue,
+      'Change Orders': item.changeOrders,
+      'Total Contract': (item.scheduledValue || 0) + (item.changeOrders || 0),
+      'From Previous': item.previousApplications,
+      'This Period': item.thisPeriod,
+      'Materials Stored': item.materialsStored,
+      'Total Complete': item.totalCompletedAndStored,
+      '% Complete': ((item.totalCompletedAndStored || 0) / ((item.scheduledValue || 0) + (item.changeOrders || 0)) * 100).toFixed(2) + '%'
+    }));
+
+    exportToCSV({
+      title: 'G703 Continuation Sheet',
+      data: exportData
+    });
+  };
+
   return (
     <div className="space-y-4">
-      {/* Breakdown Level Selector */}
+      {/* Controls */}
       <Card className="bg-white">
         <CardHeader>
           <CardTitle>G703 Display Options</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            <Label htmlFor="breakdown-level">Breakdown Level</Label>
-            <Select value={breakdownLevel} onValueChange={(value: 'line-items' | 'category' | 'division') => setBreakdownLevel(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select breakdown level" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="line-items">Line Items (Detailed)</SelectItem>
-                <SelectItem value="category">Category Breakdown</SelectItem>
-                <SelectItem value="division">Division Breakdown</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="breakdown-level">Breakdown Level</Label>
+              <Select value={breakdownLevel} onValueChange={(value: 'line-items' | 'category' | 'division') => setBreakdownLevel(value)}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select breakdown level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="line-items">Line Items (Detailed)</SelectItem>
+                  <SelectItem value="category">Category Breakdown</SelectItem>
+                  <SelectItem value="division">Division Breakdown</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2 ml-auto">
+              <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExportPDF}>
+                <Download className="w-4 h-4 mr-2" />
+                Export PDF
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* G703 Document - Full page width for better PDF export */}
-      <div className="bg-white mx-auto text-black print:shadow-none" style={{ width: '100%', maxWidth: '8.5in', minHeight: '11in', fontSize: '10px', lineHeight: '1.2' }}>
-        {/* Header - Removed report taglines as requested */}
+      {/* G703 Document */}
+      <div id="g703-document" className="bg-white mx-auto text-black print:shadow-none" style={{ width: '8.5in', minHeight: '11in', fontSize: '10px', lineHeight: '1.2', padding: '0.5in' }}>
+        {/* Header */}
         <div className="text-center mb-6">
           <div className="grid grid-cols-3 items-center">
             <div></div>
@@ -167,17 +225,16 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
           </div>
         </div>
 
-        {/* SOV Table - Improved for PDF export */}
-        <div className="border border-black" style={{ pageBreakInside: 'avoid' }}>
-          <table className="w-full border-collapse" style={{ fontSize: '9px' }}>
+        {/* SOV Table */}
+        <div className="border border-black">
+          <table className="w-full border-collapse" style={{ fontSize: '8px' }}>
             <thead>
-              {/* Row 1: Grouping Header */}
+              {/* Header rows */}
               <tr className="text-center font-bold text-xs">
                 <th className="p-1" colSpan={5}></th>
                 <th className="p-1 border-b-0" colSpan={3}>WORK COMPLETED</th>
                 <th className="p-1" colSpan={4}></th>
               </tr>
-              {/* Row 2: Column letters A through L */}
               <tr className="bg-gray-100 text-center font-bold border-t border-black">
                 <th className="border-l border-r border-b border-black p-1" style={{ width: '6%' }}>A</th>
                 <th className="border-r border-b border-black p-1" style={{ width: '22%' }}>B</th>
@@ -192,44 +249,19 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
                 <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>K</th>
                 <th className="border-r border-b border-black p-1" style={{ width: '8%' }}>L</th>
               </tr>
-              {/* Row 3: Column Descriptions */}
               <tr className="bg-gray-100 text-center text-xs">
-                <th className="border-l border-r border-b border-black p-1 h-16 align-bottom">
-                  ITEM<br />NO.
-                </th>
-                <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                  DESCRIPTION OF WORK
-                </th>
-                <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                  SCHEDULED<br />VALUE
-                </th>
-                <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                  CHANGE<br />ORDERS
-                </th>
-                <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                  TOTAL<br />CONTRACT
-                </th>
-                <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                  FROM<br />PREVIOUS<br />APPLICATION
-                </th>
-                <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                  THIS PERIOD
-                </th>
-                <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                  MATERIALS<br />PRESENTLY<br />STORED
-                </th>
-                <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                  TOTAL<br />COMPLETED<br />AND STORED TO DATE
-                </th>
-                <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                  %<br />COMPLETE
-                </th>
-                <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                  BALANCE TO<br />FINISH
-                </th>
-                <th className="border-r border-b border-black p-1 h-16 align-bottom">
-                  RETAINAGE
-                </th>
+                <th className="border-l border-r border-b border-black p-1 h-16 align-bottom">ITEM<br />NO.</th>
+                <th className="border-r border-b border-black p-1 h-16 align-bottom">DESCRIPTION OF WORK</th>
+                <th className="border-r border-b border-black p-1 h-16 align-bottom">SCHEDULED<br />VALUE</th>
+                <th className="border-r border-b border-black p-1 h-16 align-bottom">CHANGE<br />ORDERS</th>
+                <th className="border-r border-b border-black p-1 h-16 align-bottom">TOTAL<br />CONTRACT</th>
+                <th className="border-r border-b border-black p-1 h-16 align-bottom">FROM<br />PREVIOUS<br />APPLICATION</th>
+                <th className="border-r border-b border-black p-1 h-16 align-bottom">THIS PERIOD</th>
+                <th className="border-r border-b border-black p-1 h-16 align-bottom">MATERIALS<br />PRESENTLY<br />STORED</th>
+                <th className="border-r border-b border-black p-1 h-16 align-bottom">TOTAL<br />COMPLETED<br />AND STORED TO DATE</th>
+                <th className="border-r border-b border-black p-1 h-16 align-bottom">%<br />COMPLETE</th>
+                <th className="border-r border-b border-black p-1 h-16 align-bottom">BALANCE TO<br />FINISH</th>
+                <th className="border-r border-b border-black p-1 h-16 align-bottom">RETAINAGE</th>
               </tr>
             </thead>
             <tbody>
@@ -241,9 +273,9 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
                 const retainage = totalCompleted * (formData.retainagePercentage / 100);
                 
                 return (
-                  <tr key={item.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} style={{ pageBreakInside: 'avoid' }}>
-                    <td className="border-l border-r border-black p-1 text-center" style={{ minHeight: '20px' }}>{item.itemNumber}</td>
-                    <td className="border-r border-black p-1" style={{ wordWrap: 'break-word', maxWidth: '200px' }}>{item.displayDescription}</td>
+                  <tr key={item.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="border-l border-r border-black p-1 text-center">{item.itemNumber}</td>
+                    <td className="border-r border-black p-1" style={{ wordWrap: 'break-word' }}>{item.displayDescription}</td>
                     <td className="border-r border-black p-1 text-right">${(item.scheduledValue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="border-r border-black p-1 text-right">${(item.changeOrders || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="border-r border-black p-1 text-right">${totalContract.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>

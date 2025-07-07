@@ -1,4 +1,3 @@
-
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -42,9 +41,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
       ignoreElements: (element: Element) => {
         return element.classList.contains('print:hidden') || 
                element.tagName === 'BUTTON' ||
-               element.classList.contains('no-print') ||
-               element.textContent?.includes('Report generated on') ||
-               element.textContent?.includes('Professional project reports');
+               element.classList.contains('no-print');
       }
     };
 
@@ -134,7 +131,7 @@ export const exportToPDF = async (elementId: string, filename: string) => {
 
     console.log('Capturing element...');
     const canvas = await html2canvas(element, {
-      scale: 3,
+      scale: 2,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
@@ -150,26 +147,41 @@ export const exportToPDF = async (elementId: string, filename: string) => {
       }
     });
 
+    // Create PDF with proper sizing for full page width
     const pdf = new jsPDF({
-      orientation: 'landscape',
+      orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
       unit: 'in',
       format: 'letter'
     });
 
     const imgData = canvas.toDataURL('image/png', 1.0);
-    const pageWidth = 11;
-    const pageHeight = 8.5;
-    const imgWidth = pageWidth - 0.5;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth - 0.5; // Leave margin
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     
-    let finalWidth = imgWidth;
-    let finalHeight = imgHeight;
+    // Handle multi-page if content is too tall
     if (imgHeight > pageHeight - 0.5) {
-      finalHeight = pageHeight - 0.5;
-      finalWidth = (canvas.width * finalHeight) / canvas.height;
+      const pagesNeeded = Math.ceil(imgHeight / (pageHeight - 0.5));
+      const sectionHeight = canvas.height / pagesNeeded;
+      
+      for (let i = 0; i < pagesNeeded; i++) {
+        if (i > 0) pdf.addPage();
+        
+        const sectionCanvas = document.createElement('canvas');
+        const sectionCtx = sectionCanvas.getContext('2d');
+        sectionCanvas.width = canvas.width;
+        sectionCanvas.height = sectionHeight;
+        
+        if (sectionCtx) {
+          sectionCtx.drawImage(canvas, 0, -i * sectionHeight);
+          const sectionImgData = sectionCanvas.toDataURL('image/png', 1.0);
+          pdf.addImage(sectionImgData, 'PNG', 0.25, 0.25, imgWidth, pageHeight - 0.5);
+        }
+      }
+    } else {
+      pdf.addImage(imgData, 'PNG', 0.25, 0.25, imgWidth, imgHeight);
     }
-    
-    pdf.addImage(imgData, 'PNG', 0.25, 0.25, finalWidth, finalHeight);
     
     console.log('Saving PDF...');
     pdf.save(filename);
@@ -181,16 +193,16 @@ export const exportToPDF = async (elementId: string, filename: string) => {
   }
 };
 
-export const exportCSV = (data: any[], filename: string) => {
+export const exportToCSV = (data: { title: string; data: any[] }) => {
   try {
-    if (!data || data.length === 0) {
+    if (!data.data || data.data.length === 0) {
       throw new Error('No data to export');
     }
 
-    const headers = Object.keys(data[0]);
+    const headers = Object.keys(data.data[0]);
     const csvContent = [
       headers.join(','),
-      ...data.map(row => 
+      ...data.data.map(row => 
         headers.map(header => {
           const value = row[header];
           // Escape commas and quotes in CSV
@@ -206,7 +218,7 @@ export const exportCSV = (data: any[], filename: string) => {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', filename);
+    link.setAttribute('download', `${data.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
