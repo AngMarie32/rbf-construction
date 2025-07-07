@@ -57,7 +57,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   const loadExistingBidItems = async () => {
     try {
       setLoading(true);
-      console.log('🔍 LOADING EXISTING BID ITEMS for project:', projectId);
+      console.log('🔍 Loading existing bid items for project:', projectId);
 
       const { data: existingItems, error } = await supabase
         .from('bid_items')
@@ -70,43 +70,26 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         return;
       }
 
-      console.log('✅ RAW DATABASE RESPONSE:', existingItems);
-      console.log('📊 Number of items from database:', existingItems?.length || 0);
+      console.log('✅ Found existing bid items:', existingItems);
 
       if (existingItems && existingItems.length > 0) {
-        // Convert database items to component format with detailed logging
-        const formattedItems: BidItem[] = existingItems.map((item, index) => {
-          console.log(`🔄 Converting item ${index + 1}/${existingItems.length}:`, {
-            id: item.id,
-            category: item.category,
-            description: item.description,
-            unit_cost: item.unit_cost,
-            quantity: item.quantity
-          });
+        const formattedItems: BidItem[] = existingItems.map((item, index) => ({
+          id: item.id || String(index + 1),
+          division: 'General Conditions',
+          category: item.category || 'Labor/Supervision',
+          subcategory: item.subcategory || '',
+          description: item.description || '',
+          quantity: item.quantity || 1,
+          unit: item.unit || 'each',
+          unitCost: item.unit_cost || 0,
+          total: (item.unit_cost || 0) * (item.quantity || 1)
+        }));
 
-          return {
-            id: item.id || String(index + 1),
-            division: 'General Conditions', // Default division since it's not stored in DB
-            category: item.category || 'Labor/Supervision',
-            subcategory: item.subcategory || '',
-            description: item.description || '',
-            quantity: item.quantity || 1,
-            unit: item.unit || 'each',
-            unitCost: item.unit_cost || 0,
-            total: (item.unit_cost || 0) * (item.quantity || 1)
-          };
-        });
-
-        console.log('✅ FORMATTED ITEMS for state:', formattedItems);
-        console.log('📊 Setting state with', formattedItems.length, 'items');
-        
         setBidItems(formattedItems);
-        onItemsChange(existingItems); // Update parent component
-      } else {
-        console.log('ℹ️ No existing items found, keeping default item');
+        onItemsChange(existingItems);
       }
     } catch (error) {
-      console.error('❌ Critical error loading existing bid items:', error);
+      console.error('❌ Error loading existing bid items:', error);
     } finally {
       setLoading(false);
     }
@@ -149,7 +132,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const handleSaveBid = async () => {
-    console.log('🚀 STARTING COMPREHENSIVE BID SAVE PROCESS');
+    console.log('🚀 STARTING BID SAVE - COMPREHENSIVE FIX');
     console.log('=' .repeat(80));
     
     if (!projectId) {
@@ -158,141 +141,104 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       return;
     }
 
-    if (!bidItems || !Array.isArray(bidItems)) {
-      console.log('❌ Invalid bid items array');
-      toast.error('Invalid bid items data');
-      return;
-    }
-
-    console.log('📊 CURRENT BIDDING STATE:');
+    console.log('📊 CURRENT BID ITEMS STATE:');
     console.log('- Project ID:', projectId);
-    console.log('- Bid items count:', bidItems.length);
-    console.log('- Bid items array:', bidItems);
+    console.log('- Total bid items in state:', bidItems.length);
+    console.log('- Raw bid items array:', JSON.stringify(bidItems, null, 2));
 
-    // Process each item with detailed validation
-    const validItemsForSave: any[] = [];
-    const invalidItems: any[] = [];
-    
-    bidItems.forEach((item, index) => {
-      console.log(`\n📋 PROCESSING ITEM ${index + 1}/${bidItems.length}:`);
-      console.log('- Raw item:', item);
+    // Create a deep copy and filter for valid items
+    const allItems = [...bidItems];
+    console.log('📋 PROCESSING ALL ITEMS:', allItems.length);
+
+    // More permissive filtering - only require description OR category to be non-empty
+    const validItems = allItems.filter((item, index) => {
+      const hasDescription = item.description && item.description.trim().length > 0;
+      const hasCategory = item.category && item.category.trim().length > 0;
+      const isValid = hasDescription || hasCategory;
       
-      // Extract and validate fields
-      const description = String(item?.description || '').trim();
-      const category = String(item?.category || '').trim();
-      const quantity = Number(item?.quantity) || 1;
-      const unitCost = Number(item?.unitCost) || 0;
-      const unit = String(item?.unit || 'each').trim();
-      const subcategory = String(item?.subcategory || '').trim();
-      
-      console.log('- Processed fields:', {
-        description,
-        category,
-        quantity,
-        unitCost,
-        unit,
-        subcategory,
-        hasDescription: description.length > 0,
-        hasCategory: category.length > 0
+      console.log(`Item ${index + 1}:`, {
+        id: item.id,
+        description: item.description || 'EMPTY',
+        category: item.category || 'EMPTY',
+        hasDescription,
+        hasCategory,
+        isValid
       });
-
-      // Validation logic
-      if (description.length > 0 && category.length > 0) {
-        const validItem = {
-          project_id: projectId,
-          category: category,
-          subcategory: subcategory || null,
-          description: description,
-          quantity: Math.max(quantity, 1),
-          unit: unit,
-          unit_cost: unitCost
-        };
-        
-        validItemsForSave.push(validItem);
-        console.log('✅ VALID - Added to save list');
-      } else {
-        invalidItems.push({
-          index: index + 1,
-          item,
-          reason: `Missing ${!description ? 'description' : ''} ${!description && !category ? 'and' : ''} ${!category ? 'category' : ''}`
-        });
-        console.log('❌ INVALID - Skipped:', !description ? 'missing description' : 'missing category');
-      }
+      
+      return isValid;
     });
 
-    console.log('\n📈 VALIDATION SUMMARY:');
-    console.log('- Total items processed:', bidItems.length);
-    console.log('- Valid items for save:', validItemsForSave.length);
-    console.log('- Invalid items skipped:', invalidItems.length);
-    
-    if (invalidItems.length > 0) {
-      console.log('❌ Invalid items details:', invalidItems);
-    }
+    console.log('✅ VALID ITEMS AFTER FILTERING:', validItems.length);
 
-    if (validItemsForSave.length === 0) {
-      console.log('🛑 SAVE ABORTED: No valid items to save');
-      toast.error('No valid items found to save. Please ensure items have both description and category filled out.');
+    if (validItems.length === 0) {
+      console.log('🛑 NO VALID ITEMS TO SAVE');
+      toast.error('No valid items to save. Please add at least one item with a description or category.');
       return;
     }
 
-    console.log('\n💾 PREPARING DATABASE SAVE:');
-    console.log('- Items to save:', validItemsForSave);
+    // Convert to database format
+    const itemsForDatabase = validItems.map((item, index) => {
+      const dbItem = {
+        project_id: projectId,
+        category: (item.category || 'General').trim(),
+        subcategory: (item.subcategory || '').trim() || null,
+        description: (item.description || 'Item ' + (index + 1)).trim(),
+        quantity: Math.max(Number(item.quantity) || 1, 1),
+        unit: (item.unit || 'each').trim(),
+        unit_cost: Number(item.unitCost) || 0
+      };
+      
+      console.log(`DB Item ${index + 1}:`, dbItem);
+      return dbItem;
+    });
+
+    console.log('💾 FINAL DATABASE PAYLOAD:');
+    console.log('- Items to save:', itemsForDatabase.length);
+    console.log('- Payload:', JSON.stringify(itemsForDatabase, null, 2));
 
     setSaving(true);
     try {
-      // First, delete existing bid items for this project
-      console.log('🗑️ Deleting existing items for project:', projectId);
+      // Delete existing items
+      console.log('🗑️ Deleting existing items...');
       const { error: deleteError } = await supabase
         .from('bid_items')
         .delete()
         .eq('project_id', projectId);
 
       if (deleteError) {
-        console.error('❌ Delete error:', deleteError);
         throw new Error(`Failed to delete existing items: ${deleteError.message}`);
       }
-      console.log('✅ Existing items deleted successfully');
+
+      console.log('✅ Existing items deleted');
 
       // Insert new items
-      console.log('💾 Inserting', validItemsForSave.length, 'new items...');
-      const { data, error } = await supabase
+      console.log('💾 Inserting items...');
+      const { data: savedData, error: insertError } = await supabase
         .from('bid_items')
-        .insert(validItemsForSave)
+        .insert(itemsForDatabase)
         .select();
 
-      if (error) {
-        console.error('❌ INSERT ERROR:', error);
-        throw new Error(`Database error: ${error.message}`);
+      if (insertError) {
+        console.error('❌ INSERT ERROR:', insertError);
+        throw new Error(`Database insert error: ${insertError.message}`);
       }
 
-      console.log('🎉 DATABASE SAVE SUCCESS!');
-      console.log('- Items saved:', data?.length || 0);
-      console.log('- Saved data:', data);
+      console.log('🎉 SUCCESS! Items saved:', savedData?.length || 0);
+      console.log('📊 Saved data:', savedData);
+
+      const successMessage = `Successfully saved ${savedData?.length || 0} bid items!`;
+      console.log('✅', successMessage);
+      toast.success(successMessage);
       
-      const savedCount = data?.length || 0;
-      
-      if (savedCount === bidItems.length) {
-        toast.success(`Perfect! All ${savedCount} bid items saved successfully!`);
-      } else if (savedCount === validItemsForSave.length) {
-        toast.success(`${savedCount} valid items saved successfully!`);
-        if (invalidItems.length > 0) {
-          toast.warning(`${invalidItems.length} items were skipped due to missing required fields.`);
-        }
-      } else {
-        toast.warning(`${savedCount} items saved, but expected ${validItemsForSave.length}. Please check the data.`);
-      }
-      
-      // Update parent component with the saved data
-      onItemsChange(data || validItemsForSave);
+      onItemsChange(savedData || []);
       setCurrentBidId(projectId);
       
     } catch (error: any) {
-      console.error('💥 SAVE OPERATION FAILED:', error);
+      console.error('💥 SAVE FAILED:', error);
       toast.error(`Failed to save bid: ${error.message || 'Unknown error'}`);
     } finally {
       setSaving(false);
-      console.log('🏁 BID SAVE PROCESS COMPLETED');
-      console.log('=' .repeat(80));
+      console.log('🏁 SAVE PROCESS COMPLETED');
     }
   };
 
