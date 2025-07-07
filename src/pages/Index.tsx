@@ -1,8 +1,8 @@
 
-import { Navigate } from 'react-router-dom';
+import Projects from './Projects';
 
 const Index = () => {
-  return <Navigate to="/dashboard" replace />;
+  return <Projects />;
 };
 
 export default Index;
