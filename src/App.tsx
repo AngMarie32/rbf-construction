@@ -15,13 +15,15 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Projects />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/payment-apps" element={<PaymentApplications />} />
-            <Route path="/payment-apps/:projectId/application/new" element={<PaymentApplicationForm />} />
-            <Route path="/payment-apps/:projectId/application/:applicationId" element={<PaymentApplicationForm />} />
-          </Routes>
+          <div className="min-h-screen bg-gray-50 p-4">
+            <Routes>
+              <Route path="/" element={<Projects />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/payment-apps" element={<PaymentApplications />} />
+              <Route path="/payment-apps/:projectId/application/new" element={<PaymentApplicationForm />} />
+              <Route path="/payment-apps/:projectId/application/:applicationId" element={<PaymentApplicationForm />} />
+            </Routes>
+          </div>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
