@@ -22,24 +22,32 @@ export function BidSettings({ projectId }: BidSettingsProps) {
     roundToNearest: 100
   });
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadSettings();
   }, [projectId]);
 
   const loadSettings = async () => {
+    if (!projectId) return;
+    
+    setLoading(true);
     try {
+      console.log('Loading bid settings for project:', projectId);
+      
       const { data, error } = await supabase
         .from('bid_settings')
         .select('*')
         .eq('project_id', projectId)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
+        console.error('Error loading bid settings:', error);
         throw error;
       }
 
       if (data) {
+        console.log('Loaded bid settings:', data);
         setSettings({
           markupPercentage: data.markup_percentage || 15,
           contingencyPercentage: data.contingency_percentage || 5,
@@ -47,17 +55,28 @@ export function BidSettings({ projectId }: BidSettingsProps) {
           taxPercentage: data.tax_percentage || 8.5,
           roundToNearest: data.round_to_nearest || 100
         });
+      } else {
+        console.log('No existing bid settings found, using defaults');
       }
     } catch (error) {
       console.error('Error loading bid settings:', error);
       toast.error('Failed to load bid settings');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSave = async () => {
+    if (!projectId) {
+      toast.error('No project selected');
+      return;
+    }
+
     setSaving(true);
     try {
-      const { error } = await supabase
+      console.log('Saving bid settings:', settings);
+      
+      const { data, error } = await supabase
         .from('bid_settings')
         .upsert({
           project_id: projectId,
@@ -65,11 +84,19 @@ export function BidSettings({ projectId }: BidSettingsProps) {
           contingency_percentage: settings.contingencyPercentage,
           include_tax: settings.includeTax,
           tax_percentage: settings.taxPercentage,
-          round_to_nearest: settings.roundToNearest
-        });
+          round_to_nearest: settings.roundToNearest,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'project_id'
+        })
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error saving bid settings:', error);
+        throw error;
+      }
 
+      console.log('Bid settings saved successfully:', data);
       toast.success('Bid settings saved successfully');
     } catch (error) {
       console.error('Error saving bid settings:', error);
@@ -78,6 +105,21 @@ export function BidSettings({ projectId }: BidSettingsProps) {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Bid Settings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-center items-center h-32">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>

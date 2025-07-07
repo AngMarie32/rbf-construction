@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { ImportBidItemsDialog } from './ImportBidItemsDialog';
+import { toast } from 'sonner';
 
 interface BidItem {
   id: string;
@@ -299,7 +300,9 @@ const getDivisionFromCategory = (category: string): string => {
       lowerCategory.includes('mechanical') ||
       lowerCategory.includes('plumbing') ||
       lowerCategory.includes('electrical') ||
-      lowerCategory.includes('fire')) {
+      lowerCategory.includes('fire') ||
+      lowerCategory.includes('metals') ||
+      lowerCategory.includes('thermal')) {
     return 'Building';
   }
   
@@ -445,7 +448,7 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
         const formattedItems: BidItem[] = existingItems.map((item, index) => {
           return {
             id: item.id || String(Date.now() + index),
-            division: getDivisionFromCategory(item.category || ''),
+            division: item.division || getDivisionFromCategory(item.category || ''),
             category: item.category || '',
             subcategory: item.subcategory || '',
             description: item.description || '',
@@ -453,7 +456,7 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
             unit: item.unit || 'each',
             unitCost: item.unit_cost || 0,
             total: (item.unit_cost || 0) * (item.quantity || 1),
-            divisionManuallySet: false // Default to false for loaded items
+            divisionManuallySet: !!item.division // If division exists in DB, it was manually set
           };
         });
 
@@ -461,6 +464,34 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
       }
     } catch (error) {
       console.error('Error loading bid items:', error);
+    }
+  };
+
+  const saveBidItemToDatabase = async (item: BidItem) => {
+    if (!projectId) return;
+
+    try {
+      const { error } = await supabase
+        .from('bid_items')
+        .upsert({
+          id: item.id,
+          project_id: projectId,
+          category: item.category,
+          subcategory: item.subcategory,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit,
+          unit_cost: item.unitCost,
+          division: item.division // Save the division to database
+        });
+
+      if (error) {
+        console.error('Error saving bid item:', error);
+        toast.error('Failed to save item changes');
+      }
+    } catch (error) {
+      console.error('Error saving bid item:', error);
+      toast.error('Failed to save item changes');
     }
   };
 
@@ -481,7 +512,7 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
     onItemsChange(updatedItems);
   };
 
-  const updateItem = (id: string, field: keyof BidItem, value: any) => {
+  const updateItem = async (id: string, field: keyof BidItem, value: any) => {
     const updatedItems = currentItems.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
@@ -497,6 +528,10 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
         if (field === 'quantity' || field === 'unitCost') {
           updated.total = updated.quantity * updated.unitCost;
         }
+        
+        // Save to database immediately
+        saveBidItemToDatabase(updated);
+        
         return updated;
       }
       return item;
