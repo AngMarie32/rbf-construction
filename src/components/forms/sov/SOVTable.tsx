@@ -1,7 +1,9 @@
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 
 interface SOVItem {
   id: string;
@@ -26,7 +28,60 @@ interface SOVTableProps {
   onUpdateItem: (itemId: string, value: number) => void;
 }
 
+type SortField = 'itemNumber' | 'category' | 'subcategory' | 'description' | 'scheduledValue';
+type SortDirection = 'asc' | 'desc' | null;
+
 export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication, onUpdateItem }: SOVTableProps) {
+  const [sortField, setSortField] = useState<SortField>('itemNumber');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => 
+        prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc'
+      );
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedItems = useMemo(() => {
+    if (!sortDirection) return sovItems;
+
+    return [...sovItems].sort((a, b) => {
+      let aValue = a[sortField];
+      let bValue = b[sortField];
+
+      // Handle numeric fields
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+
+      // Handle string fields
+      const aStr = String(aValue || '').toLowerCase();
+      const bStr = String(bValue || '').toLowerCase();
+      
+      if (sortDirection === 'asc') {
+        return aStr.localeCompare(bStr);
+      } else {
+        return bStr.localeCompare(aStr);
+      }
+    });
+  }, [sovItems, sortField, sortDirection]);
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ChevronsUpDown className="w-4 h-4 text-gray-400" />;
+    }
+    if (sortDirection === 'asc') {
+      return <ChevronUp className="w-4 h-4 text-blue-600" />;
+    } else if (sortDirection === 'desc') {
+      return <ChevronDown className="w-4 h-4 text-blue-600" />;
+    }
+    return <ChevronsUpDown className="w-4 h-4 text-gray-400" />;
+  };
+
   const handleThisPeriodChange = (itemId: string, value: string) => {
     const numericValue = parseFloat(value) || 0;
     onUpdateItem(itemId, numericValue);
@@ -47,9 +102,61 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-16">Item #</TableHead>
-            <TableHead className="min-w-[300px]">Description</TableHead>
-            <TableHead className="w-24">Scheduled Value</TableHead>
+            <TableHead className="w-16">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleSort('itemNumber')}
+                className="h-8 p-0 font-medium hover:bg-transparent"
+              >
+                Item #
+                {getSortIcon('itemNumber')}
+              </Button>
+            </TableHead>
+            <TableHead className="w-32">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleSort('category')}
+                className="h-8 p-0 font-medium hover:bg-transparent"
+              >
+                Category
+                {getSortIcon('category')}
+              </Button>
+            </TableHead>
+            <TableHead className="w-32">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleSort('subcategory')}
+                className="h-8 p-0 font-medium hover:bg-transparent"
+              >
+                Subcategory
+                {getSortIcon('subcategory')}
+              </Button>
+            </TableHead>
+            <TableHead className="min-w-[300px]">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleSort('description')}
+                className="h-8 p-0 font-medium hover:bg-transparent"
+              >
+                Description
+                {getSortIcon('description')}
+              </Button>
+            </TableHead>
+            <TableHead className="w-24">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleSort('scheduledValue')}
+                className="h-8 p-0 font-medium hover:bg-transparent"
+              >
+                Scheduled Value
+                {getSortIcon('scheduledValue')}
+              </Button>
+            </TableHead>
             <TableHead className="w-24">Change Orders</TableHead>
             <TableHead className="w-24">Previous Apps</TableHead>
             <TableHead className="w-32">This Period</TableHead>
@@ -59,10 +166,12 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sovItems.map((item) => (
+          {sortedItems.map((item) => (
             <TableRow key={item.id}>
               <TableCell className="font-medium">{item.itemNumber}</TableCell>
-              <TableCell>{item.subcategory || item.description}</TableCell>
+              <TableCell>{item.category}</TableCell>
+              <TableCell>{item.subcategory}</TableCell>
+              <TableCell>{item.description}</TableCell>
               <TableCell>${item.scheduledValue.toLocaleString()}</TableCell>
               <TableCell>${item.changeOrders.toLocaleString()}</TableCell>
               <TableCell>${item.previousApplications.toLocaleString()}</TableCell>

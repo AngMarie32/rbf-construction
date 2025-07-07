@@ -1,3 +1,4 @@
+
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -6,14 +7,18 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
     console.log('Starting PDF export...');
     
     // Wait for any rendering to complete
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     const g702Element = document.getElementById('g702-document');
     const g703Element = document.getElementById('g703-document');
     
+    console.log('G702 Element found:', !!g702Element);
+    console.log('G703 Element found:', !!g703Element);
+    
     if (!g702Element || !g703Element) {
       console.error('Required elements not found for PDF export');
-      throw new Error('PDF export failed: Required documents not found. Please ensure you are on the correct tab.');
+      console.log('Available elements:', document.querySelectorAll('[id*="g70"]'));
+      throw new Error('PDF export failed: Required documents not found. Please ensure you are viewing the correct tab.');
     }
 
     console.log('Found documents, creating PDF...');
@@ -27,23 +32,23 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
 
     // Enhanced canvas options for better quality
     const canvasOptions = {
-      scale: 2,
+      scale: 3,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
+      removeContainer: true,
+      foreignObjectRendering: false,
       ignoreElements: (element: Element) => {
-        return element.classList.contains('print:hidden');
+        return element.classList.contains('print:hidden') || 
+               element.tagName === 'BUTTON' ||
+               element.classList.contains('no-print');
       }
     };
 
     // Capture G702
     console.log('Capturing G702...');
-    const g702Canvas = await html2canvas(g702Element, {
-      ...canvasOptions,
-      width: g702Element.scrollWidth,
-      height: g702Element.scrollHeight,
-    });
+    const g702Canvas = await html2canvas(g702Element, canvasOptions);
 
     // Add G702 to PDF
     const g702ImgData = g702Canvas.toDataURL('image/png', 1.0);
@@ -66,11 +71,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
 
     // Capture G703
     console.log('Capturing G703...');
-    const g703Canvas = await html2canvas(g703Element, {
-      ...canvasOptions,
-      width: g703Element.scrollWidth,
-      height: g703Element.scrollHeight,
-    });
+    const g703Canvas = await html2canvas(g703Element, canvasOptions);
 
     const g703ImgData = g703Canvas.toDataURL('image/png', 1.0);
     const g703ImgWidth = pageWidth - 0.5;
@@ -102,24 +103,32 @@ export const exportToPDF = async (elementId: string, filename: string) => {
     console.log(`Exporting element ${elementId} to PDF...`);
     
     // Wait for rendering to complete
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     const element = document.getElementById(elementId);
+    console.log(`Element ${elementId} found:`, !!element);
+    
     if (!element) {
+      console.error(`Element with ID '${elementId}' not found`);
+      console.log('Available elements with IDs:', Array.from(document.querySelectorAll('[id]')).map(el => el.id));
       throw new Error(`Element with ID '${elementId}' not found`);
     }
 
     console.log('Capturing element...');
     const canvas = await html2canvas(element, {
-      scale: 2,
+      scale: 3,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       width: element.scrollWidth,
       height: element.scrollHeight,
       logging: false,
+      removeContainer: true,
+      foreignObjectRendering: false,
       ignoreElements: (element) => {
-        return element.classList.contains('print:hidden');
+        return element.classList.contains('print:hidden') ||
+               element.tagName === 'BUTTON' ||
+               element.classList.contains('no-print');
       }
     });
 

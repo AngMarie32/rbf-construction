@@ -275,18 +275,76 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
       console.log('Starting PDF export from dialog...');
       
       // Wait for DOM to be ready
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Check if elements exist
-      const g702Element = document.getElementById('g702-document');
-      const g703Element = document.getElementById('g703-document');
+      // Check current active tab
+      const activeTab = document.querySelector('[data-state="active"][role="tabpanel"]');
+      const tabValue = activeTab?.getAttribute('data-value') || 'form';
       
-      if (!g702Element || !g703Element) {
-        console.error('Required elements not found:', { g702Element, g703Element });
-        throw new Error('Documents not ready for export. Please try again.');
+      console.log('Active tab:', tabValue);
+      
+      if (tabValue === 'sov') {
+        // Export SOV table
+        const sovElement = document.querySelector('.space-y-4');
+        if (!sovElement) {
+          throw new Error('Schedule of Values table not found. Please ensure you are on the SOV tab.');
+        }
+        
+        // Create a wrapper for the SOV export
+        const wrapper = document.createElement('div');
+        wrapper.id = 'sov-export-wrapper';
+        wrapper.style.position = 'absolute';
+        wrapper.style.left = '-9999px';
+        wrapper.style.background = 'white';
+        wrapper.style.padding = '20px';
+        wrapper.style.width = '1200px';
+        wrapper.innerHTML = `
+          <h1 style="text-align: center; margin-bottom: 20px; font-size: 24px; font-weight: bold;">
+            Schedule of Values - Application #${formData.applicationNumber}
+          </h1>
+          <div style="margin-bottom: 20px;">
+            <p><strong>Project:</strong> ${project?.name || 'N/A'}</p>
+            <p><strong>Period To:</strong> ${new Date(formData.periodTo).toLocaleDateString()}</p>
+          </div>
+          ${sovElement.outerHTML}
+        `;
+        
+        document.body.appendChild(wrapper);
+        
+        try {
+          await exportToPDF('sov-export-wrapper', `SOV-App-${formData.applicationNumber}.pdf`);
+        } finally {
+          document.body.removeChild(wrapper);
+        }
+        
+      } else if (tabValue === 'g702') {
+        // Export G702 only
+        const g702Element = document.getElementById('g702-document');
+        if (!g702Element) {
+          throw new Error('G702 document not found. Please ensure you are on the G702 tab.');
+        }
+        await exportToPDF('g702-document', `G702-App-${formData.applicationNumber}.pdf`);
+        
+      } else if (tabValue === 'g703') {
+        // Export G703 only
+        const g703Element = document.getElementById('g703-document');
+        if (!g703Element) {
+          throw new Error('G703 document not found. Please ensure you are on the G703 tab.');
+        }
+        await exportToPDF('g703-document', `G703-App-${formData.applicationNumber}.pdf`);
+        
+      } else {
+        // Default: try to export both G702 and G703
+        const g702Element = document.getElementById('g702-document');
+        const g703Element = document.getElementById('g703-document');
+        
+        if (!g702Element || !g703Element) {
+          throw new Error('G702/G703 documents not found. Please navigate to the preview tabs first.');
+        }
+        
+        await exportG702G703ToPDF(`G702-G703-App-${formData.applicationNumber}.pdf`);
       }
       
-      await exportG702G703ToPDF(`G702-G703-App-${formData.applicationNumber}.pdf`);
       toast.success('PDF exported successfully');
     } catch (error) {
       console.error('Error exporting PDF:', error);
@@ -315,7 +373,7 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
             <TabsTrigger value="g703">G703 Preview</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="form" className="space-y-4">
+          <TabsContent value="form" className="space-y-4" data-value="form">
             <Card>
               <CardHeader>
                 <CardTitle>Application Information</CardTitle>
@@ -359,7 +417,7 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
             </Card>
           </TabsContent>
 
-          <TabsContent value="sov">
+          <TabsContent value="sov" data-value="sov">
             <SOVTable
               sovItems={sovItems}
               setSovItems={setSovItems}
@@ -369,7 +427,7 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
             />
           </TabsContent>
 
-          <TabsContent value="g702">
+          <TabsContent value="g702" data-value="g702">
             <div id="g702-document">
               <G702Document
                 project={project}
@@ -379,7 +437,7 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
             </div>
           </TabsContent>
 
-          <TabsContent value="g703">
+          <TabsContent value="g703" data-value="g703">
             <div id="g703-document">
               <G703Document
                 project={project}
