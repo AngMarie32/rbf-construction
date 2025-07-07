@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -351,6 +352,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         project_id: projectId,
         item_number: String(index + 1).padStart(3, '0'),
         category: item.category || 'General',
+        subcategory: item.subcategory || null,
         description: item.description || item.category || 'Imported from Bid',
         scheduled_value: (item.unitCost || 0) * (item.quantity || 1),
         previous_applications: 0,

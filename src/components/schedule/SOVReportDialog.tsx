@@ -29,86 +29,115 @@ export function SOVReportDialog({ open, onOpenChange, projectData, sovItems }: S
       reportElement.style.position = 'absolute';
       reportElement.style.left = '-9999px';
       reportElement.style.background = 'white';
-      reportElement.style.padding = '60px';
+      reportElement.style.padding = '60px 40px';
       reportElement.style.width = '800px';
       reportElement.style.fontFamily = 'Arial, sans-serif';
       
-      reportElement.innerHTML = `
-        <div style="text-align: center; margin-bottom: 40px;">
-          <h1 style="font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 10px;">SCHEDULE OF VALUES</h1>
-          <div style="width: 100%; height: 2px; background-color: #3b82f6; margin: 20px 0;"></div>
-        </div>
+      // Split items into chunks for multiple pages (20 items per page)
+      const itemsPerPage = 20;
+      const pageChunks = [];
+      for (let i = 0; i < sovItems.length; i += itemsPerPage) {
+        pageChunks.push(sovItems.slice(i, i + itemsPerPage));
+      }
 
-        <div style="margin-bottom: 40px;">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
-            <div>
-              <h3 style="font-size: 16px; font-weight: bold; color: #374151; margin-bottom: 15px;">PROJECT INFORMATION</h3>
-              <table style="width: 100%; font-size: 12px;">
-                <tr><td style="padding: 4px 0; font-weight: bold;">Project Name:</td><td style="padding: 4px 0;">${projectData?.name || 'N/A'}</td></tr>
-                <tr><td style="padding: 4px 0; font-weight: bold;">Project Code:</td><td style="padding: 4px 0;">${projectData?.project_code || 'N/A'}</td></tr>
-                <tr><td style="padding: 4px 0; font-weight: bold;">Client:</td><td style="padding: 4px 0;">${projectData?.client || 'N/A'}</td></tr>
-                <tr><td style="padding: 4px 0; font-weight: bold;">Status:</td><td style="padding: 4px 0;">${projectData?.status || 'N/A'}</td></tr>
-                <tr><td style="padding: 4px 0; font-weight: bold;">Address:</td><td style="padding: 4px 0;">${projectData?.address || 'N/A'}</td></tr>
-              </table>
-            </div>
-            <div>
-              <h3 style="font-size: 16px; font-weight: bold; color: #374151; margin-bottom: 15px;">CONTRACT SUMMARY</h3>
-              <table style="width: 100%; font-size: 12px;">
-                <tr><td style="padding: 4px 0; font-weight: bold;">Original Contract Sum:</td><td style="padding: 4px 0; text-align: right;">$${totalScheduledValue.toLocaleString()}</td></tr>
-                <tr><td style="padding: 4px 0; font-weight: bold;">Net Change Orders:</td><td style="padding: 4px 0; text-align: right;">$${(projectData?.net_change_orders || 0).toLocaleString()}</td></tr>
-                <tr><td style="padding: 4px 0; font-weight: bold;">Contract Sum to Date:</td><td style="padding: 4px 0; text-align: right;">$${(totalScheduledValue + (projectData?.net_change_orders || 0)).toLocaleString()}</td></tr>
-                <tr><td style="padding: 4px 0; font-weight: bold;">Total Completed:</td><td style="padding: 4px 0; text-align: right;">$${totalCompleted.toLocaleString()}</td></tr>
-                <tr><td style="padding: 4px 0; font-weight: bold;">Balance to Finish:</td><td style="padding: 4px 0; text-align: right;">$${(totalScheduledValue - totalCompleted).toLocaleString()}</td></tr>
-              </table>
-            </div>
-          </div>
-        </div>
+      let reportHTML = '';
 
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 10px;">
-          <thead>
-            <tr style="background-color: #f8fafc;">
-              <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-weight: bold;">Item No.</th>
-              <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-weight: bold;">Description of Work</th>
-              <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">Scheduled Value</th>
-              <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">Work Completed<br>& Stored to Date</th>
-              <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">% Complete</th>
-              <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">Balance to<br>Finish</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${sovItems.map(item => {
-              const balance = (item.scheduled_value || 0) - (item.total_completed_and_stored || 0);
-              return `
-                <tr>
-                  <td style="border: 1px solid #d1d5db; padding: 6px; font-weight: bold;">${item.item_number}</td>
-                  <td style="border: 1px solid #d1d5db; padding: 6px;">${item.description}</td>
-                  <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${(item.scheduled_value || 0).toLocaleString()}</td>
-                  <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${(item.total_completed_and_stored || 0).toLocaleString()}</td>
-                  <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${item.percent_complete || 0}%</td>
-                  <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${balance.toLocaleString()}</td>
+      pageChunks.forEach((pageItems, pageIndex) => {
+        if (pageIndex > 0) {
+          reportHTML += '<div style="page-break-before: always;"></div>';
+        }
+
+        reportHTML += `
+          <div style="margin-bottom: 40px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 10px;">SCHEDULE OF VALUES</h1>
+              <div style="width: 100%; height: 2px; background-color: #3b82f6; margin: 20px 0;"></div>
+              ${pageIndex > 0 ? `<p style="font-size: 14px; color: #6b7280;">Page ${pageIndex + 1} of ${pageChunks.length}</p>` : ''}
+            </div>
+
+            ${pageIndex === 0 ? `
+            <div style="margin-bottom: 40px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
+                <div>
+                  <h3 style="font-size: 16px; font-weight: bold; color: #374151; margin-bottom: 15px;">PROJECT INFORMATION</h3>
+                  <table style="width: 100%; font-size: 12px;">
+                    <tr><td style="padding: 4px 0; font-weight: bold;">Project Name:</td><td style="padding: 4px 0;">${projectData?.name || 'N/A'}</td></tr>
+                    <tr><td style="padding: 4px 0; font-weight: bold;">Project Code:</td><td style="padding: 4px 0;">${projectData?.project_code || 'N/A'}</td></tr>
+                    <tr><td style="padding: 4px 0; font-weight: bold;">Client:</td><td style="padding: 4px 0;">${projectData?.client || 'N/A'}</td></tr>
+                    <tr><td style="padding: 4px 0; font-weight: bold;">Status:</td><td style="padding: 4px 0;">${projectData?.status || 'N/A'}</td></tr>
+                    <tr><td style="padding: 4px 0; font-weight: bold;">Address:</td><td style="padding: 4px 0;">${projectData?.address || 'N/A'}</td></tr>
+                  </table>
+                </div>
+                <div>
+                  <h3 style="font-size: 16px; font-weight: bold; color: #374151; margin-bottom: 15px;">CONTRACT SUMMARY</h3>
+                  <table style="width: 100%; font-size: 12px;">
+                    <tr><td style="padding: 4px 0; font-weight: bold;">Original Contract Sum:</td><td style="padding: 4px 0; text-align: right;">$${totalScheduledValue.toLocaleString()}</td></tr>
+                    <tr><td style="padding: 4px 0; font-weight: bold;">Net Change Orders:</td><td style="padding: 4px 0; text-align: right;">$${(projectData?.net_change_orders || 0).toLocaleString()}</td></tr>
+                    <tr><td style="padding: 4px 0; font-weight: bold;">Contract Sum to Date:</td><td style="padding: 4px 0; text-align: right;">$${(totalScheduledValue + (projectData?.net_change_orders || 0)).toLocaleString()}</td></tr>
+                    <tr><td style="padding: 4px 0; font-weight: bold;">Total Completed:</td><td style="padding: 4px 0; text-align: right;">$${totalCompleted.toLocaleString()}</td></tr>
+                    <tr><td style="padding: 4px 0; font-weight: bold;">Balance to Finish:</td><td style="padding: 4px 0; text-align: right;">$${(totalScheduledValue - totalCompleted).toLocaleString()}</td></tr>
+                  </table>
+                </div>
+              </div>
+            </div>
+            ` : ''}
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 9px;">
+              <thead>
+                <tr style="background-color: #f8fafc;">
+                  <th style="border: 1px solid #d1d5db; padding: 6px; text-align: left; font-weight: bold;">Item No.</th>
+                  <th style="border: 1px solid #d1d5db; padding: 6px; text-align: left; font-weight: bold;">Description of Work</th>
+                  <th style="border: 1px solid #d1d5db; padding: 6px; text-align: left; font-weight: bold;">Category</th>
+                  <th style="border: 1px solid #d1d5db; padding: 6px; text-align: left; font-weight: bold;">Subcategory</th>
+                  <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right; font-weight: bold;">Scheduled Value</th>
+                  <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right; font-weight: bold;">Work Completed<br>& Stored to Date</th>
+                  <th style="border: 1px solid #d1d5db; padding: 6px; text-align: center; font-weight: bold;">% Complete</th>
+                  <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right; font-weight: bold;">Balance to<br>Finish</th>
                 </tr>
-              `;
-            }).join('')}
-          </tbody>
-          <tfoot>
-            <tr style="background-color: #f8fafc; font-weight: bold;">
-              <td colspan="2" style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">TOTALS:</td>
-              <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">$${totalScheduledValue.toLocaleString()}</td>
-              <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">$${totalCompleted.toLocaleString()}</td>
-              <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${completionPercentage}%</td>
-              <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">$${(totalScheduledValue - totalCompleted).toLocaleString()}</td>
-            </tr>
-          </tfoot>
-        </table>
+              </thead>
+              <tbody>
+                ${pageItems.map(item => {
+                  const balance = (item.scheduled_value || 0) - (item.total_completed_and_stored || 0);
+                  return `
+                    <tr>
+                      <td style="border: 1px solid #d1d5db; padding: 4px; font-weight: bold;">${item.item_number}</td>
+                      <td style="border: 1px solid #d1d5db; padding: 4px; max-width: 200px; word-wrap: break-word;">${item.description}</td>
+                      <td style="border: 1px solid #d1d5db; padding: 4px;">${item.category}</td>
+                      <td style="border: 1px solid #d1d5db; padding: 4px;">${item.subcategory || '-'}</td>
+                      <td style="border: 1px solid #d1d5db; padding: 4px; text-align: right;">$${(item.scheduled_value || 0).toLocaleString()}</td>
+                      <td style="border: 1px solid #d1d5db; padding: 4px; text-align: right;">$${(item.total_completed_and_stored || 0).toLocaleString()}</td>
+                      <td style="border: 1px solid #d1d5db; padding: 4px; text-align: center;">${item.percent_complete || 0}%</td>
+                      <td style="border: 1px solid #d1d5db; padding: 4px; text-align: right;">$${balance.toLocaleString()}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+              ${pageIndex === pageChunks.length - 1 ? `
+              <tfoot>
+                <tr style="background-color: #f8fafc; font-weight: bold;">
+                  <td colspan="4" style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">TOTALS:</td>
+                  <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${totalScheduledValue.toLocaleString()}</td>
+                  <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${totalCompleted.toLocaleString()}</td>
+                  <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${completionPercentage}%</td>
+                  <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${(totalScheduledValue - totalCompleted).toLocaleString()}</td>
+                </tr>
+              </tfoot>
+              ` : ''}
+            </table>
 
-        <div style="margin-top: 50px; text-align: center; color: #6b7280; font-size: 10px;">
-          <p>Report generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-          <div style="margin-top: 20px; font-size: 9px;">
-            <p>This Schedule of Values represents the breakdown of work items and their completion status for the above-referenced project.</p>
+            ${pageIndex === pageChunks.length - 1 ? `
+            <div style="margin-top: 50px; text-align: center; color: #6b7280; font-size: 10px;">
+              <p>Report generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+              <div style="margin-top: 20px; font-size: 9px;">
+                <p>This Schedule of Values represents the breakdown of work items and their completion status for the above-referenced project.</p>
+              </div>
+            </div>
+            ` : ''}
           </div>
-        </div>
-      `;
+        `;
+      });
 
+      reportElement.innerHTML = reportHTML;
       document.body.appendChild(reportElement);
       
       await exportToPDF('sov-report', `SOV-Report-${projectData?.name?.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`);
@@ -186,6 +215,7 @@ export function SOVReportDialog({ open, onOpenChange, projectData, sovItems }: S
 
             <div className="text-center text-sm text-gray-600">
               <p>Preview of SOV report with {sovItems.length} line items</p>
+              <p className="text-xs mt-1">Report will span multiple pages for optimal readability</p>
             </div>
           </div>
 

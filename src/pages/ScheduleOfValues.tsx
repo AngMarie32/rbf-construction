@@ -177,7 +177,8 @@ export default function ScheduleOfValues() {
   const filteredItems = sovItems.filter(item =>
     item.item_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category?.toLowerCase().includes(searchTerm.toLowerCase())
+    item.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.subcategory?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalScheduledValue = sovItems.reduce((sum, item) => sum + (Number(item.scheduled_value) || 0), 0);
@@ -289,6 +290,7 @@ export default function ScheduleOfValues() {
                           <th className="border border-gray-200 px-4 py-2 text-left">#</th>
                           <th className="border border-gray-200 px-4 py-2 text-left">Description</th>
                           <th className="border border-gray-200 px-4 py-2 text-left">Category</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Subcategory</th>
                           <th className="border border-gray-200 px-4 py-2 text-right">Scheduled Value</th>
                           <th className="border border-gray-200 px-4 py-2 text-right">Work Completed</th>
                           <th className="border border-gray-200 px-4 py-2 text-right">Materials Stored</th>
@@ -303,6 +305,13 @@ export default function ScheduleOfValues() {
                             <td className="border border-gray-200 px-4 py-2">{item.description}</td>
                             <td className="border border-gray-200 px-4 py-2">
                               <Badge variant="outline">{item.category}</Badge>
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              {item.subcategory && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {item.subcategory}
+                                </Badge>
+                              )}
                             </td>
                             <td className="border border-gray-200 px-4 py-2 text-right font-medium">
                               ${(Number(item.scheduled_value) || 0).toLocaleString()}
