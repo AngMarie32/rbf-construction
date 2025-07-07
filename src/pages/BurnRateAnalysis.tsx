@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { supabase } from '@/integrations/supabase/client';
-import { exportToPDF, exportCSV } from '@/utils/pdfExport';
+import { exportToPDF, exportToCSV } from '@/utils/pdfExport';
 import { BurnAnalysisFilters } from '@/components/burn-analysis/BurnAnalysisFilters';
 import { BurnAnalysisSummary } from '@/components/burn-analysis/BurnAnalysisSummary';
 import { EnhancedBurnChart } from '@/components/burn-analysis/EnhancedBurnChart';
@@ -164,7 +163,7 @@ export default function BurnRateAnalysis() {
         Status: cat.status
       }))
     ];
-    exportCSV(exportData, 'enhanced-burn-rate-analysis.csv');
+    exportToCSV(exportData, 'enhanced-burn-rate-analysis.csv');
   };
 
   if (loading && selectedProjects.length === 0) {
