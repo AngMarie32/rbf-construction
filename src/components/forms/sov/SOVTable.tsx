@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -70,10 +69,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
   };
 
   const handleDeleteSOVItem = async (itemId: string) => {
-    if (!confirm('Are you sure you want to delete this SOV item?')) {
-      return;
-    }
-
+    // Remove confirmation dialog - just delete directly
     try {
       const { error } = await supabase
         .from('sov_items')
@@ -95,10 +91,10 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
       case 'line-items':
         return sovItems.filter(item => item.description?.trim() || (item.scheduledValue > 0)).map(item => ({
           ...item,
-          displayDescription: item.subcategory || item.description,
+          displayDescription: item.description || item.subcategory || 'No Description',
           displayCategory: item.category,
           displayDivision: getDivisionFromCategory(item.category),
-          displaySubcategory: item.subcategory || 'N/A'
+          displaySubcategory: item.subcategory || item.category || 'N/A'
         }));
       
       case 'category':
@@ -397,7 +393,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                   {getSortIcon('subcategory')}
                 </Button>
               </TableHead>
-              <TableHead className="w-48 p-2">
+              <TableHead className="w-32 p-2">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -437,7 +433,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                 <TableCell className="p-2 text-sm">{item.displayDivision}</TableCell>
                 <TableCell className="p-2 text-sm">{item.displayCategory}</TableCell>
                 <TableCell className="p-2 text-sm">{item.displaySubcategory}</TableCell>
-                <TableCell className="p-2 text-sm max-w-48 truncate" title={item.displayDescription}>{item.displayDescription}</TableCell>
+                <TableCell className="p-2 text-sm max-w-32 truncate" title={item.displayDescription}>{item.displayDescription}</TableCell>
                 <TableCell className="p-2 text-right text-sm">${item.scheduledValue?.toLocaleString()}</TableCell>
                 <TableCell className="p-2 text-right text-sm">${item.changeOrders?.toLocaleString()}</TableCell>
                 <TableCell className="p-2 text-right text-sm">${item.previousApplications?.toLocaleString()}</TableCell>

@@ -19,6 +19,7 @@ interface BidItem {
   unit: string;
   unitCost: number;
   total: number;
+  divisionManuallySet?: boolean; // Track if user manually set division
 }
 
 interface BidItemFormProps {
@@ -400,7 +401,6 @@ interface SearchableSelectProps {
 export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProps) {
   const currentItems = items;
 
-  // Set up real-time subscription for bid items
   useEffect(() => {
     if (!projectId) return;
 
@@ -452,7 +452,8 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
             quantity: item.quantity || 1,
             unit: item.unit || 'each',
             unitCost: item.unit_cost || 0,
-            total: (item.unit_cost || 0) * (item.quantity || 1)
+            total: (item.unit_cost || 0) * (item.quantity || 1),
+            divisionManuallySet: false // Default to false for loaded items
           };
         });
 
@@ -473,7 +474,8 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
       quantity: 1,
       unit: 'each',
       unitCost: 0,
-      total: 0
+      total: 0,
+      divisionManuallySet: false
     };
     const updatedItems = [newItem, ...currentItems];
     onItemsChange(updatedItems);
@@ -484,9 +486,12 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
       if (item.id === id) {
         const updated = { ...item, [field]: value };
         
-        // Only auto-update division based on category if user hasn't manually set it
-        if (field === 'category' && value) {
+        if (field === 'category' && value && !item.divisionManuallySet) {
           updated.division = getDivisionFromCategory(value);
+        }
+        
+        if (field === 'division') {
+          updated.divisionManuallySet = true;
         }
         
         if (field === 'quantity' || field === 'unitCost') {
@@ -512,7 +517,6 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
     if (!projectId) return;
     
     try {
-      // Delete all existing items from database
       const { error } = await supabase
         .from('bid_items')
         .delete()
@@ -523,7 +527,6 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
         return;
       }
 
-      // Reset to single empty item
       const emptyItem: BidItem = {
         id: Date.now().toString(),
         division: 'General Conditions',
@@ -533,7 +536,8 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
         quantity: 1,
         unit: 'each',
         unitCost: 0,
-        total: 0
+        total: 0,
+        divisionManuallySet: false
       };
       
       onItemsChange([emptyItem]);
@@ -584,7 +588,6 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
       <CardContent>
         <div className="w-full">
           <div className="min-w-full">
-            {/* Header Row */}
             <div className="grid grid-cols-12 gap-2 pb-3 mb-3 text-xs font-semibold text-gray-700 bg-gray-50 px-3 py-3 rounded">
               <div className="col-span-1">Division</div>
               <div className="col-span-2">Category</div>
@@ -596,7 +599,6 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
               <div className="col-span-1">Total</div>
             </div>
 
-            {/* Item Rows */}
             <div className="space-y-2">
               {currentItems.map((item, index) => (
                 <div key={item.id} className={`grid grid-cols-12 gap-2 items-center py-3 px-3 rounded ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-all duration-200`}>
