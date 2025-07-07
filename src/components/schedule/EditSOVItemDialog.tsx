@@ -25,7 +25,9 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
     scheduled_value: '',
     work_completed_to_date: '',
     materials_stored: '',
-    retainage_percentage: '0'
+    retainage_percentage: '0',
+    this_period: '',
+    previous_applications: ''
   });
 
   useEffect(() => {
@@ -38,7 +40,9 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
         scheduled_value: sovItem.scheduled_value?.toString() || '',
         work_completed_to_date: sovItem.work_completed_to_date?.toString() || '0',
         materials_stored: sovItem.materials_stored?.toString() || '0',
-        retainage_percentage: sovItem.retainage_percentage?.toString() || '0'
+        retainage_percentage: sovItem.retainage_percentage?.toString() || '0',
+        this_period: sovItem.this_period?.toString() || '0',
+        previous_applications: sovItem.previous_applications?.toString() || '0'
       });
     }
   }, [sovItem]);
@@ -56,7 +60,10 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
         scheduled_value: parseFloat(formData.scheduled_value) || 0,
         work_completed_to_date: parseFloat(formData.work_completed_to_date) || 0,
         materials_stored: parseFloat(formData.materials_stored) || 0,
-        retainage_percentage: parseFloat(formData.retainage_percentage) || 0
+        retainage_percentage: parseFloat(formData.retainage_percentage) || 0,
+        this_period: parseFloat(formData.this_period) || 0,
+        previous_applications: parseFloat(formData.previous_applications) || 0,
+        updated_at: new Date().toISOString()
       };
 
       console.log('Updating SOV item with data:', updateData);
@@ -84,7 +91,7 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit SOV Item</DialogTitle>
         </DialogHeader>
@@ -106,6 +113,7 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 placeholder="e.g., Site Work"
+                required
               />
             </div>
           </div>
@@ -127,6 +135,7 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Describe the work item..."
+              required
             />
           </div>
 
@@ -140,6 +149,7 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
                 value={formData.scheduled_value}
                 onChange={(e) => setFormData({ ...formData, scheduled_value: e.target.value })}
                 placeholder="0.00"
+                required
               />
             </div>
             <div className="space-y-2">
@@ -157,27 +167,39 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="work_completed_to_date">Work Completed ($)</Label>
+              <Label htmlFor="previous_applications">Previous Applications ($)</Label>
               <Input
-                id="work_completed_to_date"
+                id="previous_applications"
                 type="number"
                 step="0.01"
-                value={formData.work_completed_to_date}
-                onChange={(e) => setFormData({ ...formData, work_completed_to_date: e.target.value })}
+                value={formData.previous_applications}
+                onChange={(e) => setFormData({ ...formData, previous_applications: e.target.value })}
                 placeholder="0.00"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="materials_stored">Materials Stored ($)</Label>
+              <Label htmlFor="this_period">This Period ($)</Label>
               <Input
-                id="materials_stored"
+                id="this_period"
                 type="number"
                 step="0.01"
-                value={formData.materials_stored}
-                onChange={(e) => setFormData({ ...formData, materials_stored: e.target.value })}
+                value={formData.this_period}
+                onChange={(e) => setFormData({ ...formData, this_period: e.target.value })}
                 placeholder="0.00"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="materials_stored">Materials Stored ($)</Label>
+            <Input
+              id="materials_stored"
+              type="number"
+              step="0.01"
+              value={formData.materials_stored}
+              onChange={(e) => setFormData({ ...formData, materials_stored: e.target.value })}
+              placeholder="0.00"
+            />
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

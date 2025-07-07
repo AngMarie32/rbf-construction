@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,7 @@ interface SOVItem {
   totalCompletedAndStored: number;
   percentComplete: number;
   category: string;
+  subcategory?: string;
 }
 
 interface SOVTableProps {
@@ -32,14 +34,16 @@ interface SOVTableProps {
 export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication, onUpdateItem }: SOVTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [newSOVItem, setNewSOVItem] = useState<null | { itemNumber: string, description: string, scheduledValue: number, category: string }>(null);
+  const [newSOVItem, setNewSOVItem] = useState<null | { itemNumber: string, description: string, scheduledValue: number, category: string, subcategory?: string }>(null);
   const [loading, setLoading] = useState(false);
 
   const categories = ['all', ...Array.from(new Set(sovItems.map(item => item.category)))];
   
   const filteredItems = sovItems.filter(item => {
     const matchesSearch = item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.itemNumber.toLowerCase().includes(searchTerm.toLowerCase());
+                         item.itemNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (item.subcategory && item.subcategory.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -101,12 +105,12 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
 
   const handleAddNewItem = () => {
     const nextItemNumber = sovItems.length > 0 ? String(Math.max(...sovItems.map(i => Number(i.itemNumber)).filter(Number.isFinite)) + 1) : "1";
-    setNewSOVItem({ itemNumber: nextItemNumber, description: '', scheduledValue: 0, category: 'General' });
+    setNewSOVItem({ itemNumber: nextItemNumber, description: '', scheduledValue: 0, category: 'General', subcategory: '' });
   };
 
   const handleSaveNewItem = async () => {
     if (!newSOVItem || !newSOVItem.description || newSOVItem.scheduledValue <= 0) {
-      toast.error("Please fill all fields for the new item.");
+      toast.error("Please fill all required fields for the new item.");
       return;
     }
     
@@ -117,7 +121,8 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
         item_number: newSOVItem.itemNumber,
         description: newSOVItem.description,
         scheduled_value: newSOVItem.scheduledValue,
-        category: newSOVItem.category
+        category: newSOVItem.category,
+        subcategory: newSOVItem.subcategory || null
       }).select().single();
 
       if (error) throw error;
@@ -133,7 +138,8 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
         materialsStored: 0,
         totalCompletedAndStored: 0,
         percentComplete: 0,
-        category: data.category
+        category: data.category,
+        subcategory: data.subcategory
       };
       setSovItems([...sovItems, mappedItem]);
       setNewSOVItem(null);
@@ -143,6 +149,25 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle updates with real-time sync
+  const handleUpdateItemValue = async (itemId: string, value: number) => {
+    try {
+      // Update locally first for immediate UI feedback
+      onUpdateItem(itemId, value);
+      
+      // Update in database
+      const { error } = await supabase
+        .from('sov_items')
+        .update({ this_period: value })
+        .eq('id', itemId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating SOV item:', error);
+      toast.error('Failed to update SOV item');
     }
   };
 
@@ -186,7 +211,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 border rounded-md bg-background"
+            className="px-3 py-2 border rounded-md bg-background min-w-48"
           >
             {categories.map(category => (
               <option key={category} value={category}>
@@ -199,134 +224,232 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
       
       <CardContent>
         <div className="space-y-4">
-          {/* Table Header */}
-          <div className="grid grid-cols-9 gap-4 text-sm font-medium border-b pb-2 bg-gray-50 p-2 rounded">
-            <div>Item & Description</div>
-            <div>Scheduled Value</div>
-            <div>Change Orders</div>
-            <div>Total Contract</div>
-            <div>Work This Period</div>
-            <div>Total Completed</div>
-            <div>% Complete</div>
-            <div>Balance to Finish</div>
-            <div>Actions</div>
-          </div>
+          {/* Improved Table with Better Column Alignment */}
+          <div className="overflow-x-auto border rounded-lg">
+            <table className="w-full table-fixed">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="w-16 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                    Item #
+                  </th>
+                  <th className="w-24 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                    Category
+                  </th>
+                  <th className="w-24 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                    Subcategory
+                  </th>
+                  <th className="w-48 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                    Description
+                  </th>
+                  <th className="w-28 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                    Scheduled Value
+                  </th>
+                  <th className="w-24 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                    Change Orders
+                  </th>
+                  <th className="w-28 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                    Total Contract
+                  </th>
+                  <th className="w-28 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                    Work This Period
+                  </th>
+                  <th className="w-28 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                    Total Completed
+                  </th>
+                  <th className="w-24 px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                    % Complete
+                  </th>
+                  <th className="w-28 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                    Balance to Finish
+                  </th>
+                  <th className="w-20 px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredItems.map((item) => {
+                  const totalContract = (item.scheduledValue || 0) + (item.changeOrders || 0);
+                  const totalCompleted = (item.previousApplications || 0) + (item.thisPeriod || 0) + (item.materialsStored || 0);
+                  const percentComplete = totalContract > 0 ? (totalCompleted / totalContract) * 100 : 0;
+                  const balanceToFinish = totalContract - totalCompleted;
+                  
+                  return (
+                    <tr key={item.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-4 text-sm border-r">
+                        <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-center font-medium">
+                          {item.itemNumber}
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 text-sm border-r">
+                        <div className="text-gray-900 font-medium truncate" title={item.category}>
+                          {item.category}
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 text-sm border-r">
+                        <div className="text-gray-600 truncate" title={item.subcategory || '-'}>
+                          {item.subcategory || '-'}
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 text-sm border-r">
+                        <div className="text-gray-900 line-clamp-2" title={item.description}>
+                          {item.description}
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 text-sm text-right font-mono border-r">
+                        ${(item.scheduledValue || 0).toLocaleString()}
+                      </td>
+                      <td className="px-3 py-4 text-sm text-right font-mono text-green-600 border-r">
+                        ${(item.changeOrders || 0).toLocaleString()}
+                      </td>
+                      <td className="px-3 py-4 text-sm text-right font-mono font-medium border-r">
+                        ${totalContract.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-4 text-sm border-r">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={item.thisPeriod || 0}
+                          onChange={(e) => handleUpdateItemValue(item.id, Number(e.target.value) || 0)}
+                          className="w-full text-sm text-right font-mono"
+                          disabled={selectedApplication !== 'current'}
+                        />
+                      </td>
+                      <td className="px-3 py-4 text-sm text-right font-mono border-r">
+                        ${totalCompleted.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-4 text-sm border-r">
+                        <div className="flex items-center justify-center">
+                          <div className="w-full bg-gray-200 rounded-full h-2 mr-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full" 
+                              style={{ width: `${Math.min(percentComplete, 100)}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs font-medium min-w-12 text-right">
+                            {percentComplete.toFixed(1)}%
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 text-sm text-right font-mono border-r">
+                        ${balanceToFinish.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-4 text-sm text-center">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleDeleteSOVItem(item.id)} 
+                          className="text-red-500 hover:text-red-700 h-8 w-8"
+                          disabled={loading}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
 
-          {/* SOV Items */}
-          <div className="max-h-96 overflow-y-auto space-y-2">
-            {filteredItems.map((item) => {
-              const totalContract = (item.scheduledValue || 0) + (item.changeOrders || 0);
-              const totalCompleted = (item.previousApplications || 0) + (item.thisPeriod || 0) + (item.materialsStored || 0);
-              const percentComplete = totalContract > 0 ? (totalCompleted / totalContract) * 100 : 0;
-              const balanceToFinish = totalContract - totalCompleted;
-              
-              return (
-                <div key={item.id} className="grid grid-cols-9 gap-2 items-center text-sm border-b pb-2 hover:bg-gray-50 p-2 rounded">
-                  <div className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">{item.itemNumber}</span>
-                      <Badge variant="outline" className="text-xs">{item.category}</Badge>
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1 line-clamp-2">{item.description}</div>
-                  </div>
-                  <div className="font-mono">${(item.scheduledValue || 0).toLocaleString()}</div>
-                  <div className="font-mono text-green-600">${(item.changeOrders || 0).toLocaleString()}</div>
-                  <div className="font-medium font-mono">${totalContract.toLocaleString()}</div>
-                  <div>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={item.thisPeriod || 0}
-                      onChange={(e) => onUpdateItem(item.id, Number(e.target.value) || 0)}
-                      className="w-full text-sm"
-                      disabled={selectedApplication !== 'current'}
-                    />
-                  </div>
-                  <div className="font-mono">${totalCompleted.toLocaleString()}</div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full" 
-                          style={{ width: `${Math.min(percentComplete, 100)}%` }}
-                        ></div>
+                {/* New Item Row */}
+                {newSOVItem && (
+                  <tr className="bg-blue-50 border-2 border-blue-200">
+                    <td className="px-3 py-4 text-sm border-r">
+                      <Input
+                        value={newSOVItem.itemNumber}
+                        onChange={(e) => setNewSOVItem({ ...newSOVItem, itemNumber: e.target.value })}
+                        placeholder="Item #"
+                        className="h-8 text-center"
+                      />
+                    </td>
+                    <td className="px-3 py-4 text-sm border-r">
+                      <Input
+                        value={newSOVItem.category}
+                        onChange={(e) => setNewSOVItem({ ...newSOVItem, category: e.target.value })}
+                        placeholder="Category"
+                        className="h-8"
+                      />
+                    </td>
+                    <td className="px-3 py-4 text-sm border-r">
+                      <Input
+                        value={newSOVItem.subcategory || ''}
+                        onChange={(e) => setNewSOVItem({ ...newSOVItem, subcategory: e.target.value })}
+                        placeholder="Subcategory"
+                        className="h-8"
+                      />
+                    </td>
+                    <td className="px-3 py-4 text-sm border-r">
+                      <Input
+                        value={newSOVItem.description}
+                        onChange={(e) => setNewSOVItem({ ...newSOVItem, description: e.target.value })}
+                        placeholder="Description"
+                        className="h-8"
+                      />
+                    </td>
+                    <td className="px-3 py-4 text-sm border-r">
+                      <Input
+                        type="number"
+                        value={newSOVItem.scheduledValue}
+                        onChange={(e) => setNewSOVItem({ ...newSOVItem, scheduledValue: Number(e.target.value) || 0 })}
+                        placeholder="Value"
+                        className="h-8 text-right"
+                      />
+                    </td>
+                    <td className="px-3 py-4 text-sm text-right text-gray-500 border-r">$0</td>
+                    <td className="px-3 py-4 text-sm text-right font-medium border-r">
+                      ${(newSOVItem.scheduledValue || 0).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-4 text-sm text-right text-gray-500 border-r">$0</td>
+                    <td className="px-3 py-4 text-sm text-right text-gray-500 border-r">$0</td>
+                    <td className="px-3 py-4 text-sm text-center text-gray-500 border-r">0.0%</td>
+                    <td className="px-3 py-4 text-sm text-right font-medium border-r">
+                      ${(newSOVItem.scheduledValue || 0).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-4 text-sm text-center">
+                      <div className="flex gap-1 justify-center">
+                        <Button onClick={handleSaveNewItem} size="sm" className="h-7 text-xs px-2" disabled={loading}>
+                          <Save className="w-3 h-3 mr-1" />
+                          {loading ? 'Saving...' : 'Save'}
+                        </Button>
+                        <Button onClick={() => setNewSOVItem(null)} variant="ghost" size="sm" className="h-7 text-xs px-2">
+                          <X className="w-3 h-3 mr-1" />
+                          Cancel
+                        </Button>
                       </div>
-                      <span className="text-xs">{percentComplete.toFixed(1)}%</span>
-                    </div>
-                  </div>
-                  <div className="font-mono">${balanceToFinish.toLocaleString()}</div>
-                  <div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => handleDeleteSOVItem(item.id)} 
-                      className="text-red-500 hover:text-red-700 h-8 w-8"
-                      disabled={loading}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* New Item Row */}
-            {newSOVItem && (
-              <div className="grid grid-cols-9 gap-2 items-center text-sm border-2 border-blue-200 bg-blue-50 p-2 rounded">
-                <div>
-                  <Input
-                    value={newSOVItem.itemNumber}
-                    onChange={(e) => setNewSOVItem({ ...newSOVItem, itemNumber: e.target.value })}
-                    placeholder="Item #"
-                    className="h-8 mb-1"
-                  />
-                  <Input
-                    value={newSOVItem.description}
-                    onChange={(e) => setNewSOVItem({ ...newSOVItem, description: e.target.value })}
-                    placeholder="Description"
-                    className="h-8"
-                  />
-                </div>
-                <div>
-                  <Input
-                    type="number"
-                    value={newSOVItem.scheduledValue}
-                    onChange={(e) => setNewSOVItem({ ...newSOVItem, scheduledValue: Number(e.target.value) || 0 })}
-                    placeholder="Value"
-                    className="h-8"
-                  />
-                </div>
-                <div className="text-gray-500">$0.00</div>
-                <div className="font-medium">${(newSOVItem.scheduledValue || 0).toLocaleString()}</div>
-                <div className="text-gray-500">$0.00</div>
-                <div className="text-gray-500">$0.00</div>
-                <div className="text-gray-500">0.0%</div>
-                <div className="font-medium">${(newSOVItem.scheduledValue || 0).toLocaleString()}</div>
-                <div className="flex gap-1">
-                  <Button onClick={handleSaveNewItem} size="sm" className="h-8 text-xs" disabled={loading}>
-                    <Save className="w-3 h-3 mr-1" />
-                    {loading ? 'Saving...' : 'Save'}
-                  </Button>
-                  <Button onClick={() => setNewSOVItem(null)} variant="ghost" size="sm" className="h-8 text-xs">
-                    <X className="w-3 h-3 mr-1" />
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Totals Row */}
-          <div className="grid grid-cols-9 gap-2 items-center text-sm font-bold border-t-2 pt-4 bg-gray-100 p-3 rounded">
-            <div>TOTALS ({filteredItems.length} items)</div>
-            <div className="font-mono">${totals.totalScheduledValue.toLocaleString()}</div>
-            <div className="font-mono text-green-600">${totals.totalChangeOrders.toLocaleString()}</div>
-            <div className="font-mono">${totals.totalContract.toLocaleString()}</div>
-            <div className="font-mono text-blue-600">${totals.totalThisPeriod.toLocaleString()}</div>
-            <div className="font-mono">${totals.totalCompleted.toLocaleString()}</div>
-            <div>{totals.totalContract > 0 ? ((totals.totalCompleted / totals.totalContract) * 100).toFixed(1) : 0}%</div>
-            <div className="font-mono">${(totals.totalContract - totals.totalCompleted).toLocaleString()}</div>
-            <div></div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+              
+              {/* Totals Row */}
+              <tfoot className="bg-gray-100 border-t-2">
+                <tr className="font-bold">
+                  <td colSpan={4} className="px-3 py-4 text-sm border-r">
+                    TOTALS ({filteredItems.length} items)
+                  </td>
+                  <td className="px-3 py-4 text-sm text-right font-mono border-r">
+                    ${totals.totalScheduledValue.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-4 text-sm text-right font-mono text-green-600 border-r">
+                    ${totals.totalChangeOrders.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-4 text-sm text-right font-mono border-r">
+                    ${totals.totalContract.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-4 text-sm text-right font-mono text-blue-600 border-r">
+                    ${totals.totalThisPeriod.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-4 text-sm text-right font-mono border-r">
+                    ${totals.totalCompleted.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-4 text-sm text-center border-r">
+                    {totals.totalContract > 0 ? ((totals.totalCompleted / totals.totalContract) * 100).toFixed(1) : 0}%
+                  </td>
+                  <td className="px-3 py-4 text-sm text-right font-mono border-r">
+                    ${(totals.totalContract - totals.totalCompleted).toLocaleString()}
+                  </td>
+                  <td className="px-3 py-4 text-sm"></td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         </div>
       </CardContent>
