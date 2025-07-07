@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -124,13 +123,13 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
   };
 
   const fetchCompanyInfo = async () => {
-    // This would typically come from a company settings table
-    // For now, using placeholder data
+    // For now, using RBF Construction info as per user request
+    // This should eventually come from a company settings table
     setCompanyInfo({
-      name: 'Your Construction Company',
-      address: '123 Construction Ave, Builder City, BC 12345',
+      name: 'RBF Construction, Inc.',
+      address: '1411 W. Hill Rd, Flint, MI 48507',
       phone: '(555) 123-4567',
-      email: 'info@yourcompany.com'
+      email: 'info@rbfconstruction.com'
     });
   };
 
@@ -195,18 +194,28 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
   };
 
   const calculateTotals = () => {
+    // Include contingency in contract calculations
+    const originalContractSum = formData.originalContractSum || 0;
+    const contingencyAmount = project?.contingency_type === 'percentage' 
+      ? (originalContractSum * (project?.contingency_value || 0)) / 100
+      : (project?.contingency_value || 0);
+    const contractSumWithContingency = originalContractSum + contingencyAmount;
+    
     const totalCompleted = sovItems.reduce((sum, item) => sum + (item.thisPeriod || 0) + (item.previousApplications || 0), 0);
     const totalRetainage = totalCompleted * (formData.retainagePercentage / 100);
     const totalEarnedLessRetainage = totalCompleted - totalRetainage;
     const currentPaymentDue = totalEarnedLessRetainage - formData.lessPreviousCertificates;
-    const balanceToFinish = formData.contractSumToDate - totalCompleted;
+    const contractSumToDate = contractSumWithContingency + (formData.netChangeByChangeOrders || 0);
+    const balanceToFinish = contractSumToDate - totalCompleted;
 
     return {
+      originalContractSum: contractSumWithContingency,
       totalCompleted,
       totalRetainage,
       totalEarnedLessRetainage,
       currentPaymentDue,
-      balanceToFinish
+      balanceToFinish,
+      contractSumToDate
     };
   };
 

@@ -43,6 +43,8 @@ interface Project {
   client: string;
   address: string;
   projectCode: string;
+  contingency_type?: string;
+  contingency_value?: number;
 }
 
 export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
@@ -324,18 +326,23 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
     console.log('Previous applications found:', previousApps?.length || 0);
     console.log('Previous applications:', previousApps);
 
-    // Calculate from SOV items - this ensures we get the most up-to-date values including change orders
+    // Calculate from SOV items - include contingency in original contract sum
     const originalContractSum = sovItems.reduce((sum, item) => sum + (item.scheduledValue || 0), 0);
+    const contingencyAmount = project?.contingency_type === 'percentage' 
+      ? (originalContractSum * (project?.contingency_value || 0)) / 100
+      : (project?.contingency_value || 0);
+    const contractSumWithContingency = originalContractSum + contingencyAmount;
     const netChangeOrders = sovItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
     
     console.log('Calculated totals from SOV:', {
-      originalContractSum,
+      originalContractSum: contractSumWithContingency,
+      contingencyAmount,
       netChangeOrders,
       sovItemsCount: sovItems.length
     });
     
-    // Contract Sum to Date = Original Contract Sum + Net Change by Change Orders
-    const contractSumToDate = originalContractSum + netChangeOrders;
+    // Contract Sum to Date = Original Contract Sum (with contingency) + Net Change by Change Orders
+    const contractSumToDate = contractSumWithContingency + netChangeOrders;
     
     // Total Completed & Stored to Date = Sum of all SOV item totals for THIS period
     const totalCompletedAndStored = sovItems.reduce((sum, item) => {
@@ -367,7 +374,7 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
     const balanceToFinish = contractSumToDate - totalCompletedAndStored;
 
     const totals = {
-      originalContractSum,
+      originalContractSum: contractSumWithContingency,
       netChangeOrders,
       contractSumToDate,
       totalCompletedAndStored,
@@ -535,10 +542,10 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
               project={project}
               formData={{ ...formData, ...calculatedTotals }}
               companyInfo={{
-                name: 'Your Construction Company',
-                address: '123 Construction Ave, Builder City, BC 12345',
+                name: 'RBF Construction, Inc.',
+                address: '1411 W. Hill Rd, Flint, MI 48507',
                 phone: '(555) 123-4567',
-                email: 'info@yourcompany.com'
+                email: 'info@rbfconstruction.com'
               }}
             />
           )}
@@ -559,10 +566,10 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
             formData={{ ...formData, ...calculatedTotals }}
             sovItems={sovItems}
             companyInfo={{
-              name: 'Your Construction Company',
-              address: '123 Construction Ave, Builder City, BC 12345',
+              name: 'RBF Construction, Inc.',
+              address: '1411 W. Hill Rd, Flint, MI 48507',
               phone: '(555) 123-4567',
-              email: 'info@yourcompany.com'
+              email: 'info@rbfconstruction.com'
             }}
           />
         </div>
