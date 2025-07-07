@@ -125,7 +125,26 @@ export default function ScheduleOfValues() {
     try {
       const { data, error } = await supabase
         .from('sov_items')
-        .select('*')
+        .select(`
+          id,
+          project_id,
+          item_number,
+          category,
+          subcategory,
+          description,
+          scheduled_value,
+          change_orders,
+          previous_applications,
+          this_period,
+          materials_stored,
+          total_completed_and_stored,
+          percent_complete,
+          retainage_percentage,
+          work_completed_from_previous,
+          materials_presently_stored,
+          created_at,
+          updated_at
+        `)
         .eq('project_id', selectedProject)
         .order('item_number', { ascending: true });
 
