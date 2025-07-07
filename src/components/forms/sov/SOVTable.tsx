@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -224,42 +223,42 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
       
       <CardContent>
         <div className="space-y-4">
-          {/* Improved Table with Better Column Alignment */}
+          {/* Improved Table with Better Column Spacing */}
           <div className="overflow-x-auto border rounded-lg">
-            <table className="w-full table-fixed">
+            <table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="w-16 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                  <th className="w-20 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
                     Item #
                   </th>
-                  <th className="w-24 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                  <th className="w-32 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
                     Category
                   </th>
-                  <th className="w-24 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                  <th className="w-32 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
                     Subcategory
                   </th>
-                  <th className="w-48 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                  <th className="w-64 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
                     Description
                   </th>
-                  <th className="w-28 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                  <th className="w-32 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
                     Scheduled Value
                   </th>
-                  <th className="w-24 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                  <th className="w-28 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
                     Change Orders
                   </th>
-                  <th className="w-28 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                  <th className="w-32 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
                     Total Contract
                   </th>
-                  <th className="w-28 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                  <th className="w-32 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
                     Work This Period
                   </th>
-                  <th className="w-28 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                  <th className="w-32 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
                     Total Completed
                   </th>
-                  <th className="w-24 px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                  <th className="w-28 px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
                     % Complete
                   </th>
-                  <th className="w-28 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                  <th className="w-32 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
                     Balance to Finish
                   </th>
                   <th className="w-20 px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -276,34 +275,40 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                   
                   return (
                     <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-4 text-sm border-r">
-                        <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-center font-medium">
+                      <td className="px-2 py-4 text-sm border-r">
+                        <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-center font-medium text-xs">
                           {item.itemNumber}
                         </div>
                       </td>
                       <td className="px-3 py-4 text-sm border-r">
-                        <div className="text-gray-900 font-medium truncate" title={item.category}>
+                        <div className="text-gray-900 font-medium text-xs">
                           {item.category}
                         </div>
                       </td>
                       <td className="px-3 py-4 text-sm border-r">
-                        <div className="text-gray-600 truncate" title={item.subcategory || '-'}>
+                        <div className="text-gray-600 text-xs">
                           {item.subcategory || '-'}
                         </div>
                       </td>
                       <td className="px-3 py-4 text-sm border-r">
-                        <div className="text-gray-900 line-clamp-2" title={item.description}>
+                        <div className="text-gray-900 text-xs leading-tight">
                           {item.description}
                         </div>
                       </td>
                       <td className="px-3 py-4 text-sm text-right font-mono border-r">
-                        ${(item.scheduledValue || 0).toLocaleString()}
+                        <div className="text-xs">
+                          ${(item.scheduledValue || 0).toLocaleString()}
+                        </div>
                       </td>
                       <td className="px-3 py-4 text-sm text-right font-mono text-green-600 border-r">
-                        ${(item.changeOrders || 0).toLocaleString()}
+                        <div className="text-xs">
+                          ${(item.changeOrders || 0).toLocaleString()}
+                        </div>
                       </td>
                       <td className="px-3 py-4 text-sm text-right font-mono font-medium border-r">
-                        ${totalContract.toLocaleString()}
+                        <div className="text-xs">
+                          ${totalContract.toLocaleString()}
+                        </div>
                       </td>
                       <td className="px-3 py-4 text-sm border-r">
                         <Input
@@ -311,12 +316,14 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                           step="0.01"
                           value={item.thisPeriod || 0}
                           onChange={(e) => handleUpdateItemValue(item.id, Number(e.target.value) || 0)}
-                          className="w-full text-sm text-right font-mono"
+                          className="w-full text-xs text-right font-mono h-8"
                           disabled={selectedApplication !== 'current'}
                         />
                       </td>
                       <td className="px-3 py-4 text-sm text-right font-mono border-r">
-                        ${totalCompleted.toLocaleString()}
+                        <div className="text-xs">
+                          ${totalCompleted.toLocaleString()}
+                        </div>
                       </td>
                       <td className="px-3 py-4 text-sm border-r">
                         <div className="flex items-center justify-center">
@@ -332,7 +339,9 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                         </div>
                       </td>
                       <td className="px-3 py-4 text-sm text-right font-mono border-r">
-                        ${balanceToFinish.toLocaleString()}
+                        <div className="text-xs">
+                          ${balanceToFinish.toLocaleString()}
+                        </div>
                       </td>
                       <td className="px-3 py-4 text-sm text-center">
                         <Button 
@@ -352,12 +361,12 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                 {/* New Item Row */}
                 {newSOVItem && (
                   <tr className="bg-blue-50 border-2 border-blue-200">
-                    <td className="px-3 py-4 text-sm border-r">
+                    <td className="px-2 py-4 text-sm border-r">
                       <Input
                         value={newSOVItem.itemNumber}
                         onChange={(e) => setNewSOVItem({ ...newSOVItem, itemNumber: e.target.value })}
                         placeholder="Item #"
-                        className="h-8 text-center"
+                        className="h-8 text-center text-xs"
                       />
                     </td>
                     <td className="px-3 py-4 text-sm border-r">
@@ -365,7 +374,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                         value={newSOVItem.category}
                         onChange={(e) => setNewSOVItem({ ...newSOVItem, category: e.target.value })}
                         placeholder="Category"
-                        className="h-8"
+                        className="h-8 text-xs"
                       />
                     </td>
                     <td className="px-3 py-4 text-sm border-r">
@@ -373,7 +382,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                         value={newSOVItem.subcategory || ''}
                         onChange={(e) => setNewSOVItem({ ...newSOVItem, subcategory: e.target.value })}
                         placeholder="Subcategory"
-                        className="h-8"
+                        className="h-8 text-xs"
                       />
                     </td>
                     <td className="px-3 py-4 text-sm border-r">
@@ -381,7 +390,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                         value={newSOVItem.description}
                         onChange={(e) => setNewSOVItem({ ...newSOVItem, description: e.target.value })}
                         placeholder="Description"
-                        className="h-8"
+                        className="h-8 text-xs"
                       />
                     </td>
                     <td className="px-3 py-4 text-sm border-r">
@@ -390,18 +399,30 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                         value={newSOVItem.scheduledValue}
                         onChange={(e) => setNewSOVItem({ ...newSOVItem, scheduledValue: Number(e.target.value) || 0 })}
                         placeholder="Value"
-                        className="h-8 text-right"
+                        className="h-8 text-right text-xs"
                       />
                     </td>
-                    <td className="px-3 py-4 text-sm text-right text-gray-500 border-r">$0</td>
-                    <td className="px-3 py-4 text-sm text-right font-medium border-r">
-                      ${(newSOVItem.scheduledValue || 0).toLocaleString()}
+                    <td className="px-3 py-4 text-sm text-right text-gray-500 border-r">
+                      <div className="text-xs">$0</div>
                     </td>
-                    <td className="px-3 py-4 text-sm text-right text-gray-500 border-r">$0</td>
-                    <td className="px-3 py-4 text-sm text-right text-gray-500 border-r">$0</td>
-                    <td className="px-3 py-4 text-sm text-center text-gray-500 border-r">0.0%</td>
                     <td className="px-3 py-4 text-sm text-right font-medium border-r">
-                      ${(newSOVItem.scheduledValue || 0).toLocaleString()}
+                      <div className="text-xs">
+                        ${(newSOVItem.scheduledValue || 0).toLocaleString()}
+                      </div>
+                    </td>
+                    <td className="px-3 py-4 text-sm text-right text-gray-500 border-r">
+                      <div className="text-xs">$0</div>
+                    </td>
+                    <td className="px-3 py-4 text-sm text-right text-gray-500 border-r">
+                      <div className="text-xs">$0</div>
+                    </td>
+                    <td className="px-3 py-4 text-sm text-center text-gray-500 border-r">
+                      <div className="text-xs">0.0%</div>
+                    </td>
+                    <td className="px-3 py-4 text-sm text-right font-medium border-r">
+                      <div className="text-xs">
+                        ${(newSOVItem.scheduledValue || 0).toLocaleString()}
+                      </div>
                     </td>
                     <td className="px-3 py-4 text-sm text-center">
                       <div className="flex gap-1 justify-center">
@@ -426,25 +447,39 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                     TOTALS ({filteredItems.length} items)
                   </td>
                   <td className="px-3 py-4 text-sm text-right font-mono border-r">
-                    ${totals.totalScheduledValue.toLocaleString()}
+                    <div className="text-xs">
+                      ${totals.totalScheduledValue.toLocaleString()}
+                    </div>
                   </td>
                   <td className="px-3 py-4 text-sm text-right font-mono text-green-600 border-r">
-                    ${totals.totalChangeOrders.toLocaleString()}
+                    <div className="text-xs">
+                      ${totals.totalChangeOrders.toLocaleString()}
+                    </div>
                   </td>
                   <td className="px-3 py-4 text-sm text-right font-mono border-r">
-                    ${totals.totalContract.toLocaleString()}
+                    <div className="text-xs">
+                      ${totals.totalContract.toLocaleString()}
+                    </div>
                   </td>
                   <td className="px-3 py-4 text-sm text-right font-mono text-blue-600 border-r">
-                    ${totals.totalThisPeriod.toLocaleString()}
+                    <div className="text-xs">
+                      ${totals.totalThisPeriod.toLocaleString()}
+                    </div>
                   </td>
                   <td className="px-3 py-4 text-sm text-right font-mono border-r">
-                    ${totals.totalCompleted.toLocaleString()}
+                    <div className="text-xs">
+                      ${totals.totalCompleted.toLocaleString()}
+                    </div>
                   </td>
                   <td className="px-3 py-4 text-sm text-center border-r">
-                    {totals.totalContract > 0 ? ((totals.totalCompleted / totals.totalContract) * 100).toFixed(1) : 0}%
+                    <div className="text-xs">
+                      {totals.totalContract > 0 ? ((totals.totalCompleted / totals.totalContract) * 100).toFixed(1) : 0}%
+                    </div>
                   </td>
                   <td className="px-3 py-4 text-sm text-right font-mono border-r">
-                    ${(totals.totalContract - totals.totalCompleted).toLocaleString()}
+                    <div className="text-xs">
+                      ${(totals.totalContract - totals.totalCompleted).toLocaleString()}
+                    </div>
                   </td>
                   <td className="px-3 py-4 text-sm"></td>
                 </tr>
