@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface G702DocumentProps {
@@ -12,7 +13,7 @@ interface G702DocumentProps {
 }
 
 export function G702Document({ project, formData, companyInfo }: G702DocumentProps) {
-  // Calculate contract sum including contingency
+  // Calculate contract sum including contingency - FIXED: Use proper addition
   const originalContractSum = formData.originalContractSum || 0;
   const contingencyAmount = project?.contingency_type === 'percentage' 
     ? (originalContractSum * (project?.contingency_value || 0)) / 100
@@ -66,7 +67,7 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
             </div>
           </div>
           
-          <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+          <div className="mt-3 grid grid-cols-1 gap-3 text-sm">
             <div>
               <div className="font-bold">PERIOD TO:</div>
               <div>{new Date(formData.periodTo).toLocaleDateString()}</div>
@@ -76,16 +77,11 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
               <div>{project?.name}</div>
             </div>
           </div>
-          
-          <div className="mt-2 text-sm">
-            <div className="font-bold">PROJECT NUMBER:</div>
-            <div>{formData.projectNumber || project?.projectCode}</div>
-          </div>
         </div>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-2 gap-6">
+      {/* Main Content - Single Row Layout */}
+      <div className="grid grid-cols-3 gap-4 mb-4">
         {/* Left Column - Payment Summary */}
         <div className="border-t-2 border-black pt-3">
           <div className="font-bold mb-2">CONTRACTOR'S APPLICATION FOR PAYMENT</div>
@@ -146,7 +142,41 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
           </div>
         </div>
 
-        {/* Right Column - Certification and Notary */}
+        {/* Middle Column - Change Order Summary */}
+        <div className="border-t-2 border-black pt-3">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-black p-1 text-left">CHANGE ORDER SUMMARY</th>
+                <th className="border border-black p-1">ADDITIONS</th>
+                <th className="border border-black p-1">DEDUCTIONS</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="border border-black p-1">Total changes approved in previous months by Owner</td>
+                <td className="border border-black p-1 text-right">$0.00</td>
+                <td className="border border-black p-1 text-right">$0.00</td>
+              </tr>
+              <tr>
+                <td className="border border-black p-1">Total approved this Month</td>
+                <td className="border border-black p-1 text-right">${Math.max(formData.netChangeByChangeOrders || 0, 0).toLocaleString()}</td>
+                <td className="border border-black p-1 text-right">${Math.max(-(formData.netChangeByChangeOrders || 0), 0).toLocaleString()}</td>
+              </tr>
+              <tr className="font-bold">
+                <td className="border border-black p-1">TOTALS</td>
+                <td className="border border-black p-1 text-right">${Math.max(formData.netChangeByChangeOrders || 0, 0).toLocaleString()}</td>
+                <td className="border border-black p-1 text-right">${Math.max(-(formData.netChangeByChangeOrders || 0), 0).toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td className="border border-black p-1">NET CHANGES by Change Order</td>
+                <td className="border border-black p-1 text-right" colSpan={2}>${(formData.netChangeByChangeOrders || 0).toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Right Column - Certification, Notary, and Architect */}
         <div className="border-t-2 border-black pt-3">
           <div className="text-xs mb-3">
             The undersigned Contractor certifies that to the best of the Contractor's knowledge, 
@@ -171,82 +201,45 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
               <div>County of: _____________</div>
             </div>
             <div className="text-xs mt-1">Commission Expires: __________</div>
-            <div className="mt-2 h-8 border border-gray-300 bg-gray-50 flex items-center justify-center">
-              <span className="text-xs text-gray-500">NOTARY SEAL/STAMP</span>
+            <div className="mt-2 h-8 border border-gray-300 bg-gray-50">
             </div>
             <div className="mt-1">
               <div className="border-b border-black mb-1 h-3"></div>
               <div className="text-xs">Notary Public Signature</div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Change Order Summary - Condensed */}
-      <div className="border-t border-black pt-2 mb-3">
-        <table className="w-full text-xs border-collapse">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-black p-1 text-left">CHANGE ORDER SUMMARY</th>
-              <th className="border border-black p-1">ADDITIONS</th>
-              <th className="border border-black p-1">DEDUCTIONS</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className="border border-black p-1">Total changes approved in previous months by Owner</td>
-              <td className="border border-black p-1 text-right">$0.00</td>
-              <td className="border border-black p-1 text-right">$0.00</td>
-            </tr>
-            <tr>
-              <td className="border border-black p-1">Total approved this Month</td>
-              <td className="border border-black p-1 text-right">${Math.max(formData.netChangeByChangeOrders || 0, 0).toLocaleString()}</td>
-              <td className="border border-black p-1 text-right">${Math.max(-(formData.netChangeByChangeOrders || 0), 0).toLocaleString()}</td>
-            </tr>
-            <tr className="font-bold">
-              <td className="border border-black p-1">TOTALS</td>
-              <td className="border border-black p-1 text-right">${Math.max(formData.netChangeByChangeOrders || 0, 0).toLocaleString()}</td>
-              <td className="border border-black p-1 text-right">${Math.max(-(formData.netChangeByChangeOrders || 0), 0).toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td className="border border-black p-1">NET CHANGES by Change Order</td>
-              <td className="border border-black p-1 text-right" colSpan={2}>${(formData.netChangeByChangeOrders || 0).toLocaleString()}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      {/* Architect's Certificate */}
-      <div className="border-t border-black pt-2">
-        <div className="font-bold mb-2 text-sm">ARCHITECT'S CERTIFICATE FOR PAYMENT</div>
-        <div className="text-xs mb-2">
-          In accordance with the Contract Documents, based on on-site observations and the data 
-          comprising the application, the Architect certifies to the Owner that to the best of the 
-          Architect's knowledge, information and belief the Work has progressed as indicated, 
-          the quality of the Work is in accordance with the Contract Documents, and the Contractor 
-          is entitled to payment of the AMOUNT CERTIFIED.
-        </div>
-        
-        <div className="mb-3">
-          <div className="font-bold text-sm">AMOUNT CERTIFIED ........................ $ {(formData.currentPaymentDue || 0).toLocaleString()}</div>
-          <div className="text-xs italic mt-1">
-            (Attach explanation if amount certified differs from the amount applied. Initial all figures on this 
-            Application and on the Continuation Sheet that are changed to conform with the amount certified.)
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4 mt-3">
-          <div>
-            <div className="font-bold text-sm">ARCHITECT:</div>
-            <div className="mt-2">
-              <div className="mb-1">By: _________________________________</div>
-              <div className="text-xs">Date: {formData.architectDate ? new Date(formData.architectDate).toLocaleDateString() : '_____________'}</div>
+          {/* Architect's Certificate */}
+          <div className="border-t border-black pt-2">
+            <div className="font-bold mb-2 text-sm">ARCHITECT'S CERTIFICATE FOR PAYMENT</div>
+            <div className="text-xs mb-2">
+              In accordance with the Contract Documents, based on on-site observations and the data 
+              comprising the application, the Architect certifies to the Owner that to the best of the 
+              Architect's knowledge, information and belief the Work has progressed as indicated, 
+              the quality of the Work is in accordance with the Contract Documents, and the Contractor 
+              is entitled to payment of the AMOUNT CERTIFIED.
             </div>
-          </div>
-          <div className="text-xs">
-            <div>This Certificate is not negotiable. The AMOUNT CERTIFIED is payable only to the</div>
-            <div>Contractor named herein. Issuance, payment and acceptance of payment are without</div>
-            <div>prejudice to any rights of the Owner or Contractor under this Contract.</div>
+            
+            <div className="mb-3">
+              <div className="font-bold text-sm">AMOUNT CERTIFIED ........................ $ {(formData.currentPaymentDue || 0).toLocaleString()}</div>
+              <div className="text-xs italic mt-1">
+                (Attach explanation if amount certified differs from the amount applied. Initial all figures on this 
+                Application and on the Continuation Sheet that are changed to conform with the amount certified.)
+              </div>
+            </div>
+            
+            <div className="mt-3">
+              <div className="font-bold text-sm">ARCHITECT:</div>
+              <div className="mt-2">
+                <div className="mb-1">By: _________________________________</div>
+                <div className="text-xs">Date: {formData.architectDate ? new Date(formData.architectDate).toLocaleDateString() : '_____________'}</div>
+              </div>
+              <div className="text-xs mt-2">
+                <div>This Certificate is not negotiable. The AMOUNT CERTIFIED is payable only to the</div>
+                <div>Contractor named herein. Issuance, payment and acceptance of payment are without</div>
+                <div>prejudice to any rights of the Owner or Contractor under this Contract.</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

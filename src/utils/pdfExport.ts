@@ -8,6 +8,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
     const g703Element = document.getElementById('g703-document');
     
     if (!g702Element || !g703Element) {
+      console.error('G702 or G703 document not found');
       throw new Error('G702 or G703 document not found');
     }
 
@@ -20,12 +21,13 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
 
     // Capture G702 with higher resolution and better scaling
     const g702Canvas = await html2canvas(g702Element, {
-      scale: 3,
+      scale: 2,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       width: g702Element.scrollWidth,
-      height: g702Element.scrollHeight
+      height: g702Element.scrollHeight,
+      logging: false
     });
 
     // Add G702 to PDF - landscape dimensions (11 x 8.5)
@@ -50,12 +52,13 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
 
     // Capture G703 with higher resolution
     const g703Canvas = await html2canvas(g703Element, {
-      scale: 3,
+      scale: 2,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       width: g703Element.scrollWidth,
-      height: g703Element.scrollHeight
+      height: g703Element.scrollHeight,
+      logging: false
     });
 
     const g703ImgData = g703Canvas.toDataURL('image/png');
@@ -74,9 +77,12 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
 
     // Save the PDF
     pdf.save(filename);
+    
+    console.log('PDF exported successfully');
+    return true;
   } catch (error) {
     console.error('Error exporting PDF:', error);
-    throw error;
+    throw new Error(`Failed to export PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 
@@ -93,7 +99,8 @@ export const exportToPDF = async (elementId: string, filename: string) => {
       allowTaint: true,
       backgroundColor: '#ffffff',
       width: element.scrollWidth,
-      height: element.scrollHeight
+      height: element.scrollHeight,
+      logging: false
     });
 
     const pdf = new jsPDF({
@@ -117,9 +124,11 @@ export const exportToPDF = async (elementId: string, filename: string) => {
     
     pdf.addImage(imgData, 'PNG', 0.25, 0.25, finalWidth, finalHeight);
     pdf.save(filename);
+    
+    return true;
   } catch (error) {
     console.error('Error exporting PDF:', error);
-    throw error;
+    throw new Error(`Failed to export PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 
@@ -153,9 +162,11 @@ export const exportCSV = (data: any[], filename: string) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    return true;
   } catch (error) {
     console.error('Error exporting CSV:', error);
-    throw error;
+    throw new Error(`Failed to export CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 
@@ -237,8 +248,10 @@ export const generateBidReport = async (exportData: any) => {
     await exportToPDF('bid-report', `Bid-Report-${exportData.projectName?.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`);
     
     document.body.removeChild(reportElement);
+    
+    return true;
   } catch (error) {
     console.error('Error generating bid report:', error);
-    throw error;
+    throw new Error(`Failed to generate bid report: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };

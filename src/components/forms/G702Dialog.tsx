@@ -279,11 +279,14 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
 
   const handleExportPDF = async () => {
     try {
+      setLoading(true);
       await exportG702G703ToPDF(`G702-G703-App-${formData.applicationNumber}.pdf`);
       toast.success('PDF exported successfully');
     } catch (error) {
       console.error('Error exporting PDF:', error);
-      toast.error('Failed to export PDF');
+      toast.error('Failed to export PDF. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -312,7 +315,7 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
                 <CardTitle>Application Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="applicationNumber">Application Number</Label>
                     <Input
@@ -329,14 +332,6 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
                       type="date"
                       value={formData.periodTo}
                       onChange={(e) => setFormData(prev => ({ ...prev, periodTo: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="projectNumber">Project Number</Label>
-                    <Input
-                      id="projectNumber"
-                      value={formData.projectNumber}
-                      onChange={(e) => setFormData(prev => ({ ...prev, projectNumber: e.target.value }))}
                     />
                   </div>
                 </div>
@@ -394,8 +389,12 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button variant="outline" onClick={handleExportPDF}>
-            Export PDF
+          <Button 
+            variant="outline" 
+            onClick={handleExportPDF}
+            disabled={loading}
+          >
+            {loading ? 'Exporting...' : 'Export PDF'}
           </Button>
           <Button onClick={handleSave} disabled={loading}>
             {loading ? 'Saving...' : 'Save Application'}
