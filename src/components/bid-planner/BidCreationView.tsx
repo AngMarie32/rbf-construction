@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -134,27 +133,76 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const handleSaveBid = async () => {
-    console.log('Starting bid save process with items:', bidItems);
-    console.log('Total bid items to process:', bidItems.length);
+    console.log('=== BID SAVE DEBUG START ===');
+    console.log('Total bidItems state length:', bidItems.length);
+    console.log('Full bidItems array:', JSON.stringify(bidItems, null, 2));
+    
+    // Log each item individually for detailed inspection
+    bidItems.forEach((item, index) => {
+      console.log(`Item ${index + 1}:`, {
+        id: item.id,
+        category: item.category,
+        subcategory: item.subcategory,
+        description: item.description,
+        descriptionLength: item.description?.length || 0,
+        quantity: item.quantity,
+        unit: item.unit,
+        unitCost: item.unitCost,
+        total: item.total
+      });
+    });
 
     if (bidItems.length === 0) {
       toast.error('Please add at least one bid item');
+      console.log('ERROR: No bid items found');
       return;
     }
 
-    // More lenient filtering - only require description to be present and not empty
-    const validItems = bidItems.filter(item => {
+    // Enhanced validation - check what makes items invalid
+    const itemValidation = bidItems.map((item, index) => {
       const hasDescription = item.description && item.description.trim().length > 0;
-      console.log(`Item ${item.id}: description="${item.description}", valid=${hasDescription}`);
-      return hasDescription;
+      const hasCategory = item.category && item.category.trim().length > 0;
+      const hasValidQuantity = !isNaN(Number(item.quantity)) && Number(item.quantity) > 0;
+      const hasValidUnitCost = !isNaN(Number(item.unitCost));
+      
+      return {
+        index: index + 1,
+        id: item.id,
+        hasDescription,
+        hasCategory,
+        hasValidQuantity,
+        hasValidUnitCost,
+        isValid: hasDescription && hasCategory,
+        description: item.description,
+        category: item.category,
+        quantity: item.quantity,
+        unitCost: item.unitCost
+      };
+    });
+
+    console.log('Item validation results:', itemValidation);
+    
+    const validItems = bidItems.filter((item, index) => {
+      return itemValidation[index].isValid;
     });
     
-    console.log('Valid items after filtering:', validItems.length);
-    console.log('Valid items details:', validItems);
+    const invalidItems = bidItems.filter((item, index) => {
+      return !itemValidation[index].isValid;
+    });
+
+    console.log(`Valid items count: ${validItems.length}`);
+    console.log(`Invalid items count: ${invalidItems.length}`);
+    console.log('Invalid items details:', invalidItems);
     
     if (validItems.length === 0) {
-      toast.error('Please add at least one bid item with a description');
+      toast.error('No valid bid items found. Items need description and category.');
+      console.log('ERROR: No valid items after filtering');
       return;
+    }
+
+    if (invalidItems.length > 0) {
+      console.log(`WARNING: ${invalidItems.length} items will be skipped due to missing required fields`);
+      toast.warning(`${invalidItems.length} items will be skipped (missing description or category)`);
     }
 
     setSaving(true);
@@ -172,24 +220,25 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         // Don't throw here, continue with insert
       }
 
-      // Prepare items for database insert with proper validation
+      // Prepare items for database insert with enhanced validation
       const itemsToSave = validItems.map((item, index) => {
         const itemToSave = {
           project_id: projectId,
-          category: item.category && item.category.trim() ? item.category.trim() : 'General',
+          category: item.category.trim(),
           subcategory: item.subcategory && item.subcategory.trim() ? item.subcategory.trim() : null,
           description: item.description.trim(),
-          quantity: Math.max(Number(item.quantity) || 1, 1), // Ensure quantity is at least 1
+          quantity: Math.max(Number(item.quantity) || 1, 1),
           unit: item.unit && item.unit.trim() ? item.unit.trim() : 'each',
           unit_cost: Number(item.unitCost) || 0
         };
         
-        console.log(`Preparing item ${index + 1}:`, itemToSave);
+        console.log(`Prepared item ${index + 1} for save:`, itemToSave);
         return itemToSave;
       });
 
-      console.log('Final items to save:', itemsToSave);
-      console.log('Number of items to save:', itemsToSave.length);
+      console.log('=== FINAL SAVE PAYLOAD ===');
+      console.log('Items to save count:', itemsToSave.length);
+      console.log('Items to save:', JSON.stringify(itemsToSave, null, 2));
 
       const { data, error } = await supabase
         .from('bid_items')
@@ -201,10 +250,17 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         throw new Error(`Database error: ${error.message}`);
       }
 
-      console.log('Bid items saved successfully:', data);
+      console.log('=== SAVE RESULT ===');
+      console.log('Bid items saved successfully. Database returned:', data);
       console.log('Number of items actually saved:', data?.length || 0);
+      console.log('=== BID SAVE DEBUG END ===');
       
-      toast.success(`Bid saved successfully with ${data?.length || itemsToSave.length} items`);
+      const savedCount = data?.length || itemsToSave.length;
+      toast.success(`Bid saved successfully! ${savedCount} out of ${bidItems.length} total items saved.`);
+      
+      if (savedCount < bidItems.length) {
+        toast.warning(`${bidItems.length - savedCount} items were skipped. Check console for details.`);
+      }
       
       // Update parent component with the saved data
       onItemsChange(data || itemsToSave);
