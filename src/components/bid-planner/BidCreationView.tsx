@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BidItemForm } from './BidItemForm';
 import { ProposalCustomizationDialog } from './ProposalCustomizationDialog';
+import { useNavigate } from 'react-router-dom';
 
 interface BidCreationViewProps {
   projectId: string;
@@ -33,6 +34,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   const [loading, setLoading] = useState(false);
   const [showProposalDialog, setShowProposalDialog] = useState(false);
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  const navigate = useNavigate();
 
   const [bidItems, setBidItems] = useState<BidItem[]>([
     {
@@ -322,14 +324,119 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     }
   };
 
-  const handleExportToSOV = () => {
-    // TODO: Implement SOV export functionality
-    toast.info('Export to SOV functionality coming soon');
+  const handleExportToSOV = async () => {
+    try {
+      console.log('Exporting bid items to SOV for project:', projectId);
+      console.log('Bid items to export:', bidItems);
+
+      if (!bidItems || bidItems.length === 0) {
+        toast.error('No bid items to export to Schedule of Values');
+        return;
+      }
+
+      // Get project details first
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .select('name')
+        .eq('id', projectId)
+        .single();
+
+      if (projectError) {
+        console.error('Error fetching project:', projectError);
+        throw new Error('Failed to fetch project details');
+      }
+
+      // Convert bid items to SOV format and insert them
+      const sovItems = bidItems.map((item, index) => ({
+        project_id: projectId,
+        item_number: String(index + 1).padStart(3, '0'),
+        category: item.category || 'General',
+        description: item.description || item.category || 'Imported from Bid',
+        scheduled_value: (item.unitCost || 0) * (item.quantity || 1),
+        previous_applications: 0,
+        this_period: 0,
+        materials_stored: 0,
+        percent_complete: 0,
+        work_completed_from_previous: 0,
+        materials_presently_stored: 0,
+        retainage_percentage: 10,
+        change_orders: 0
+      }));
+
+      console.log('Converting to SOV items:', sovItems);
+
+      const { data: insertedItems, error: insertError } = await supabase
+        .from('sov_items')
+        .insert(sovItems)
+        .select();
+
+      if (insertError) {
+        console.error('Error inserting SOV items:', insertError);
+        throw new Error(`Failed to create SOV items: ${insertError.message}`);
+      }
+
+      console.log('SOV items created successfully:', insertedItems);
+      
+      toast.success(`Successfully exported ${sovItems.length} bid items to Schedule of Values for ${project.name}`);
+      
+      // Navigate to SOV page
+      navigate('/schedule-of-values');
+    } catch (error) {
+      console.error('Error exporting to SOV:', error);
+      toast.error(`Failed to export to SOV: ${error.message || 'Unknown error'}`);
+    }
   };
 
-  const handleExportToPDF = () => {
-    // TODO: Implement PDF export functionality
-    toast.info('Export to PDF functionality coming soon');
+  const handleExportToPDF = async () => {
+    try {
+      // Get project details for PDF export
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', projectId)
+        .single();
+
+      if (projectError) {
+        console.error('Error fetching project:', projectError);
+        throw new Error('Failed to fetch project details');
+      }
+
+      // Get company details
+      const { data: companyData } = await supabase
+        .from('company_settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+
+      const exportData = {
+        projectName: project?.name || 'Unnamed Project',
+        client: project?.client || 'N/A',
+        date: new Date().toLocaleDateString(),
+        companyName: companyData?.company_name || 'BuildPro Construction',
+        companyAddress: companyData?.company_address || '',
+        companyPhone: companyData?.company_phone || '',
+        companyEmail: companyData?.company_email || '',
+        logoUrl: companyData?.logo_url || '',
+        bidItems: bidItems.map(item => ({
+          category: item.category,
+          subcategory: item.subcategory,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit,
+          unit_cost: item.unitCost,
+          total: item.total
+        })),
+        totalAmount: bidItems.reduce((sum, item) => sum + (item.total || 0), 0)
+      };
+
+      const { generateBidReport } = await import('@/utils/pdfExport');
+      await generateBidReport(exportData);
+      
+      toast.success('Bid report exported successfully');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast.error('Failed to export bid report');
+    }
   };
 
   const handleBack = () => {
