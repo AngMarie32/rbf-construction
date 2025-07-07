@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,6 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
   const [formData, setFormData] = useState({
     applicationNumber: 1,
     periodTo: new Date().toISOString().split('T')[0],
-    projectNumber: '',
     architectName: '',
     contractorName: '',
     contractorAddress: '',
@@ -79,7 +79,6 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
       
       setFormData(prev => ({
         ...prev,
-        projectNumber: data.project_code || '',
         originalContractSum: data.contract_value || 0,
         netChangeByChangeOrders: data.net_change_orders || 0,
         contractSumToDate: (data.contract_value || 0) + (data.net_change_orders || 0)
@@ -148,7 +147,6 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
         setFormData({
           applicationNumber: data.application_number,
           periodTo: data.period_to,
-          projectNumber: data.project_number || '',
           architectName: '', // This field doesn't exist in the database, so we'll leave it empty
           contractorName: data.contractor_name,
           contractorAddress: data.contractor_address || '',
@@ -227,7 +225,6 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
         project_id: projectId,
         application_number: formData.applicationNumber,
         period_to: formData.periodTo,
-        project_number: formData.projectNumber,
         project_name: project?.name || '', // Add the missing project_name field
         contractor_name: formData.contractorName,
         contractor_address: formData.contractorAddress,

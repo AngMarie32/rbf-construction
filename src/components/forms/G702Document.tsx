@@ -68,20 +68,22 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
           </div>
           
           <div className="mt-3 grid grid-cols-1 gap-3 text-sm">
-            <div>
-              <div className="font-bold">PERIOD TO:</div>
-              <div>{new Date(formData.periodTo).toLocaleDateString()}</div>
-            </div>
-            <div>
-              <div className="font-bold">PROJECT NAME:</div>
-              <div>{project?.name}</div>
+            <div className="flex items-center gap-4">
+              <div>
+                <div className="font-bold">PERIOD TO:</div>
+                <div>{new Date(formData.periodTo).toLocaleDateString()}</div>
+              </div>
+              <div>
+                <div className="font-bold">PROJECT:</div>
+                <div>{project?.name}</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content - Single Row Layout */}
-      <div className="grid grid-cols-3 gap-4 mb-4">
+      {/* Main Content - Two Column Layout */}
+      <div className="grid grid-cols-2 gap-6 mb-4">
         {/* Left Column - Payment Summary */}
         <div className="border-t-2 border-black pt-3">
           <div className="font-bold mb-2">CONTRACTOR'S APPLICATION FOR PAYMENT</div>
@@ -140,40 +142,40 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
               <span>$ {(formData.balanceToFinish || 0).toLocaleString()}</span>
             </div>
           </div>
-        </div>
 
-        {/* Middle Column - Change Order Summary */}
-        <div className="border-t-2 border-black pt-3">
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border border-black p-1 text-left">CHANGE ORDER SUMMARY</th>
-                <th className="border border-black p-1">ADDITIONS</th>
-                <th className="border border-black p-1">DEDUCTIONS</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="border border-black p-1">Total changes approved in previous months by Owner</td>
-                <td className="border border-black p-1 text-right">$0.00</td>
-                <td className="border border-black p-1 text-right">$0.00</td>
-              </tr>
-              <tr>
-                <td className="border border-black p-1">Total approved this Month</td>
-                <td className="border border-black p-1 text-right">${Math.max(formData.netChangeByChangeOrders || 0, 0).toLocaleString()}</td>
-                <td className="border border-black p-1 text-right">${Math.max(-(formData.netChangeByChangeOrders || 0), 0).toLocaleString()}</td>
-              </tr>
-              <tr className="font-bold">
-                <td className="border border-black p-1">TOTALS</td>
-                <td className="border border-black p-1 text-right">${Math.max(formData.netChangeByChangeOrders || 0, 0).toLocaleString()}</td>
-                <td className="border border-black p-1 text-right">${Math.max(-(formData.netChangeByChangeOrders || 0), 0).toLocaleString()}</td>
-              </tr>
-              <tr>
-                <td className="border border-black p-1">NET CHANGES by Change Order</td>
-                <td className="border border-black p-1 text-right" colSpan={2}>${(formData.netChangeByChangeOrders || 0).toLocaleString()}</td>
-              </tr>
-            </tbody>
-          </table>
+          {/* Change Order Summary - Moved directly under the 1-9 section */}
+          <div className="mt-6">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border border-black p-1 text-left">CHANGE ORDER SUMMARY</th>
+                  <th className="border border-black p-1">ADDITIONS</th>
+                  <th className="border border-black p-1">DEDUCTIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border border-black p-1">Total changes approved in previous months by Owner</td>
+                  <td className="border border-black p-1 text-right">$0.00</td>
+                  <td className="border border-black p-1 text-right">$0.00</td>
+                </tr>
+                <tr>
+                  <td className="border border-black p-1">Total approved this Month</td>
+                  <td className="border border-black p-1 text-right">${Math.max(formData.netChangeByChangeOrders || 0, 0).toLocaleString()}</td>
+                  <td className="border border-black p-1 text-right">${Math.max(-(formData.netChangeByChangeOrders || 0), 0).toLocaleString()}</td>
+                </tr>
+                <tr className="font-bold">
+                  <td className="border border-black p-1">TOTALS</td>
+                  <td className="border border-black p-1 text-right">${Math.max(formData.netChangeByChangeOrders || 0, 0).toLocaleString()}</td>
+                  <td className="border border-black p-1 text-right">${Math.max(-(formData.netChangeByChangeOrders || 0), 0).toLocaleString()}</td>
+                </tr>
+                <tr>
+                  <td className="border border-black p-1">NET CHANGES by Change Order</td>
+                  <td className="border border-black p-1 text-right" colSpan={2}>${(formData.netChangeByChangeOrders || 0).toLocaleString()}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Right Column - Certification, Notary, and Architect */}
@@ -209,7 +211,7 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
             </div>
           </div>
 
-          {/* Architect's Certificate */}
+          {/* Architect's Certificate - Moved under Notary */}
           <div className="border-t border-black pt-2">
             <div className="font-bold mb-2 text-sm">ARCHITECT'S CERTIFICATE FOR PAYMENT</div>
             <div className="text-xs mb-2">

@@ -57,7 +57,7 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
           if (!acc[category]) {
             acc[category] = {
               itemNumber: `C-${Object.keys(acc).length + 1}`,
-              displayDescription: category,
+              displayDescription: item.subcategory || category,
               scheduledValue: 0,
               changeOrders: 0,
               previousApplications: 0,
@@ -82,7 +82,7 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
           if (!acc[division]) {
             acc[division] = {
               itemNumber: `D-${Object.keys(acc).length + 1}`,
-              displayDescription: `${division} Division`,
+              displayDescription: item.subcategory || `${division} Division`,
               scheduledValue: 0,
               changeOrders: 0,
               previousApplications: 0,
