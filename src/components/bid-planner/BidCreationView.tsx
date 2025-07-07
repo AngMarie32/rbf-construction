@@ -234,13 +234,16 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       return;
     }
 
-    // Convert to database format
+    // Convert to database format with proper description handling
     const itemsForDatabase = validItems.map((item, index) => {
+      // Ensure description is never null or empty - use category as fallback
+      const description = (item.description || '').trim() || (item.category || '').trim() || 'Bid Item';
+      
       return {
         project_id: projectId,
         category: (item.category || '').trim() || 'General',
         subcategory: (item.subcategory || '').trim() || null,
-        description: (item.description || '').trim() || null,
+        description: description,
         quantity: Math.max(Number(item.quantity) || 1, 1),
         unit: (item.unit || 'each').trim(),
         unit_cost: Number(item.unitCost) || 0

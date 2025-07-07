@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +10,6 @@ import {
   Target,
   Building2,
   HelpCircle,
-  FileText,
   Plus,
   Download
 } from 'lucide-react';
@@ -18,7 +18,6 @@ import { toast } from 'sonner';
 import { TabbedBidInterface } from '@/components/bid-planner/TabbedBidInterface';
 import { EnhancedBidDialog } from '@/components/bid-planner/EnhancedBidDialog';
 import { initializeBidTemplates } from '@/utils/initializeBidTemplates';
-import { ImportBidItemsDialog } from '@/components/bid-planner/ImportBidItemsDialog';
 
 export default function BidPlanner() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -166,13 +165,6 @@ export default function BidPlanner() {
                   ))}
                 </SelectContent>
               </Select>
-              
-              {selectedProject && (
-                <ImportBidItemsDialog 
-                  onItemsImported={fetchBidItems} 
-                  projects={projects} 
-                />
-              )}
             </div>
           </CardContent>
         </Card>
