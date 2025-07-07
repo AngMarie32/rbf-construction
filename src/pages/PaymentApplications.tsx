@@ -1,5 +1,5 @@
-
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,7 @@ interface Project {
 }
 
 export default function PaymentApplications() {
+  const navigate = useNavigate();
   const [applications, setApplications] = useState<PaymentApplication[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('');
@@ -102,13 +103,13 @@ export default function PaymentApplications() {
   };
 
   const handleNewApplication = () => {
-    setSelectedApplication(null);
-    setDialogOpen(true);
+    if (selectedProject) {
+      navigate(`/payment-applications/create/${selectedProject}`);
+    }
   };
 
   const handleEditApplication = (application: PaymentApplication) => {
-    setSelectedApplication(application);
-    setDialogOpen(true);
+    navigate(`/payment-applications/edit/${selectedProject}/${application.id}`);
   };
 
   const handleDeleteApplication = async (id: string, applicationNumber: number) => {

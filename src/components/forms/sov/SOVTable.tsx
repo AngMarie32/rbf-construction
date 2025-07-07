@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -28,7 +27,7 @@ interface SOVTableProps {
   onUpdateItem: (itemId: string, value: number) => void;
 }
 
-type SortField = 'itemNumber' | 'category' | 'subcategory' | 'description' | 'scheduledValue';
+type SortField = 'itemNumber' | 'category' | 'subcategory' | 'description' | 'scheduledValue' | 'division';
 type SortDirection = 'asc' | 'desc' | null;
 
 export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication, onUpdateItem }: SOVTableProps) {
@@ -50,8 +49,16 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
     if (!sortDirection) return sovItems;
 
     return [...sovItems].sort((a, b) => {
-      let aValue = a[sortField];
-      let bValue = b[sortField];
+      let aValue, bValue;
+      
+      if (sortField === 'division') {
+        // Extract division from category (first word or full category if no spaces)
+        aValue = a.category?.split(' ')[0] || a.category || '';
+        bValue = b.category?.split(' ')[0] || b.category || '';
+      } else {
+        aValue = a[sortField];
+        bValue = b[sortField];
+      }
 
       // Handle numeric fields
       if (typeof aValue === 'number' && typeof bValue === 'number') {
@@ -113,6 +120,17 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                 {getSortIcon('itemNumber')}
               </Button>
             </TableHead>
+            <TableHead className="w-24">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleSort('division')}
+                className="h-8 p-0 font-medium hover:bg-transparent"
+              >
+                Division
+                {getSortIcon('division')}
+              </Button>
+            </TableHead>
             <TableHead className="w-32">
               <Button
                 variant="ghost"
@@ -169,8 +187,8 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
           {sortedItems.map((item) => (
             <TableRow key={item.id}>
               <TableCell className="font-medium">{item.itemNumber}</TableCell>
+              <TableCell>{item.category?.split(' ')[0] || item.category}</TableCell>
               <TableCell>{item.category}</TableCell>
-              <TableCell>{item.subcategory}</TableCell>
               <TableCell>{item.description}</TableCell>
               <TableCell>${item.scheduledValue.toLocaleString()}</TableCell>
               <TableCell>${item.changeOrders.toLocaleString()}</TableCell>

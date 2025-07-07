@@ -23,16 +23,16 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
 
     console.log('Found documents, creating PDF...');
 
-    // Create PDF with landscape orientation
+    // Create PDF with portrait orientation for better fitting
     const pdf = new jsPDF({
-      orientation: 'landscape',
+      orientation: 'portrait',
       unit: 'in',
       format: 'letter'
     });
 
     // Enhanced canvas options for better quality
     const canvasOptions = {
-      scale: 3,
+      scale: 2,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
@@ -42,7 +42,9 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
       ignoreElements: (element: Element) => {
         return element.classList.contains('print:hidden') || 
                element.tagName === 'BUTTON' ||
-               element.classList.contains('no-print');
+               element.classList.contains('no-print') ||
+               element.textContent?.includes('Report generated on') ||
+               element.textContent?.includes('Professional project reports');
       }
     };
 
@@ -50,21 +52,21 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
     console.log('Capturing G702...');
     const g702Canvas = await html2canvas(g702Element, canvasOptions);
 
-    // Add G702 to PDF
+    // Add G702 to PDF - Full page width
     const g702ImgData = g702Canvas.toDataURL('image/png', 1.0);
-    const pageWidth = 11;
-    const pageHeight = 8.5;
+    const pageWidth = 8.5;
+    const pageHeight = 11;
     const imgWidth = pageWidth - 0.5;
     const imgHeight = (g702Canvas.height * imgWidth) / g702Canvas.width;
     
-    let finalWidth = imgWidth;
-    let finalHeight = imgHeight;
-    if (imgHeight > pageHeight - 0.5) {
-      finalHeight = pageHeight - 0.5;
-      finalWidth = (g702Canvas.width * finalHeight) / g702Canvas.height;
+    if (imgHeight <= pageHeight - 0.5) {
+      pdf.addImage(g702ImgData, 'PNG', 0.25, 0.25, imgWidth, imgHeight);
+    } else {
+      // Image is too tall, scale it down to fit
+      const scaledHeight = pageHeight - 0.5;
+      const scaledWidth = (g702Canvas.width * scaledHeight) / g702Canvas.height;
+      pdf.addImage(g702ImgData, 'PNG', 0.25, 0.25, scaledWidth, scaledHeight);
     }
-    
-    pdf.addImage(g702ImgData, 'PNG', 0.25, 0.25, finalWidth, finalHeight);
 
     // Add new page for G703
     pdf.addPage();
@@ -77,14 +79,30 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
     const g703ImgWidth = pageWidth - 0.5;
     const g703ImgHeight = (g703Canvas.height * g703ImgWidth) / g703Canvas.width;
     
-    let g703FinalWidth = g703ImgWidth;
-    let g703FinalHeight = g703ImgHeight;
+    // Handle multi-page G703 if needed
     if (g703ImgHeight > pageHeight - 0.5) {
-      g703FinalHeight = pageHeight - 0.5;
-      g703FinalWidth = (g703Canvas.width * g703FinalHeight) / g703Canvas.height;
+      const pagesNeeded = Math.ceil(g703ImgHeight / (pageHeight - 0.5));
+      const sectionHeight = g703Canvas.height / pagesNeeded;
+      
+      for (let i = 0; i < pagesNeeded; i++) {
+        if (i > 0) pdf.addPage();
+        
+        // Create a section canvas
+        const sectionCanvas = document.createElement('canvas');
+        const sectionCtx = sectionCanvas.getContext('2d');
+        sectionCanvas.width = g703Canvas.width;
+        sectionCanvas.height = sectionHeight;
+        
+        if (sectionCtx) {
+          sectionCtx.drawImage(g703Canvas, 0, -i * sectionHeight);
+          const sectionImgData = sectionCanvas.toDataURL('image/png', 1.0);
+          const sectionDisplayHeight = (pageHeight - 0.5);
+          pdf.addImage(sectionImgData, 'PNG', 0.25, 0.25, g703ImgWidth, sectionDisplayHeight);
+        }
+      }
+    } else {
+      pdf.addImage(g703ImgData, 'PNG', 0.25, 0.25, g703ImgWidth, g703ImgHeight);
     }
-    
-    pdf.addImage(g703ImgData, 'PNG', 0.25, 0.25, g703FinalWidth, g703FinalHeight);
 
     // Save the PDF
     console.log('Saving PDF...');
@@ -268,10 +286,6 @@ export const generateBidReport = async (exportData: any) => {
           </tr>
         </tfoot>
       </table>
-
-      <div style="margin-top: 50px; text-align: center; color: #6b7280; font-size: 10px;">
-        <p>Report generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-      </div>
     `;
 
     document.body.appendChild(reportElement);

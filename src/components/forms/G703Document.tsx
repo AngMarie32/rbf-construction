@@ -56,7 +56,7 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
           const category = item.category || 'Other';
           if (!acc[category]) {
             acc[category] = {
-              itemNumber: `C-${Object.keys(acc).length + 1}`,
+              itemNumber: `${Object.keys(acc).length + 1}`,
               displayDescription: category,
               scheduledValue: 0,
               changeOrders: 0,
@@ -81,8 +81,8 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
           const division = item.category?.split(' ')[0] || 'General';
           if (!acc[division]) {
             acc[division] = {
-              itemNumber: `D-${Object.keys(acc).length + 1}`,
-              displayDescription: `${division} Division`,
+              itemNumber: `${Object.keys(acc).length + 1}`,
+              displayDescription: `${division}`,
               scheduledValue: 0,
               changeOrders: 0,
               previousApplications: 0,
@@ -133,18 +133,18 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
         </CardContent>
       </Card>
 
-      {/* G703 Document - Landscape orientation */}
-      <div className="bg-white p-4 mx-auto text-black print:shadow-none" style={{ width: '11in', minHeight: '8.5in' }}>
-        {/* Header */}
-        <div className="text-center mb-4">
+      {/* G703 Document - Full page width for better PDF export */}
+      <div className="bg-white mx-auto text-black print:shadow-none" style={{ width: '100%', maxWidth: '8.5in', minHeight: '11in', fontSize: '10px', lineHeight: '1.2' }}>
+        {/* Header - Removed report taglines as requested */}
+        <div className="text-center mb-6">
           <div className="grid grid-cols-3 items-center">
             <div></div>
             <div>
-              <h1 className="text-lg font-bold">CONTINUATION SHEET</h1>
+              <h1 className="text-xl font-bold">CONTINUATION SHEET</h1>
               <p className="text-sm">AIA DOCUMENT G703™</p>
               <p className="text-xs">APPLICATION AND CERTIFICATE FOR PAYMENT</p>
             </div>
-            <div className="text-right text-xs">
+            <div className="text-right text-sm">
               <div>APPLICATION NUMBER: {formData.applicationNumber}</div>
               <div>PERIOD TO: {new Date(formData.periodTo).toLocaleDateString()}</div>
             </div>
@@ -167,9 +167,9 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
           </div>
         </div>
 
-        {/* SOV Table */}
-        <div className="border-b border-black">
-          <table className="w-full border-collapse text-xs">
+        {/* SOV Table - Improved for PDF export */}
+        <div className="border border-black" style={{ pageBreakInside: 'avoid' }}>
+          <table className="w-full border-collapse" style={{ fontSize: '9px' }}>
             <thead>
               {/* Row 1: Grouping Header */}
               <tr className="text-center font-bold text-xs">
@@ -241,9 +241,9 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
                 const retainage = totalCompleted * (formData.retainagePercentage / 100);
                 
                 return (
-                  <tr key={item.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="border-l border-r border-black p-1 text-center">{item.itemNumber}</td>
-                    <td className="border-r border-black p-1">{item.displayDescription}</td>
+                  <tr key={item.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} style={{ pageBreakInside: 'avoid' }}>
+                    <td className="border-l border-r border-black p-1 text-center" style={{ minHeight: '20px' }}>{item.itemNumber}</td>
+                    <td className="border-r border-black p-1" style={{ wordWrap: 'break-word', maxWidth: '200px' }}>{item.displayDescription}</td>
                     <td className="border-r border-black p-1 text-right">${(item.scheduledValue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="border-r border-black p-1 text-right">${(item.changeOrders || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="border-r border-black p-1 text-right">${totalContract.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>

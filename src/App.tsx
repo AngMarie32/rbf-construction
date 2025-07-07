@@ -1,4 +1,3 @@
-
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
@@ -24,6 +23,7 @@ import Proposals from '@/pages/Proposals';
 import ProjectBilling from '@/pages/ProjectBilling';
 import Invoices from '@/pages/Invoices';
 import PaymentApplications from '@/pages/PaymentApplications';
+import CreatePaymentApplication from '@/pages/CreatePaymentApplication';
 import Settings from '@/pages/Settings';
 import AdminUsers from '@/pages/AdminUsers';
 import Analytics from '@/pages/Analytics';
@@ -66,6 +66,8 @@ function App() {
               <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
               <Route path="/payment-applications" element={<ProtectedRoute><PaymentApplications /></ProtectedRoute>} />
               <Route path="/payment-apps" element={<ProtectedRoute><PaymentApplications /></ProtectedRoute>} />
+              <Route path="/payment-applications/create/:projectId" element={<ProtectedRoute><CreatePaymentApplication /></ProtectedRoute>} />
+              <Route path="/payment-applications/edit/:projectId/:applicationId" element={<ProtectedRoute><CreatePaymentApplication /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
               <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
