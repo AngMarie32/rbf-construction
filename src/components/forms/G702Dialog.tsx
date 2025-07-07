@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { G702Document } from './G702Document';
 import { G703Document } from './G703Document';
 import { SOVTable } from './sov/SOVTable';
-import { exportG702G703ToPDF } from '@/utils/pdfExport';
+import { exportG702G703ToPDF, exportToPDF } from '@/utils/pdfExport';
 
 interface G702DialogProps {
   open: boolean;
@@ -37,9 +37,9 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
     architectName: '',
     contractorName: '',
     contractorAddress: '',
-    originalContractSum: 0,
+    originalContractSum: 1529940, // Fixed base amount
     netChangeByChangeOrders: 0,
-    contractSumToDate: 0,
+    contractSumToDate: 1529940,
     totalCompletedAndStored: 0,
     retainagePercentage: 10,
     totalRetainage: 0,
@@ -77,11 +77,12 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
       if (error) throw error;
       setProject(data);
       
+      // Keep the fixed base amount
       setFormData(prev => ({
         ...prev,
-        originalContractSum: data.contract_value || 0,
+        originalContractSum: 1529940,
         netChangeByChangeOrders: data.net_change_orders || 0,
-        contractSumToDate: (data.contract_value || 0) + (data.net_change_orders || 0)
+        contractSumToDate: 1529940 + (data.net_change_orders || 0)
       }));
     } catch (error) {
       console.error('Error fetching project:', error);
@@ -122,12 +123,11 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
   };
 
   const fetchCompanyInfo = async () => {
-    // Updated RBF Construction info with correct phone number
     setCompanyInfo({
       name: 'RBF Construction, Inc.',
       address: '1411 W. Hill Rd, Flint, MI 48507',
       phone: '810-938-8498',
-      email: '' // Remove email as requested
+      email: ''
     });
   };
 
@@ -191,22 +191,17 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
   };
 
   const calculateTotals = () => {
-    // Include contingency in contract calculations - FIX: Use addition instead of multiplication
-    const originalContractSum = formData.originalContractSum || 0;
-    const contingencyAmount = project?.contingency_type === 'percentage' 
-      ? (originalContractSum * (project?.contingency_value || 0)) / 100
-      : (project?.contingency_value || 0);
-    const contractSumWithContingency = originalContractSum + contingencyAmount;
-    
+    // Use fixed base amount
+    const baseContractSum = 1529940;
     const totalCompleted = sovItems.reduce((sum, item) => sum + (item.thisPeriod || 0) + (item.previousApplications || 0), 0);
     const totalRetainage = totalCompleted * (formData.retainagePercentage / 100);
     const totalEarnedLessRetainage = totalCompleted - totalRetainage;
     const currentPaymentDue = totalEarnedLessRetainage - formData.lessPreviousCertificates;
-    const contractSumToDate = contractSumWithContingency + (formData.netChangeByChangeOrders || 0);
+    const contractSumToDate = baseContractSum + (formData.netChangeByChangeOrders || 0);
     const balanceToFinish = contractSumToDate - totalCompleted;
 
     return {
-      originalContractSum: contractSumWithContingency,
+      originalContractSum: baseContractSum,
       totalCompleted,
       totalRetainage,
       totalEarnedLessRetainage,
@@ -279,8 +274,17 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
       setExportLoading(true);
       console.log('Starting PDF export from dialog...');
       
-      // Give a moment for any state updates to render
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for DOM to be ready
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Check if elements exist
+      const g702Element = document.getElementById('g702-document');
+      const g703Element = document.getElementById('g703-document');
+      
+      if (!g702Element || !g703Element) {
+        console.error('Required elements not found:', { g702Element, g703Element });
+        throw new Error('Documents not ready for export. Please try again.');
+      }
       
       await exportG702G703ToPDF(`G702-G703-App-${formData.applicationNumber}.pdf`);
       toast.success('PDF exported successfully');

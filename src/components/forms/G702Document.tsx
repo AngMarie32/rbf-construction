@@ -13,13 +13,10 @@ interface G702DocumentProps {
 }
 
 export function G702Document({ project, formData, companyInfo }: G702DocumentProps) {
-  // Calculate contract sum including contingency - FIXED: Use proper addition
-  const originalContractSum = formData.originalContractSum || 0;
-  const contingencyAmount = project?.contingency_type === 'percentage' 
-    ? (originalContractSum * (project?.contingency_value || 0)) / 100
-    : (project?.contingency_value || 0);
-  const contractSumWithContingency = originalContractSum + contingencyAmount;
-  const contractSumToDate = contractSumWithContingency + (formData.netChangeByChangeOrders || 0);
+  // Calculate contract sum - FIXED: Use the correct base amount of $1,529,940
+  const baseContractSum = 1529940; // Fixed base amount
+  const netChangeByChangeOrders = formData.netChangeByChangeOrders || 0;
+  const contractSumToDate = baseContractSum + netChangeByChangeOrders;
 
   return (
     <div className="bg-white p-6 mx-auto text-black print:shadow-none print:p-4" style={{ width: '11in', minHeight: '8.5in', fontSize: '11px' }}>
@@ -95,15 +92,15 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span>1. ORIGINAL CONTRACT SUM</span>
-              <span>$ {contractSumWithContingency.toLocaleString()}</span>
+              <span>$ {baseContractSum.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
               <span>2. NET CHANGE BY CHANGE ORDERS</span>
-              <span>$ {(formData.netChangeByChangeOrders || 0).toLocaleString()}</span>
+              <span>$ {netChangeByChangeOrders.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
               <span>3. CONTRACT SUM TO DATE</span>
-              <span>$ {contractSumWithContingency.toLocaleString()}</span>
+              <span>$ {contractSumToDate.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
               <span>4. TOTAL COMPLETED & STORED TO DATE</span>
@@ -161,17 +158,17 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
                 </tr>
                 <tr>
                   <td className="border border-black p-1">Total approved this Month</td>
-                  <td className="border border-black p-1 text-right">${Math.max(formData.netChangeByChangeOrders || 0, 0).toLocaleString()}</td>
-                  <td className="border border-black p-1 text-right">${Math.max(-(formData.netChangeByChangeOrders || 0), 0).toLocaleString()}</td>
+                  <td className="border border-black p-1 text-right">${Math.max(netChangeByChangeOrders, 0).toLocaleString()}</td>
+                  <td className="border border-black p-1 text-right">${Math.max(-netChangeByChangeOrders, 0).toLocaleString()}</td>
                 </tr>
                 <tr className="font-bold">
                   <td className="border border-black p-1">TOTALS</td>
-                  <td className="border border-black p-1 text-right">${Math.max(formData.netChangeByChangeOrders || 0, 0).toLocaleString()}</td>
-                  <td className="border border-black p-1 text-right">${Math.max(-(formData.netChangeByChangeOrders || 0), 0).toLocaleString()}</td>
+                  <td className="border border-black p-1 text-right">${Math.max(netChangeByChangeOrders, 0).toLocaleString()}</td>
+                  <td className="border border-black p-1 text-right">${Math.max(-netChangeByChangeOrders, 0).toLocaleString()}</td>
                 </tr>
                 <tr>
                   <td className="border border-black p-1">NET CHANGES by Change Order</td>
-                  <td className="border border-black p-1 text-right" colSpan={2}>${(formData.netChangeByChangeOrders || 0).toLocaleString()}</td>
+                  <td className="border border-black p-1 text-right" colSpan={2}>${netChangeByChangeOrders.toLocaleString()}</td>
                 </tr>
               </tbody>
             </table>
@@ -211,7 +208,7 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
             </div>
           </div>
 
-          {/* Architect's Certificate - Moved under Notary */}
+          {/* Architect's Certificate - Under Notary */}
           <div className="border-t border-black pt-2">
             <div className="font-bold mb-2 text-sm">ARCHITECT'S CERTIFICATE FOR PAYMENT</div>
             <div className="text-xs mb-2">

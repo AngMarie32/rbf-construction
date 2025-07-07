@@ -1,4 +1,3 @@
-
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -6,49 +5,53 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
   try {
     console.log('Starting PDF export...');
     
-    // Wait a bit for any rendering to complete
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Wait for any rendering to complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     const g702Element = document.getElementById('g702-document');
     const g703Element = document.getElementById('g703-document');
     
     if (!g702Element || !g703Element) {
-      console.error('G702 or G703 document not found');
-      throw new Error('Documents not found for export');
+      console.error('Required elements not found for PDF export');
+      throw new Error('PDF export failed: Required documents not found. Please ensure you are on the correct tab.');
     }
 
     console.log('Found documents, creating PDF...');
 
-    // Create PDF with landscape orientation for better formatting
+    // Create PDF with landscape orientation
     const pdf = new jsPDF({
       orientation: 'landscape',
       unit: 'in',
       format: 'letter'
     });
 
-    // Capture G702 with higher resolution and better scaling
-    console.log('Capturing G702...');
-    const g702Canvas = await html2canvas(g702Element, {
-      scale: 1.5,
+    // Enhanced canvas options for better quality
+    const canvasOptions = {
+      scale: 2,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
-      width: g702Element.scrollWidth,
-      height: g702Element.scrollHeight,
       logging: false,
-      ignoreElements: (element) => {
+      ignoreElements: (element: Element) => {
         return element.classList.contains('print:hidden');
       }
+    };
+
+    // Capture G702
+    console.log('Capturing G702...');
+    const g702Canvas = await html2canvas(g702Element, {
+      ...canvasOptions,
+      width: g702Element.scrollWidth,
+      height: g702Element.scrollHeight,
     });
 
-    // Add G702 to PDF - landscape dimensions (11 x 8.5)
-    const g702ImgData = g702Canvas.toDataURL('image/png');
+    // Add G702 to PDF
+    const g702ImgData = g702Canvas.toDataURL('image/png', 1.0);
     const pageWidth = 11;
     const pageHeight = 8.5;
-    const imgWidth = pageWidth - 0.5; // 0.25 inch margins on each side
+    const imgWidth = pageWidth - 0.5;
     const imgHeight = (g702Canvas.height * imgWidth) / g702Canvas.width;
     
-    // Scale to fit landscape page
     let finalWidth = imgWidth;
     let finalHeight = imgHeight;
     if (imgHeight > pageHeight - 0.5) {
@@ -61,26 +64,18 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
     // Add new page for G703
     pdf.addPage();
 
-    // Capture G703 with higher resolution
+    // Capture G703
     console.log('Capturing G703...');
     const g703Canvas = await html2canvas(g703Element, {
-      scale: 1.5,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
+      ...canvasOptions,
       width: g703Element.scrollWidth,
       height: g703Element.scrollHeight,
-      logging: false,
-      ignoreElements: (element) => {
-        return element.classList.contains('print:hidden');
-      }
     });
 
-    const g703ImgData = g703Canvas.toDataURL('image/png');
+    const g703ImgData = g703Canvas.toDataURL('image/png', 1.0);
     const g703ImgWidth = pageWidth - 0.5;
     const g703ImgHeight = (g703Canvas.height * g703ImgWidth) / g703Canvas.width;
     
-    // Scale to fit landscape page
     let g703FinalWidth = g703ImgWidth;
     let g703FinalHeight = g703ImgHeight;
     if (g703ImgHeight > pageHeight - 0.5) {
@@ -106,8 +101,8 @@ export const exportToPDF = async (elementId: string, filename: string) => {
   try {
     console.log(`Exporting element ${elementId} to PDF...`);
     
-    // Wait a bit for any rendering to complete
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Wait for rendering to complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     const element = document.getElementById(elementId);
     if (!element) {
@@ -116,7 +111,7 @@ export const exportToPDF = async (elementId: string, filename: string) => {
 
     console.log('Capturing element...');
     const canvas = await html2canvas(element, {
-      scale: 1.5,
+      scale: 2,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
@@ -134,7 +129,7 @@ export const exportToPDF = async (elementId: string, filename: string) => {
       format: 'letter'
     });
 
-    const imgData = canvas.toDataURL('image/png');
+    const imgData = canvas.toDataURL('image/png', 1.0);
     const pageWidth = 11;
     const pageHeight = 8.5;
     const imgWidth = pageWidth - 0.5;
