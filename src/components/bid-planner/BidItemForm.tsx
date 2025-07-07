@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -350,12 +351,13 @@ function SearchableSelect({ value, onValueChange, options, placeholder, allowCus
 }
 
 export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
-  console.log('🎯 BidItemForm STATE CHECK:');
-  console.log('- Items received as props:', items.length);
-  console.log('- First 3 items:', items.slice(0, 3).map(item => ({ id: item.id, description: item.description })));
+  console.log('🎯 BidItemForm RENDER - Received items:', items.length);
+  
+  // 🔥 CRITICAL: Use items directly from props, don't maintain separate state
+  const currentItems = items;
 
   useEffect(() => {
-    console.log('🔄 BidItemForm props changed - items count:', items.length);
+    console.log('🔄 BidItemForm props.items changed - count:', items.length);
     if (items.length > 10) {
       console.log('📊 Large dataset detected with', items.length, 'items');
     }
@@ -374,14 +376,14 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
       unitCost: 0,
       total: 0
     };
-    const updatedItems = [newItem, ...items];
+    const updatedItems = [newItem, ...currentItems];
     console.log('➕ New item count after addition:', updatedItems.length);
     onItemsChange(updatedItems);
   };
 
   const updateItem = (id: string, field: keyof BidItem, value: any) => {
     console.log(`🔧 Updating item ${id}, field: ${field}`);
-    const updatedItems = items.map(item => {
+    const updatedItems = currentItems.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
         if (field === 'quantity' || field === 'unitCost') {
@@ -397,16 +399,16 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
 
   const removeItem = (id: string) => {
     console.log('🗑️ Removing item:', id);
-    const updatedItems = items.filter(item => item.id !== id);
+    const updatedItems = currentItems.filter(item => item.id !== id);
     console.log('🗑️ Items count after removal:', updatedItems.length);
     onItemsChange(updatedItems);
   };
 
   const calculateGrandTotal = () => {
-    return items.reduce((sum, item) => sum + item.total, 0);
+    return currentItems.reduce((sum, item) => sum + item.total, 0);
   };
 
-  console.log('🎯 RENDERING BidItemForm with', items.length, 'items');
+  console.log('🎯 RENDERING BidItemForm with', currentItems.length, 'items');
 
   return (
     <Card>
@@ -414,7 +416,7 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
         <div className="flex justify-between items-center">
           <CardTitle className="flex items-center gap-2">
             Line Items 
-            <span className="text-lg font-bold text-blue-600">({items.length} items)</span>
+            <span className="text-lg font-bold text-blue-600">({currentItems.length} items)</span>
           </CardTitle>
           <Button onClick={addItem} size="sm">
             <Plus className="w-4 h-4 mr-2" />
@@ -436,7 +438,7 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
         </div>
 
         {/* Item Rows */}
-        {items.map((item) => (
+        {currentItems.map((item) => (
           <div key={item.id} className="grid grid-cols-12 gap-2 items-center py-1 border-b border-gray-100">
             <div className="col-span-1">
               <SearchableSelect
@@ -512,7 +514,7 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
               <div className="text-xs font-medium">
                 ${item.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
-              {items.length > 1 && (
+              {currentItems.length > 1 && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -526,7 +528,7 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
           </div>
         ))}
 
-        {items.length > 0 && (
+        {currentItems.length > 0 && (
           <div className="border-t pt-4 mt-6">
             <div className="flex justify-end">
               <div className="text-right">
@@ -534,7 +536,7 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                   Grand Total: ${calculateGrandTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <div className="text-sm text-gray-600">
-                  {items.length} line item{items.length !== 1 ? 's' : ''}
+                  {currentItems.length} line item{currentItems.length !== 1 ? 's' : ''}
                 </div>
               </div>
             </div>
@@ -543,18 +545,19 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
 
         {/* 🔥 DEBUG INFO PANEL */}
         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h4 className="font-semibold text-blue-800 mb-2">🔍 Debug Info</h4>
+          <h4 className="font-semibold text-blue-800 mb-2">🔍 BidItemForm Debug Info</h4>
           <div className="text-sm space-y-1">
-            <div><strong>Items in form state:</strong> {items.length}</div>
+            <div><strong>Items received from props:</strong> {items.length}</div>
+            <div><strong>Items being rendered:</strong> {currentItems.length}</div>
             <div><strong>Grand total:</strong> ${calculateGrandTotal().toLocaleString()}</div>
             <div><strong>Sample items:</strong></div>
             <ul className="ml-4 text-xs">
-              {items.slice(0, 3).map((item, index) => (
+              {currentItems.slice(0, 3).map((item, index) => (
                 <li key={item.id}>
                   {index + 1}. {item.description || 'No description'} - ${item.total.toLocaleString()}
                 </li>
               ))}
-              {items.length > 3 && <li>... and {items.length - 3} more items</li>}
+              {currentItems.length > 3 && <li>... and {currentItems.length - 3} more items</li>}
             </ul>
           </div>
         </div>

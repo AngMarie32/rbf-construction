@@ -47,10 +47,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     }
   ]);
 
-  // 🔥 ADD CRITICAL LOGGING FOR BID ITEMS STATE
-  console.log('🎯 BidCreationView CURRENT STATE:');
-  console.log('- bidItems count:', bidItems.length);
-  console.log('- Project ID:', projectId);
+  console.log('🎯 BidCreationView RENDER - bidItems count:', bidItems.length);
 
   // Load existing bid items for this project on component mount
   useEffect(() => {
@@ -75,18 +72,17 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         return;
       }
 
-      console.log('✅ Found existing bid items:', existingItems?.length || 0, 'items');
-      console.log('📋 Raw database items:', existingItems?.slice(0, 3)); // Show first 3 for debugging
+      console.log('✅ DATABASE QUERY RESULT:', existingItems?.length || 0, 'items found');
 
       if (existingItems && existingItems.length > 0) {
-        // Convert ALL database items to UI format - NO FILTERING
+        // Convert ALL database items to UI format
         const formattedItems: BidItem[] = existingItems.map((item, index) => {
-          const formattedItem = {
-            id: item.id || String(index + 1),
+          return {
+            id: item.id || String(Date.now() + index),
             division: item.category?.includes('Site') ? 'Site Work' : 
                      item.category?.includes('Building') || item.category?.includes('Masonry') || item.category?.includes('Concrete') ? 'Building' : 
                      item.category?.includes('General') ? 'General Conditions' : 
-                     item.category?.includes('MEP') ? 'MEP' : 'Other',
+                     'Other',
             category: item.category || 'General',
             subcategory: item.subcategory || '',
             description: item.description || '',
@@ -95,32 +91,18 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
             unitCost: item.unit_cost || 0,
             total: (item.unit_cost || 0) * (item.quantity || 1)
           };
-          
-          // Log each item conversion for debugging
-          if (index < 5) {
-            console.log(`📝 Item ${index + 1} conversion:`, {
-              from: { category: item.category, description: item.description, unit_cost: item.unit_cost },
-              to: { category: formattedItem.category, description: formattedItem.description, unitCost: formattedItem.unitCost }
-            });
-          }
-          
-          return formattedItem;
         });
 
-        console.log('🎯 Setting ALL formatted items in state:', formattedItems.length, 'items');
-        console.log('💰 Total value of all items:', formattedItems.reduce((sum, item) => sum + item.total, 0).toLocaleString());
-        
-        // 🔥 CRITICAL: Set the bid items state with ALL items
+        console.log('🎯 SETTING bidItems STATE WITH:', formattedItems.length, 'items');
         setBidItems(formattedItems);
         onItemsChange(existingItems);
         
-        // Show success message with count
-        console.log(`✅ SUCCESS: Loaded ${formattedItems.length} bid items into form state`);
+        console.log(`✅ SUCCESS: Loaded ${formattedItems.length} bid items into state`);
+        toast.success(`Loaded ${formattedItems.length} existing bid items`);
       } else {
-        // No existing items, keep default empty item
-        console.log('📝 No existing items found, keeping default state');
+        console.log('📝 No existing items found, using default state');
         setBidItems([{
-          id: '1',
+          id: String(Date.now()),
           division: 'General Conditions',
           category: 'Labor/Supervision',
           subcategory: '',
@@ -133,9 +115,16 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       }
     } catch (error) {
       console.error('❌ Error loading existing bid items:', error);
+      toast.error('Failed to load existing bid items');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Function to handle items imported from dialog
+  const handleItemsImported = async () => {
+    console.log('🔄 ITEMS IMPORTED - Reloading from database...');
+    await loadExistingBidItems();
   };
 
   const calculateTotalValue = () => {
@@ -175,31 +164,18 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const handleSaveBid = async () => {
-    console.log('🚀 STARTING BID SAVE - DEBUGGING VERSION');
+    console.log('🚀 STARTING BID SAVE');
     console.log('=' .repeat(80));
-    
-    // 🔥 CRITICAL: Log the exact state of bidItems before any processing
-    console.log('📊 PRE-SAVE bidItems STATE CHECK:');
-    console.log('- bidItems.length:', bidItems.length);
-    console.log('- First 5 items in bidItems state:', bidItems.slice(0, 5).map(item => ({
-      id: item.id,
-      category: item.category,
-      description: item.description,
-      unitCost: item.unitCost,
-      total: item.total
-    })));
+    console.log('📊 CURRENT bidItems STATE:', bidItems.length, 'items');
     
     if (!projectId) {
       console.log('❌ No project ID provided');
+      toast.error('No project selected');
       return;
     }
 
-    console.log('📊 CURRENT BID ITEMS STATE:');
-    console.log('- Project ID:', projectId);
-    console.log('- Total bid items in form state:', bidItems.length);
-    
     // Log first few items for verification
-    bidItems.slice(0, 10).forEach((item, index) => {
+    bidItems.slice(0, 5).forEach((item, index) => {
       console.log(`Item ${index + 1}:`, {
         id: item.id,
         category: item.category || 'EMPTY',
@@ -210,33 +186,18 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       });
     });
 
-    if (bidItems.length > 10) {
-      console.log(`... and ${bidItems.length - 10} more items`);
-    }
-
-    // Filter items - keep items with either category OR description (not both required)
-    const validItems = bidItems.filter((item, index) => {
+    // Filter items - keep items with either category OR description
+    const validItems = bidItems.filter((item) => {
       const hasCategory = item.category && item.category.trim().length > 0;
       const hasDescription = item.description && item.description.trim().length > 0;
-      const isValid = hasCategory || hasDescription;
-      
-      if (index < 5) { // Only log first 5 for brevity
-        console.log(`✅ Item ${index + 1} validation:`, {
-          hasCategory,
-          hasDescription,
-          isValid,
-          willBeSaved: isValid
-        });
-      }
-      
-      return isValid;
+      return hasCategory || hasDescription;
     });
 
-    console.log('📋 ITEMS AFTER FILTERING:');
-    console.log('- Valid items count:', validItems.length);
+    console.log('📋 VALID ITEMS TO SAVE:', validItems.length);
 
     if (validItems.length === 0) {
       console.log('🛑 NO VALID ITEMS TO SAVE');
+      toast.error('No valid items to save');
       return;
     }
 
@@ -253,13 +214,12 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       };
     });
 
-    console.log('🎯 FINAL DATABASE PAYLOAD:');
-    console.log('- Items to save:', itemsForDatabase.length);
+    console.log('🎯 FINAL DATABASE PAYLOAD:', itemsForDatabase.length, 'items');
 
     setSaving(true);
     try {
-      // Step 1: Delete existing items
-      console.log('🗑️ Step 1: Deleting existing items...');
+      // Delete existing items
+      console.log('🗑️ Deleting existing items...');
       const { error: deleteError } = await supabase
         .from('bid_items')
         .delete()
@@ -270,12 +230,8 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         throw new Error(`Failed to delete existing items: ${deleteError.message}`);
       }
 
-      console.log('✅ Step 1 Complete: Existing items deleted');
-
-      // Step 2: Insert new items
-      console.log('💾 Step 2: Inserting new items...');
-      console.log('- Inserting items count:', itemsForDatabase.length);
-      
+      // Insert new items
+      console.log('💾 Inserting', itemsForDatabase.length, 'new items...');
       const { data: savedData, error: insertError } = await supabase
         .from('bid_items')
         .insert(itemsForDatabase)
@@ -283,35 +239,25 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
       if (insertError) {
         console.error('❌ INSERT ERROR:', insertError);
-        console.error('- Error details:', insertError.details);
-        console.error('- Error hint:', insertError.hint);
-        console.error('- Error message:', insertError.message);
         throw new Error(`Database insert error: ${insertError.message}`);
       }
 
-      console.log('🎉 Step 2 Complete: Items saved successfully!');
-      console.log('- Saved items count:', savedData?.length || 0);
-
-      const successMessage = `Successfully saved ${savedData?.length || 0} bid items!`;
-      console.log('✅ SUCCESS:', successMessage);
+      console.log('🎉 SUCCESS: Saved', savedData?.length || 0, 'items');
+      toast.success(`Successfully saved ${savedData?.length || 0} bid items!`);
       
-      // Step 3: IMMEDIATELY reload the items to refresh the UI
-      console.log('🔄 Step 3: Reloading items to refresh UI...');
+      // Reload items to refresh UI
       await loadExistingBidItems();
-      
       setCurrentBidId(projectId);
       
     } catch (error: any) {
       console.error('💥 SAVE FAILED:', error);
-      console.error('- Error stack:', error.stack);
+      toast.error(`Failed to save bid: ${error.message}`);
     } finally {
       setSaving(false);
-      console.log('🏁 SAVE PROCESS COMPLETED');
-      console.log('=' .repeat(80));
     }
   };
 
-  // 🔥 ADD HANDLER TO UPDATE ITEMS AND LOG THE CHANGES
+  // Handler to update items from BidItemForm
   const handleItemsChange = (newItems: BidItem[]) => {
     console.log('🔄 BidCreationView: Items changed from', bidItems.length, 'to', newItems.length);
     setBidItems(newItems);
@@ -527,18 +473,30 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         
         <div className="flex gap-2">
           <ImportBidItemsDialog 
-            onItemsImported={loadExistingBidItems} 
+            onItemsImported={handleItemsImported} 
             projects={[{ id: projectId, name: 'Current Project' }]} 
           />
         </div>
       </div>
 
-      {/* Bid Items - Full width */}
+      {/* 🔥 STATE DEBUG PANEL */}
+      <Card className="border-2 border-red-200 bg-red-50">
+        <CardContent className="p-4">
+          <h4 className="font-bold text-red-800 mb-2">🔍 STATE DEBUG INFO</h4>
+          <div className="text-sm space-y-1">
+            <div><strong>bidItems in BidCreationView:</strong> {bidItems.length}</div>
+            <div><strong>Total calculated:</strong> ${calculateTotalValue().toLocaleString()}</div>
+            <div><strong>Project ID:</strong> {projectId}</div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Bid Items Form */}
       <div className="w-full">
         <BidItemForm items={bidItems} onItemsChange={handleItemsChange} />
       </div>
 
-      {/* Extended Bid Summary - Full width */}
+      {/* Bid Summary */}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
