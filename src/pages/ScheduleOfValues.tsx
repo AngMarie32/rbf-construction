@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -132,7 +131,7 @@ export default function ScheduleOfValues() {
 
       if (error) throw error;
       
-      // Ensure all numeric fields are properly converted
+      // Ensure all numeric fields are properly converted and include subcategory
       const processedItems = (data || []).map(item => ({
         ...item,
         scheduled_value: Number(item.scheduled_value) || 0,
@@ -143,7 +142,7 @@ export default function ScheduleOfValues() {
         total_completed_and_stored: Number(item.total_completed_and_stored) || 0,
         percent_complete: Number(item.percent_complete) || 0,
         retainage_percentage: Number(item.retainage_percentage) || 0,
-        subcategory: item.subcategory || ''
+        subcategory: item.subcategory || null // Ensure subcategory is included
       }));
       
       setSovItems(processedItems);
