@@ -41,9 +41,10 @@ export function BidSettings({ projectId }: BidSettingsProps) {
         .eq('project_id', projectId)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error loading bid settings:', error);
-        throw error;
+        toast.error('Failed to load bid settings');
+        return;
       }
 
       if (data) {
@@ -76,50 +77,29 @@ export function BidSettings({ projectId }: BidSettingsProps) {
     try {
       console.log('Saving bid settings:', settings);
       
-      // First, try to update existing record
-      const { data: existingData } = await supabase
+      const settingsData = {
+        project_id: projectId,
+        markup_percentage: settings.markupPercentage,
+        contingency_percentage: settings.contingencyPercentage,
+        include_tax: settings.includeTax,
+        tax_percentage: settings.taxPercentage,
+        round_to_nearest: settings.roundToNearest,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
         .from('bid_settings')
-        .select('id')
-        .eq('project_id', projectId)
-        .maybeSingle();
+        .upsert(settingsData, { 
+          onConflict: 'project_id'
+        });
 
-      let result;
-      
-      if (existingData) {
-        // Update existing record
-        result = await supabase
-          .from('bid_settings')
-          .update({
-            markup_percentage: settings.markupPercentage,
-            contingency_percentage: settings.contingencyPercentage,
-            include_tax: settings.includeTax,
-            tax_percentage: settings.taxPercentage,
-            round_to_nearest: settings.roundToNearest,
-            updated_at: new Date().toISOString()
-          })
-          .eq('project_id', projectId)
-          .select();
-      } else {
-        // Insert new record
-        result = await supabase
-          .from('bid_settings')
-          .insert({
-            project_id: projectId,
-            markup_percentage: settings.markupPercentage,
-            contingency_percentage: settings.contingencyPercentage,
-            include_tax: settings.includeTax,
-            tax_percentage: settings.taxPercentage,
-            round_to_nearest: settings.roundToNearest
-          })
-          .select();
+      if (error) {
+        console.error('Error saving bid settings:', error);
+        toast.error(`Failed to save bid settings: ${error.message}`);
+        return;
       }
 
-      if (result.error) {
-        console.error('Error saving bid settings:', result.error);
-        throw result.error;
-      }
-
-      console.log('Bid settings saved successfully:', result.data);
+      console.log('Bid settings saved successfully');
       toast.success('Bid settings saved successfully');
       
       // Reload settings to confirm they were saved

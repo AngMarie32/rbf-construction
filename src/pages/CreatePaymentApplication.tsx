@@ -5,6 +5,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { G702Form } from '@/components/forms/G702Form';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 export default function CreatePaymentApplication() {
   const { projectId, applicationId } = useParams();
@@ -41,6 +43,10 @@ export default function CreatePaymentApplication() {
     navigate(`/payment-applications?project=${projectId}`);
   };
 
+  const handleBack = () => {
+    navigate(`/payment-applications?project=${projectId}`);
+  };
+
   if (loading) {
     return (
       <Layout title="Payment Application" subtitle="Loading...">
@@ -66,6 +72,17 @@ export default function CreatePaymentApplication() {
       title={applicationId ? "Edit Payment Application" : "Create Payment Application"} 
       subtitle={`${project.name} - ${project.client || 'No Client'}`}
     >
+      <div className="mb-6">
+        <Button 
+          variant="outline" 
+          onClick={handleBack}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Payment Applications
+        </Button>
+      </div>
+      
       <G702Form 
         projectId={projectId!} 
         applicationId={applicationId}

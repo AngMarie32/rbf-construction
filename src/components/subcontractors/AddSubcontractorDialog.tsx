@@ -100,10 +100,9 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
 
       console.log('Inserting subcontractor data:', insertData);
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('subcontractors')
-        .insert([insertData])
-        .select();
+        .insert([insertData]);
 
       if (error) {
         console.error('Supabase error:', error);
@@ -111,7 +110,7 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
         return;
       }
 
-      console.log('Successfully inserted:', data);
+      console.log('Successfully inserted subcontractor');
       toast.success('Subcontractor added successfully');
       setOpen(false);
       resetForm();
