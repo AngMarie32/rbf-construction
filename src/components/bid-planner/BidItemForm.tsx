@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -350,7 +350,19 @@ function SearchableSelect({ value, onValueChange, options, placeholder, allowCus
 }
 
 export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
+  console.log('🎯 BidItemForm STATE CHECK:');
+  console.log('- Items received as props:', items.length);
+  console.log('- First 3 items:', items.slice(0, 3).map(item => ({ id: item.id, description: item.description })));
+
+  useEffect(() => {
+    console.log('🔄 BidItemForm props changed - items count:', items.length);
+    if (items.length > 10) {
+      console.log('📊 Large dataset detected with', items.length, 'items');
+    }
+  }, [items]);
+
   const addItem = () => {
+    console.log('➕ Adding new item to form');
     const newItem: BidItem = {
       id: Date.now().toString(),
       division: 'General Conditions',
@@ -362,10 +374,13 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
       unitCost: 0,
       total: 0
     };
-    onItemsChange([newItem, ...items]);
+    const updatedItems = [newItem, ...items];
+    console.log('➕ New item count after addition:', updatedItems.length);
+    onItemsChange(updatedItems);
   };
 
   const updateItem = (id: string, field: keyof BidItem, value: any) => {
+    console.log(`🔧 Updating item ${id}, field: ${field}`);
     const updatedItems = items.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
@@ -376,22 +391,31 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
       }
       return item;
     });
+    console.log('🔧 Items count after update:', updatedItems.length);
     onItemsChange(updatedItems);
   };
 
   const removeItem = (id: string) => {
-    onItemsChange(items.filter(item => item.id !== id));
+    console.log('🗑️ Removing item:', id);
+    const updatedItems = items.filter(item => item.id !== id);
+    console.log('🗑️ Items count after removal:', updatedItems.length);
+    onItemsChange(updatedItems);
   };
 
   const calculateGrandTotal = () => {
     return items.reduce((sum, item) => sum + item.total, 0);
   };
 
+  console.log('🎯 RENDERING BidItemForm with', items.length, 'items');
+
   return (
     <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
-          <CardTitle>Line Items</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Line Items 
+            <span className="text-lg font-bold text-blue-600">({items.length} items)</span>
+          </CardTitle>
           <Button onClick={addItem} size="sm">
             <Plus className="w-4 h-4 mr-2" />
             Add Line Item
@@ -516,6 +540,24 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
             </div>
           </div>
         )}
+
+        {/* 🔥 DEBUG INFO PANEL */}
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="font-semibold text-blue-800 mb-2">🔍 Debug Info</h4>
+          <div className="text-sm space-y-1">
+            <div><strong>Items in form state:</strong> {items.length}</div>
+            <div><strong>Grand total:</strong> ${calculateGrandTotal().toLocaleString()}</div>
+            <div><strong>Sample items:</strong></div>
+            <ul className="ml-4 text-xs">
+              {items.slice(0, 3).map((item, index) => (
+                <li key={item.id}>
+                  {index + 1}. {item.description || 'No description'} - ${item.total.toLocaleString()}
+                </li>
+              ))}
+              {items.length > 3 && <li>... and {items.length - 3} more items</li>}
+            </ul>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

@@ -47,6 +47,11 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     }
   ]);
 
+  // 🔥 ADD CRITICAL LOGGING FOR BID ITEMS STATE
+  console.log('🎯 BidCreationView CURRENT STATE:');
+  console.log('- bidItems count:', bidItems.length);
+  console.log('- Project ID:', projectId);
+
   // Load existing bid items for this project on component mount
   useEffect(() => {
     if (projectId) {
@@ -105,11 +110,12 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         console.log('🎯 Setting ALL formatted items in state:', formattedItems.length, 'items');
         console.log('💰 Total value of all items:', formattedItems.reduce((sum, item) => sum + item.total, 0).toLocaleString());
         
+        // 🔥 CRITICAL: Set the bid items state with ALL items
         setBidItems(formattedItems);
         onItemsChange(existingItems);
         
         // Show success message with count
-        toast.success(`Loaded ${formattedItems.length} bid items successfully`);
+        console.log(`✅ SUCCESS: Loaded ${formattedItems.length} bid items into form state`);
       } else {
         // No existing items, keep default empty item
         console.log('📝 No existing items found, keeping default state');
@@ -127,7 +133,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       }
     } catch (error) {
       console.error('❌ Error loading existing bid items:', error);
-      toast.error('Failed to load existing bid items');
     } finally {
       setLoading(false);
     }
@@ -170,12 +175,22 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const handleSaveBid = async () => {
-    console.log('🚀 STARTING BID SAVE - ALL ITEMS VERSION');
+    console.log('🚀 STARTING BID SAVE - DEBUGGING VERSION');
     console.log('=' .repeat(80));
+    
+    // 🔥 CRITICAL: Log the exact state of bidItems before any processing
+    console.log('📊 PRE-SAVE bidItems STATE CHECK:');
+    console.log('- bidItems.length:', bidItems.length);
+    console.log('- First 5 items in bidItems state:', bidItems.slice(0, 5).map(item => ({
+      id: item.id,
+      category: item.category,
+      description: item.description,
+      unitCost: item.unitCost,
+      total: item.total
+    })));
     
     if (!projectId) {
       console.log('❌ No project ID provided');
-      toast.error('No project selected');
       return;
     }
 
@@ -222,7 +237,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
     if (validItems.length === 0) {
       console.log('🛑 NO VALID ITEMS TO SAVE');
-      toast.error('No valid items to save. Please add at least one item with a description or category.');
       return;
     }
 
@@ -280,7 +294,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
       const successMessage = `Successfully saved ${savedData?.length || 0} bid items!`;
       console.log('✅ SUCCESS:', successMessage);
-      toast.success(successMessage);
       
       // Step 3: IMMEDIATELY reload the items to refresh the UI
       console.log('🔄 Step 3: Reloading items to refresh UI...');
@@ -291,7 +304,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     } catch (error: any) {
       console.error('💥 SAVE FAILED:', error);
       console.error('- Error stack:', error.stack);
-      toast.error(`Failed to save bid: ${error.message || 'Unknown error'}`);
     } finally {
       setSaving(false);
       console.log('🏁 SAVE PROCESS COMPLETED');
@@ -299,9 +311,14 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     }
   };
 
+  // 🔥 ADD HANDLER TO UPDATE ITEMS AND LOG THE CHANGES
+  const handleItemsChange = (newItems: BidItem[]) => {
+    console.log('🔄 BidCreationView: Items changed from', bidItems.length, 'to', newItems.length);
+    setBidItems(newItems);
+  };
+
   const handleDeleteBid = async () => {
     if (!projectId) {
-      toast.error('No project selected');
       return;
     }
 
@@ -318,8 +335,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         throw new Error(`Failed to delete bid: ${error.message}`);
       }
 
-      toast.success('Bid deleted successfully');
-      
       // Reset to default state
       setBidItems([{
         id: '1',
@@ -338,13 +353,11 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       
     } catch (error: any) {
       console.error('Error deleting bid:', error);
-      toast.error(`Failed to delete bid: ${error.message || 'Unknown error'}`);
     }
   };
 
   const handleExportPDF = async () => {
     if (bidItems.length === 0) {
-      toast.error('Please add bid items before exporting');
       return;
     }
 
@@ -465,10 +478,8 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       await exportToPDF('bid-report', `Bid-Proposal-${projectData?.name?.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`);
       
       document.body.removeChild(reportElement);
-      toast.success('Bid proposal exported successfully');
     } catch (error) {
       console.error('Error exporting PDF:', error);
-      toast.error('Failed to export PDF');
     } finally {
       setExportingPDF(false);
     }
@@ -484,7 +495,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       window.location.href = '/schedule-of-values';
     } catch (error) {
       console.error('Error navigating to SOV:', error);
-      toast.error('Failed to navigate to Schedule of Values');
     }
   };
 
@@ -525,7 +535,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
       {/* Bid Items - Full width */}
       <div className="w-full">
-        <BidItemForm items={bidItems} onItemsChange={setBidItems} />
+        <BidItemForm items={bidItems} onItemsChange={handleItemsChange} />
       </div>
 
       {/* Extended Bid Summary - Full width */}
