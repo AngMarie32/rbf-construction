@@ -5,6 +5,7 @@ import { ArrowLeft, Save, FileText, Edit, Trash2, Download } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BidItemForm } from './BidItemForm';
+import { ImportBidItemsDialog } from './ImportBidItemsDialog';
 
 interface BidCreationViewProps {
   projectId: string;
@@ -412,6 +413,13 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           <div>
             <h1 className="text-2xl font-bold">Create New Bid</h1>
           </div>
+        </div>
+        
+        <div className="flex gap-2">
+          <ImportBidItemsDialog 
+            onItemsImported={loadExistingBidItems} 
+            projects={[{ id: projectId, name: 'Current Project' }]} 
+          />
         </div>
       </div>
 

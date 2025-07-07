@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { TabbedBidInterface } from '@/components/bid-planner/TabbedBidInterface';
 import { EnhancedBidDialog } from '@/components/bid-planner/EnhancedBidDialog';
 import { initializeBidTemplates } from '@/utils/initializeBidTemplates';
+import { ImportBidItemsDialog } from '@/components/bid-planner/ImportBidItemsDialog';
 
 export default function BidPlanner() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -165,6 +166,13 @@ export default function BidPlanner() {
                   ))}
                 </SelectContent>
               </Select>
+              
+              {selectedProject && (
+                <ImportBidItemsDialog 
+                  onItemsImported={fetchBidItems} 
+                  projects={projects} 
+                />
+              )}
             </div>
           </CardContent>
         </Card>
@@ -220,7 +228,7 @@ export default function BidPlanner() {
                   <Plus className="w-4 h-4 text-blue-600" />
                   <h4 className="font-semibold text-blue-800">2. Add Bid Items</h4>
                 </div>
-                <p className="text-sm text-blue-700">Use templates or create custom bid items with quantities, costs, and categories.</p>
+                <p className="text-sm text-blue-700">Use templates, import from images, or create custom bid items with quantities and costs.</p>
               </div>
               
               <div className="bg-white p-4 rounded-lg border border-blue-200">
