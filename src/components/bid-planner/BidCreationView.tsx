@@ -70,14 +70,16 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         return;
       }
 
-      console.log('✅ Found existing bid items:', existingItems);
+      console.log('✅ Found existing bid items:', existingItems?.length || 0, 'items');
 
       if (existingItems && existingItems.length > 0) {
-        // Convert database items to UI format
+        // Convert ALL database items to UI format
         const formattedItems: BidItem[] = existingItems.map((item, index) => ({
           id: item.id || String(index + 1),
-          division: 'General Conditions',
-          category: item.category || 'Labor/Supervision',
+          division: item.category?.includes('Site') ? 'Site Work' : 
+                   item.category?.includes('Building') || item.category?.includes('Masonry') || item.category?.includes('Concrete') ? 'Building' : 
+                   item.category?.includes('General') ? 'General Conditions' : 'Other',
+          category: item.category || 'General',
           subcategory: item.subcategory || '',
           description: item.description || '',
           quantity: item.quantity || 1,
@@ -86,12 +88,25 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           total: (item.unit_cost || 0) * (item.quantity || 1)
         }));
 
-        console.log('🎯 Setting formatted items in state:', formattedItems);
+        console.log('🎯 Setting ALL formatted items in state:', formattedItems.length, 'items');
+        console.log('📋 Sample of items being loaded:', formattedItems.slice(0, 5));
+        
         setBidItems(formattedItems);
         onItemsChange(existingItems);
       } else {
         // No existing items, keep default empty item
         console.log('📝 No existing items found, keeping default state');
+        setBidItems([{
+          id: '1',
+          division: 'General Conditions',
+          category: 'Labor/Supervision',
+          subcategory: '',
+          description: '',
+          quantity: 1,
+          unit: 'each',
+          unitCost: 0,
+          total: 0
+        }]);
       }
     } catch (error) {
       console.error('❌ Error loading existing bid items:', error);
@@ -137,7 +152,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const handleSaveBid = async () => {
-    console.log('🚀 STARTING BID SAVE - FIXED VERSION');
+    console.log('🚀 STARTING BID SAVE - ALL ITEMS VERSION');
     console.log('=' .repeat(80));
     
     if (!projectId) {
@@ -148,21 +163,23 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
     console.log('📊 CURRENT BID ITEMS STATE:');
     console.log('- Project ID:', projectId);
-    console.log('- Total bid items in state:', bidItems.length);
+    console.log('- Total bid items in form state:', bidItems.length);
     
-    // Log each item individually for detailed inspection
-    bidItems.forEach((item, index) => {
+    // Log first few items for verification
+    bidItems.slice(0, 10).forEach((item, index) => {
       console.log(`Item ${index + 1}:`, {
         id: item.id,
         category: item.category || 'EMPTY',
         description: item.description || 'EMPTY',
         quantity: item.quantity,
         unitCost: item.unitCost,
-        total: item.total,
-        hasCategory: !!(item.category && item.category.trim()),
-        hasDescription: !!(item.description && item.description.trim())
+        total: item.total
       });
     });
+
+    if (bidItems.length > 10) {
+      console.log(`... and ${bidItems.length - 10} more items`);
+    }
 
     // Filter items - keep items with either category OR description (not both required)
     const validItems = bidItems.filter((item, index) => {
@@ -170,24 +187,20 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       const hasDescription = item.description && item.description.trim().length > 0;
       const isValid = hasCategory || hasDescription;
       
-      console.log(`✅ Item ${index + 1} validation:`, {
-        hasCategory,
-        hasDescription,
-        isValid,
-        willBeSaved: isValid
-      });
+      if (index < 5) { // Only log first 5 for brevity
+        console.log(`✅ Item ${index + 1} validation:`, {
+          hasCategory,
+          hasDescription,
+          isValid,
+          willBeSaved: isValid
+        });
+      }
       
       return isValid;
     });
 
     console.log('📋 ITEMS AFTER FILTERING:');
     console.log('- Valid items count:', validItems.length);
-    console.log('- Valid items:', validItems.map(item => ({
-      category: item.category,
-      description: item.description,
-      quantity: item.quantity,
-      unitCost: item.unitCost
-    })));
 
     if (validItems.length === 0) {
       console.log('🛑 NO VALID ITEMS TO SAVE');
@@ -197,7 +210,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
     // Convert to database format
     const itemsForDatabase = validItems.map((item, index) => {
-      const dbItem = {
+      return {
         project_id: projectId,
         category: (item.category || 'General').trim(),
         subcategory: (item.subcategory || '').trim() || null,
@@ -206,14 +219,10 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         unit: (item.unit || 'each').trim(),
         unit_cost: Number(item.unitCost) || 0
       };
-      
-      console.log(`💾 DB Item ${index + 1}:`, dbItem);
-      return dbItem;
     });
 
     console.log('🎯 FINAL DATABASE PAYLOAD:');
     console.log('- Items to save:', itemsForDatabase.length);
-    console.log('- Complete payload:', JSON.stringify(itemsForDatabase, null, 2));
 
     setSaving(true);
     try {
@@ -250,7 +259,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
       console.log('🎉 Step 2 Complete: Items saved successfully!');
       console.log('- Saved items count:', savedData?.length || 0);
-      console.log('- Saved data:', savedData);
 
       const successMessage = `Successfully saved ${savedData?.length || 0} bid items!`;
       console.log('✅ SUCCESS:', successMessage);
@@ -483,6 +491,9 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           </Button>
           <div>
             <h1 className="text-2xl font-bold">Create New Bid</h1>
+            <p className="text-sm text-muted-foreground">
+              {bidItems.length} line items loaded
+            </p>
           </div>
         </div>
         
