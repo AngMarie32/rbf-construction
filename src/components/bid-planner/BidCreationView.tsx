@@ -133,153 +133,176 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const handleSaveBid = async () => {
-    console.log('🔍 === COMPREHENSIVE BID SAVE ANALYSIS START ===');
-    console.log('📊 Current bidItems state - Total count:', bidItems.length);
+    console.log('='.repeat(100));
+    console.log('🚀 STARTING COMPREHENSIVE BID SAVE PROCESS');
+    console.log('='.repeat(100));
     
-    // Log EVERY SINGLE BID ITEM in complete detail
-    console.log('📋 === COMPLETE BID ITEMS INVENTORY ===');
+    // First, let's get the absolute current state
+    console.log('📊 CURRENT STATE ANALYSIS:');
+    console.log('- Project ID:', projectId);
+    console.log('- Bid Items Array Length:', bidItems?.length || 0);
+    console.log('- Bid Items Array Type:', typeof bidItems);
+    console.log('- Bid Items Array Is Array:', Array.isArray(bidItems));
+    
+    // Log the raw bidItems array
+    console.log('📋 RAW BID ITEMS ARRAY:');
+    console.log(bidItems);
+    
+    // Check if bidItems exists and has items
+    if (!bidItems || !Array.isArray(bidItems) || bidItems.length === 0) {
+      console.log('❌ CRITICAL ERROR: No bid items found or invalid array');
+      console.log('- bidItems exists:', !!bidItems);
+      console.log('- is array:', Array.isArray(bidItems));
+      console.log('- length:', bidItems?.length);
+      toast.error('No bid items found to save. Please add items first.');
+      return;
+    }
+
+    // Log every single item with complete details
+    console.log('📝 COMPLETE ITEM-BY-ITEM ANALYSIS:');
     bidItems.forEach((item, index) => {
-      console.log(`📝 Item ${index + 1}/${bidItems.length}:`, {
-        id: item.id,
-        division: `"${item.division}"`,
-        category: `"${item.category}"`,
-        subcategory: `"${item.subcategory}"`,
-        description: `"${item.description}"`,
-        descriptionLength: item.description?.length || 0,
-        quantity: item.quantity,
-        unit: item.unit,
-        unitCost: item.unitCost,
-        total: item.total,
-        hasDescription: !!(item.description && item.description.trim().length > 0),
-        hasCategory: !!(item.category && item.category.trim().length > 0),
-        willBeSaved: !!(item.description && item.description.trim().length > 0 && item.category && item.category.trim().length > 0)
+      console.log(`\n--- ITEM ${index + 1} of ${bidItems.length} ---`);
+      console.log('Raw item object:', item);
+      console.log('Item properties:', {
+        hasId: !!item?.id,
+        id: item?.id,
+        hasDivision: !!item?.division,
+        division: item?.division,
+        hasCategory: !!item?.category,
+        category: item?.category,
+        hasSubcategory: !!item?.subcategory,
+        subcategory: item?.subcategory,
+        hasDescription: !!item?.description,
+        description: item?.description,
+        descriptionLength: item?.description?.length || 0,
+        hasQuantity: !!item?.quantity,
+        quantity: item?.quantity,
+        hasUnit: !!item?.unit,
+        unit: item?.unit,
+        hasUnitCost: !!item?.unitCost,
+        unitCost: item?.unitCost,
+        hasTotal: !!item?.total,
+        total: item?.total
+      });
+      
+      // Check if item meets save criteria
+      const hasValidDescription = item?.description && item.description.toString().trim().length > 0;
+      const hasValidCategory = item?.category && item.category.toString().trim().length > 0;
+      const isValidForSave = hasValidDescription && hasValidCategory;
+      
+      console.log('SAVE VALIDATION:', {
+        hasValidDescription,
+        hasValidCategory,
+        isValidForSave,
+        willBeSaved: isValidForSave ? 'YES' : 'NO - WILL BE SKIPPED'
       });
     });
-    
-    // Create summary stats
-    const summary = {
-      totalItems: bidItems.length,
-      itemsWithDescription: bidItems.filter(item => item.description && item.description.trim().length > 0).length,
-      itemsWithCategory: bidItems.filter(item => item.category && item.category.trim().length > 0).length,
-      itemsWithBothDescAndCategory: bidItems.filter(item => 
-        item.description && item.description.trim().length > 0 && 
-        item.category && item.category.trim().length > 0
-      ).length,
-      emptyDescriptions: bidItems.filter(item => !item.description || item.description.trim().length === 0).length,
-      emptyCategories: bidItems.filter(item => !item.category || item.category.trim().length === 0).length
-    };
-    
-    console.log('📈 SUMMARY ANALYSIS:', summary);
 
-    if (bidItems.length === 0) {
-      console.log('❌ ERROR: No bid items found in state');
-      toast.error('Please add at least one bid item');
-      return;
-    }
-
-    // Filter valid items with detailed logging
-    const validItems = bidItems.filter((item, index) => {
-      const hasDescription = item.description && item.description.trim().length > 0;
-      const hasCategory = item.category && item.category.trim().length > 0;
-      const isValid = hasDescription && hasCategory;
+    // Create a more robust filtering approach
+    console.log('\n🔍 FILTERING ITEMS FOR DATABASE:');
+    const itemsToSave = [];
+    
+    for (let i = 0; i < bidItems.length; i++) {
+      const item = bidItems[i];
+      console.log(`\nProcessing item ${i + 1}:`);
       
-      if (!isValid) {
-        console.log(`❌ Item ${index + 1} REJECTED:`, {
-          reason: !hasDescription ? 'Missing description' : 'Missing category',
-          description: `"${item.description}"`,
-          category: `"${item.category}"`
-        });
+      // More robust validation
+      const description = item?.description ? String(item.description).trim() : '';
+      const category = item?.category ? String(item.category).trim() : '';
+      
+      console.log('- Description:', `"${description}"`, '(length:', description.length, ')');
+      console.log('- Category:', `"${category}"`, '(length:', category.length, ')');
+      
+      if (description.length > 0 && category.length > 0) {
+        const itemForDb = {
+          project_id: projectId,
+          category: category,
+          subcategory: item?.subcategory ? String(item.subcategory).trim() : null,
+          description: description,
+          quantity: Math.max(Number(item?.quantity) || 1, 1),
+          unit: item?.unit ? String(item.unit).trim() : 'each',
+          unit_cost: Number(item?.unitCost) || 0
+        };
+        
+        itemsToSave.push(itemForDb);
+        console.log('✅ ADDED TO SAVE LIST:', itemForDb);
       } else {
-        console.log(`✅ Item ${index + 1} ACCEPTED for saving`);
+        console.log('❌ SKIPPED - Missing required fields');
       }
-      
-      return isValid;
-    });
+    }
 
-    console.log(`📊 FILTERING RESULTS: ${validItems.length} valid items out of ${bidItems.length} total items`);
+    console.log('\n📊 FINAL SAVE SUMMARY:');
+    console.log('- Total items in form:', bidItems.length);
+    console.log('- Items that will be saved:', itemsToSave.length);
+    console.log('- Items that will be skipped:', bidItems.length - itemsToSave.length);
     
-    if (validItems.length === 0) {
-      console.log('❌ ERROR: No valid items after filtering');
-      toast.error('No valid bid items found. Items need both description and category.');
+    if (itemsToSave.length === 0) {
+      console.log('❌ CRITICAL: No items qualify for saving!');
+      toast.error('No valid items found to save. Please ensure items have both description and category filled out.');
       return;
     }
 
-    const skippedCount = bidItems.length - validItems.length;
-    if (skippedCount > 0) {
-      console.log(`⚠️  WARNING: ${skippedCount} items will be skipped due to missing required fields`);
-      toast.warning(`${skippedCount} items will be skipped (missing description or category)`);
-    }
-
+    console.log('\n💾 STARTING DATABASE SAVE...');
+    console.log('Items to insert:', itemsToSave);
+    
     setSaving(true);
     try {
-      console.log('💾 Starting database save process...');
-
-      // First, delete existing bid items for this project to avoid duplicates
+      // First, delete existing bid items for this project
+      console.log('🗑️ Deleting existing items...');
       const { error: deleteError } = await supabase
         .from('bid_items')
         .delete()
         .eq('project_id', projectId);
 
       if (deleteError) {
-        console.error('Error deleting existing bid items:', deleteError);
+        console.error('Delete error:', deleteError);
       } else {
-        console.log('✅ Existing bid items cleared successfully');
+        console.log('✅ Existing items deleted successfully');
       }
 
-      // Prepare items for database insert
-      const itemsToSave = validItems.map((item, index) => {
-        const preparedItem = {
-          project_id: projectId,
-          category: item.category.trim(),
-          subcategory: item.subcategory && item.subcategory.trim() ? item.subcategory.trim() : null,
-          description: item.description.trim(),
-          quantity: Math.max(Number(item.quantity) || 1, 1),
-          unit: item.unit && item.unit.trim() ? item.unit.trim() : 'each',
-          unit_cost: Number(item.unitCost) || 0
-        };
-        
-        console.log(`📝 Prepared item ${index + 1} for database:`, preparedItem);
-        return preparedItem;
-      });
-
-      console.log('💾 FINAL DATABASE PAYLOAD:');
-      console.log('Items to save count:', itemsToSave.length);
-      console.log('Full payload:', JSON.stringify(itemsToSave, null, 2));
-
+      // Insert new items
+      console.log('💾 Inserting new items...');
       const { data, error } = await supabase
         .from('bid_items')
         .insert(itemsToSave)
         .select();
 
       if (error) {
-        console.error('❌ DATABASE ERROR:', error);
+        console.error('❌ DATABASE INSERT ERROR:', error);
         throw new Error(`Database error: ${error.message}`);
       }
 
-      console.log('✅ DATABASE SUCCESS:');
-      console.log('Items actually saved:', data?.length || 0);
-      console.log('Database response:', data);
+      console.log('✅ DATABASE INSERT SUCCESS!');
+      console.log('- Items requested to save:', itemsToSave.length);
+      console.log('- Items actually saved:', data?.length || 0);
+      console.log('- Database response:', data);
       
-      const savedCount = data?.length || itemsToSave.length;
-      toast.success(`Bid saved successfully! ${savedCount} out of ${bidItems.length} total items saved.`);
+      const savedCount = data?.length || 0;
+      const totalRequested = bidItems.length;
       
-      if (savedCount < bidItems.length) {
-        toast.warning(`${bidItems.length - savedCount} items were skipped. Check console for details.`);
+      if (savedCount === totalRequested) {
+        toast.success(`Perfect! All ${savedCount} bid items saved successfully!`);
+      } else if (savedCount > 0) {
+        toast.success(`${savedCount} out of ${totalRequested} items saved successfully.`);
+        if (savedCount < totalRequested) {
+          toast.warning(`${totalRequested - savedCount} items were skipped due to missing required fields.`);
+        }
+      } else {
+        toast.error('No items were saved. Please check that items have descriptions and categories.');
       }
       
       // Update parent component with the saved data
       onItemsChange(data || itemsToSave);
-      
-      // Mark that we have a current bid
       setCurrentBidId(projectId);
       
-      console.log('🔍 === COMPREHENSIVE BID SAVE ANALYSIS END ===');
-      
     } catch (error) {
-      console.error('❌ SAVE ERROR:', error);
+      console.error('❌ SAVE OPERATION FAILED:', error);
       toast.error(`Failed to save bid: ${error.message || 'Unknown error'}`);
     } finally {
       setSaving(false);
+      console.log('='.repeat(100));
+      console.log('🏁 BID SAVE PROCESS COMPLETED');
+      console.log('='.repeat(100));
     }
   };
 
