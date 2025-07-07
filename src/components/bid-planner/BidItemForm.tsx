@@ -316,14 +316,6 @@ const getDivisionFromCategory = (category: string): string => {
   return 'Other';
 };
 
-interface SearchableSelectProps {
-  value: string;
-  onValueChange: (value: string) => void;
-  options: string[];
-  placeholder: string;
-  allowCustom?: boolean;
-}
-
 function SearchableSelect({ value, onValueChange, options, placeholder, allowCustom = false }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -397,8 +389,15 @@ function SearchableSelect({ value, onValueChange, options, placeholder, allowCus
   );
 }
 
+interface SearchableSelectProps {
+  value: string;
+  onValueChange: (value: string) => void;
+  options: string[];
+  placeholder: string;
+  allowCustom?: boolean;
+}
+
 export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProps) {
-  const [showImportDialog, setShowImportDialog] = useState(false);
   const currentItems = items;
 
   // Set up real-time subscription for bid items
@@ -485,7 +484,7 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
       if (item.id === id) {
         const updated = { ...item, [field]: value };
         
-        // Auto-update division based on category
+        // Only auto-update division based on category if user hasn't manually set it
         if (field === 'category' && value) {
           updated.division = getDivisionFromCategory(value);
         }
@@ -544,7 +543,6 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
   };
 
   const handleItemsImported = () => {
-    setShowImportDialog(false);
     loadBidItems();
   };
 
@@ -569,8 +567,11 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setShowImportDialog(true)}>
-                  Import from Images
+                <DropdownMenuItem asChild>
+                  <ImportBidItemsDialog 
+                    onItemsImported={handleItemsImported} 
+                    projects={projectId ? [{ id: projectId, name: 'Current Project' }] : []} 
+                  />
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleStartFromScratch}>
                   Start from Scratch
@@ -581,10 +582,10 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
         </div>
       </CardHeader>
       <CardContent>
-        <div className="w-full overflow-x-auto">
-          <div className="min-w-[1400px]">
+        <div className="w-full">
+          <div className="min-w-full">
             {/* Header Row */}
-            <div className="grid grid-cols-12 gap-2 pb-3 mb-3 text-xs font-semibold text-gray-700 bg-gray-50 px-3 py-3 rounded-t">
+            <div className="grid grid-cols-12 gap-2 pb-3 mb-3 text-xs font-semibold text-gray-700 bg-gray-50 px-3 py-3 rounded">
               <div className="col-span-1">Division</div>
               <div className="col-span-2">Category</div>
               <div className="col-span-2">Subcategory</div>
@@ -598,7 +599,7 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
             {/* Item Rows */}
             <div className="space-y-2">
               {currentItems.map((item, index) => (
-                <div key={item.id} className={`grid grid-cols-12 gap-2 items-center py-3 px-3 rounded-lg ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-all duration-200`}>
+                <div key={item.id} className={`grid grid-cols-12 gap-2 items-center py-3 px-3 rounded ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-all duration-200`}>
                   <div className="col-span-1">
                     <SearchableSelect
                       value={item.division}
@@ -678,7 +679,7 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
                         variant="outline"
                         size="sm"
                         onClick={() => removeItem(item.id)}
-                        className="h-6 w-6 p-0 ml-2 text-red-500 hover:text-red-700 hover:bg-red-50 border-red-200"
+                        className="h-6 w-6 p-0 ml-2 text-red-500 hover:text-red-700 hover:bg-red-50"
                       >
                         <Trash2 className="w-3 h-3" />
                       </Button>
@@ -691,7 +692,7 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
         </div>
 
         {currentItems.length > 0 && (
-          <div className="border-t-2 border-gray-200 pt-6 mt-6 bg-gradient-to-r from-gray-50 to-blue-50 px-6 py-6 rounded-lg">
+          <div className="border-t pt-6 mt-6 bg-gradient-to-r from-gray-50 to-blue-50 px-6 py-6 rounded-lg">
             <div className="flex justify-end">
               <div className="text-right">
                 <div className="text-3xl font-bold text-blue-700">
@@ -705,13 +706,6 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
           </div>
         )}
       </CardContent>
-
-      <ImportBidItemsDialog 
-        open={showImportDialog}
-        onOpenChange={setShowImportDialog}
-        onItemsImported={handleItemsImported} 
-        projects={projectId ? [{ id: projectId, name: 'Current Project' }] : []} 
-      />
     </Card>
   );
 }
