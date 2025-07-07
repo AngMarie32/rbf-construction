@@ -361,7 +361,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         percent_complete: 0,
         work_completed_from_previous: 0,
         materials_presently_stored: 0,
-        retainage_percentage: 10,
+        retainage_percentage: 0, // Set to 0 by default
         change_orders: 0
       }));
 

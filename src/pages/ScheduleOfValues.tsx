@@ -142,7 +142,8 @@ export default function ScheduleOfValues() {
         materials_stored: Number(item.materials_stored) || 0,
         total_completed_and_stored: Number(item.total_completed_and_stored) || 0,
         percent_complete: Number(item.percent_complete) || 0,
-        retainage_percentage: Number(item.retainage_percentage) || 10
+        retainage_percentage: Number(item.retainage_percentage) || 0,
+        subcategory: item.subcategory || ''
       }));
       
       setSovItems(processedItems);
@@ -307,10 +308,12 @@ export default function ScheduleOfValues() {
                               <Badge variant="outline">{item.category}</Badge>
                             </td>
                             <td className="border border-gray-200 px-4 py-2">
-                              {item.subcategory && (
+                              {item.subcategory ? (
                                 <Badge variant="secondary" className="text-xs">
                                   {item.subcategory}
                                 </Badge>
+                              ) : (
+                                <span className="text-gray-400 text-xs">-</span>
                               )}
                             </td>
                             <td className="border border-gray-200 px-4 py-2 text-right font-medium">
