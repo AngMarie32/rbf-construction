@@ -123,13 +123,12 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
   };
 
   const fetchCompanyInfo = async () => {
-    // For now, using RBF Construction info as per user request
-    // This should eventually come from a company settings table
+    // Updated RBF Construction info with correct phone number
     setCompanyInfo({
       name: 'RBF Construction, Inc.',
       address: '1411 W. Hill Rd, Flint, MI 48507',
-      phone: '(555) 123-4567',
-      email: 'info@rbfconstruction.com'
+      phone: '810-938-8498',
+      email: '' // Remove email as requested
     });
   };
 
@@ -194,7 +193,7 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
   };
 
   const calculateTotals = () => {
-    // Include contingency in contract calculations
+    // Include contingency in contract calculations - FIX: Use addition instead of multiplication
     const originalContractSum = formData.originalContractSum || 0;
     const contingencyAmount = project?.contingency_type === 'percentage' 
       ? (originalContractSum * (project?.contingency_value || 0)) / 100

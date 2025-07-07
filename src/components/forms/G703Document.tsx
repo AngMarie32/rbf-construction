@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -53,11 +52,11 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
         }));
       
       case 'category':
-        const categoryGroups = sovItems.reduce((acc, item) => {
+        const categoryGroups = sovItems.reduce((acc, item, index) => {
           const category = item.category || 'Other';
           if (!acc[category]) {
             acc[category] = {
-              itemNumber: category.substring(0, 3).toUpperCase(),
+              itemNumber: `C-${Object.keys(acc).length + 1}`,
               displayDescription: category,
               scheduledValue: 0,
               changeOrders: 0,
@@ -82,7 +81,7 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
           const division = item.category?.split(' ')[0] || 'General';
           if (!acc[division]) {
             acc[division] = {
-              itemNumber: division.substring(0, 3).toUpperCase(),
+              itemNumber: `D-${Object.keys(acc).length + 1}`,
               displayDescription: `${division} Division`,
               scheduledValue: 0,
               changeOrders: 0,
@@ -134,7 +133,7 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
         </CardContent>
       </Card>
 
-      {/* G703 Document */}
+      {/* G703 Document - Landscape orientation */}
       <div className="bg-white p-4 mx-auto text-black print:shadow-none" style={{ width: '11in', minHeight: '8.5in' }}>
         {/* Header */}
         <div className="text-center mb-4">
@@ -178,9 +177,9 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
         <div className="grid grid-cols-2 gap-4 mb-4 text-xs">
           <div className="border border-black p-2">
             <div className="font-bold mb-1">FROM:</div>
-            <div>{companyInfo?.name || 'Company Name'}</div>
-            <div>{companyInfo?.address || 'Company Address'}</div>
-            <div>{companyInfo?.phone || 'Phone'} | {companyInfo?.email || 'Email'}</div>
+            <div>{companyInfo?.name || 'RBF Construction, Inc.'}</div>
+            <div>{companyInfo?.address || '1411 W. Hill Rd, Flint, MI 48507'}</div>
+            <div>810-938-8498</div>
           </div>
           <div className="border border-black p-2">
             <div className="font-bold mb-1">TO:</div>
@@ -296,21 +295,6 @@ export function G703Document({ project, formData, sovItems, companyInfo }: G703D
               </tr>
             </tbody>
           </table>
-        </div>
-
-        {/* Footer Information */}
-        <div className="mt-4 grid grid-cols-2 gap-8 text-xs">
-          <div>
-            <h3 className="font-bold mb-2">CONTRACTOR'S APPLICATION FOR PAYMENT</h3>
-            <p className="mb-1">Continuation Sheet</p>
-            <p className="mb-1">Application Number: {formData.applicationNumber}</p>
-            <p>Period to: {new Date(formData.periodTo).toLocaleDateString()}</p>
-          </div>
-          <div>
-            <h3 className="font-bold mb-2">PROJECT:</h3>
-            <p className="mb-1">{project.name}</p>
-            <p>Project Number: {formData.projectNumber || project.projectCode}</p>
-          </div>
         </div>
       </div>
     </div>

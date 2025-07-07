@@ -30,8 +30,6 @@ interface SOVItem {
   totalCompletedAndStored: number;
   percentComplete: number;
   category: string;
-  retainageHeld?: number;
-  balanceToFinish?: number;
 }
 
 interface Project {
@@ -326,7 +324,7 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
     console.log('Previous applications found:', previousApps?.length || 0);
     console.log('Previous applications:', previousApps);
 
-    // Calculate from SOV items - include contingency in original contract sum
+    // Calculate from SOV items - include contingency in original contract sum - FIX: Use addition
     const originalContractSum = sovItems.reduce((sum, item) => sum + (item.scheduledValue || 0), 0);
     const contingencyAmount = project?.contingency_type === 'percentage' 
       ? (originalContractSum * (project?.contingency_value || 0)) / 100
@@ -544,8 +542,8 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
               companyInfo={{
                 name: 'RBF Construction, Inc.',
                 address: '1411 W. Hill Rd, Flint, MI 48507',
-                phone: '(555) 123-4567',
-                email: 'info@rbfconstruction.com'
+                phone: '810-938-8498',
+                email: ''
               }}
             />
           )}
@@ -568,8 +566,8 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
             companyInfo={{
               name: 'RBF Construction, Inc.',
               address: '1411 W. Hill Rd, Flint, MI 48507',
-              phone: '(555) 123-4567',
-              email: 'info@rbfconstruction.com'
+              phone: '810-938-8498',
+              email: ''
             }}
           />
         </div>

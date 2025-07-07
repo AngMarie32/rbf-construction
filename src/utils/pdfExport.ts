@@ -11,16 +11,16 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
       throw new Error('G702 or G703 document not found');
     }
 
-    // Create PDF with letter size (8.5 x 11 inches)
+    // Create PDF with landscape orientation for better formatting
     const pdf = new jsPDF({
-      orientation: 'portrait',
+      orientation: 'landscape',
       unit: 'in',
       format: 'letter'
     });
 
-    // Capture G702 with higher resolution
+    // Capture G702 with higher resolution and better scaling
     const g702Canvas = await html2canvas(g702Element, {
-      scale: 2,
+      scale: 3,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
@@ -28,14 +28,14 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
       height: g702Element.scrollHeight
     });
 
-    // Add G702 to PDF - fit to page width with proper scaling
+    // Add G702 to PDF - landscape dimensions (11 x 8.5)
     const g702ImgData = g702Canvas.toDataURL('image/png');
-    const pageWidth = 8.5;
-    const pageHeight = 11;
+    const pageWidth = 11;
+    const pageHeight = 8.5;
     const imgWidth = pageWidth - 0.5; // 0.25 inch margins on each side
     const imgHeight = (g702Canvas.height * imgWidth) / g702Canvas.width;
     
-    // If image is taller than page, scale it down
+    // Scale to fit landscape page
     let finalWidth = imgWidth;
     let finalHeight = imgHeight;
     if (imgHeight > pageHeight - 0.5) {
@@ -50,7 +50,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
 
     // Capture G703 with higher resolution
     const g703Canvas = await html2canvas(g703Element, {
-      scale: 2,
+      scale: 3,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
@@ -62,7 +62,7 @@ export const exportG702G703ToPDF = async (filename: string = 'G702-G703.pdf') =>
     const g703ImgWidth = pageWidth - 0.5;
     const g703ImgHeight = (g703Canvas.height * g703ImgWidth) / g703Canvas.width;
     
-    // If image is taller than page, scale it down
+    // Scale to fit landscape page
     let g703FinalWidth = g703ImgWidth;
     let g703FinalHeight = g703ImgHeight;
     if (g703ImgHeight > pageHeight - 0.5) {
