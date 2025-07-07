@@ -34,6 +34,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   const [exportingPDF, setExportingPDF] = useState(false);
   const [currentBidId, setCurrentBidId] = useState<string | null>(null);
   const [showProposalDialog, setShowProposalDialog] = useState(false);
+  const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const [bidItems, setBidItems] = useState<BidItem[]>([
     {
@@ -93,7 +94,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         setBidItems(formattedItems);
         onItemsChange(existingItems);
         
-        toast.success(`Loaded ${formattedItems.length} existing bid items`);
+        console.log(`Loaded ${formattedItems.length} existing bid items`);
       } else {
         setBidItems([{
           id: String(Date.now()),
@@ -118,6 +119,25 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   // Function to handle items imported from dialog
   const handleItemsImported = async () => {
     await loadExistingBidItems();
+  };
+
+  // Auto-save functionality
+  const triggerAutoSave = (items: BidItem[]) => {
+    if (autoSaveTimeout) {
+      clearTimeout(autoSaveTimeout);
+    }
+
+    const timeout = setTimeout(() => {
+      handleSaveBid(items, true);
+    }, 2000); // Auto-save after 2 seconds of no changes
+
+    setAutoSaveTimeout(timeout);
+  };
+
+  // Handler to update items from BidItemForm
+  const handleItemsChange = (newItems: BidItem[]) => {
+    setBidItems(newItems);
+    triggerAutoSave(newItems);
   };
 
   const calculateTotalValue = () => {
@@ -156,21 +176,23 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     return divisionTotals;
   };
 
-  const handleSaveBid = async () => {
+  const handleSaveBid = async (itemsToSave?: BidItem[], isAutoSave = false) => {
     if (!projectId) {
-      toast.error('No project selected');
+      if (!isAutoSave) toast.error('No project selected');
       return;
     }
 
+    const itemsForSaving = itemsToSave || bidItems;
+
     // Filter items - keep items with either category OR description
-    const validItems = bidItems.filter((item) => {
+    const validItems = itemsForSaving.filter((item) => {
       const hasCategory = item.category && item.category.trim().length > 0;
       const hasDescription = item.description && item.description.trim().length > 0;
       return hasCategory || hasDescription;
     });
 
     if (validItems.length === 0) {
-      toast.error('No valid items to save');
+      if (!isAutoSave) toast.error('No valid items to save');
       return;
     }
 
@@ -209,23 +231,20 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         throw new Error(`Database insert error: ${insertError.message}`);
       }
 
-      toast.success(`Successfully saved ${savedData?.length || 0} bid items!`);
+      if (!isAutoSave) {
+        toast.success(`Successfully saved ${savedData?.length || 0} bid items!`);
+      }
       
-      // Reload items to refresh UI
-      await loadExistingBidItems();
       setCurrentBidId(projectId);
       
     } catch (error: any) {
       console.error('Save failed:', error);
-      toast.error(`Failed to save bid: ${error.message}`);
+      if (!isAutoSave) {
+        toast.error(`Failed to save bid: ${error.message}`);
+      }
     } finally {
       setSaving(false);
     }
-  };
-
-  // Handler to update items from BidItemForm
-  const handleItemsChange = (newItems: BidItem[]) => {
-    setBidItems(newItems);
   };
 
   const handleDeleteBid = async () => {
@@ -293,6 +312,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
             <h1 className="text-2xl font-bold">Create New Bid</h1>
             <p className="text-sm text-muted-foreground">
               {bidItems.length} line items | Total: ${calculateTotalValue().toLocaleString()}
+              {saving && <span className="ml-2 text-blue-600">• Saving...</span>}
             </p>
           </div>
         </div>
@@ -307,7 +327,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
       {/* Bid Items Form */}
       <div className="w-full">
-        <BidItemForm items={bidItems} onItemsChange={handleItemsChange} />
+        <BidItemForm items={bidItems} onItemsChange={handleItemsChange} projectId={projectId} />
       </div>
 
       {/* Bid Summary */}
@@ -317,7 +337,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
             <CardTitle>Bid Summary</CardTitle>
             <div className="flex items-center gap-2">
               <Button 
-                onClick={handleSaveBid} 
+                onClick={() => handleSaveBid()} 
                 disabled={saving} 
                 size="sm"
               >

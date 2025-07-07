@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Plus, Trash2 } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface BidItem {
   id: string;
@@ -22,6 +24,7 @@ interface BidItem {
 interface BidItemFormProps {
   items: BidItem[];
   onItemsChange: (items: BidItem[]) => void;
+  projectId?: string;
 }
 
 const divisions = [
@@ -306,9 +309,9 @@ function SearchableSelect({ value, onValueChange, options, placeholder, allowCus
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between text-left font-normal h-9 text-xs"
+          className="w-full justify-between text-left font-normal h-8 text-xs px-2"
         >
-          {value || placeholder}
+          <span className="truncate">{value || placeholder}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
@@ -349,8 +352,75 @@ function SearchableSelect({ value, onValueChange, options, placeholder, allowCus
   );
 }
 
-export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
+export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProps) {
   const currentItems = items;
+
+  // Set up real-time subscription for bid items
+  useEffect(() => {
+    if (!projectId) return;
+
+    const channel = supabase
+      .channel('bid-items-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bid_items',
+          filter: `project_id=eq.${projectId}`
+        },
+        (payload) => {
+          console.log('Real-time bid items change:', payload);
+          // Reload items when changes occur from other sessions
+          loadBidItems();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [projectId]);
+
+  const loadBidItems = async () => {
+    if (!projectId) return;
+
+    try {
+      const { data: existingItems, error } = await supabase
+        .from('bid_items')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error loading bid items:', error);
+        return;
+      }
+
+      if (existingItems && existingItems.length > 0) {
+        const formattedItems: BidItem[] = existingItems.map((item, index) => {
+          return {
+            id: item.id || String(Date.now() + index),
+            division: item.category?.includes('Site') ? 'Site Work' : 
+                     item.category?.includes('Building') || item.category?.includes('Masonry') || item.category?.includes('Concrete') ? 'Building' : 
+                     item.category?.includes('General') ? 'General Conditions' : 
+                     'Other',
+            category: item.category || 'General',
+            subcategory: item.subcategory || '',
+            description: item.description || '',
+            quantity: item.quantity || 1,
+            unit: item.unit || 'each',
+            unitCost: item.unit_cost || 0,
+            total: (item.unit_cost || 0) * (item.quantity || 1)
+          };
+        });
+
+        onItemsChange(formattedItems);
+      }
+    } catch (error) {
+      console.error('Error loading bid items:', error);
+    }
+  };
 
   const addItem = () => {
     const newItem: BidItem = {
@@ -406,10 +476,10 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <div className="min-w-[1200px]">
+        <div className="w-full overflow-x-auto">
+          <div className="min-w-[1400px]">
             {/* Header Row */}
-            <div className="grid grid-cols-12 gap-3 pb-3 border-b-2 border-gray-200 text-xs font-semibold text-gray-700 bg-gray-50 px-2 py-2 rounded-t">
+            <div className="grid grid-cols-12 gap-2 pb-3 mb-3 border-b-2 border-gray-200 text-xs font-semibold text-gray-700 bg-gray-50 px-3 py-3 rounded-t">
               <div className="col-span-1">Division</div>
               <div className="col-span-2">Category</div>
               <div className="col-span-2">Subcategory</div>
@@ -421,9 +491,9 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
             </div>
 
             {/* Item Rows */}
-            <div className="space-y-1">
+            <div className="space-y-2">
               {currentItems.map((item, index) => (
-                <div key={item.id} className={`grid grid-cols-12 gap-3 items-center py-2 px-2 rounded ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
+                <div key={item.id} className={`grid grid-cols-12 gap-2 items-center py-3 px-3 rounded-lg border ${index % 2 === 0 ? 'bg-white border-gray-100' : 'bg-gray-50 border-gray-100'} hover:bg-blue-50 hover:border-blue-200 transition-all duration-200`}>
                   <div className="col-span-1">
                     <SearchableSelect
                       value={item.division}
@@ -458,7 +528,7 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                     <Input
                       value={item.description}
                       onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                      className="h-9 text-xs"
+                      className="h-8 text-xs"
                       placeholder="Enter description..."
                     />
                   </div>
@@ -479,7 +549,7 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                       onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
                       min="0"
                       step="0.01"
-                      className="h-9 text-xs"
+                      className="h-8 text-xs"
                     />
                   </div>
 
@@ -490,12 +560,12 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                       onChange={(e) => updateItem(item.id, 'unitCost', parseFloat(e.target.value) || 0)}
                       min="0"
                       step="0.01"
-                      className="h-9 text-xs"
+                      className="h-8 text-xs"
                     />
                   </div>
 
                   <div className="col-span-1 flex items-center justify-between">
-                    <div className="text-xs font-semibold text-green-700">
+                    <div className="text-xs font-semibold text-green-700 truncate">
                       ${item.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     {currentItems.length > 1 && (
@@ -503,7 +573,7 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
                         variant="outline"
                         size="sm"
                         onClick={() => removeItem(item.id)}
-                        className="h-7 w-7 p-0 ml-2 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        className="h-6 w-6 p-0 ml-2 text-red-500 hover:text-red-700 hover:bg-red-50 border-red-200"
                       >
                         <Trash2 className="w-3 h-3" />
                       </Button>
@@ -516,13 +586,13 @@ export function BidItemForm({ items, onItemsChange }: BidItemFormProps) {
         </div>
 
         {currentItems.length > 0 && (
-          <div className="border-t-2 border-gray-200 pt-4 mt-6 bg-gray-50 px-4 py-4 rounded">
+          <div className="border-t-2 border-gray-200 pt-6 mt-6 bg-gradient-to-r from-gray-50 to-blue-50 px-6 py-6 rounded-lg">
             <div className="flex justify-end">
               <div className="text-right">
-                <div className="text-2xl font-bold text-blue-700">
+                <div className="text-3xl font-bold text-blue-700">
                   Grand Total: ${calculateGrandTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-                <div className="text-sm text-gray-600 mt-1">
+                <div className="text-sm text-gray-600 mt-2">
                   {currentItems.length} line item{currentItems.length !== 1 ? 's' : ''}
                 </div>
               </div>
