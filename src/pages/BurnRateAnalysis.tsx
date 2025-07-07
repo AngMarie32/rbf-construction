@@ -163,7 +163,10 @@ export default function BurnRateAnalysis() {
         Status: cat.status
       }))
     ];
-    exportToCSV(exportData, 'enhanced-burn-rate-analysis.csv');
+    exportToCSV({
+      title: 'enhanced-burn-rate-analysis',
+      data: exportData
+    });
   };
 
   if (loading && selectedProjects.length === 0) {
