@@ -73,6 +73,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       console.log('✅ Found existing bid items:', existingItems);
 
       if (existingItems && existingItems.length > 0) {
+        // Convert database items to UI format
         const formattedItems: BidItem[] = existingItems.map((item, index) => ({
           id: item.id || String(index + 1),
           division: 'General Conditions',
@@ -85,8 +86,12 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           total: (item.unit_cost || 0) * (item.quantity || 1)
         }));
 
+        console.log('🎯 Setting formatted items in state:', formattedItems);
         setBidItems(formattedItems);
         onItemsChange(existingItems);
+      } else {
+        // No existing items, keep default empty item
+        console.log('📝 No existing items found, keeping default state');
       }
     } catch (error) {
       console.error('❌ Error loading existing bid items:', error);
@@ -132,7 +137,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const handleSaveBid = async () => {
-    console.log('🚀 STARTING BID SAVE - ENHANCED DEBUGGING');
+    console.log('🚀 STARTING BID SAVE - FIXED VERSION');
     console.log('=' .repeat(80));
     
     if (!projectId) {
@@ -251,7 +256,10 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       console.log('✅ SUCCESS:', successMessage);
       toast.success(successMessage);
       
-      onItemsChange(savedData || []);
+      // Step 3: IMMEDIATELY reload the items to refresh the UI
+      console.log('🔄 Step 3: Reloading items to refresh UI...');
+      await loadExistingBidItems();
+      
       setCurrentBidId(projectId);
       
     } catch (error: any) {
