@@ -1,4 +1,3 @@
-
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -122,10 +121,7 @@ export const exportToPDF = async (elementId: string, filename: string) => {
       ignoreElements: (element: Element) => {
         return element.classList.contains('print:hidden') ||
                element.tagName === 'BUTTON' ||
-               element.classList.contains('no-print') ||
-               element.textContent?.includes('G703 Display Options') ||
-               element.textContent?.includes('Breakdown Level') ||
-               element.textContent?.includes('Report generated on');
+               element.classList.contains('no-print');
       }
     };
 
@@ -166,17 +162,14 @@ export const exportToPDF = async (elementId: string, filename: string) => {
             pdf.addPage();
           }
           
+          // Fixed the addImage call to use correct number of parameters
           pdf.addImage(
             imgData, 
             'PNG', 
             0.25, 
             0.25, 
             imgWidth, 
-            heightForThisPage,
-            undefined,
-            'FAST',
-            0,
-            -currentY * (canvas.height / imgHeight)
+            heightForThisPage
           );
           
           remainingHeight -= heightForThisPage;
