@@ -107,16 +107,16 @@ export function TabbedBidInterface({
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="templates" className="space-y-6">
+      <Tabs defaultValue="create" className="space-y-6">
         <div className="flex justify-between items-center">
           <TabsList className="grid grid-cols-3 w-full max-w-xl">
-            <TabsTrigger value="templates" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Templates
-            </TabsTrigger>
             <TabsTrigger value="create" className="flex items-center gap-2">
               <Calculator className="w-4 h-4" />
               Create Bid
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Templates
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
@@ -125,13 +125,6 @@ export function TabbedBidInterface({
           </TabsList>
         </div>
 
-        <TabsContent value="templates">
-          <BidTemplateSelector
-            onTemplateSelected={handleTemplateSelected}
-            onCreateNew={handleCreateNew}
-          />
-        </TabsContent>
-
         <TabsContent value="create">
           <BidCreationView
             projectId={projectId}
@@ -139,6 +132,13 @@ export function TabbedBidInterface({
             onItemsChange={onItemsChange}
             showCreateView={showCreateView}
             onShowCreateViewChange={setShowCreateView}
+          />
+        </TabsContent>
+
+        <TabsContent value="templates">
+          <BidTemplateSelector
+            onTemplateSelected={handleTemplateSelected}
+            onCreateNew={handleCreateNew}
           />
         </TabsContent>
 

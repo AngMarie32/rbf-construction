@@ -38,6 +38,7 @@ import { DateRange } from "react-day-picker"
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { EditSubcontractorDialog } from '@/components/subcontractors/EditSubcontractorDialog';
+import { AddSubcontractorDialog } from '@/components/subcontractors/AddSubcontractorDialog';
 import { DocumentIssues } from '@/components/subcontractors/DocumentIssues';
 
 interface Subcontractor {
@@ -204,6 +205,8 @@ export default function Subcontractors() {
           </div>
 
           <div className="flex items-center space-x-2">
+            <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
+            
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by Status" />

@@ -39,9 +39,10 @@ export function BidSettings({ projectId }: BidSettingsProps) {
         .from('bid_settings')
         .select('*')
         .eq('project_id', projectId)
-        .maybeSingle();
+        .limit(1)
+        .single();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         console.error('Error loading bid settings:', error);
         toast.error('Failed to load bid settings');
         return;
@@ -87,16 +88,37 @@ export function BidSettings({ projectId }: BidSettingsProps) {
         updated_at: new Date().toISOString()
       };
 
-      const { error } = await supabase
+      // First, try to update existing record
+      const { data: updateData, error: updateError } = await supabase
         .from('bid_settings')
-        .upsert(settingsData, { 
-          onConflict: 'project_id'
-        });
+        .update(settingsData)
+        .eq('project_id', projectId)
+        .select();
 
-      if (error) {
-        console.error('Error saving bid settings:', error);
-        toast.error(`Failed to save bid settings: ${error.message}`);
-        return;
+      if (updateError) {
+        console.log('Update failed, trying insert:', updateError);
+        
+        // If update fails, try to insert new record
+        const { error: insertError } = await supabase
+          .from('bid_settings')
+          .insert([settingsData]);
+
+        if (insertError) {
+          console.error('Error inserting bid settings:', insertError);
+          toast.error(`Failed to save bid settings: ${insertError.message}`);
+          return;
+        }
+      } else if (!updateData || updateData.length === 0) {
+        // If update succeeded but no rows were affected, insert new record
+        const { error: insertError } = await supabase
+          .from('bid_settings')
+          .insert([settingsData]);
+
+        if (insertError) {
+          console.error('Error inserting bid settings:', insertError);
+          toast.error(`Failed to save bid settings: ${insertError.message}`);
+          return;
+        }
       }
 
       console.log('Bid settings saved successfully');
