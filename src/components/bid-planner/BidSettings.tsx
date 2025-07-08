@@ -39,10 +39,9 @@ export function BidSettings({ projectId }: BidSettingsProps) {
         .from('bid_settings')
         .select('*')
         .eq('project_id', projectId)
-        .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error loading bid settings:', error);
         toast.error('Failed to load bid settings');
         return;
@@ -84,41 +83,20 @@ export function BidSettings({ projectId }: BidSettingsProps) {
         contingency_percentage: settings.contingencyPercentage,
         include_tax: settings.includeTax,
         tax_percentage: settings.taxPercentage,
-        round_to_nearest: settings.roundToNearest,
-        updated_at: new Date().toISOString()
+        round_to_nearest: settings.roundToNearest
       };
 
-      // First, try to update existing record
-      const { data: updateData, error: updateError } = await supabase
+      const { error } = await supabase
         .from('bid_settings')
-        .update(settingsData)
-        .eq('project_id', projectId)
-        .select();
+        .upsert(settingsData, { 
+          onConflict: 'project_id',
+          ignoreDuplicates: false 
+        });
 
-      if (updateError) {
-        console.log('Update failed, trying insert:', updateError);
-        
-        // If update fails, try to insert new record
-        const { error: insertError } = await supabase
-          .from('bid_settings')
-          .insert([settingsData]);
-
-        if (insertError) {
-          console.error('Error inserting bid settings:', insertError);
-          toast.error(`Failed to save bid settings: ${insertError.message}`);
-          return;
-        }
-      } else if (!updateData || updateData.length === 0) {
-        // If update succeeded but no rows were affected, insert new record
-        const { error: insertError } = await supabase
-          .from('bid_settings')
-          .insert([settingsData]);
-
-        if (insertError) {
-          console.error('Error inserting bid settings:', insertError);
-          toast.error(`Failed to save bid settings: ${insertError.message}`);
-          return;
-        }
+      if (error) {
+        console.error('Error saving bid settings:', error);
+        toast.error(`Failed to save bid settings: ${error.message}`);
+        return;
       }
 
       console.log('Bid settings saved successfully');
