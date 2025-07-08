@@ -26,6 +26,8 @@ interface BidItemFormProps {
   projectId: string;
   onItemsChange: (items: any[]) => void;
   initialItems?: BidItem[];
+  items?: BidItem[]; // Add this prop for external items control
+  contingency?: number; // Add contingency prop
 }
 
 const divisions = [
@@ -58,26 +60,9 @@ const categories = [
   'Electronic Safety & Security'
 ];
 
-export function BidItemForm({ projectId, onItemsChange, initialItems = [] }: BidItemFormProps) {
-  const [items, setItems] = useState<BidItem[]>(initialItems.length > 0 ? initialItems : [{
-    category: '',
-    subcategory: '',
-    description: '',
-    quantity: 1,
-    unit: 'each',
-    unit_cost: 0,
-    division: ''
-  }]);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (initialItems.length > 0) {
-      setItems(initialItems);
-    }
-  }, [initialItems]);
-
-  const addItem = () => {
-    setItems([...items, {
+export function BidItemForm({ projectId, onItemsChange, initialItems = [], items: externalItems, contingency = 0 }: BidItemFormProps) {
+  const [items, setItems] = useState<BidItem[]>(
+    externalItems || initialItems.length > 0 ? (externalItems || initialItems) : [{
       category: '',
       subcategory: '',
       description: '',
@@ -85,12 +70,41 @@ export function BidItemForm({ projectId, onItemsChange, initialItems = [] }: Bid
       unit: 'each',
       unit_cost: 0,
       division: ''
-    }]);
+    }]
+  );
+  const [saving, setSaving] = useState(false);
+
+  // Update items when external items change
+  useEffect(() => {
+    if (externalItems) {
+      setItems(externalItems);
+    } else if (initialItems.length > 0) {
+      setItems(initialItems);
+    }
+  }, [externalItems, initialItems]);
+
+  const addItem = () => {
+    const newItems = [...items, {
+      category: '',
+      subcategory: '',
+      description: '',
+      quantity: 1,
+      unit: 'each',
+      unit_cost: 0,
+      division: ''
+    }];
+    setItems(newItems);
+    if (externalItems) {
+      onItemsChange(newItems);
+    }
   };
 
   const removeItem = (index: number) => {
     const newItems = items.filter((_, i) => i !== index);
     setItems(newItems);
+    if (externalItems) {
+      onItemsChange(newItems);
+    }
   };
 
   const updateItem = (index: number, field: keyof BidItem, value: any) => {
@@ -103,11 +117,20 @@ export function BidItemForm({ projectId, onItemsChange, initialItems = [] }: Bid
     }
     
     setItems(newItems);
+    if (externalItems) {
+      onItemsChange(newItems);
+    }
   };
 
   const saveItems = async () => {
     if (!projectId) {
       toast.error('No project selected');
+      return;
+    }
+
+    // If external items are being used, don't save here - let parent handle it
+    if (externalItems) {
+      onItemsChange(items);
       return;
     }
 
@@ -176,6 +199,9 @@ export function BidItemForm({ projectId, onItemsChange, initialItems = [] }: Bid
       setSaving(false);
     }
   };
+
+  const totalBidAmount = items.reduce((sum, item) => sum + (item.quantity * item.unit_cost), 0);
+  const totalWithContingency = totalBidAmount + contingency;
 
   return (
     <Card>
@@ -325,17 +351,33 @@ export function BidItemForm({ projectId, onItemsChange, initialItems = [] }: Bid
             Add Item
           </Button>
           
-          <Button onClick={saveItems} disabled={saving} className="flex-1">
-            <Save className="w-4 h-4 mr-2" />
-            {saving ? 'Saving...' : 'Save Items'}
-          </Button>
+          {!externalItems && (
+            <Button onClick={saveItems} disabled={saving} className="flex-1">
+              <Save className="w-4 h-4 mr-2" />
+              {saving ? 'Saving...' : 'Save Items'}
+            </Button>
+          )}
         </div>
 
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg space-y-2">
           <div className="flex justify-between items-center">
+            <span className="font-medium">Subtotal:</span>
+            <span className="text-lg font-bold">
+              ${totalBidAmount.toFixed(2)}
+            </span>
+          </div>
+          {contingency > 0 && (
+            <div className="flex justify-between items-center">
+              <span className="font-medium">Contingency:</span>
+              <span className="text-lg font-bold">
+                ${contingency.toFixed(2)}
+              </span>
+            </div>
+          )}
+          <div className="flex justify-between items-center border-t pt-2">
             <span className="font-medium">Total Bid Amount:</span>
             <span className="text-xl font-bold">
-              ${items.reduce((sum, item) => sum + (item.quantity * item.unit_cost), 0).toFixed(2)}
+              ${totalWithContingency.toFixed(2)}
             </span>
           </div>
         </div>
