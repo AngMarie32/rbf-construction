@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,15 +19,16 @@ interface BidItem {
   description: string;
   quantity: number;
   unit: string;
-  unitCost: number;
+  unit_cost: number;
   total: number;
-  divisionManuallySet?: boolean; // Track if user manually set division
+  divisionManuallySet?: boolean;
 }
 
 interface BidItemFormProps {
   items: BidItem[];
   onItemsChange: (items: BidItem[]) => void;
   projectId?: string;
+  contingency?: number;
 }
 
 const divisions = [
@@ -401,7 +403,7 @@ interface SearchableSelectProps {
   allowCustom?: boolean;
 }
 
-export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProps) {
+export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }: BidItemFormProps) {
   const currentItems = items;
 
   useEffect(() => {
@@ -454,9 +456,9 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
             description: item.description || '',
             quantity: item.quantity || 1,
             unit: item.unit || 'each',
-            unitCost: item.unit_cost || 0,
+            unit_cost: item.unit_cost || 0,
             total: (item.unit_cost || 0) * (item.quantity || 1),
-            divisionManuallySet: !!item.division // If division exists in DB, it was manually set
+            divisionManuallySet: !!item.division
           };
         });
 
@@ -481,8 +483,8 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
           description: item.description,
           quantity: item.quantity,
           unit: item.unit,
-          unit_cost: item.unitCost,
-          division: item.division // Save the division to database
+          unit_cost: item.unit_cost,
+          division: item.division
         });
 
       if (error) {
@@ -506,7 +508,7 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
       description: '',
       quantity: 1,
       unit: 'each',
-      unitCost: 0,
+      unit_cost: 0,
       total: 0,
       divisionManuallySet: false
     };
@@ -527,8 +529,8 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
           updated.divisionManuallySet = true;
         }
         
-        if (field === 'quantity' || field === 'unitCost') {
-          updated.total = updated.quantity * updated.unitCost;
+        if (field === 'quantity' || field === 'unit_cost') {
+          updated.total = updated.quantity * updated.unit_cost;
         }
         
         // Save to database immediately
@@ -570,6 +572,12 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
     return currentItems.reduce((sum, item) => sum + item.total, 0);
   };
 
+  const calculateTotalWithContingency = () => {
+    const grandTotal = calculateGrandTotal();
+    const contingencyAmount = grandTotal * (contingency / 100);
+    return grandTotal + contingencyAmount;
+  };
+
   const handleStartFromScratch = async () => {
     if (!projectId) return;
     
@@ -592,7 +600,7 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
         description: '',
         quantity: 1,
         unit: 'each',
-        unitCost: 0,
+        unit_cost: 0,
         total: 0,
         divisionManuallySet: false
       };
@@ -721,8 +729,8 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
                   <div className="col-span-1">
                     <Input
                       type="number"
-                      value={item.unitCost}
-                      onChange={(e) => updateItem(item.id, 'unitCost', parseFloat(e.target.value) || 0)}
+                      value={item.unit_cost}
+                      onChange={(e) => updateItem(item.id, 'unit_cost', parseFloat(e.target.value) || 0)}
                       min="0"
                       step="0.01"
                       className="h-8 text-xs"
@@ -753,10 +761,25 @@ export function BidItemForm({ items, onItemsChange, projectId }: BidItemFormProp
         {currentItems.length > 0 && (
           <div className="border-t pt-6 mt-6 bg-gradient-to-r from-gray-50 to-blue-50 px-6 py-6 rounded-lg">
             <div className="flex justify-end">
-              <div className="text-right">
-                <div className="text-3xl font-bold text-blue-700">
-                  Grand Total: ${calculateGrandTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div className="text-right space-y-2">
+                <div className="text-xl font-bold text-gray-700">
+                  Subtotal: ${calculateGrandTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
+                {contingency > 0 && (
+                  <>
+                    <div className="text-lg text-gray-600">
+                      Contingency ({contingency}%): ${(calculateGrandTotal() * (contingency / 100)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-3xl font-bold text-blue-700 border-t pt-2">
+                      Total: ${calculateTotalWithContingency().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  </>
+                )}
+                {contingency === 0 && (
+                  <div className="text-3xl font-bold text-blue-700">
+                    Grand Total: ${calculateGrandTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                )}
                 <div className="text-sm text-gray-600 mt-2">
                   {currentItems.length} line item{currentItems.length !== 1 ? 's' : ''}
                 </div>

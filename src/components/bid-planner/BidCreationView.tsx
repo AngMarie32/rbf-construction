@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ArrowLeft, Save, Trash2, MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,8 +27,9 @@ interface BidItem {
   description: string;
   quantity: number;
   unit: string;
-  unitCost: number;
+  unit_cost: number;
   total: number;
+  divisionManuallySet?: boolean;
 }
 
 export function BidCreationView({ projectId, selectedTemplate, onItemsChange, showCreateView, onShowCreateViewChange }: BidCreationViewProps) {
@@ -34,6 +37,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   const [loading, setLoading] = useState(false);
   const [showProposalDialog, setShowProposalDialog] = useState(false);
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [contingencyPercentage, setContingencyPercentage] = useState(0);
   const navigate = useNavigate();
 
   const [bidItems, setBidItems] = useState<BidItem[]>([
@@ -45,7 +49,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       description: '',
       quantity: 1,
       unit: 'each',
-      unitCost: 0,
+      unit_cost: 0,
       total: 0
     }
   ]);
@@ -84,8 +88,9 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
             description: item.description || '',
             quantity: item.quantity || 1,
             unit: item.unit || 'each',
-            unitCost: item.unit_cost || 0,
-            total: (item.unit_cost || 0) * (item.quantity || 1)
+            unit_cost: item.unit_cost || 0,
+            total: (item.unit_cost || 0) * (item.quantity || 1),
+            divisionManuallySet: !!item.division
           };
         });
 
@@ -102,7 +107,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           description: '',
           quantity: 1,
           unit: 'each',
-          unitCost: 0,
+          unit_cost: 0,
           total: 0
         }]);
       }
@@ -180,7 +185,17 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const calculateTotalValue = () => {
+    const subtotal = bidItems.reduce((sum, item) => sum + item.total, 0);
+    const contingencyAmount = subtotal * (contingencyPercentage / 100);
+    return subtotal + contingencyAmount;
+  };
+
+  const calculateSubtotal = () => {
     return bidItems.reduce((sum, item) => sum + item.total, 0);
+  };
+
+  const calculateContingencyAmount = () => {
+    return calculateSubtotal() * (contingencyPercentage / 100);
   };
 
   const getDivisionBreakdown = () => {
@@ -247,7 +262,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         description: description, // Don't force a description
         quantity: Math.max(Number(item.quantity) || 1, 1),
         unit: (item.unit || 'each').trim(),
-        unit_cost: Number(item.unitCost) || 0
+        unit_cost: Number(item.unit_cost) || 0
       };
     });
 
@@ -311,7 +326,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         description: '',
         quantity: 1,
         unit: 'each',
-        unitCost: 0,
+        unit_cost: 0,
         total: 0
       }]);
       
@@ -325,16 +340,11 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const handleExportToSOV = async () => {
+    if (!projectId) {
+      return;
+    }
+
     try {
-      console.log('Exporting bid items to SOV for project:', projectId);
-      console.log('Bid items to export:', bidItems);
-
-      if (!bidItems || bidItems.length === 0) {
-        toast.error('No bid items to export to Schedule of Values');
-        return;
-      }
-
-      // Get project details first
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .select('name')
@@ -346,25 +356,22 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         throw new Error('Failed to fetch project details');
       }
 
-      // Convert bid items to SOV format and insert them
       const sovItems = bidItems.map((item, index) => ({
         project_id: projectId,
         item_number: String(index + 1).padStart(3, '0'),
         category: item.category || 'General',
         subcategory: item.subcategory || null,
-        description: item.description || '', // Don't force fallback description
-        scheduled_value: (item.unitCost || 0) * (item.quantity || 1),
+        description: item.description || '',
+        scheduled_value: (item.unit_cost || 0) * (item.quantity || 1),
         previous_applications: 0,
         this_period: 0,
         materials_stored: 0,
         percent_complete: 0,
         work_completed_from_previous: 0,
         materials_presently_stored: 0,
-        retainage_percentage: 0, // Set to 0 by default
+        retainage_percentage: 0,
         change_orders: 0
       }));
-
-      console.log('Converting to SOV items:', sovItems);
 
       const { data: insertedItems, error: insertError } = await supabase
         .from('sov_items')
@@ -376,13 +383,9 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         throw new Error(`Failed to create SOV items: ${insertError.message}`);
       }
 
-      console.log('SOV items created successfully:', insertedItems);
-      
       toast.success(`Successfully exported ${sovItems.length} bid items to Schedule of Values for ${project.name}`);
-      
-      // Navigate to SOV page
       navigate('/schedule-of-values');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error exporting to SOV:', error);
       toast.error(`Failed to export to SOV: ${error.message || 'Unknown error'}`);
     }
@@ -424,7 +427,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           description: item.description,
           quantity: item.quantity,
           unit: item.unit,
-          unit_cost: item.unitCost,
+          unit_cost: item.unit_cost,
           total: item.total
         })),
         totalAmount: bidItems.reduce((sum, item) => sum + (item.total || 0), 0)
@@ -503,9 +506,38 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         </div>
       </div>
 
+      {/* Contingency Input */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Bid Configuration</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="contingency">Contingency %</Label>
+              <Input
+                id="contingency"
+                type="number"
+                value={contingencyPercentage}
+                onChange={(e) => setContingencyPercentage(parseFloat(e.target.value) || 0)}
+                min="0"
+                max="100"
+                step="0.1"
+                placeholder="0"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Bid Items Form */}
       <div className="w-full">
-        <BidItemForm items={bidItems} onItemsChange={handleItemsChange} projectId={projectId} />
+        <BidItemForm 
+          items={bidItems} 
+          onItemsChange={handleItemsChange} 
+          projectId={projectId}
+          contingency={contingencyPercentage}
+        />
       </div>
 
       {/* Bid Summary */}
@@ -528,8 +560,15 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column - Summary */}
             <div className="space-y-6">
-              {/* Total Summary */}
               <div className="space-y-4">
+                <div className="text-2xl font-bold text-gray-700">
+                  Subtotal: ${calculateSubtotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                {contingencyPercentage > 0 && (
+                  <div className="text-lg text-gray-600">
+                    Contingency ({contingencyPercentage}%): ${calculateContingencyAmount().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                )}
                 <div className="text-4xl font-bold border-b pb-4 text-blue-600">
                   Total: ${calculateTotalValue().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
@@ -541,7 +580,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
               {/* Division Totals */}
               <div className="space-y-4">
                 <h4 className="font-semibold text-lg">Division Breakdown</h4>
-                {Object.entries(divisionTotals).map(([division, total]) => (
+                {Object.entries(getDivisionTotals()).map(([division, total]) => (
                   <div key={division} className="flex justify-between text-base border-b pb-2">
                     <span className="font-medium">{division}</span>
                     <span className="font-semibold">${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -554,7 +593,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
             <div className="space-y-4">
               <h4 className="font-semibold text-lg">Detailed Category Breakdown</h4>
               <div className="max-h-96 overflow-y-auto space-y-4">
-                {Object.entries(breakdown).map(([division, categories]) => (
+                {Object.entries(getDivisionBreakdown()).map(([division, categories]) => (
                   <div key={division} className="space-y-3">
                     <div className="font-medium text-base text-blue-600 border-b pb-1">
                       {division}

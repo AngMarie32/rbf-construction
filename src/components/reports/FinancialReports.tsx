@@ -14,6 +14,10 @@ interface FinancialReportsProps {
 export function FinancialReports({ data }: FinancialReportsProps) {
   const { revenueRecognition, profitLossByProject, cashFlowProjection } = data;
 
+  const formatCurrency = (value: number) => {
+    return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Revenue Recognition */}
@@ -30,7 +34,7 @@ export function FinancialReports({ data }: FinancialReportsProps) {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, '']} />
+              <Tooltip formatter={(value) => [formatCurrency(Number(value)), '']} />
               <Area type="monotone" dataKey="recognized" stackId="1" stroke="#8884d8" fill="#8884d8" />
               <Area type="monotone" dataKey="deferred" stackId="1" stroke="#82ca9d" fill="#82ca9d" />
             </AreaChart>
@@ -52,7 +56,7 @@ export function FinancialReports({ data }: FinancialReportsProps) {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="projectName" />
               <YAxis />
-              <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, '']} />
+              <Tooltip formatter={(value) => [formatCurrency(Number(value)), '']} />
               <Bar dataKey="revenue" fill="#8884d8" name="Revenue" />
               <Bar dataKey="costs" fill="#ff7300" name="Costs" />
               <Bar dataKey="profit" fill="#82ca9d" name="Profit" />
@@ -75,7 +79,7 @@ export function FinancialReports({ data }: FinancialReportsProps) {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, '']} />
+              <Tooltip formatter={(value) => [formatCurrency(Number(value)), '']} />
               <Line type="monotone" dataKey="inflow" stroke="#82ca9d" strokeWidth={2} name="Cash Inflow" />
               <Line type="monotone" dataKey="outflow" stroke="#ff7300" strokeWidth={2} name="Cash Outflow" />
               <Line type="monotone" dataKey="net" stroke="#8884d8" strokeWidth={2} name="Net Cash Flow" />
