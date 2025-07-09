@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Save, Trash2, MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,11 +39,17 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   const [showProposalDialog, setShowProposalDialog] = useState(false);
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
   const [contingencyPercentage, setContingencyPercentage] = useState(0);
+  const [contingencyType, setContingencyType] = useState<'percentage' | 'dollar'>('percentage');
+  const [contingencyDollarAmount, setContingencyDollarAmount] = useState(0);
   const navigate = useNavigate();
 
   const [bidItems, setBidItems] = useState<BidItem[]>([
     {
-      id: '1',
+      id: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      }),
       division: 'General Conditions',
       category: '',
       subcategory: '',
@@ -81,7 +88,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         const formattedItems: BidItem[] = existingItems.map((item, index) => {
           const division = getDivisionFromCategory(item.category || '');
           return {
-            id: item.id || String(Date.now() + index),
+            id: item.id || `item-${Date.now()}-${index}`,
             division: division,
             category: item.category || '',
             subcategory: item.subcategory || '',
@@ -99,8 +106,12 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         
         console.log(`Loaded ${formattedItems.length} existing bid items`);
       } else {
-        setBidItems([{
-          id: String(Date.now()),
+        const defaultItem = {
+          id: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+          }),
           division: 'General Conditions',
           category: '',
           subcategory: '',
@@ -109,7 +120,8 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           unit: 'each',
           unit_cost: 0,
           total: 0
-        }]);
+        };
+        setBidItems([defaultItem]);
       }
     } catch (error) {
       console.error('Error loading existing bid items:', error);
@@ -186,7 +198,14 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
   const calculateTotalValue = () => {
     const subtotal = bidItems.reduce((sum, item) => sum + item.total, 0);
-    const contingencyAmount = subtotal * (contingencyPercentage / 100);
+    let contingencyAmount = 0;
+    
+    if (contingencyType === 'percentage') {
+      contingencyAmount = subtotal * (contingencyPercentage / 100);
+    } else {
+      contingencyAmount = contingencyDollarAmount;
+    }
+    
     return subtotal + contingencyAmount;
   };
 
@@ -195,7 +214,11 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
   };
 
   const calculateContingencyAmount = () => {
-    return calculateSubtotal() * (contingencyPercentage / 100);
+    if (contingencyType === 'percentage') {
+      return calculateSubtotal() * (contingencyPercentage / 100);
+    } else {
+      return contingencyDollarAmount;
+    }
   };
 
   const getDivisionBreakdown = () => {
@@ -319,7 +342,11 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
 
       // Reset to default state
       setBidItems([{
-        id: '1',
+        id: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        }),
         division: 'General Conditions',
         category: '',
         subcategory: '',
@@ -512,20 +539,51 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           <CardTitle>Bid Configuration</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="contingency">Contingency %</Label>
-              <Input
-                id="contingency"
-                type="number"
-                value={contingencyPercentage}
-                onChange={(e) => setContingencyPercentage(parseFloat(e.target.value) || 0)}
-                min="0"
-                max="100"
-                step="0.1"
-                placeholder="0"
-              />
+              <Label htmlFor="contingency-type">Contingency Type</Label>
+              <Select 
+                value={contingencyType} 
+                onValueChange={(value: 'percentage' | 'dollar') => setContingencyType(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="percentage">Percentage</SelectItem>
+                  <SelectItem value="dollar">Dollar Amount</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+            
+            {contingencyType === 'percentage' ? (
+              <div>
+                <Label htmlFor="contingency">Contingency %</Label>
+                <Input
+                  id="contingency"
+                  type="number"
+                  value={contingencyPercentage}
+                  onChange={(e) => setContingencyPercentage(parseFloat(e.target.value) || 0)}
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  placeholder="0"
+                />
+              </div>
+            ) : (
+              <div>
+                <Label htmlFor="contingency-dollar">Contingency Amount ($)</Label>
+                <Input
+                  id="contingency-dollar"
+                  type="number"
+                  value={contingencyDollarAmount}
+                  onChange={(e) => setContingencyDollarAmount(parseFloat(e.target.value) || 0)}
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                />
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -536,7 +594,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           items={bidItems} 
           onItemsChange={handleItemsChange} 
           projectId={projectId}
-          contingency={contingencyPercentage}
+          contingency={contingencyType === 'percentage' ? contingencyPercentage : 0}
         />
       </div>
 
@@ -564,9 +622,9 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
                 <div className="text-2xl font-bold text-gray-700">
                   Subtotal: ${calculateSubtotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-                {contingencyPercentage > 0 && (
+                {(contingencyPercentage > 0 || contingencyDollarAmount > 0) && (
                   <div className="text-lg text-gray-600">
-                    Contingency ({contingencyPercentage}%): ${calculateContingencyAmount().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    Contingency ({contingencyType === 'percentage' ? `${contingencyPercentage}%` : 'Fixed'}): ${calculateContingencyAmount().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 )}
                 <div className="text-4xl font-bold border-b pb-4 text-blue-600">

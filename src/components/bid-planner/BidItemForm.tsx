@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -449,7 +448,7 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
       if (existingItems && existingItems.length > 0) {
         const formattedItems: BidItem[] = existingItems.map((item, index) => {
           return {
-            id: item.id || String(Date.now() + index),
+            id: item.id || `item-${Date.now()}-${index}`,
             division: item.division || getDivisionFromCategory(item.category || ''),
             category: item.category || '',
             subcategory: item.subcategory || '',
@@ -469,14 +468,29 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
     }
   };
 
+  // Generate a proper UUID-like string
+  const generateId = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
+
   const saveBidItemToDatabase = async (item: BidItem) => {
     if (!projectId) return;
 
     try {
+      // Generate a new UUID if the ID looks like a timestamp
+      let itemId = item.id;
+      if (/^\d+$/.test(itemId)) {
+        itemId = generateId();
+      }
+
       const { error } = await supabase
         .from('bid_items')
         .upsert({
-          id: item.id,
+          id: itemId,
           project_id: projectId,
           category: item.category,
           subcategory: item.subcategory,
@@ -492,6 +506,13 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
         toast.error('Failed to save item changes');
       } else {
         console.log('Successfully saved bid item with division:', item.division);
+        // Update the item ID in the state if it was changed
+        if (itemId !== item.id) {
+          const updatedItems = currentItems.map(i => 
+            i.id === item.id ? { ...i, id: itemId } : i
+          );
+          onItemsChange(updatedItems);
+        }
       }
     } catch (error) {
       console.error('Error saving bid item:', error);
@@ -501,7 +522,7 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
 
   const addItem = () => {
     const newItem: BidItem = {
-      id: Date.now().toString(),
+      id: generateId(),
       division: 'General Conditions',
       category: '',
       subcategory: '',
@@ -593,7 +614,7 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
       }
 
       const emptyItem: BidItem = {
-        id: Date.now().toString(),
+        id: generateId(),
         division: 'General Conditions',
         category: '',
         subcategory: '',

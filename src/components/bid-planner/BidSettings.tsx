@@ -87,17 +87,30 @@ export function BidSettings({ projectId }: BidSettingsProps) {
         updated_at: new Date().toISOString()
       };
 
-      // Use upsert to insert or update
-      const { error } = await supabase
+      // Check if record exists first
+      const { data: existingRecord } = await supabase
         .from('bid_settings')
-        .upsert(settingsData, {
-          onConflict: 'project_id',
-          ignoreDuplicates: false
-        });
+        .select('id')
+        .eq('project_id', projectId)
+        .maybeSingle();
 
-      if (error) {
-        console.error('Error saving bid settings:', error);
-        toast.error(`Failed to save bid settings: ${error.message}`);
+      let result;
+      if (existingRecord) {
+        // Update existing record
+        result = await supabase
+          .from('bid_settings')
+          .update(settingsData)
+          .eq('project_id', projectId);
+      } else {
+        // Insert new record
+        result = await supabase
+          .from('bid_settings')
+          .insert(settingsData);
+      }
+
+      if (result.error) {
+        console.error('Error saving bid settings:', result.error);
+        toast.error(`Failed to save bid settings: ${result.error.message}`);
         return;
       }
 
