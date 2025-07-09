@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,7 +25,7 @@ interface BidItem {
   description: string;
   quantity: number;
   unit: string;
-  unit_cost: number; // Changed from unitCost to unit_cost to match BidItemForm
+  unit_cost: number;
   total: number;
 }
 
@@ -46,7 +45,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       description: '',
       quantity: 1,
       unit: 'each',
-      unit_cost: 0, // Changed from unitCost to unit_cost
+      unit_cost: 0,
       total: 0
     }
   ]);
@@ -85,7 +84,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
             description: item.description || '',
             quantity: item.quantity || 1,
             unit: item.unit || 'each',
-            unit_cost: item.unit_cost || 0, // Changed from unitCost to unit_cost
+            unit_cost: item.unit_cost || 0,
             total: (item.unit_cost || 0) * (item.quantity || 1)
           };
         });
@@ -103,7 +102,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           description: '',
           quantity: 1,
           unit: 'each',
-          unit_cost: 0, // Changed from unitCost to unit_cost
+          unit_cost: 0,
           total: 0
         }]);
       }
@@ -248,7 +247,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         description: description, // Don't force a description
         quantity: Math.max(Number(item.quantity) || 1, 1),
         unit: (item.unit || 'each').trim(),
-        unit_cost: Number(item.unit_cost) || 0 // Changed from unitCost to unit_cost
+        unit_cost: Number(item.unit_cost) || 0
       };
     });
 
@@ -312,7 +311,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         description: '',
         quantity: 1,
         unit: 'each',
-        unit_cost: 0, // Changed from unitCost to unit_cost
+        unit_cost: 0,
         total: 0
       }]);
       
@@ -354,7 +353,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         category: item.category || 'General',
         subcategory: item.subcategory || null,
         description: item.description || '', // Don't force fallback description
-        scheduled_value: (item.unit_cost || 0) * (item.quantity || 1), // Changed from unitCost to unit_cost
+        scheduled_value: (item.unit_cost || 0) * (item.quantity || 1),
         previous_applications: 0,
         this_period: 0,
         materials_stored: 0,
@@ -425,7 +424,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           description: item.description,
           quantity: item.quantity,
           unit: item.unit,
-          unit_cost: item.unit_cost, // Changed from unitCost to unit_cost
+          unit_cost: item.unit_cost,
           total: item.total
         })),
         totalAmount: bidItems.reduce((sum, item) => sum + (item.total || 0), 0)

@@ -15,6 +15,14 @@ interface ExecutiveReportsProps {
 export function ExecutiveReports({ data }: ExecutiveReportsProps) {
   const { monthlyRevenue, projectSummary, profitMargins, performanceByManager } = data;
 
+  // Currency formatter function to ensure two decimal places
+  const formatCurrency = (value: number) => {
+    return `$${Number(value).toLocaleString(undefined, { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    })}`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Key Metrics */}
@@ -23,8 +31,8 @@ export function ExecutiveReports({ data }: ExecutiveReportsProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold">${projectSummary?.totalRevenue?.toLocaleString() || 0}</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
+                <p className="text-2xl font-bold">{formatCurrency(projectSummary?.totalRevenue || 0)}</p>
                 <p className="text-sm text-green-600">+12% from last period</p>
               </div>
               <DollarSign className="w-8 h-8 text-green-600" />
@@ -36,7 +44,7 @@ export function ExecutiveReports({ data }: ExecutiveReportsProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Active Projects</p>
+                <p className="text-sm font-medium text-muted-foreground">Active Projects</p>
                 <p className="text-2xl font-bold">{projectSummary?.activeProjects || 0}</p>
                 <p className="text-sm text-blue-600">8 completing this month</p>
               </div>
@@ -49,7 +57,7 @@ export function ExecutiveReports({ data }: ExecutiveReportsProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Avg Profit Margin</p>
+                <p className="text-sm font-medium text-muted-foreground">Avg Profit Margin</p>
                 <p className="text-2xl font-bold">{projectSummary?.avgProfitMargin || 0}%</p>
                 <p className="text-sm text-green-600">+2.3% from target</p>
               </div>
@@ -62,7 +70,7 @@ export function ExecutiveReports({ data }: ExecutiveReportsProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">On-Time Delivery</p>
+                <p className="text-sm font-medium text-muted-foreground">On-Time Delivery</p>
                 <p className="text-2xl font-bold">{projectSummary?.onTimeRate || 0}%</p>
                 <p className="text-sm text-green-600">Above industry avg</p>
               </div>
@@ -83,7 +91,7 @@ export function ExecutiveReports({ data }: ExecutiveReportsProps) {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Revenue']} />
+              <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Revenue']} />
               <Area type="monotone" dataKey="revenue" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
             </AreaChart>
           </ResponsiveContainer>
@@ -104,7 +112,10 @@ export function ExecutiveReports({ data }: ExecutiveReportsProps) {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip />
+              <Tooltip formatter={(value, name) => [
+                name === 'totalRevenue' ? formatCurrency(Number(value)) : value,
+                name === 'totalRevenue' ? 'Total Revenue' : 'Projects Completed'
+              ]} />
               <Bar dataKey="totalRevenue" fill="#8884d8" name="Total Revenue ($)" />
               <Bar dataKey="projectCount" fill="#82ca9d" name="Projects Completed" />
             </BarChart>
