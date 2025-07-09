@@ -341,10 +341,8 @@ export default function Subcontractors() {
                       <AvatarFallback>{subcontractor.company?.charAt(0).toUpperCase() || subcontractor.name.charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="space-y-1">
-                      <CardTitle className="text-lg font-semibold">{subcontractor.company || 'N/A'}</CardTitle>
-                      {subcontractor.name && (
-                        <div className="text-sm text-gray-500">{subcontractor.name}</div>
-                      )}
+                      <CardTitle className="text-lg font-semibold">{subcontractor.name}</CardTitle>
+                      <div className="text-sm text-gray-500">{subcontractor.company || 'N/A'}</div>
                     </div>
                   </div>
                 </CardHeader>
