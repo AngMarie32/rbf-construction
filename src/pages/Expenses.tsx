@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Search, Filter, FileText, Download, Edit, Trash2, Eye, DollarSign, TrendingUp, AlertTriangle, Calendar } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Plus, Search, Filter, FileText, Download, Edit, Trash2, Eye, DollarSign, TrendingUp, AlertTriangle, Calendar, MoreHorizontal } from 'lucide-react';
 import { CreateExpenseDialog } from '@/components/expenses/CreateExpenseDialog';
 import { EditExpenseDialog } from '@/components/expenses/EditExpenseDialog';
 import { BulkExpenseDialog } from '@/components/expenses/BulkExpenseDialog';
@@ -183,16 +184,16 @@ export default function Expenses() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'Paid':
-        return '✅';
+        return '$';
       case 'Approved':
-        return '👍';
+        return '✓';
       case 'Pending Field Approval':
       case 'Pending Office Approval':
         return '⏳';
       case 'Rejected':
-        return '❌';
+        return '✗';
       default:
-        return '❓';
+        return '?';
     }
   };
 
@@ -248,45 +249,43 @@ export default function Expenses() {
       <div className="space-y-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border-0 shadow-sm bg-gradient-to-r from-green-50 to-green-100">
+          <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
-                <div className="p-2 bg-green-600 rounded-lg">
-                  <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
-                    <div className="w-3 h-3 bg-green-600 rounded-full"></div>
-                  </div>
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <DollarSign className="w-6 h-6 text-primary" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-green-600">Paid</p>
-                  <p className="text-2xl font-bold text-green-900">${expenseSummary.paid.toLocaleString()}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Paid</p>
+                  <p className="text-2xl font-bold">${expenseSummary.paid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-sm bg-gradient-to-r from-orange-50 to-orange-100">
+          <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
-                <div className="p-2 bg-orange-600 rounded-lg">
-                  <AlertTriangle className="w-6 h-6 text-white" />
+                <div className="p-3 bg-secondary/10 rounded-lg">
+                  <AlertTriangle className="w-6 h-6 text-secondary-foreground" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-orange-600">Approved</p>
-                  <p className="text-2xl font-bold text-orange-900">${expenseSummary.approved.toLocaleString()}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Approved</p>
+                  <p className="text-2xl font-bold">${expenseSummary.approved.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-sm bg-gradient-to-r from-yellow-50 to-yellow-100">
+          <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
-                <div className="p-2 bg-yellow-600 rounded-lg">
-                  <FileText className="w-6 h-6 text-white" />
+                <div className="p-3 bg-muted rounded-lg">
+                  <FileText className="w-6 h-6 text-muted-foreground" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-yellow-600">Pending</p>
-                  <p className="text-2xl font-bold text-yellow-900">${expenseSummary.pending.toLocaleString()}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Pending</p>
+                  <p className="text-2xl font-bold">${expenseSummary.pending.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
               </div>
             </CardContent>
@@ -302,27 +301,45 @@ export default function Expenses() {
                 Expense Records
               </CardTitle>
               <div className="flex gap-2">
-                <Select onValueChange={(value) => handleExport(value as 'excel' | 'pdf' | 'csv')}>
-                  <SelectTrigger className="w-40">
-                    <Download className="w-4 h-4 mr-2" />
-                    <SelectValue placeholder="Export" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="excel">Export Excel</SelectItem>
-                    <SelectItem value="pdf">Export PDF</SelectItem>
-                    <SelectItem value="csv">Export CSV</SelectItem>
-                  </SelectContent>
-                </Select>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      <MoreHorizontal className="w-4 h-4 mr-2" />
+                      More Actions
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => handleExport('excel')}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport('csv')}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <div className="w-full">
+                        <ImportExpensesDialog onExpensesImported={fetchExpenses} projects={projects} />
+                      </div>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <div className="w-full">
+                        <BulkExpenseDialog onExpensesCreated={fetchExpenses} projects={projects} />
+                      </div>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button 
                   onClick={() => setVendorAnalysisOpen(true)}
                   variant="outline"
-                  className="bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
                 >
                   <TrendingUp className="w-4 h-4 mr-2" />
                   Vendor Analysis
                 </Button>
-                <ImportExpensesDialog onExpensesImported={fetchExpenses} projects={projects} />
-                <BulkExpenseDialog onExpensesCreated={fetchExpenses} projects={projects} />
                 <CreateExpenseDialog onExpenseCreated={fetchExpenses} projects={projects} />
               </div>
             </div>
@@ -416,12 +433,13 @@ export default function Expenses() {
                       <TableCell>{expense.description}</TableCell>
                       <TableCell>{expense.category}</TableCell>
                       <TableCell>{expense.vendor || 'N/A'}</TableCell>
-                      <TableCell className="font-medium">${expense.amount.toLocaleString()}</TableCell>
+                      <TableCell className="font-medium">${expense.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                       <TableCell>
                         <Select value={expense.status} onValueChange={(newStatus) => handleStatusChange(expense.id, newStatus)}>
-                          <SelectTrigger className="w-auto">
-                            <Badge variant={getStatusColor(expense.status) as any} className="cursor-pointer">
-                              {getStatusIcon(expense.status)} {expense.status}
+                          <SelectTrigger className="w-auto border-0 bg-transparent p-0">
+                            <Badge variant={getStatusColor(expense.status) as any} className="cursor-pointer px-3 py-1 font-medium">
+                              <span className="mr-1">{getStatusIcon(expense.status)}</span>
+                              {expense.status}
                             </Badge>
                           </SelectTrigger>
                           <SelectContent>

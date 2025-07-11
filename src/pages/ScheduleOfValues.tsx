@@ -204,6 +204,18 @@ export default function ScheduleOfValues() {
   const totalWorkCompleted = sovItems.reduce((sum, item) => sum + (Number(item.work_completed_to_date) || 0), 0);
   const totalMaterialsStored = sovItems.reduce((sum, item) => sum + (Number(item.materials_stored) || 0), 0);
   const totalPercentComplete = sovItems.length > 0 ? sovItems.reduce((sum, item) => sum + (Number(item.percent_complete) || 0), 0) / sovItems.length : 0;
+  
+  // Calculate contingency from project settings
+  const projectContingency = selectedProjectData ? (() => {
+    const contingencyValue = Number(selectedProjectData.contingency_value) || 0;
+    if (selectedProjectData.contingency_type === 'percentage') {
+      return (totalScheduledValue * contingencyValue) / 100;
+    } else {
+      return contingencyValue; // Dollar amount
+    }
+  })() : 0;
+  
+  const totalWithContingency = totalScheduledValue + projectContingency;
 
   if (loading) {
     return (
@@ -280,17 +292,21 @@ export default function ScheduleOfValues() {
 
                 {/* Summary Cards */}
                 {selectedProject && (
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                     <div className="bg-white p-4 rounded-lg border-2 border-blue-200">
-                      <div className="text-sm font-medium text-blue-800">Total Scheduled Value</div>
+                      <div className="text-sm font-medium text-blue-800">Scheduled Value</div>
                       <div className="text-2xl font-bold text-blue-900">${totalScheduledValue.toLocaleString()}</div>
                     </div>
+                    <div className="bg-white p-4 rounded-lg border-2 border-orange-200">
+                      <div className="text-sm font-medium text-orange-800">Contingency</div>
+                      <div className="text-2xl font-bold text-orange-900">${projectContingency.toLocaleString()}</div>
+                    </div>
                     <div className="bg-white p-4 rounded-lg border-2 border-green-200">
-                      <div className="text-sm font-medium text-green-800">Total Work Completed</div>
-                      <div className="text-2xl font-bold text-green-900">${totalWorkCompleted.toLocaleString()}</div>
+                      <div className="text-sm font-medium text-green-800">Total with Contingency</div>
+                      <div className="text-2xl font-bold text-green-900">${totalWithContingency.toLocaleString()}</div>
                     </div>
                     <div className="bg-white p-4 rounded-lg border-2 border-yellow-200">
-                      <div className="text-sm font-medium text-yellow-800">Total Materials Stored</div>
+                      <div className="text-sm font-medium text-yellow-800">Materials Stored</div>
                       <div className="text-2xl font-bold text-yellow-900">${totalMaterialsStored.toLocaleString()}</div>
                     </div>
                     <div className="bg-white p-4 rounded-lg border-2 border-purple-200">
@@ -360,6 +376,42 @@ export default function ScheduleOfValues() {
                             </td>
                           </tr>
                         ))}
+                        {/* Contingency Row */}
+                        {projectContingency > 0 && (
+                          <tr className="bg-orange-50 font-medium">
+                            <td className="border border-gray-200 px-4 py-2">-</td>
+                            <td className="border border-gray-200 px-4 py-2">Contingency</td>
+                            <td className="border border-gray-200 px-4 py-2">-</td>
+                            <td className="border border-gray-200 px-4 py-2">Project Contingency</td>
+                            <td className="border border-gray-200 px-4 py-2 text-right font-bold">
+                              ${projectContingency.toLocaleString()}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2 text-right">-</td>
+                            <td className="border border-gray-200 px-4 py-2 text-right">-</td>
+                            <td className="border border-gray-200 px-4 py-2 text-right">-</td>
+                            <td className="border border-gray-200 px-4 py-2">-</td>
+                          </tr>
+                        )}
+                        {/* Total Row */}
+                        <tr className="bg-gray-100 font-bold">
+                          <td className="border border-gray-200 px-4 py-2">-</td>
+                          <td className="border border-gray-200 px-4 py-2">TOTAL</td>
+                          <td className="border border-gray-200 px-4 py-2">-</td>
+                          <td className="border border-gray-200 px-4 py-2">Total Project Value</td>
+                          <td className="border border-gray-200 px-4 py-2 text-right text-lg">
+                            ${totalWithContingency.toLocaleString()}
+                          </td>
+                          <td className="border border-gray-200 px-4 py-2 text-right">
+                            ${totalWorkCompleted.toLocaleString()}
+                          </td>
+                          <td className="border border-gray-200 px-4 py-2 text-right">
+                            ${totalMaterialsStored.toLocaleString()}
+                          </td>
+                          <td className="border border-gray-200 px-4 py-2 text-right">
+                            {totalPercentComplete.toFixed(1)}%
+                          </td>
+                          <td className="border border-gray-200 px-4 py-2">-</td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
