@@ -15,6 +15,7 @@ import ProjectBilling from './pages/ProjectBilling';
 import Subcontractors from './pages/Subcontractors';
 import Documents from './pages/Documents';
 import Permits from './pages/Permits';
+import Equipment from './pages/Equipment';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 function App() {
@@ -49,6 +50,11 @@ function App() {
         <Route path="/projects/:id" element={
           <ProtectedRoute>
             <ProjectDetail />
+          </ProtectedRoute>
+        } />
+        <Route path="/equipment" element={
+          <ProtectedRoute>
+            <Equipment />
           </ProtectedRoute>
         } />
         <Route path="/schedule-of-values" element={

@@ -1,4 +1,5 @@
 
+
 import {
   BarChart3,
   Building2,
@@ -13,6 +14,7 @@ import {
   Settings,
   User2,
   FileCheck,
+  Wrench,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -50,6 +52,11 @@ export function Sidebar({ className }: SidebarProps) {
         { label: 'Payment Applications', path: '/payment-applications' },
         { label: 'Change Orders', path: '/change-orders' },
       ]
+    },
+    {
+      icon: Wrench,
+      label: 'Equipment',
+      path: '/equipment'
     },
     {
       icon: FileCheck,
