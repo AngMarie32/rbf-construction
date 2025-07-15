@@ -4,9 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, FileText } from 'lucide-react';
+import { User, FileText, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,7 +19,6 @@ export const ProfileSettings: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
-  const [hasAdminRole, setHasAdminRole] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -39,9 +37,9 @@ export const ProfileSettings: React.FC = () => {
         .from('profiles')
         .select('name, email, role')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         console.error('Error fetching profile data:', error);
         toast({
           title: "Error",
@@ -57,7 +55,13 @@ export const ProfileSettings: React.FC = () => {
           email: data.email || user.email || '',
           role: data.role || 'Field',
         });
-        setHasAdminRole(data.role === 'Admin');
+      } else {
+        // No profile exists, use auth user data
+        setProfileData({
+          name: '',
+          email: user.email || '',
+          role: 'Field',
+        });
       }
     } catch (error) {
       console.error('Error fetching profile data:', error);
@@ -85,40 +89,22 @@ export const ProfileSettings: React.FC = () => {
     setLoading(true);
 
     try {
-      // First check if profile exists
-      const { data: existingProfile } = await supabase
+      // Use upsert to handle both insert and update
+      const { error } = await supabase
         .from('profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single();
+        .upsert({
+          id: user.id,
+          name: profileData.name,
+          email: profileData.email,
+        }, {
+          onConflict: 'id'
+        });
 
-      let result;
-      if (existingProfile) {
-        // Update existing profile
-        result = await supabase
-          .from('profiles')
-          .update({
-            name: profileData.name,
-            email: profileData.email,
-          })
-          .eq('id', user.id);
-      } else {
-        // Insert new profile
-        result = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            name: profileData.name,
-            email: profileData.email,
-            role: 'Field'
-          });
-      }
-
-      if (result.error) {
-        console.error('Error saving profile:', result.error);
+      if (error) {
+        console.error('Error saving profile:', error);
         toast({
           title: "Error",
-          description: `Failed to update profile: ${result.error.message}`,
+          description: `Failed to update profile: ${error.message}`,
           variant: "destructive",
         });
         return;
@@ -150,7 +136,10 @@ export const ProfileSettings: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-4">Loading profile data...</div>
+          <div className="text-center py-4 flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Loading profile data...
+          </div>
         </CardContent>
       </Card>
     );
@@ -218,7 +207,14 @@ export const ProfileSettings: React.FC = () => {
                 </div>
 
                 <Button type="submit" disabled={loading}>
-                  {loading ? 'Saving...' : 'Save Profile'}
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Profile'
+                  )}
                 </Button>
               </form>
             </CardContent>

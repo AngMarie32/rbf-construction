@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Bell, Menu, Settings } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ChatWidget } from '@/components/chat/ChatWidget';
-import { supabase } from '@/integrations/supabase/client';
+import { useNotificationStore } from '@/stores/notificationStore';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,50 +13,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface Notification {
-  id: string;
-  message: string;
-  created_at: string;
-  is_read: boolean;
-}
-
 interface HeaderProps {
   onMenuClick: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { user, signOut } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { notifications, markAsRead, deleteNotification, getUnreadCount } = useNotificationStore();
+  const unreadCount = getUnreadCount();
 
-  useEffect(() => {
-    fetchNotifications();
-  }, []);
-
-  const fetchNotifications = async () => {
-    try {
-      // For now, we'll use a mock notification since we don't have a notifications table
-      const mockNotifications = [
-        {
-          id: '1',
-          message: 'Payment application due in 3 days',
-          created_at: new Date().toISOString(),
-          is_read: false
-        }
-      ];
-      
-      setNotifications(mockNotifications);
-      setUnreadCount(mockNotifications.filter(n => !n.is_read).length);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    }
+  const handleNotificationClick = (notificationId: string) => {
+    markAsRead(notificationId);
   };
 
-  const markAsRead = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
+  const handleDeleteNotification = (notificationId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteNotification(notificationId);
   };
 
   return (
@@ -92,7 +64,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent 
               align="end" 
-              className="w-80 bg-white border shadow-lg z-50"
+              className="w-80 bg-white border shadow-lg z-50 max-h-96 overflow-y-auto"
               side="bottom"
               sideOffset={5}
             >
@@ -100,20 +72,31 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                 <h3 className="font-semibold">Notifications</h3>
               </div>
               {notifications.length > 0 ? (
-                notifications.map((notification) => (
+                notifications.slice(0, 10).map((notification) => (
                   <DropdownMenuItem
                     key={notification.id}
-                    className="p-4 cursor-pointer hover:bg-gray-50"
-                    onClick={() => markAsRead(notification.id)}
+                    className="p-4 cursor-pointer hover:bg-gray-50 flex-col items-start"
+                    onClick={() => handleNotificationClick(notification.id)}
                   >
-                    <div className="flex items-start">
-                      {!notification.is_read && (
+                    <div className="flex items-start w-full">
+                      {!notification.read && (
                         <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0" />
                       )}
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-900">{notification.message}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {notification.title}
+                          </p>
+                          <button
+                            onClick={(e) => handleDeleteNotification(notification.id, e)}
+                            className="text-gray-400 hover:text-gray-600 ml-2"
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {new Date(notification.created_at).toLocaleDateString()}
+                          {new Date(notification.timestamp).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
@@ -122,7 +105,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               ) : (
                 <div className="p-4 text-center text-gray-500">
                   <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p>No new notifications</p>
+                  <p>No notifications</p>
                 </div>
               )}
             </DropdownMenuContent>
@@ -142,7 +125,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 bg-white z-50" align="end" forceMount>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => window.location.href = '/settings'}>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>
