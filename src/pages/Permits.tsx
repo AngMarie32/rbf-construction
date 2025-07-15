@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, FileCheck, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { PermitCard } from '@/components/permits/PermitCard';
 import { NewPermitDialog } from '@/components/permits/NewPermitDialog';
-import { PermitFilters } from '@/components/permits/PermitFilters';
+import { PermitFiltersComponent } from '@/components/permits/PermitFilters';
 import { Permit, PermitFilters as PermitFiltersType } from '@/types/permits';
 
 // Mock data for development
@@ -187,7 +187,7 @@ export default function Permits() {
 
         {/* Actions and Filters */}
         <div className="flex justify-between items-center">
-          <PermitFilters
+          <PermitFiltersComponent
             filters={filters}
             onFiltersChange={setFilters}
             projects={mockProjects}

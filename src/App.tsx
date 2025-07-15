@@ -1,32 +1,21 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Dashboard from './pages/Dashboard';
 import Projects from './pages/Projects';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import ForgotPassword from './pages/ForgotPassword';
-import UpdateProfile from './pages/UpdateProfile';
-import PrivateRoute from './components/PrivateRoute';
 import ProjectDetail from './pages/ProjectDetail';
 import ScheduleOfValues from './pages/ScheduleOfValues';
 import ProjectSchedule from './pages/ProjectSchedule';
 import PaymentApplications from './pages/PaymentApplications';
 import ChangeOrders from './pages/ChangeOrders';
 import Expenses from './pages/Expenses';
-import ProtectedRoute from './components/ProtectedRoute';
-import AdminRoute from './components/AdminRoute';
-import Users from './pages/Users';
-import BidTemplates from './pages/BidTemplates';
-import Proposals from './pages/Proposals';
-import EquipmentList from './pages/EquipmentList';
-import MaintenanceLogs from './pages/MaintenanceLogs';
 import Settings from './pages/Settings';
 import ProjectBilling from './pages/ProjectBilling';
 import Subcontractors from './pages/Subcontractors';
 import Documents from './pages/Documents';
-import CompanySettingsPage from './pages/CompanySettingsPage';
 import Permits from '@/pages/Permits';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 function App() {
   const { user, loading } = useAuth();
@@ -42,14 +31,6 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/update-profile" element={
-          <PrivateRoute>
-            <UpdateProfile />
-          </PrivateRoute>
-        } />
         <Route path="/" element={
           <ProtectedRoute>
             <Dashboard />
@@ -90,31 +71,6 @@ function App() {
             <Expenses />
           </ProtectedRoute>
         } />
-        <Route path="/users" element={
-          <AdminRoute>
-            <Users />
-          </AdminRoute>
-        } />
-        <Route path="/bid-templates" element={
-          <ProtectedRoute>
-            <BidTemplates />
-          </ProtectedRoute>
-        } />
-         <Route path="/proposals" element={
-          <ProtectedRoute>
-            <Proposals />
-          </ProtectedRoute>
-        } />
-        <Route path="/equipment" element={
-          <ProtectedRoute>
-            <EquipmentList />
-          </ProtectedRoute>
-        } />
-        <Route path="/maintenance-logs" element={
-          <ProtectedRoute>
-            <MaintenanceLogs />
-          </ProtectedRoute>
-        } />
         <Route path="/settings" element={
           <ProtectedRoute>
             <Settings />
@@ -135,11 +91,6 @@ function App() {
             <Documents />
           </ProtectedRoute>
         } />
-        <Route path="/company-settings" element={
-          <AdminRoute>
-            <CompanySettingsPage />
-          </AdminRoute>
-        } />
         <Route path="/permits" element={
           <ProtectedRoute>
             <Permits />
@@ -150,4 +101,10 @@ function App() {
   );
 }
 
-export default App;
+export default function AppWithAuth() {
+  return (
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
+}

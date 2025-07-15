@@ -4,11 +4,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
-import { PermitFilters } from '@/types/permits';
+import { PermitFilters as PermitFiltersType } from '@/types/permits';
 
-interface PermitFiltersProps {
-  filters: PermitFilters;
-  onFiltersChange: (filters: PermitFilters) => void;
+interface PermitFiltersComponentProps {
+  filters: PermitFiltersType;
+  onFiltersChange: (filters: PermitFiltersType) => void;
   projects: Array<{ id: string; name: string }>;
 }
 
@@ -22,7 +22,7 @@ const permitStatuses = [
   'Approved', 'Issued', 'Expired', 'Rejected'
 ];
 
-export const PermitFilters = ({ filters, onFiltersChange, projects }: PermitFiltersProps) => {
+export const PermitFiltersComponent = ({ filters, onFiltersChange, projects }: PermitFiltersComponentProps) => {
   const clearFilters = () => {
     onFiltersChange({});
   };
