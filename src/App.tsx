@@ -14,7 +14,7 @@ import Settings from './pages/Settings';
 import ProjectBilling from './pages/ProjectBilling';
 import Subcontractors from './pages/Subcontractors';
 import Documents from './pages/Documents';
-import Permits from '@/pages/Permits';
+import Permits from './pages/Permits';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 function App() {
@@ -32,6 +32,11 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard" element={
           <ProtectedRoute>
             <Dashboard />
           </ProtectedRoute>
@@ -77,6 +82,11 @@ function App() {
           </ProtectedRoute>
         } />
         <Route path="/project-billing" element={
+          <ProtectedRoute>
+            <ProjectBilling />
+          </ProtectedRoute>
+        } />
+        <Route path="/billing" element={
           <ProtectedRoute>
             <ProjectBilling />
           </ProtectedRoute>

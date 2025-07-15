@@ -1,3 +1,4 @@
+
 import {
   BarChart3,
   Building2,
@@ -32,7 +33,7 @@ export function Sidebar({ className }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const menuItems = [
+  const menuItems: NavItem[] = [
     {
       icon: LayoutDashboard,
       label: 'Dashboard',
@@ -56,29 +57,24 @@ export function Sidebar({ className }: SidebarProps) {
       path: '/permits'
     },
     {
-      icon: ListChecks,
-      label: 'Tasks',
-      path: '/tasks'
-    },
-    {
-      icon: Calendar,
-      label: 'Calendar',
-      path: '/calendar'
-    },
-    {
       icon: CreditCard,
       label: 'Billing',
       path: '/billing'
     },
     {
-      icon: BarChart3,
-      label: 'Reports',
-      path: '/reports'
+      icon: Building2,
+      label: 'Subcontractors',
+      path: '/subcontractors'
     },
     {
-      icon: User2,
-      label: 'Users',
-      path: '/users'
+      icon: Gauge,
+      label: 'Expenses',
+      path: '/expenses'
+    },
+    {
+      icon: FolderOpen,
+      label: 'Documents',
+      path: '/documents'
     },
     {
       icon: Settings,
