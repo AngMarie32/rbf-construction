@@ -1,131 +1,101 @@
 
-
-import {
-  BarChart3,
-  Building2,
-  Calendar,
-  CheckSquare,
-  CreditCard,
-  FolderOpen,
-  Gauge,
-  LayoutDashboard,
-  ListChecks,
-  LucideIcon,
+import { useLocation } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import { 
+  LayoutDashboard, 
+  FolderOpen, 
+  CalendarDays, 
+  Truck, 
+  Receipt, 
+  Users, 
+  FileText, 
+  Calculator, 
+  Package, 
+  FileCheck, 
+  CreditCard, 
+  DollarSign, 
+  TrendingUp, 
+  BarChart3, 
+  ClipboardList, 
+  MessageSquare, 
   Settings,
-  User2,
-  FileCheck,
-  Wrench,
-} from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
-
-import { cn } from "@/lib/utils";
-
-interface NavItem {
-  icon: LucideIcon;
-  label: string;
-  path: string;
-  subItems?: { label: string; path: string }[];
-}
+  Pencil,
+  CheckCircle,
+  Calendar
+} from 'lucide-react';
 
 interface SidebarProps {
-  className?: string;
+  onNavigate?: (path: string) => void;
 }
 
-export function Sidebar({ className }: SidebarProps) {
-  const navigate = useNavigate();
+export function Sidebar({ onNavigate }: SidebarProps) {
   const location = useLocation();
 
-  const menuItems: NavItem[] = [
-    {
-      icon: LayoutDashboard,
-      label: 'Dashboard',
-      path: '/dashboard'
-    },
-    {
-      icon: FolderOpen,
-      label: 'Projects',
-      path: '/projects',
-      subItems: [
-        { label: 'All Projects', path: '/projects' },
-        { label: 'Project Schedule', path: '/project-schedule' },
-        { label: 'Schedule of Values', path: '/schedule-of-values' },
-        { label: 'Payment Applications', path: '/payment-applications' },
-        { label: 'Change Orders', path: '/change-orders' },
-      ]
-    },
-    {
-      icon: Wrench,
-      label: 'Equipment',
-      path: '/equipment'
-    },
-    {
-      icon: FileCheck,
-      label: 'Permits',
-      path: '/permits'
-    },
-    {
-      icon: CreditCard,
-      label: 'Billing',
-      path: '/billing'
-    },
-    {
-      icon: Building2,
-      label: 'Subcontractors',
-      path: '/subcontractors'
-    },
-    {
-      icon: Gauge,
-      label: 'Expenses',
-      path: '/expenses'
-    },
-    {
-      icon: FolderOpen,
-      label: 'Documents',
-      path: '/documents'
-    },
-    {
-      icon: Settings,
-      label: 'Settings',
-      path: '/settings'
-    }
+  const navigationItems = [
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Projects', href: '/projects', icon: FolderOpen },
+    { name: 'Project Schedule', href: '/project-schedule', icon: CalendarDays },
+    
+    // Quality & Collaboration
+    { name: 'Drawing Markup', href: '/drawing-markup', icon: Pencil },
+    { name: 'Punch List', href: '/punch-list', icon: CheckCircle },
+    { name: 'Meetings', href: '/meetings', icon: Calendar },
+    
+    { name: 'Equipment', href: '/equipment', icon: Truck },
+    { name: 'Expenses', href: '/expenses', icon: Receipt },
+    { name: 'Subcontractors', href: '/subcontractors', icon: Users },
+    { name: 'Documents', href: '/documents', icon: FileText },
+    { name: 'Bid Planner', href: '/bid-planner', icon: Calculator },
+    { name: 'Bid Packages', href: '/bid-packages', icon: Package },
+    { name: 'Proposals', href: '/proposals', icon: FileCheck },
+    { name: 'Invoices', href: '/invoices', icon: CreditCard },
+    { name: 'Payment Apps', href: '/payment-applications', icon: DollarSign },
+    { name: 'Billing', href: '/billing', icon: CreditCard },
+    { name: 'Change Orders', href: '/change-orders', icon: FileText },
+    { name: 'Burn Analysis', href: '/burn-rate-analysis', icon: TrendingUp },
+    { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+    { name: 'Permits', href: '/permits', icon: ClipboardList },
+    { name: 'Chat', href: '/chat', icon: MessageSquare },
+    { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
+  const handleItemClick = (href: string) => {
+    if (onNavigate) {
+      onNavigate(href);
+    }
+  };
+
   return (
-    <div className={cn("flex flex-col w-64 border-r bg-secondary", className)}>
+    <div className="bg-white shadow-sm border-r border-gray-200 h-full">
       <div className="p-4">
-        <h1 className="text-2xl font-bold">Construction App</h1>
+        <h2 className="text-lg font-semibold text-gray-900">Navigation</h2>
       </div>
-      <nav className="flex-1 px-2 py-4">
-        {menuItems.map((item) => (
-          <div key={item.label} className="space-y-1">
-            <button
-              onClick={() => navigate(item.path)}
-              className={cn(
-                "flex items-center w-full p-2 text-sm font-medium rounded-md hover:bg-muted hover:text-foreground",
-                location.pathname === item.path ? "bg-muted text-foreground" : "text-muted-foreground"
-              )}
-            >
-              <item.icon className="w-4 h-4 mr-2" />
-              {item.label}
-            </button>
-            {item.subItems && (
-              <div className="pl-4 space-y-1">
-                {item.subItems.map((subItem) => (
-                  <button
-                    key={subItem.label}
-                    onClick={() => navigate(subItem.path)}
-                    className={cn(
-                      "flex items-center w-full p-2 text-sm font-medium rounded-md hover:bg-muted hover:text-foreground",
-                      location.pathname === subItem.path ? "bg-muted text-foreground" : "text-muted-foreground"
-                    )}
-                  >
-                    {subItem.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+      <nav className="mt-4">
+        <ul className="space-y-1 px-2">
+          {navigationItems.map((item) => {
+            const isActive = location.pathname === item.href;
+            return (
+              <li key={item.name}>
+                <a
+                  href={item.href}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleItemClick(item.href);
+                  }}
+                  className={cn(
+                    'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                    isActive
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  )}
+                >
+                  <item.icon className="w-5 h-5 mr-3" />
+                  {item.name}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
       </nav>
     </div>
   );
