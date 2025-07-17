@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  CheckCircle, 
+  CheckCircle2, 
   AlertTriangle, 
   Clock, 
   Plus, 
@@ -21,7 +21,10 @@ import {
   User,
   Calendar,
   Download,
-  FileText
+  FileText,
+  Edit,
+  Trash2,
+  Building
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -40,13 +43,22 @@ interface PunchListItem {
   photos: string[];
   notes: string[];
   category: string;
+  projectId: string;
 }
 
 interface PunchListManagerProps {
   projectId?: string;
 }
 
+// Mock projects for demonstration
+const mockProjects = [
+  { id: '1', name: 'Downtown Office Complex' },
+  { id: '2', name: 'Residential Tower A' },
+  { id: '3', name: 'Shopping Center Renovation' },
+];
+
 export function PunchListManager({ projectId }: PunchListManagerProps) {
+  const [selectedProjectId, setSelectedProjectId] = useState(projectId || '1');
   const [punchItems, setPunchItems] = useState<PunchListItem[]>([
     {
       id: '1',
@@ -62,6 +74,7 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
       photos: [],
       notes: ['Owner noticed during walkthrough'],
       category: 'Finish Work',
+      projectId: '1',
     },
     {
       id: '2',
@@ -77,6 +90,24 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
       photos: [],
       notes: ['Safety concern - exposed outlet'],
       category: 'Electrical',
+      projectId: '1',
+    },
+    {
+      id: '3',
+      title: 'Fix loose handrail on staircase',
+      description: 'Handrail is wobbly and needs to be secured',
+      location: 'Stairwell B - Floor 3',
+      trade: 'General',
+      priority: 'Critical',
+      status: 'Completed',
+      assignedTo: 'Tom Davis',
+      dateCreated: new Date('2024-01-10'),
+      dateDue: new Date('2024-01-15'),
+      dateCompleted: new Date('2024-01-14'),
+      photos: [],
+      notes: ['Completed ahead of schedule'],
+      category: 'Safety',
+      projectId: '2',
     },
   ]);
 
@@ -84,11 +115,14 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<PunchListItem | null>(null);
   const [newItem, setNewItem] = useState<Partial<PunchListItem>>({
     priority: 'Medium',
     status: 'Open',
     dateCreated: new Date(),
     dateDue: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+    projectId: selectedProjectId,
   });
 
   const priorities = ['Low', 'Medium', 'High', 'Critical'];
@@ -119,17 +153,20 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
     switch (status) {
       case 'Completed':
       case 'Verified':
-        return <CheckCircle className="w-4 h-4" />;
+        return <CheckCircle2 className="w-4 h-4 text-green-600" />;
       case 'In Progress':
-        return <Clock className="w-4 h-4" />;
+        return <Clock className="w-4 h-4 text-yellow-600" />;
       case 'Open':
-        return <AlertTriangle className="w-4 h-4" />;
+        return <AlertTriangle className="w-4 h-4 text-red-600" />;
       default:
         return <Clock className="w-4 h-4" />;
     }
   };
 
-  const filteredItems = punchItems.filter(item => {
+  // Filter items by selected project
+  const projectFilteredItems = punchItems.filter(item => item.projectId === selectedProjectId);
+
+  const filteredItems = projectFilteredItems.filter(item => {
     const matchesStatus = filterStatus === 'all' || item.status === filterStatus;
     const matchesPriority = filterPriority === 'all' || item.priority === filterPriority;
     const matchesSearch = searchTerm === '' || 
@@ -160,6 +197,7 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
       photos: [],
       notes: [],
       category: newItem.category || 'General',
+      projectId: selectedProjectId,
     };
 
     setPunchItems(prev => [...prev, item]);
@@ -168,9 +206,29 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
       status: 'Open',
       dateCreated: new Date(),
       dateDue: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      projectId: selectedProjectId,
     });
     setCreateDialogOpen(false);
     toast.success('Punch list item created successfully');
+  };
+
+  const handleEditItem = () => {
+    if (!editingItem || !editingItem.title || !editingItem.description || !editingItem.location || !editingItem.assignedTo) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setPunchItems(prev => prev.map(item => 
+      item.id === editingItem.id ? editingItem : item
+    ));
+    setEditDialogOpen(false);
+    setEditingItem(null);
+    toast.success('Punch list item updated successfully');
+  };
+
+  const handleDeleteItem = (id: string) => {
+    setPunchItems(prev => prev.filter(item => item.id !== id));
+    toast.success('Punch list item deleted successfully');
   };
 
   const updateItemStatus = (id: string, status: PunchListItem['status']) => {
@@ -186,20 +244,50 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
     toast.success('Status updated successfully');
   };
 
+  const openEditDialog = (item: PunchListItem) => {
+    setEditingItem({ ...item });
+    setEditDialogOpen(true);
+  };
+
   const getStats = () => {
-    const total = punchItems.length;
-    const open = punchItems.filter(item => item.status === 'Open').length;
-    const inProgress = punchItems.filter(item => item.status === 'In Progress').length;
-    const completed = punchItems.filter(item => item.status === 'Completed').length;
-    const verified = punchItems.filter(item => item.status === 'Verified').length;
+    const total = projectFilteredItems.length;
+    const open = projectFilteredItems.filter(item => item.status === 'Open').length;
+    const inProgress = projectFilteredItems.filter(item => item.status === 'In Progress').length;
+    const completed = projectFilteredItems.filter(item => item.status === 'Completed').length;
+    const verified = projectFilteredItems.filter(item => item.status === 'Verified').length;
     
     return { total, open, inProgress, completed, verified };
   };
 
   const stats = getStats();
+  const selectedProject = mockProjects.find(p => p.id === selectedProjectId);
 
   return (
     <div className="space-y-6">
+      {/* Project Selection */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <Building className="w-5 h-5 text-gray-600" />
+            <div className="flex-1">
+              <Label htmlFor="project-select">Select Project</Label>
+              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose a project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mockProjects.map(project => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
@@ -238,8 +326,8 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5" />
-              Punch List Management
+              <CheckCircle2 className="w-5 h-5" />
+              Punch List for {selectedProject?.name}
             </CardTitle>
             <div className="flex items-center gap-2">
               <Button variant="outline">
@@ -441,6 +529,10 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
                             ))}
                           </SelectContent>
                         </Select>
+                        <Button variant="outline" size="sm" onClick={() => openEditDialog(item)}>
+                          <Edit className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
                         <Button variant="outline" size="sm">
                           <Camera className="w-4 h-4 mr-1" />
                           Photos
@@ -448,6 +540,15 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
                         <Button variant="outline" size="sm">
                           <FileText className="w-4 h-4 mr-1" />
                           Notes
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleDeleteItem(item.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
                         </Button>
                       </div>
                     </div>
@@ -464,6 +565,105 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Punch List Item</DialogTitle>
+          </DialogHeader>
+          {editingItem && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-title">Title *</Label>
+                <Input
+                  id="edit-title"
+                  value={editingItem.title}
+                  onChange={(e) => setEditingItem(prev => prev ? ({ ...prev, title: e.target.value }) : null)}
+                  placeholder="Brief description of the issue"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-location">Location *</Label>
+                <Input
+                  id="edit-location"
+                  value={editingItem.location}
+                  onChange={(e) => setEditingItem(prev => prev ? ({ ...prev, location: e.target.value }) : null)}
+                  placeholder="Room, floor, or area"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="edit-description">Description *</Label>
+                <Textarea
+                  id="edit-description"
+                  value={editingItem.description}
+                  onChange={(e) => setEditingItem(prev => prev ? ({ ...prev, description: e.target.value }) : null)}
+                  placeholder="Detailed description of the issue"
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-trade">Trade</Label>
+                <Select
+                  value={editingItem.trade}
+                  onValueChange={(value) => setEditingItem(prev => prev ? ({ ...prev, trade: value }) : null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {trades.map(trade => (
+                      <SelectItem key={trade} value={trade}>{trade}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-priority">Priority</Label>
+                <Select
+                  value={editingItem.priority}
+                  onValueChange={(value) => setEditingItem(prev => prev ? ({ ...prev, priority: value as PunchListItem['priority'] }) : null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {priorities.map(priority => (
+                      <SelectItem key={priority} value={priority}>{priority}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-assignedTo">Assigned To *</Label>
+                <Input
+                  id="edit-assignedTo"
+                  value={editingItem.assignedTo}
+                  onChange={(e) => setEditingItem(prev => prev ? ({ ...prev, assignedTo: e.target.value }) : null)}
+                  placeholder="Person or company responsible"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-dateDue">Due Date</Label>
+                <Input
+                  id="edit-dateDue"
+                  type="date"
+                  value={editingItem.dateDue.toISOString().split('T')[0]}
+                  onChange={(e) => setEditingItem(prev => prev ? ({ ...prev, dateDue: new Date(e.target.value) }) : null)}
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 mt-6">
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditItem}>
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

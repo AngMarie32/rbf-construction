@@ -1,5 +1,5 @@
 
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { 
   LayoutDashboard, 
@@ -30,6 +30,7 @@ interface SidebarProps {
 
 export function Sidebar({ onNavigate }: SidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const navigationItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -60,6 +61,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   ];
 
   const handleItemClick = (href: string) => {
+    navigate(href);
     if (onNavigate) {
       onNavigate(href);
     }
@@ -76,14 +78,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             const isActive = location.pathname === item.href;
             return (
               <li key={item.name}>
-                <a
-                  href={item.href}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleItemClick(item.href);
-                  }}
+                <button
+                  onClick={() => handleItemClick(item.href)}
                   className={cn(
-                    'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                    'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors text-left',
                     isActive
                       ? 'bg-blue-100 text-blue-700'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -91,7 +89,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                 >
                   <item.icon className="w-5 h-5 mr-3" />
                   {item.name}
-                </a>
+                </button>
               </li>
             );
           })}

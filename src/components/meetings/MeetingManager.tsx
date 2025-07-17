@@ -18,30 +18,15 @@ import {
   FileText,
   Video,
   MapPin,
-  Bell,
-  Download,
   Edit,
   Trash2,
-  CheckSquare,
-  Send
+  CheckCircle2,
+  AlertCircle,
+  Download,
+  User,
+  Building
 } from 'lucide-react';
 import { toast } from 'sonner';
-
-interface MeetingAttendee {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  status: 'Pending' | 'Accepted' | 'Declined';
-}
-
-interface ActionItem {
-  id: string;
-  description: string;
-  assignedTo: string;
-  dueDate: Date;
-  status: 'Open' | 'In Progress' | 'Completed';
-}
 
 interface Meeting {
   id: string;
@@ -51,74 +36,142 @@ interface Meeting {
   startTime: string;
   endTime: string;
   location: string;
-  type: 'In-Person' | 'Virtual' | 'Hybrid';
-  meetingLink?: string;
-  organizer: string;
-  attendees: MeetingAttendee[];
-  agenda: string[];
+  attendees: string[];
+  meetingType: 'In-Person' | 'Video Call' | 'Phone Call';
+  status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled';
   notes: string;
   actionItems: ActionItem[];
-  status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled';
-  category: 'Project Review' | 'Safety Meeting' | 'Progress Update' | 'Client Meeting' | 'Team Meeting' | 'Other';
+  projectId: string;
+}
+
+interface ActionItem {
+  id: string;
+  description: string;
+  assignee: string;
+  dueDate: Date;
+  status: 'Open' | 'In Progress' | 'Completed';
 }
 
 interface MeetingManagerProps {
   projectId?: string;
 }
 
+// Mock projects for demonstration
+const mockProjects = [
+  { id: '1', name: 'Downtown Office Complex' },
+  { id: '2', name: 'Residential Tower A' },
+  { id: '3', name: 'Shopping Center Renovation' },
+];
+
 export function MeetingManager({ projectId }: MeetingManagerProps) {
+  const [selectedProjectId, setSelectedProjectId] = useState(projectId || '1');
   const [meetings, setMeetings] = useState<Meeting[]>([
     {
       id: '1',
-      title: 'Weekly Project Review',
-      description: 'Review project progress and discuss upcoming milestones',
-      date: new Date('2024-01-22'),
+      title: 'Weekly Progress Review',
+      description: 'Review current project status and upcoming milestones',
+      date: new Date('2024-01-20'),
       startTime: '09:00',
       endTime: '10:00',
       location: 'Conference Room A',
-      type: 'In-Person',
-      organizer: 'John Smith',
-      attendees: [
-        { id: '1', name: 'John Smith', email: 'john@company.com', role: 'Project Manager', status: 'Accepted' },
-        { id: '2', name: 'Sarah Wilson', email: 'sarah@company.com', role: 'Superintendent', status: 'Accepted' },
-        { id: '3', name: 'Mike Johnson', email: 'mike@company.com', role: 'Foreman', status: 'Pending' },
-      ],
-      agenda: ['Project Status Update', 'Safety Review', 'Upcoming Milestones', 'Resource Requirements'],
-      notes: 'Project is on schedule. Electrical work to begin next week.',
-      actionItems: [
-        { id: '1', description: 'Order electrical materials', assignedTo: 'Sarah Wilson', dueDate: new Date('2024-01-25'), status: 'Open' },
-        { id: '2', description: 'Schedule electrical inspection', assignedTo: 'Mike Johnson', dueDate: new Date('2024-01-30'), status: 'Open' },
-      ],
+      attendees: ['John Smith', 'Sarah Wilson', 'Mike Johnson'],
+      meetingType: 'In-Person',
+      status: 'Scheduled',
+      notes: '',
+      actionItems: [],
+      projectId: '1',
+    },
+    {
+      id: '2',
+      title: 'Safety Meeting',
+      description: 'Monthly safety review and training session',
+      date: new Date('2024-01-22'),
+      startTime: '14:00',
+      endTime: '15:30',
+      location: 'Site Trailer',
+      attendees: ['All Site Personnel'],
+      meetingType: 'In-Person',
       status: 'Completed',
-      category: 'Project Review',
+      notes: 'Discussed new safety protocols for electrical work. All personnel acknowledged understanding.',
+      actionItems: [
+        {
+          id: '1',
+          description: 'Update safety signage in electrical areas',
+          assignee: 'Tom Davis',
+          dueDate: new Date('2024-01-25'),
+          status: 'In Progress',
+        },
+      ],
+      projectId: '1',
+    },
+    {
+      id: '3',
+      title: 'Client Walkthrough',
+      description: 'Final walkthrough with client before handover',
+      date: new Date('2024-01-25'),
+      startTime: '10:00',
+      endTime: '12:00',
+      location: 'Project Site',
+      attendees: ['Client Representative', 'Project Manager', 'Site Supervisor'],
+      meetingType: 'In-Person',
+      status: 'Scheduled',
+      notes: '',
+      actionItems: [],
+      projectId: '2',
     },
   ]);
 
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
-  const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
   const [newMeeting, setNewMeeting] = useState<Partial<Meeting>>({
-    type: 'In-Person',
+    meetingType: 'In-Person',
     status: 'Scheduled',
-    category: 'Project Review',
     attendees: [],
-    agenda: [],
     actionItems: [],
+    projectId: selectedProjectId,
   });
 
-  const meetingTypes = ['In-Person', 'Virtual', 'Hybrid'];
-  const meetingCategories = ['Project Review', 'Safety Meeting', 'Progress Update', 'Client Meeting', 'Team Meeting', 'Other'];
-  const meetingStatuses = ['Scheduled', 'In Progress', 'Completed', 'Cancelled'];
+  const meetingTypes = ['In-Person', 'Video Call', 'Phone Call'];
+  const statuses = ['Scheduled', 'In Progress', 'Completed', 'Cancelled'];
 
-  const filteredMeetings = meetings.filter(meeting => {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Completed': return 'bg-green-100 text-green-800';
+      case 'In Progress': return 'bg-blue-100 text-blue-800';
+      case 'Scheduled': return 'bg-yellow-100 text-yellow-800';
+      case 'Cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Completed':
+        return <CheckCircle2 className="w-4 h-4 text-green-600" />;
+      case 'In Progress':
+        return <Clock className="w-4 h-4 text-blue-600" />;
+      case 'Scheduled':
+        return <Calendar className="w-4 h-4 text-yellow-600" />;
+      case 'Cancelled':
+        return <AlertCircle className="w-4 h-4 text-red-600" />;
+      default:
+        return <Calendar className="w-4 h-4" />;
+    }
+  };
+
+  // Filter meetings by selected project
+  const projectFilteredMeetings = meetings.filter(meeting => meeting.projectId === selectedProjectId);
+
+  const filteredMeetings = projectFilteredMeetings.filter(meeting => {
+    const matchesStatus = filterStatus === 'all' || meeting.status === filterStatus;
     const matchesSearch = searchTerm === '' || 
       meeting.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       meeting.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || meeting.status === filterStatus;
     
-    return matchesSearch && matchesStatus;
+    return matchesStatus && matchesSearch;
   });
 
   const handleCreateMeeting = () => {
@@ -135,111 +188,127 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
       startTime: newMeeting.startTime!,
       endTime: newMeeting.endTime!,
       location: newMeeting.location || '',
-      type: newMeeting.type as Meeting['type'],
-      meetingLink: newMeeting.meetingLink,
-      organizer: 'Current User',
       attendees: newMeeting.attendees || [],
-      agenda: newMeeting.agenda || [],
+      meetingType: newMeeting.meetingType as Meeting['meetingType'],
+      status: 'Scheduled',
       notes: '',
       actionItems: [],
-      status: 'Scheduled',
-      category: newMeeting.category as Meeting['category'],
+      projectId: selectedProjectId,
     };
 
     setMeetings(prev => [...prev, meeting]);
     setNewMeeting({
-      type: 'In-Person',
+      meetingType: 'In-Person',
       status: 'Scheduled',
-      category: 'Project Review',
       attendees: [],
-      agenda: [],
       actionItems: [],
+      projectId: selectedProjectId,
     });
     setCreateDialogOpen(false);
     toast.success('Meeting created successfully');
   };
 
-  const addAgendaItem = () => {
-    const item = prompt('Enter agenda item:');
-    if (item) {
-      setNewMeeting(prev => ({
-        ...prev,
-        agenda: [...(prev.agenda || []), item]
-      }));
+  const handleEditMeeting = () => {
+    if (!editingMeeting || !editingMeeting.title || !editingMeeting.date || !editingMeeting.startTime || !editingMeeting.endTime) {
+      toast.error('Please fill in all required fields');
+      return;
     }
-  };
 
-  const addAttendee = () => {
-    const name = prompt('Enter attendee name:');
-    const email = prompt('Enter attendee email:');
-    if (name && email) {
-      const attendee: MeetingAttendee = {
-        id: Date.now().toString(),
-        name,
-        email,
-        role: 'Team Member',
-        status: 'Pending'
-      };
-      setNewMeeting(prev => ({
-        ...prev,
-        attendees: [...(prev.attendees || []), attendee]
-      }));
-    }
-  };
-
-  const updateMeetingNotes = (meetingId: string, notes: string) => {
     setMeetings(prev => prev.map(meeting => 
-      meeting.id === meetingId ? { ...meeting, notes } : meeting
+      meeting.id === editingMeeting.id ? editingMeeting : meeting
     ));
-    toast.success('Notes updated successfully');
+    setEditDialogOpen(false);
+    setEditingMeeting(null);
+    toast.success('Meeting updated successfully');
   };
 
-  const addActionItem = (meetingId: string) => {
-    const description = prompt('Enter action item description:');
-    const assignedTo = prompt('Assign to:');
-    const dueDateStr = prompt('Due date (YYYY-MM-DD):');
+  const handleDeleteMeeting = (id: string) => {
+    setMeetings(prev => prev.filter(meeting => meeting.id !== id));
+    toast.success('Meeting deleted successfully');
+  };
+
+  const openEditDialog = (meeting: Meeting) => {
+    setEditingMeeting({ ...meeting });
+    setEditDialogOpen(true);
+  };
+
+  const getStats = () => {
+    const total = projectFilteredMeetings.length;
+    const scheduled = projectFilteredMeetings.filter(m => m.status === 'Scheduled').length;
+    const completed = projectFilteredMeetings.filter(m => m.status === 'Completed').length;
+    const inProgress = projectFilteredMeetings.filter(m => m.status === 'In Progress').length;
     
-    if (description && assignedTo && dueDateStr) {
-      const actionItem: ActionItem = {
-        id: Date.now().toString(),
-        description,
-        assignedTo,
-        dueDate: new Date(dueDateStr),
-        status: 'Open'
-      };
-      
-      setMeetings(prev => prev.map(meeting => 
-        meeting.id === meetingId 
-          ? { ...meeting, actionItems: [...meeting.actionItems, actionItem] }
-          : meeting
-      ));
-      toast.success('Action item added successfully');
-    }
+    return { total, scheduled, completed, inProgress };
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Scheduled': return 'bg-blue-100 text-blue-800';
-      case 'In Progress': return 'bg-yellow-100 text-yellow-800';
-      case 'Completed': return 'bg-green-100 text-green-800';
-      case 'Cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const stats = getStats();
+  const selectedProject = mockProjects.find(p => p.id === selectedProjectId);
 
   return (
     <div className="space-y-6">
+      {/* Project Selection */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <Building className="w-5 h-5 text-gray-600" />
+            <div className="flex-1">
+              <Label htmlFor="project-select">Select Project</Label>
+              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose a project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mockProjects.map(project => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-sm text-gray-600">Total Meetings</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-yellow-600">{stats.scheduled}</div>
+            <div className="text-sm text-gray-600">Scheduled</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
+            <div className="text-sm text-gray-600">In Progress</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
+            <div className="text-sm text-gray-600">Completed</div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5" />
-              Meeting Management
+              Meetings for {selectedProject?.name}
             </CardTitle>
             <div className="flex items-center gap-2">
               <Button variant="outline">
                 <Download className="w-4 h-4 mr-2" />
-                Export
+                Export Schedule
               </Button>
               <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                 <DialogTrigger asChild>
@@ -248,153 +317,81 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
                     Schedule Meeting
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                <DialogContent className="max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>Schedule New Meeting</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="title">Meeting Title *</Label>
-                        <Input
-                          id="title"
-                          value={newMeeting.title || ''}
-                          onChange={(e) => setNewMeeting(prev => ({ ...prev, title: e.target.value }))}
-                          placeholder="Enter meeting title"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="category">Category</Label>
-                        <Select
-                          value={newMeeting.category || 'Project Review'}
-                          onValueChange={(value) => setNewMeeting(prev => ({ ...prev, category: value as Meeting['category'] }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {meetingCategories.map(category => (
-                              <SelectItem key={category} value={category}>{category}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
+                      <Label htmlFor="title">Meeting Title *</Label>
+                      <Input
+                        id="title"
+                        value={newMeeting.title || ''}
+                        onChange={(e) => setNewMeeting(prev => ({ ...prev, title: e.target.value }))}
+                        placeholder="Enter meeting title"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="meetingType">Meeting Type</Label>
+                      <Select
+                        value={newMeeting.meetingType || 'In-Person'}
+                        onValueChange={(value) => setNewMeeting(prev => ({ ...prev, meetingType: value as Meeting['meetingType'] }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {meetingTypes.map(type => (
+                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="description">Description</Label>
                       <Textarea
                         id="description"
                         value={newMeeting.description || ''}
                         onChange={(e) => setNewMeeting(prev => ({ ...prev, description: e.target.value }))}
-                        placeholder="Meeting description or purpose"
+                        placeholder="Meeting agenda or description"
                         rows={3}
                       />
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="date">Date *</Label>
-                        <Input
-                          id="date"
-                          type="date"
-                          value={newMeeting.date?.toISOString().split('T')[0] || ''}
-                          onChange={(e) => setNewMeeting(prev => ({ ...prev, date: new Date(e.target.value) }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="startTime">Start Time *</Label>
-                        <Input
-                          id="startTime"
-                          type="time"
-                          value={newMeeting.startTime || ''}
-                          onChange={(e) => setNewMeeting(prev => ({ ...prev, startTime: e.target.value }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="endTime">End Time *</Label>
-                        <Input
-                          id="endTime"
-                          type="time"
-                          value={newMeeting.endTime || ''}
-                          onChange={(e) => setNewMeeting(prev => ({ ...prev, endTime: e.target.value }))}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="type">Meeting Type</Label>
-                        <Select
-                          value={newMeeting.type || 'In-Person'}
-                          onValueChange={(value) => setNewMeeting(prev => ({ ...prev, type: value as Meeting['type'] }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {meetingTypes.map(type => (
-                              <SelectItem key={type} value={type}>{type}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="location">Location</Label>
-                        <Input
-                          id="location"
-                          value={newMeeting.location || ''}
-                          onChange={(e) => setNewMeeting(prev => ({ ...prev, location: e.target.value }))}
-                          placeholder="Meeting location or room"
-                        />
-                      </div>
-                    </div>
-
-                    {(newMeeting.type === 'Virtual' || newMeeting.type === 'Hybrid') && (
-                      <div className="space-y-2">
-                        <Label htmlFor="meetingLink">Meeting Link</Label>
-                        <Input
-                          id="meetingLink"
-                          value={newMeeting.meetingLink || ''}
-                          onChange={(e) => setNewMeeting(prev => ({ ...prev, meetingLink: e.target.value }))}
-                          placeholder="Zoom, Teams, or other meeting link"
-                        />
-                      </div>
-                    )}
-
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label>Agenda Items</Label>
-                        <Button type="button" variant="outline" size="sm" onClick={addAgendaItem}>
-                          <Plus className="w-4 h-4 mr-1" />
-                          Add Item
-                        </Button>
-                      </div>
-                      <div className="space-y-1">
-                        {newMeeting.agenda?.map((item, index) => (
-                          <div key={index} className="p-2 bg-gray-50 rounded text-sm">
-                            {index + 1}. {item}
-                          </div>
-                        ))}
-                      </div>
+                      <Label htmlFor="date">Date *</Label>
+                      <Input
+                        id="date"
+                        type="date"
+                        value={newMeeting.date?.toISOString().split('T')[0] || ''}
+                        onChange={(e) => setNewMeeting(prev => ({ ...prev, date: new Date(e.target.value) }))}
+                      />
                     </div>
-
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label>Attendees</Label>
-                        <Button type="button" variant="outline" size="sm" onClick={addAttendee}>
-                          <Plus className="w-4 h-4 mr-1" />
-                          Add Attendee
-                        </Button>
-                      </div>
-                      <div className="space-y-1">
-                        {newMeeting.attendees?.map((attendee) => (
-                          <div key={attendee.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
-                            <span>{attendee.name} ({attendee.email})</span>
-                            <Badge variant="secondary">{attendee.status}</Badge>
-                          </div>
-                        ))}
-                      </div>
+                      <Label htmlFor="location">Location</Label>
+                      <Input
+                        id="location"
+                        value={newMeeting.location || ''}
+                        onChange={(e) => setNewMeeting(prev => ({ ...prev, location: e.target.value }))}
+                        placeholder="Meeting location"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="startTime">Start Time *</Label>
+                      <Input
+                        id="startTime"
+                        type="time"
+                        value={newMeeting.startTime || ''}
+                        onChange={(e) => setNewMeeting(prev => ({ ...prev, startTime: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="endTime">End Time *</Label>
+                      <Input
+                        id="endTime"
+                        type="time"
+                        value={newMeeting.endTime || ''}
+                        onChange={(e) => setNewMeeting(prev => ({ ...prev, endTime: e.target.value }))}
+                      />
                     </div>
                   </div>
                   <div className="flex justify-end gap-2 mt-6">
@@ -428,7 +425,7 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                {meetingStatuses.map(status => (
+                {statuses.map(status => (
                   <SelectItem key={status} value={status}>{status}</SelectItem>
                 ))}
               </SelectContent>
@@ -443,17 +440,19 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
                   <div className="flex items-start justify-between">
                     <div className="flex-1 space-y-3">
                       <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-semibold text-lg">{meeting.title}</h3>
-                          <p className="text-gray-600">{meeting.description}</p>
-                        </div>
+                        <h3 className="font-semibold text-lg">{meeting.title}</h3>
                         <div className="flex items-center gap-2">
+                          <Badge variant="outline">{meeting.meetingType}</Badge>
                           <Badge className={getStatusColor(meeting.status)}>
-                            {meeting.status}
+                            {getStatusIcon(meeting.status)}
+                            <span className="ml-1">{meeting.status}</span>
                           </Badge>
-                          <Badge variant="outline">{meeting.category}</Badge>
                         </div>
                       </div>
+                      
+                      {meeting.description && (
+                        <p className="text-gray-700">{meeting.description}</p>
+                      )}
                       
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600">
                         <div className="flex items-center gap-1">
@@ -466,7 +465,7 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
                         </div>
                         <div className="flex items-center gap-1">
                           <MapPin className="w-4 h-4" />
-                          {meeting.location || 'Virtual'}
+                          {meeting.location || 'TBD'}
                         </div>
                         <div className="flex items-center gap-1">
                           <Users className="w-4 h-4" />
@@ -474,31 +473,58 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
                         </div>
                       </div>
                       
+                      {meeting.notes && (
+                        <div className="bg-gray-50 p-3 rounded-md">
+                          <h4 className="font-medium text-sm mb-1">Meeting Notes:</h4>
+                          <p className="text-sm text-gray-700">{meeting.notes}</p>
+                        </div>
+                      )}
+                      
+                      {meeting.actionItems.length > 0 && (
+                        <div className="bg-blue-50 p-3 rounded-md">
+                          <h4 className="font-medium text-sm mb-2">Action Items:</h4>
+                          <div className="space-y-1">
+                            {meeting.actionItems.map((item) => (
+                              <div key={item.id} className="flex items-center justify-between text-sm">
+                                <span>{item.description}</span>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {item.assignee}
+                                  </Badge>
+                                  <Badge 
+                                    variant={item.status === 'Completed' ? 'default' : 'secondary'}
+                                    className="text-xs"
+                                  >
+                                    {item.status}
+                                  </Badge>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="flex items-center gap-2 pt-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            setSelectedMeeting(meeting);
-                            setViewDialogOpen(true);
-                          }}
-                        >
-                          <FileText className="w-4 h-4 mr-1" />
-                          View Details
-                        </Button>
-                        {meeting.type !== 'In-Person' && meeting.meetingLink && (
-                          <Button variant="outline" size="sm">
-                            <Video className="w-4 h-4 mr-1" />
-                            Join Meeting
-                          </Button>
-                        )}
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => openEditDialog(meeting)}>
                           <Edit className="w-4 h-4 mr-1" />
                           Edit
                         </Button>
                         <Button variant="outline" size="sm">
-                          <Send className="w-4 h-4 mr-1" />
-                          Send Invite
+                          <FileText className="w-4 h-4 mr-1" />
+                          Notes
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          <Users className="w-4 h-4 mr-1" />
+                          Attendees
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleDeleteMeeting(meeting.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
                         </Button>
                       </div>
                     </div>
@@ -507,7 +533,7 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
               </Card>
             ))}
           </div>
-
+          
           {filteredMeetings.length === 0 && (
             <div className="text-center py-8 text-gray-500">
               No meetings found matching your criteria.
@@ -516,108 +542,121 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
         </CardContent>
       </Card>
 
-      {/* Meeting Details Dialog */}
-      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{selectedMeeting?.title}</DialogTitle>
+            <DialogTitle>Edit Meeting</DialogTitle>
           </DialogHeader>
-          {selectedMeeting && (
-            <Tabs defaultValue="details" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="notes">Notes</TabsTrigger>
-                <TabsTrigger value="actions">Action Items</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="details" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="font-semibold mb-2">Meeting Information</h4>
-                    <div className="space-y-2 text-sm">
-                      <div><strong>Date:</strong> {selectedMeeting.date.toLocaleDateString()}</div>
-                      <div><strong>Time:</strong> {selectedMeeting.startTime} - {selectedMeeting.endTime}</div>
-                      <div><strong>Location:</strong> {selectedMeeting.location}</div>
-                      <div><strong>Type:</strong> {selectedMeeting.type}</div>
-                      <div><strong>Organizer:</strong> {selectedMeeting.organizer}</div>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">Attendees ({selectedMeeting.attendees.length})</h4>
-                    <div className="space-y-1">
-                      {selectedMeeting.attendees.map((attendee) => (
-                        <div key={attendee.id} className="flex items-center justify-between text-sm">
-                          <span>{attendee.name}</span>
-                          <Badge variant="secondary" className="text-xs">{attendee.status}</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="font-semibold mb-2">Agenda</h4>
-                  <div className="space-y-1">
-                    {selectedMeeting.agenda.map((item, index) => (
-                      <div key={index} className="text-sm p-2 bg-gray-50 rounded">
-                        {index + 1}. {item}
-                      </div>
+          {editingMeeting && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-title">Meeting Title *</Label>
+                <Input
+                  id="edit-title"
+                  value={editingMeeting.title}
+                  onChange={(e) => setEditingMeeting(prev => prev ? ({ ...prev, title: e.target.value }) : null)}
+                  placeholder="Enter meeting title"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-meetingType">Meeting Type</Label>
+                <Select
+                  value={editingMeeting.meetingType}
+                  onValueChange={(value) => setEditingMeeting(prev => prev ? ({ ...prev, meetingType: value as Meeting['meetingType'] }) : null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {meetingTypes.map(type => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
                     ))}
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="notes" className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="meetingNotes">Meeting Notes</Label>
-                  <Textarea
-                    id="meetingNotes"
-                    value={selectedMeeting.notes}
-                    onChange={(e) => updateMeetingNotes(selectedMeeting.id, e.target.value)}
-                    placeholder="Add meeting notes, decisions, and key discussion points..."
-                    rows={10}
-                  />
-                </div>
-                <Button onClick={() => toast.success('Notes saved successfully')}>
-                  Save Notes
-                </Button>
-              </TabsContent>
-
-              <TabsContent value="actions" className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-semibold">Action Items</h4>
-                  <Button 
-                    size="sm" 
-                    onClick={() => addActionItem(selectedMeeting.id)}
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Add Action Item
-                  </Button>
-                </div>
-                <div className="space-y-3">
-                  {selectedMeeting.actionItems.map((item) => (
-                    <div key={item.id} className="p-3 border rounded-lg">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="font-medium">{item.description}</p>
-                          <div className="text-sm text-gray-600 mt-1">
-                            <span>Assigned to: {item.assignedTo}</span>
-                            <span className="ml-4">Due: {item.dueDate.toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                        <Badge 
-                          variant={item.status === 'Completed' ? 'default' : 'secondary'}
-                          className={item.status === 'Completed' ? 'bg-green-100 text-green-800' : ''}
-                        >
-                          {item.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </TabsContent>
-            </Tabs>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="edit-description">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  value={editingMeeting.description}
+                  onChange={(e) => setEditingMeeting(prev => prev ? ({ ...prev, description: e.target.value }) : null)}
+                  placeholder="Meeting agenda or description"
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-date">Date *</Label>
+                <Input
+                  id="edit-date"
+                  type="date"
+                  value={editingMeeting.date.toISOString().split('T')[0]}
+                  onChange={(e) => setEditingMeeting(prev => prev ? ({ ...prev, date: new Date(e.target.value) }) : null)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-location">Location</Label>
+                <Input
+                  id="edit-location"
+                  value={editingMeeting.location}
+                  onChange={(e) => setEditingMeeting(prev => prev ? ({ ...prev, location: e.target.value }) : null)}
+                  placeholder="Meeting location"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-startTime">Start Time *</Label>
+                <Input
+                  id="edit-startTime"
+                  type="time"
+                  value={editingMeeting.startTime}
+                  onChange={(e) => setEditingMeeting(prev => prev ? ({ ...prev, startTime: e.target.value }) : null)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-endTime">End Time *</Label>
+                <Input
+                  id="edit-endTime"
+                  type="time"
+                  value={editingMeeting.endTime}
+                  onChange={(e) => setEditingMeeting(prev => prev ? ({ ...prev, endTime: e.target.value }) : null)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-status">Status</Label>
+                <Select
+                  value={editingMeeting.status}
+                  onValueChange={(value) => setEditingMeeting(prev => prev ? ({ ...prev, status: value as Meeting['status'] }) : null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statuses.map(status => (
+                      <SelectItem key={status} value={status}>{status}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="edit-notes">Meeting Notes</Label>
+                <Textarea
+                  id="edit-notes"
+                  value={editingMeeting.notes}
+                  onChange={(e) => setEditingMeeting(prev => prev ? ({ ...prev, notes: e.target.value }) : null)}
+                  placeholder="Add meeting notes..."
+                  rows={4}
+                />
+              </div>
+            </div>
           )}
+          <div className="flex justify-end gap-2 mt-6">
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditMeeting}>
+              Save Changes
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
