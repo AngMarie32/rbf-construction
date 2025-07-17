@@ -35,6 +35,8 @@ interface DrawingAnnotation {
   timestamp: Date;
 }
 
+type ToolType = 'select' | 'pencil' | 'rectangle' | 'circle' | 'text' | 'comment';
+
 interface DrawingMarkupToolProps {
   projectId?: string;
   drawingUrl?: string;
@@ -43,7 +45,7 @@ interface DrawingMarkupToolProps {
 export function DrawingMarkupTool({ projectId, drawingUrl }: DrawingMarkupToolProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [currentTool, setCurrentTool] = useState<DrawingAnnotation['type']>('pencil');
+  const [currentTool, setCurrentTool] = useState<ToolType>('pencil');
   const [currentColor, setCurrentColor] = useState('#ff0000');
   const [annotations, setAnnotations] = useState<DrawingAnnotation[]>([]);
   const [collaborators, setCollaborators] = useState([
