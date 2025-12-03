@@ -178,7 +178,15 @@ function App() {
               }
             />
             <Route
-              path="/create-payment-application"
+              path="/payment-applications/create/:projectId"
+              element={
+                <ProtectedRoute>
+                  <CreatePaymentApplication />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/payment-applications/edit/:projectId/:applicationId"
               element={
                 <ProtectedRoute>
                   <CreatePaymentApplication />
