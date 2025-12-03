@@ -36,7 +36,6 @@ import AdminUsers from '@/pages/AdminUsers';
 import NotFound from '@/pages/NotFound';
 
 // New feature pages
-import DrawingMarkup from '@/pages/DrawingMarkup';
 import PunchList from '@/pages/PunchList';
 import Meetings from '@/pages/Meetings';
 
@@ -87,14 +86,6 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ProjectSchedule />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/drawing-markup"
-              element={
-                <ProtectedRoute>
-                  <DrawingMarkup />
                 </ProtectedRoute>
               }
             />
