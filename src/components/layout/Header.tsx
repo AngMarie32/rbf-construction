@@ -45,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           </Button>
           
           <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-semibold text-gray-900">Construction Manager</h1>
+            <h1 className="text-xl font-semibold text-gray-900">RBF Construction</h1>
           </div>
         </div>
 

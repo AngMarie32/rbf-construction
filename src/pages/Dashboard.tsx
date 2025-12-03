@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { DateFilter } from '@/components/dashboard/DateFilter';
 import { FinancialDateFilter } from '@/components/dashboard/FinancialDateFilter';
-import { DollarSign, Calendar, Users, Building2, Plus } from 'lucide-react';
+import { Calendar, Users, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -206,10 +206,9 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-5 gap-6">
+            <div className="grid grid-cols-6 gap-6">
               <div className="text-center">
                 <div className="flex items-center justify-center text-blue-600 mb-2">
-                  <DollarSign className="w-5 h-5 mr-1" />
                   <span className="text-sm font-medium">Total Contract Value</span>
                 </div>
                 <div className="text-2xl font-bold text-blue-600">
@@ -220,7 +219,6 @@ export default function Dashboard() {
 
               <div className="text-center">
                 <div className="flex items-center justify-center text-red-600 mb-2">
-                  <DollarSign className="w-5 h-5 mr-1" />
                   <span className="text-sm font-medium">Total Expenses</span>
                 </div>
                 <div className="text-2xl font-bold text-red-600">
@@ -230,8 +228,17 @@ export default function Dashboard() {
               </div>
 
               <div className="text-center">
+                <div className="flex items-center justify-center text-emerald-600 mb-2">
+                  <span className="text-sm font-medium">Profit</span>
+                </div>
+                <div className="text-2xl font-bold text-emerald-600">
+                  ${(stats.totalRevenue - totalExpensesPaid).toLocaleString()}
+                </div>
+                <div className="text-xs text-muted-foreground">Contract - Expenses</div>
+              </div>
+
+              <div className="text-center">
                 <div className="flex items-center justify-center text-purple-600 mb-2">
-                  <DollarSign className="w-5 h-5 mr-1" />
                   <span className="text-sm font-medium">Remaining Contract Balance</span>
                 </div>
                 <div className="text-2xl font-bold text-purple-600">
@@ -242,7 +249,6 @@ export default function Dashboard() {
 
               <div className="text-center">
                 <div className="flex items-center justify-center text-blue-600 mb-2">
-                  <DollarSign className="w-5 h-5 mr-1" />
                   <span className="text-sm font-medium">Total Billed</span>
                 </div>
                 <div className="text-2xl font-bold text-blue-600">
@@ -253,7 +259,6 @@ export default function Dashboard() {
 
               <div className="text-center">
                 <div className="flex items-center justify-center text-green-600 mb-2">
-                  <DollarSign className="w-5 h-5 mr-1" />
                   <span className="text-sm font-medium">Total Received</span>
                 </div>
                 <div className="text-2xl font-bold text-green-600">
