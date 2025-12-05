@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Bell, Menu, Settings } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { ChatWidget } from '@/components/chat/ChatWidget';
 import { useNotificationStore } from '@/stores/notificationStore';
 import {
   DropdownMenu,
@@ -110,8 +109,6 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <ChatWidget />
 
           {/* User Menu */}
           <DropdownMenu>
