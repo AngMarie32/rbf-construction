@@ -265,13 +265,17 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
 
       console.log('Raw SOV data from database:', data);
 
+      // For NEW applications (no applicationId), reset this_period to 0 for fresh entry
+      const isNewApplication = !applicationId;
+      
       const mappedItems = (data || []).map(item => {
         console.log(`Processing item ${item.item_number}:`, {
           scheduled_value: item.scheduled_value,
           change_orders: item.change_orders,
           previous_applications: item.previous_applications,
           this_period: item.this_period,
-          materials_stored: item.materials_stored
+          materials_stored: item.materials_stored,
+          isNewApplication
         });
         
         return {
@@ -281,7 +285,8 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
           scheduledValue: Number(item.scheduled_value || 0),
           changeOrders: Number(item.change_orders || 0),
           previousApplications: Number(item.previous_applications || 0),
-          thisPeriod: Number(item.this_period || 0),
+          // Reset this_period to 0 for new applications so user starts fresh
+          thisPeriod: isNewApplication ? 0 : Number(item.this_period || 0),
           materialsStored: Number(item.materials_stored || 0),
           totalCompletedAndStored: Number(item.total_completed_and_stored || 0),
           percentComplete: Number(item.percent_complete || 0),

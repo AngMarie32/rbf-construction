@@ -30,7 +30,6 @@ import ProjectAnalyzer from '@/pages/ProjectAnalyzer';
 import Analytics from '@/pages/Analytics';
 import Permits from '@/pages/Permits';
 import CompanyCalendar from '@/pages/CompanyCalendar';
-import Chat from '@/pages/Chat';
 import Settings from '@/pages/Settings';
 import AdminUsers from '@/pages/AdminUsers';
 import NotFound from '@/pages/NotFound';
@@ -254,14 +253,6 @@ function App() {
               element={
                 <ProtectedRoute>
                   <CompanyCalendar />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/chat"
-              element={
-                <ProtectedRoute>
-                  <Chat />
                 </ProtectedRoute>
               }
             />

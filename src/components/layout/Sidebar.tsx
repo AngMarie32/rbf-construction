@@ -30,7 +30,6 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     { name: 'Permits', href: '/permits' },
     { name: 'Punch List', href: '/punch-list' },
     { name: 'Meetings', href: '/meetings' },
-    { name: 'Chat', href: '/chat' },
     { name: 'Settings', href: '/settings' },
   ];
 

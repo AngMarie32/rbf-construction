@@ -326,13 +326,9 @@ export default function Expenses() {
                         <ImportExpensesDialog onExpensesImported={fetchExpenses} projects={projects} />
                       </div>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <div className="w-full">
-                        <BulkExpenseDialog onExpensesCreated={fetchExpenses} projects={projects} />
-                      </div>
-                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                <BulkExpenseDialog onExpensesCreated={fetchExpenses} projects={projects} />
                 <Button 
                   onClick={() => setVendorAnalysisOpen(true)}
                   variant="outline"
