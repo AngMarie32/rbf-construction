@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,7 @@ import {
   Building
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PunchListItem {
   id: string;
@@ -50,66 +51,16 @@ interface PunchListManagerProps {
   projectId?: string;
 }
 
-// Mock projects for demonstration
-const mockProjects = [
-  { id: '1', name: 'Downtown Office Complex' },
-  { id: '2', name: 'Residential Tower A' },
-  { id: '3', name: 'Shopping Center Renovation' },
-];
+interface Project {
+  id: string;
+  name: string;
+}
 
 export function PunchListManager({ projectId }: PunchListManagerProps) {
-  const [selectedProjectId, setSelectedProjectId] = useState(projectId || '1');
-  const [punchItems, setPunchItems] = useState<PunchListItem[]>([
-    {
-      id: '1',
-      title: 'Touch up paint on main hallway walls',
-      description: 'Several scuff marks and scratches visible on walls near elevator bank',
-      location: 'Main Hallway - Floor 2',
-      trade: 'Painting',
-      priority: 'Medium',
-      status: 'Open',
-      assignedTo: 'Mike Johnson',
-      dateCreated: new Date('2024-01-15'),
-      dateDue: new Date('2024-01-20'),
-      photos: [],
-      notes: ['Owner noticed during walkthrough'],
-      category: 'Finish Work',
-      projectId: '1',
-    },
-    {
-      id: '2',
-      title: 'Install missing outlet cover in office 205',
-      description: 'Electrical outlet missing cover plate',
-      location: 'Office 205',
-      trade: 'Electrical',
-      priority: 'High',
-      status: 'In Progress',
-      assignedTo: 'Sarah Wilson',
-      dateCreated: new Date('2024-01-14'),
-      dateDue: new Date('2024-01-18'),
-      photos: [],
-      notes: ['Safety concern - exposed outlet'],
-      category: 'Electrical',
-      projectId: '1',
-    },
-    {
-      id: '3',
-      title: 'Fix loose handrail on staircase',
-      description: 'Handrail is wobbly and needs to be secured',
-      location: 'Stairwell B - Floor 3',
-      trade: 'General',
-      priority: 'Critical',
-      status: 'Completed',
-      assignedTo: 'Tom Davis',
-      dateCreated: new Date('2024-01-10'),
-      dateDue: new Date('2024-01-15'),
-      dateCompleted: new Date('2024-01-14'),
-      photos: [],
-      notes: ['Completed ahead of schedule'],
-      category: 'Safety',
-      projectId: '2',
-    },
-  ]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState(projectId || '');
+  const [punchItems, setPunchItems] = useState<PunchListItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
@@ -121,9 +72,43 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
     priority: 'Medium',
     status: 'Open',
     dateCreated: new Date(),
-    dateDue: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+    dateDue: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     projectId: selectedProjectId,
   });
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  useEffect(() => {
+    if (selectedProjectId) {
+      setNewItem(prev => ({ ...prev, projectId: selectedProjectId }));
+    }
+  }, [selectedProjectId]);
+
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      
+      const projectsData = data || [];
+      setProjects(projectsData);
+      
+      // Auto-select first project if none selected
+      if (!selectedProjectId && projectsData.length > 0) {
+        setSelectedProjectId(projectsData[0].id);
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast.error('Failed to load projects');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const priorities = ['Low', 'Medium', 'High', 'Critical'];
   const statuses = ['Open', 'In Progress', 'Completed', 'Verified'];
@@ -260,7 +245,15 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
   };
 
   const stats = getStats();
-  const selectedProject = mockProjects.find(p => p.id === selectedProjectId);
+  const selectedProject = projects.find(p => p.id === selectedProjectId);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -276,7 +269,7 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
                   <SelectValue placeholder="Choose a project" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockProjects.map(project => (
+                  {projects.map(project => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
                     </SelectItem>
