@@ -3,16 +3,17 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, DollarSign, FileText, AlertTriangle, Edit, Eye } from 'lucide-react';
+import { Calendar, DollarSign, FileText, AlertTriangle, Edit, Eye, Trash2 } from 'lucide-react';
 import { Permit } from '@/types/permits';
 
 interface PermitCardProps {
   permit: Permit;
   onEdit: (permit: Permit) => void;
   onView: (permit: Permit) => void;
+  onDelete?: (permit: Permit) => void;
 }
 
-export const PermitCard = ({ permit, onEdit, onView }: PermitCardProps) => {
+export const PermitCard = ({ permit, onEdit, onView, onDelete }: PermitCardProps) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Issued': return 'bg-green-500 text-white';
@@ -93,6 +94,16 @@ export const PermitCard = ({ permit, onEdit, onView }: PermitCardProps) => {
             <Edit className="w-4 h-4 mr-1" />
             Edit
           </Button>
+          {onDelete && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => onDelete(permit)} 
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

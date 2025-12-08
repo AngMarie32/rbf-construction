@@ -3,88 +3,42 @@ import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, FileCheck, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Plus, FileCheck, Clock, AlertTriangle, CheckCircle, Trash2 } from 'lucide-react';
 import { PermitCard } from '@/components/permits/PermitCard';
 import { NewPermitDialog } from '@/components/permits/NewPermitDialog';
 import { PermitFiltersComponent } from '@/components/permits/PermitFilters';
 import { Permit, PermitFilters as PermitFiltersType } from '@/types/permits';
-
-// Mock data for development
-const mockPermits: Permit[] = [
-  {
-    id: '1',
-    project_id: 'proj-1',
-    permit_number: 'BP-2024-001',
-    permit_type: 'Building',
-    description: 'New residential construction - 2,400 sq ft',
-    issuing_authority: 'City of Springfield Building Department',
-    application_date: new Date('2024-01-15'),
-    issued_date: new Date('2024-02-01'),
-    expiration_date: new Date('2025-02-01'),
-    status: 'Issued',
-    fee_amount: 2500,
-    fee_paid: true,
-    notes: 'Includes foundation, framing, electrical rough-in',
-    created_at: new Date('2024-01-10'),
-    updated_at: new Date('2024-02-01'),
-  },
-  {
-    id: '2',
-    project_id: 'proj-1',
-    permit_number: 'EP-2024-045',
-    permit_type: 'Electrical',
-    description: 'Electrical service upgrade - 200A panel',
-    issuing_authority: 'County Electrical Inspector',
-    application_date: new Date('2024-02-10'),
-    status: 'Under Review',
-    fee_amount: 150,
-    fee_paid: true,
-    notes: 'Waiting for inspector availability',
-    created_at: new Date('2024-02-05'),
-    updated_at: new Date('2024-02-10'),
-  },
-  {
-    id: '3',
-    project_id: 'proj-2',
-    permit_type: 'Plumbing',
-    description: 'Kitchen and bathroom renovation plumbing',
-    issuing_authority: 'City of Springfield Plumbing Division',
-    status: 'Not Applied',
-    fee_amount: 200,
-    fee_paid: false,
-    notes: 'Need to submit plans first',
-    created_at: new Date('2024-02-15'),
-    updated_at: new Date('2024-02-15'),
-  },
-  {
-    id: '4',
-    project_id: 'proj-3',
-    permit_number: 'DP-2024-012',
-    permit_type: 'Demolition',
-    description: 'Interior wall demolition',
-    issuing_authority: 'City Building Department',
-    application_date: new Date('2024-01-20'),
-    issued_date: new Date('2024-01-25'),
-    expiration_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // Expires in 15 days
-    status: 'Issued',
-    fee_amount: 75,
-    fee_paid: true,
-    created_at: new Date('2024-01-15'),
-    updated_at: new Date('2024-01-25'),
-  },
-];
-
-const mockProjects = [
-  { id: 'proj-1', name: 'Springfield Residential' },
-  { id: 'proj-2', name: 'Downtown Office Renovation' },
-  { id: 'proj-3', name: 'Warehouse Expansion' },
-];
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export default function Permits() {
-  const [permits, setPermits] = useState<Permit[]>(mockPermits);
-  const [filteredPermits, setFilteredPermits] = useState<Permit[]>(mockPermits);
+  const [permits, setPermits] = useState<Permit[]>([]);
+  const [filteredPermits, setFilteredPermits] = useState<Permit[]>([]);
   const [filters, setFilters] = useState<PermitFiltersType>({});
   const [newPermitDialogOpen, setNewPermitDialogOpen] = useState(false);
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast.error('Failed to load projects');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Apply filters
   useEffect(() => {
@@ -113,8 +67,8 @@ export default function Permits() {
   }, [permits, filters]);
 
   const handlePermitCreated = () => {
-    // In real implementation, this would refetch data
-    console.log('Permit created successfully');
+    // The dialog will handle the permit creation
+    toast.success('Permit created successfully');
   };
 
   const handleEditPermit = (permit: Permit) => {
@@ -125,6 +79,11 @@ export default function Permits() {
   const handleViewPermit = (permit: Permit) => {
     console.log('View permit:', permit);
     // TODO: Implement detailed view dialog
+  };
+
+  const handleDeletePermit = (permit: Permit) => {
+    setPermits(prev => prev.filter(p => p.id !== permit.id));
+    toast.success('Permit deleted successfully');
   };
 
   // Calculate summary stats
@@ -190,7 +149,7 @@ export default function Permits() {
           <PermitFiltersComponent
             filters={filters}
             onFiltersChange={setFilters}
-            projects={mockProjects}
+            projects={projects}
           />
           
           <Button onClick={() => setNewPermitDialogOpen(true)}>
@@ -207,6 +166,7 @@ export default function Permits() {
               permit={permit}
               onEdit={handleEditPermit}
               onView={handleViewPermit}
+              onDelete={handleDeletePermit}
             />
           ))}
         </div>

@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,7 @@ import {
   Building
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Meeting {
   id: string;
@@ -56,70 +57,16 @@ interface MeetingManagerProps {
   projectId?: string;
 }
 
-// Mock projects for demonstration
-const mockProjects = [
-  { id: '1', name: 'Downtown Office Complex' },
-  { id: '2', name: 'Residential Tower A' },
-  { id: '3', name: 'Shopping Center Renovation' },
-];
+interface Project {
+  id: string;
+  name: string;
+}
 
 export function MeetingManager({ projectId }: MeetingManagerProps) {
-  const [selectedProjectId, setSelectedProjectId] = useState(projectId || '1');
-  const [meetings, setMeetings] = useState<Meeting[]>([
-    {
-      id: '1',
-      title: 'Weekly Progress Review',
-      description: 'Review current project status and upcoming milestones',
-      date: new Date('2024-01-20'),
-      startTime: '09:00',
-      endTime: '10:00',
-      location: 'Conference Room A',
-      attendees: ['John Smith', 'Sarah Wilson', 'Mike Johnson'],
-      meetingType: 'In-Person',
-      status: 'Scheduled',
-      notes: '',
-      actionItems: [],
-      projectId: '1',
-    },
-    {
-      id: '2',
-      title: 'Safety Meeting',
-      description: 'Monthly safety review and training session',
-      date: new Date('2024-01-22'),
-      startTime: '14:00',
-      endTime: '15:30',
-      location: 'Site Trailer',
-      attendees: ['All Site Personnel'],
-      meetingType: 'In-Person',
-      status: 'Completed',
-      notes: 'Discussed new safety protocols for electrical work. All personnel acknowledged understanding.',
-      actionItems: [
-        {
-          id: '1',
-          description: 'Update safety signage in electrical areas',
-          assignee: 'Tom Davis',
-          dueDate: new Date('2024-01-25'),
-          status: 'In Progress',
-        },
-      ],
-      projectId: '1',
-    },
-    {
-      id: '3',
-      title: 'Client Walkthrough',
-      description: 'Final walkthrough with client before handover',
-      date: new Date('2024-01-25'),
-      startTime: '10:00',
-      endTime: '12:00',
-      location: 'Project Site',
-      attendees: ['Client Representative', 'Project Manager', 'Site Supervisor'],
-      meetingType: 'In-Person',
-      status: 'Scheduled',
-      notes: '',
-      actionItems: [],
-      projectId: '2',
-    },
-  ]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState(projectId || '');
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -133,6 +80,40 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
     actionItems: [],
     projectId: selectedProjectId,
   });
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  useEffect(() => {
+    if (selectedProjectId) {
+      setNewMeeting(prev => ({ ...prev, projectId: selectedProjectId }));
+    }
+  }, [selectedProjectId]);
+
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      
+      const projectsData = data || [];
+      setProjects(projectsData);
+      
+      // Auto-select first project if none selected
+      if (!selectedProjectId && projectsData.length > 0) {
+        setSelectedProjectId(projectsData[0].id);
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast.error('Failed to load projects');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const meetingTypes = ['In-Person', 'Video Call', 'Phone Call'];
   const statuses = ['Scheduled', 'In Progress', 'Completed', 'Cancelled'];
@@ -242,7 +223,15 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
   };
 
   const stats = getStats();
-  const selectedProject = mockProjects.find(p => p.id === selectedProjectId);
+  const selectedProject = projects.find(p => p.id === selectedProjectId);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -258,7 +247,7 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
                   <SelectValue placeholder="Choose a project" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockProjects.map(project => (
+                  {projects.map(project => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
                     </SelectItem>

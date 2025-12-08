@@ -115,13 +115,33 @@ export function ProjectCard({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Active': return 'bg-green-500';
-      case 'Planning': return 'bg-blue-500';
-      case 'On Hold': return 'bg-yellow-500';
-      case 'Completed': return 'bg-purple-500';
-      case 'Closed': return 'bg-gray-500';
-      default: return 'bg-gray-500';
+      case 'Active': 
+      case 'Open': 
+        return 'bg-green-500';
+      case 'Planning': 
+        return 'bg-blue-500';
+      case 'On Hold': 
+      case 'Pending': 
+        return 'bg-yellow-500';
+      case 'Completed': 
+        return 'bg-purple-500';
+      case 'Closed': 
+        return 'bg-blue-500';
+      default: 
+        return 'bg-gray-500';
     }
+  };
+
+  // Calculate estimated profit (contract value - expected expenses based on completion)
+  const calculateEstimatedProfit = () => {
+    const totalContractWithChanges = project.contractValue + changeOrdersTotal;
+    const estimatedTotalExpenses = paidExpenses + pendingExpenses;
+    return totalContractWithChanges - estimatedTotalExpenses;
+  };
+
+  // Calculate actual profit (received payments - paid expenses)
+  const calculateActualProfit = () => {
+    return receivedAmount - paidExpenses;
   };
 
   const calculateContingencyAvailable = () => {
@@ -262,8 +282,29 @@ export function ProjectCard({
                 </div>
                 <div className="text-sm font-bold text-green-700">
                   ${receivedAmount.toLocaleString()}
+              </div>
+
+              {/* Profit Tracking */}
+              <div className="bg-white p-2 rounded border text-center">
+                <div className="flex items-center justify-center text-xs text-purple-600 mb-1">
+                  <TrendingUp className="w-3 h-3 mr-1" />
+                  Est. Profit
+                </div>
+                <div className={`text-sm font-bold ${calculateEstimatedProfit() >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
+                  ${calculateEstimatedProfit().toLocaleString()}
                 </div>
               </div>
+
+              <div className="bg-white p-2 rounded border text-center">
+                <div className="flex items-center justify-center text-xs text-emerald-600 mb-1">
+                  <DollarSign className="w-3 h-3 mr-1" />
+                  Actual Profit
+                </div>
+                <div className={`text-sm font-bold ${calculateActualProfit() >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  ${calculateActualProfit().toLocaleString()}
+                </div>
+              </div>
+            </div>
 
               <div className="bg-white p-2 rounded border text-center">
                 <div className="flex items-center justify-center text-xs text-red-600 mb-1">
