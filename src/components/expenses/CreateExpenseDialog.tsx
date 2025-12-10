@@ -97,12 +97,12 @@ export function CreateExpenseDialog({ onExpenseCreated, projects }: CreateExpens
       </Button>
       
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Expense</DialogTitle>
           </DialogHeader>
           
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div>
               <Label htmlFor="project">Project *</Label>
               <Select value={formData.project_id} onValueChange={(value) => setFormData({...formData, project_id: value})}>
@@ -186,11 +186,11 @@ export function CreateExpenseDialog({ onExpenseCreated, projects }: CreateExpens
               />
             </div>
 
-            <div className="flex gap-2 pt-4">
-              <Button type="submit" disabled={loading} className="flex-1">
+            <div className="flex flex-col gap-2 pt-2">
+              <Button type="submit" disabled={loading} className="w-full">
                 {loading ? 'Creating...' : 'Create Expense'}
               </Button>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)} className="w-full">
                 Cancel
               </Button>
             </div>

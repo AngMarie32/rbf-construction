@@ -41,12 +41,12 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   };
 
   return (
-    <div className="bg-[#1e3a5f] min-h-screen min-w-[200px] flex flex-col">
+    <div className="bg-[#1e3a5f] sticky top-0 h-screen min-w-[200px] flex flex-col overflow-y-auto">
       <div className="p-4">
         <h2 className="text-lg font-semibold text-white">Navigation</h2>
       </div>
       <nav className="mt-4 flex-1">
-        <ul className="space-y-1 px-2">
+        <ul className="space-y-1 px-2 pb-4">
           {navigationItems.map((item) => {
             const isActive = location.pathname === item.href;
             return (
