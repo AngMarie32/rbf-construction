@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Plus, Search, Filter, FileText, Download, Edit, Trash2, Eye, DollarSign, TrendingUp, AlertTriangle, Calendar, MoreHorizontal } from 'lucide-react';
+import { Plus, Search, Filter, FileText, Download, Edit, Trash2, Eye, DollarSign, TrendingUp, AlertTriangle, Calendar, MoreHorizontal, ArrowUpDown } from 'lucide-react';
 import { CreateExpenseDialog } from '@/components/expenses/CreateExpenseDialog';
 import { EditExpenseDialog } from '@/components/expenses/EditExpenseDialog';
 import { BulkExpenseDialog } from '@/components/expenses/BulkExpenseDialog';
@@ -57,6 +57,8 @@ export default function Expenses() {
   const [attachingInvoice, setAttachingInvoice] = useState<{ id: string; description: string } | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<{ id: string; description: string } | null>(null);
   const [vendorAnalysisOpen, setVendorAnalysisOpen] = useState(false);
+  const [sortColumn, setSortColumn] = useState<string>('date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     fetchProjects();
@@ -146,9 +148,16 @@ export default function Expenses() {
   };
 
   const filteredExpenses = expenses.filter(expense => {
-    const matchesSearch = expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         expense.vendor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         expense.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = 
+      expense.description.toLowerCase().includes(searchLower) ||
+      expense.vendor?.toLowerCase().includes(searchLower) ||
+      expense.category.toLowerCase().includes(searchLower) ||
+      expense.projects?.name?.toLowerCase().includes(searchLower) ||
+      expense.status.toLowerCase().includes(searchLower) ||
+      expense.amount.toString().includes(searchTerm) ||
+      expense.receipt_number?.toLowerCase().includes(searchLower) ||
+      new Date(expense.date).toLocaleDateString().includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || expense.status === statusFilter;
     const matchesProject = projectFilter === 'all' || expense.project_id === projectFilter;
     const matchesCategory = categoryFilter === 'all' || expense.category === categoryFilter;
@@ -163,7 +172,57 @@ export default function Expenses() {
     }
 
     return matchesSearch && matchesStatus && matchesProject && matchesCategory && matchesDateRange;
+  }).sort((a, b) => {
+    let aValue: any, bValue: any;
+    
+    switch (sortColumn) {
+      case 'date':
+        aValue = new Date(a.date).getTime();
+        bValue = new Date(b.date).getTime();
+        break;
+      case 'project':
+        aValue = a.projects?.name || '';
+        bValue = b.projects?.name || '';
+        break;
+      case 'description':
+        aValue = a.description.toLowerCase();
+        bValue = b.description.toLowerCase();
+        break;
+      case 'category':
+        aValue = a.category.toLowerCase();
+        bValue = b.category.toLowerCase();
+        break;
+      case 'vendor':
+        aValue = (a.vendor || '').toLowerCase();
+        bValue = (b.vendor || '').toLowerCase();
+        break;
+      case 'amount':
+        aValue = a.amount;
+        bValue = b.amount;
+        break;
+      case 'status':
+        aValue = a.status.toLowerCase();
+        bValue = b.status.toLowerCase();
+        break;
+      default:
+        aValue = new Date(a.date).getTime();
+        bValue = new Date(b.date).getTime();
+    }
+
+    if (sortDirection === 'asc') {
+      return aValue > bValue ? 1 : -1;
+    }
+    return aValue < bValue ? 1 : -1;
   });
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -411,13 +470,48 @@ export default function Expenses() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Project</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Vendor</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('date')}>
+                      <div className="flex items-center gap-1">
+                        Date
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('project')}>
+                      <div className="flex items-center gap-1">
+                        Project
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('description')}>
+                      <div className="flex items-center gap-1">
+                        Description
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('category')}>
+                      <div className="flex items-center gap-1">
+                        Category
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('vendor')}>
+                      <div className="flex items-center gap-1">
+                        Vendor
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('amount')}>
+                      <div className="flex items-center gap-1">
+                        Amount
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status')}>
+                      <div className="flex items-center gap-1">
+                        Status
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
+                    </TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>

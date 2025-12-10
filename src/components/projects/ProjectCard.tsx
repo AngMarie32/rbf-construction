@@ -224,10 +224,12 @@ export function ProjectCard({
                 {project.address}
               </div>
             )}
-            <div className="flex items-center text-sm text-gray-600">
-              <Calendar className="w-4 h-4 mr-2" />
-              Due: {format(project.dueDate, 'MMM dd, yyyy')}
-            </div>
+            {project.dueDate && new Date(project.dueDate).getFullYear() > 1970 && (
+              <div className="flex items-center text-sm text-gray-600">
+                <Calendar className="w-4 h-4 mr-2" />
+                Due: {format(project.dueDate, 'MMM dd, yyyy')}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -282,6 +284,27 @@ export function ProjectCard({
                 </div>
                 <div className="text-sm font-bold text-green-700">
                   ${receivedAmount.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="bg-white p-2 rounded border text-center">
+                <div className="flex items-center justify-center text-xs text-red-600 mb-1">
+                  <TrendingDown className="w-3 h-3 mr-1" />
+                  Expenses Paid
+                </div>
+                <div className="text-sm font-bold text-red-600">
+                  ${paidExpenses.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="bg-white p-2 rounded border text-center">
+                <div className="flex items-center justify-center text-xs text-orange-600 mb-1">
+                  <Clock className="w-3 h-3 mr-1" />
+                  Pending
+                </div>
+                <div className="text-sm font-bold text-orange-600">
+                  ${pendingExpenses.toLocaleString()}
+                </div>
               </div>
 
               {/* Profit Tracking */}
@@ -302,27 +325,6 @@ export function ProjectCard({
                 </div>
                 <div className={`text-sm font-bold ${calculateActualProfit() >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                   ${calculateActualProfit().toLocaleString()}
-                </div>
-              </div>
-            </div>
-
-              <div className="bg-white p-2 rounded border text-center">
-                <div className="flex items-center justify-center text-xs text-red-600 mb-1">
-                  <TrendingDown className="w-3 h-3 mr-1" />
-                  Expenses Paid
-                </div>
-                <div className="text-sm font-bold text-red-600">
-                  ${paidExpenses.toLocaleString()}
-                </div>
-              </div>
-
-              <div className="bg-white p-2 rounded border text-center">
-                <div className="flex items-center justify-center text-xs text-orange-600 mb-1">
-                  <Clock className="w-3 h-3 mr-1" />
-                  Pending
-                </div>
-                <div className="text-sm font-bold text-orange-600">
-                  ${pendingExpenses.toLocaleString()}
                 </div>
               </div>
             </div>
