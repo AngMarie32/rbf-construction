@@ -26,16 +26,53 @@ export function TabbedBidInterface({
 }: TabbedBidInterfaceProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [showCreateView, setShowCreateView] = useState(false);
+  const [activeTab, setActiveTab] = useState('create');
   const navigate = useNavigate();
 
-  const handleTemplateSelected = (template: any) => {
-    setSelectedTemplate(template);
-    setShowCreateView(true);
+  const handleTemplateSelected = async (template: any) => {
+    try {
+      // Fetch template items
+      const { data: templateItems, error } = await supabase
+        .from('bid_template_items')
+        .select('*')
+        .eq('template_id', template.id);
+
+      if (error) throw error;
+
+      if (templateItems && templateItems.length > 0) {
+        // Insert template items as bid items for this project
+        const bidItemsToInsert = templateItems.map(item => ({
+          project_id: projectId,
+          category: item.category,
+          subcategory: item.subcategory,
+          description: item.description,
+          quantity: 1,
+          unit: item.unit || 'each',
+          unit_cost: item.unit_cost || 0
+        }));
+
+        const { error: insertError } = await supabase
+          .from('bid_items')
+          .insert(bidItemsToInsert);
+
+        if (insertError) throw insertError;
+
+        toast.success(`Loaded ${templateItems.length} items from template`);
+      }
+
+      setSelectedTemplate(template);
+      setShowCreateView(true);
+      setActiveTab('create');
+    } catch (error) {
+      console.error('Error loading template:', error);
+      toast.error('Failed to load template items');
+    }
   };
 
   const handleCreateNew = () => {
     setSelectedTemplate(null);
     setShowCreateView(true);
+    setActiveTab('create');
   };
 
   const handleExportSOV = async () => {
@@ -107,7 +144,7 @@ export function TabbedBidInterface({
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="create" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex justify-between items-center">
           <TabsList className="grid grid-cols-3 w-full max-w-xl">
             <TabsTrigger value="create" className="flex items-center gap-2">

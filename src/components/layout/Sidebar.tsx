@@ -19,7 +19,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     { name: 'Subcontractors', href: '/subcontractors' },
     { name: 'Documents', href: '/documents' },
     { name: 'Bid Planner', href: '/bid-planner' },
-    { name: 'Bid Packages', href: '/bid-packages' },
+    // { name: 'Bid Packages', href: '/bid-packages' }, // Hidden per user request
     { name: 'Proposals', href: '/proposals' },
     { name: 'Invoices', href: '/invoices' },
     { name: 'Payment Apps', href: '/payment-applications' },

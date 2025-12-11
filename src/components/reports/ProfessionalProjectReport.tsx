@@ -181,7 +181,7 @@ export const ProfessionalProjectReport: React.FC<ProfessionalProjectReportProps>
         {/* Header */}
         <div className="text-center border-b pb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {companyInfo?.company_name || 'Construction Company'}
+            {companyInfo?.company_name || 'RBF Construction'}
           </h1>
           <p className="text-gray-600 text-lg">Project Performance Report</p>
           <p className="text-sm text-gray-500 mt-2">
@@ -360,7 +360,7 @@ export const ProfessionalProjectReport: React.FC<ProfessionalProjectReportProps>
         {/* Footer */}
         <div className="text-center pt-6 border-t text-sm text-gray-500">
           <p>This report contains confidential and proprietary information.</p>
-          <p>© {new Date().getFullYear()} {companyInfo?.company_name || 'Construction Company'}. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} {companyInfo?.company_name || 'RBF Construction'}. All rights reserved.</p>
         </div>
       </div>
     </div>
