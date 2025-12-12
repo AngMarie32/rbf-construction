@@ -91,7 +91,7 @@ export default function Dashboard() {
         totalProjects,
         activeProjects,
         totalRevenue,
-        totalExpenses: 0, // Would need expenses table
+        totalExpenses: 0,
         totalEquipment,
         availableEquipment
       });
@@ -101,20 +101,41 @@ export default function Dashboard() {
         p.status !== 'Completed' && p.status !== 'Closed'
       ) || [];
 
-      // Fetch financial data for each project
+      // Fetch financial data for each project with date filtering
       const projectsWithFinancials = await Promise.all(
         openProjectsData.map(async (project) => {
-          // Get billing data
-          const { data: billing } = await supabase
+          // Build date filter based on financialFilter
+          let billingQuery = supabase
             .from('project_billing')
             .select('billed_amount, paid_amount')
             .eq('project_id', project.id);
 
-          // Get expenses data
-          const { data: expenses } = await supabase
+          let expenseQuery = supabase
             .from('expenses')
-            .select('amount, status')
+            .select('amount, status, date')
             .eq('project_id', project.id);
+
+          // Apply date filtering if applicable
+          if (financialFilter.type === 'year' && financialFilter.value) {
+            const year = financialFilter.value;
+            billingQuery = billingQuery.gte('billing_period_start', `${year}-01-01`).lte('billing_period_end', `${year}-12-31`);
+            expenseQuery = expenseQuery.gte('date', `${year}-01-01`).lte('date', `${year}-12-31`);
+          } else if (financialFilter.type === 'month' && financialFilter.value) {
+            const [year, month] = financialFilter.value.split('-');
+            const startDate = `${year}-${month}-01`;
+            const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+            const endDate = `${year}-${month}-${lastDay}`;
+            billingQuery = billingQuery.gte('billing_period_start', startDate).lte('billing_period_end', endDate);
+            expenseQuery = expenseQuery.gte('date', startDate).lte('date', endDate);
+          } else if (financialFilter.type === 'range' && financialFilter.startDate && financialFilter.endDate) {
+            const startDate = financialFilter.startDate.toISOString().split('T')[0];
+            const endDate = financialFilter.endDate.toISOString().split('T')[0];
+            billingQuery = billingQuery.gte('billing_period_start', startDate).lte('billing_period_end', endDate);
+            expenseQuery = expenseQuery.gte('date', startDate).lte('date', endDate);
+          }
+
+          const { data: billing } = await billingQuery;
+          const { data: expenses } = await expenseQuery;
 
           const totalBilled = billing?.reduce((sum, bill) => sum + bill.billed_amount, 0) || 0;
           const totalReceived = billing?.reduce((sum, bill) => sum + bill.paid_amount, 0) || 0;
@@ -193,16 +214,7 @@ export default function Dashboard() {
         {/* Financial Overview - Full Width Row */}
         <Card>
           <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl">Financial Overview</CardTitle>
-              <div className="flex gap-2 text-xs">
-                <Button variant="outline" size="sm">This Year</Button>
-                <Button variant="outline" size="sm">This Month</Button>
-                <Button variant="outline" size="sm">Last Month</Button>
-                <Button variant="outline" size="sm">Date Range</Button>
-                <Button variant="default" size="sm">All Time</Button>
-              </div>
-            </div>
+            <CardTitle className="text-xl">Financial Overview</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
