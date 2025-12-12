@@ -21,7 +21,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     { name: 'Bid Planner', href: '/bid-planner' },
     // { name: 'Bid Packages', href: '/bid-packages' }, // Hidden per user request
     { name: 'Proposals', href: '/proposals' },
-    { name: 'Invoices', href: '/invoices' },
+    // { name: 'Invoices', href: '/invoices' }, // Hidden per user request
     { name: 'Payment Apps', href: '/payment-applications' },
     { name: 'Billing', href: '/billing' },
     { name: 'Change Orders', href: '/change-orders' },

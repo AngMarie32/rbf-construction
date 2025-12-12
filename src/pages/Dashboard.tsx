@@ -3,10 +3,9 @@ import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { DateFilter } from '@/components/dashboard/DateFilter';
 import { FinancialDateFilter } from '@/components/dashboard/FinancialDateFilter';
-import { Calendar, Users, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -159,14 +158,14 @@ export default function Dashboard() {
     setFinancialFilter(filter);
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusTextColor = (status: string) => {
     switch (status) {
-      case 'Active': return 'bg-green-500';
-      case 'Planning': return 'bg-blue-500';
-      case 'On Hold': return 'bg-yellow-500';
-      case 'Completed': return 'bg-purple-500';
-      case 'Closed': return 'bg-gray-500';
-      default: return 'bg-gray-500';
+      case 'Active': return 'text-green-600';
+      case 'Planning': return 'text-blue-600';
+      case 'On Hold': return 'text-yellow-600';
+      case 'Completed': return 'text-purple-600';
+      case 'Closed': return 'text-gray-500';
+      default: return 'text-gray-500';
     }
   };
 
@@ -206,11 +205,9 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-6 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
               <div className="text-center">
-                <div className="flex items-center justify-center text-blue-600 mb-2">
-                  <span className="text-sm font-medium">Total Contract Value</span>
-                </div>
+                <div className="text-sm font-medium text-blue-600 mb-2">Total Contract Value</div>
                 <div className="text-2xl font-bold text-blue-600">
                   ${stats.totalRevenue.toLocaleString()}
                 </div>
@@ -218,9 +215,7 @@ export default function Dashboard() {
               </div>
 
               <div className="text-center">
-                <div className="flex items-center justify-center text-red-600 mb-2">
-                  <span className="text-sm font-medium">Total Expenses</span>
-                </div>
+                <div className="text-sm font-medium text-red-600 mb-2">Total Expenses</div>
                 <div className="text-2xl font-bold text-red-600">
                   ${totalExpensesPaid.toLocaleString()}
                 </div>
@@ -228,9 +223,7 @@ export default function Dashboard() {
               </div>
 
               <div className="text-center">
-                <div className="flex items-center justify-center text-emerald-600 mb-2">
-                  <span className="text-sm font-medium">Profit</span>
-                </div>
+                <div className="text-sm font-medium text-emerald-600 mb-2">Profit</div>
                 <div className="text-2xl font-bold text-emerald-600">
                   ${(stats.totalRevenue - totalExpensesPaid).toLocaleString()}
                 </div>
@@ -238,9 +231,7 @@ export default function Dashboard() {
               </div>
 
               <div className="text-center">
-                <div className="flex items-center justify-center text-purple-600 mb-2">
-                  <span className="text-sm font-medium">Remaining Contract Balance</span>
-                </div>
+                <div className="text-sm font-medium text-purple-600 mb-2">Remaining Contract Balance</div>
                 <div className="text-2xl font-bold text-purple-600">
                   ${remainingContract.toLocaleString()}
                 </div>
@@ -248,9 +239,7 @@ export default function Dashboard() {
               </div>
 
               <div className="text-center">
-                <div className="flex items-center justify-center text-blue-600 mb-2">
-                  <span className="text-sm font-medium">Total Billed</span>
-                </div>
+                <div className="text-sm font-medium text-blue-600 mb-2">Total Billed</div>
                 <div className="text-2xl font-bold text-blue-600">
                   ${totalBilled.toLocaleString()}
                 </div>
@@ -258,9 +247,7 @@ export default function Dashboard() {
               </div>
 
               <div className="text-center">
-                <div className="flex items-center justify-center text-green-600 mb-2">
-                  <span className="text-sm font-medium">Total Received</span>
-                </div>
+                <div className="text-sm font-medium text-green-600 mb-2">Total Received</div>
                 <div className="text-2xl font-bold text-green-600">
                   ${totalReceived.toLocaleString()}
                 </div>
@@ -295,26 +282,22 @@ export default function Dashboard() {
                       <div className="space-y-3">
                         <div>
                           <h3 className="font-semibold text-lg">{project.name}</h3>
-                          <Badge className={`${getStatusColor(project.status)} text-white text-xs`}>
+                          <span className={`text-sm font-medium ${getStatusTextColor(project.status)}`}>
                             {project.status}
-                          </Badge>
+                          </span>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-1">
                           {project.client && (
-                            <div className="flex items-center text-sm text-gray-600">
-                              <Users className="w-4 h-4 mr-2" />
-                              <span>{project.client}</span>
-                            </div>
+                            <div className="text-sm text-gray-600">{project.client}</div>
                           )}
 
                           {project.address && (
                             <div className="text-sm text-gray-600 truncate">{project.address}</div>
                           )}
 
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Calendar className="w-4 h-4 mr-2" />
-                            <span>Due: {format(new Date(project.due_date), 'MMM dd, yyyy')}</span>
+                          <div className="text-sm text-gray-600">
+                            Due: {format(new Date(project.due_date), 'MMM dd, yyyy')}
                           </div>
                         </div>
 

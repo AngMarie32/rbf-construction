@@ -1,5 +1,4 @@
 
-import { ReactNode } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
@@ -8,9 +7,10 @@ interface StatCardProps {
   value: string | number;
   change?: string;
   changeType?: 'positive' | 'negative' | 'neutral';
-  icon?: ReactNode;
   className?: string;
   loading?: boolean;
+  titleColor?: string;
+  valueColor?: string;
 }
 
 export function StatCard({ 
@@ -18,20 +18,21 @@ export function StatCard({
   value, 
   change, 
   changeType = 'neutral', 
-  icon, 
   className,
-  loading = false
+  loading = false,
+  titleColor,
+  valueColor
 }: StatCardProps) {
   return (
     <Card className={cn("animate-fade-in bg-white", className)}>
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex-1">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <p className={cn("text-sm font-medium", titleColor || "text-muted-foreground")}>{title}</p>
             {loading ? (
               <div className="h-8 bg-muted rounded animate-pulse mt-2"></div>
             ) : (
-              <p className="text-2xl font-bold mt-2">{value}</p>
+              <p className={cn("text-2xl font-bold mt-2", valueColor)}>{value}</p>
             )}
             {change && !loading && (
               <p className={cn(
