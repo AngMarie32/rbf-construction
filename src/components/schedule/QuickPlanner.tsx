@@ -106,13 +106,13 @@ export function QuickPlanner({ open, onOpenChange, projects, onTemplateApplied, 
         endDate.setDate(endDate.getDate() + task.duration - 1);
         
         return {
-          project_id: task.projectId,
+          project_id: selectedProject, // Always use the selected project
           title: task.item,
           start_date: task.startDate.toISOString().split('T')[0],
           end_date: endDate.toISOString().split('T')[0],
           status: 'Not Started',
           progress: 0,
-          dependencies: task.dependencies
+          dependencies: [] // Clear temp dependencies since they reference temp IDs
         };
       });
 
@@ -122,13 +122,13 @@ export function QuickPlanner({ open, onOpenChange, projects, onTemplateApplied, 
 
       if (error) throw error;
 
-      if (onTemplateApplied) {
-        onTemplateApplied(tasks);
-      }
       setTasks([]);
       setSelectedProject('');
       onOpenChange(false);
-      toast.success('Tasks saved successfully');
+      toast.success(`${tasksToSave.length} tasks saved successfully`);
+      if (onTemplateApplied) {
+        onTemplateApplied(tasks);
+      }
     } catch (error) {
       console.error('Error saving tasks:', error);
       toast.error('Failed to save tasks');
