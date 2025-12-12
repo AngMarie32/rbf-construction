@@ -219,25 +219,30 @@ export default function Subcontractors() {
               </SelectContent>
             </Select>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            <Popover>
+              <PopoverTrigger asChild>
                 <Button variant="outline" size="sm">
                   <Users className="w-4 h-4 mr-2" />
-                  Specialties
+                  Specialties {selectedSpecialties.length > 0 && `(${selectedSpecialties.length})`}
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56">
-                <DropdownMenuLabel>Filter Specialties</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {specialties.map((specialty) => (
-                  <DropdownMenuItem key={specialty} className="p-2">
-                    <label
-                      htmlFor={`specialty-${specialty}`}
-                      className="flex items-center justify-between w-full cursor-pointer"
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="end">
+                <div className="space-y-1">
+                  <div className="font-medium text-sm mb-2">Filter Specialties</div>
+                  {specialties.map((specialty) => (
+                    <div
+                      key={specialty}
+                      className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer"
+                      onClick={() => {
+                        if (selectedSpecialties.includes(specialty)) {
+                          setSelectedSpecialties(selectedSpecialties.filter((s) => s !== specialty));
+                        } else {
+                          setSelectedSpecialties([...selectedSpecialties, specialty]);
+                        }
+                      }}
                     >
-                      {specialty}
+                      <span className="text-sm">{specialty}</span>
                       <Checkbox
-                        id={`specialty-${specialty}`}
                         checked={selectedSpecialties.includes(specialty)}
                         onCheckedChange={(checked) => {
                           if (checked) {
@@ -247,11 +252,21 @@ export default function Subcontractors() {
                           }
                         }}
                       />
-                    </label>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    </div>
+                  ))}
+                  {selectedSpecialties.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full mt-2"
+                      onClick={() => setSelectedSpecialties([])}
+                    >
+                      Clear All
+                    </Button>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
 
             <Switch id="list-view" checked={viewMode === 'list'} onCheckedChange={(checked) => setViewMode(checked ? 'list' : 'grid')} />
             <Label htmlFor="list-view" className="text-sm">
