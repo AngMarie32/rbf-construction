@@ -20,6 +20,11 @@ export default function Projects() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [fieldLeaderFilter, setFieldLeaderFilter] = useState<string>('all');
   const [showReports, setShowReports] = useState(false);
+  
+  // Financial data by project
+  const [projectExpenses, setProjectExpenses] = useState<Record<string, number>>({});
+  const [projectBilled, setProjectBilled] = useState<Record<string, number>>({});
+  const [projectReceived, setProjectReceived] = useState<Record<string, number>>({});
 
   // Get unique field leaders for filter
   const fieldLeaders = useMemo(() => {
@@ -29,6 +34,7 @@ export default function Projects() {
 
   useEffect(() => {
     fetchProjects();
+    fetchFinancialData();
   }, []);
 
   useEffect(() => {
@@ -71,6 +77,44 @@ export default function Projects() {
       toast.error('Failed to load projects');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFinancialData = async () => {
+    try {
+      // Fetch all expenses
+      const { data: expensesData } = await supabase
+        .from('expenses')
+        .select('project_id, amount');
+      
+      // Fetch all billing
+      const { data: billingData } = await supabase
+        .from('project_billing')
+        .select('project_id, billed_amount, paid_amount');
+      
+      // Calculate totals by project
+      const expensesByProject: Record<string, number> = {};
+      const billedByProject: Record<string, number> = {};
+      const receivedByProject: Record<string, number> = {};
+      
+      expensesData?.forEach(expense => {
+        if (expense.project_id) {
+          expensesByProject[expense.project_id] = (expensesByProject[expense.project_id] || 0) + (expense.amount || 0);
+        }
+      });
+      
+      billingData?.forEach(billing => {
+        if (billing.project_id) {
+          billedByProject[billing.project_id] = (billedByProject[billing.project_id] || 0) + (billing.billed_amount || 0);
+          receivedByProject[billing.project_id] = (receivedByProject[billing.project_id] || 0) + (billing.paid_amount || 0);
+        }
+      });
+      
+      setProjectExpenses(expensesByProject);
+      setProjectBilled(billedByProject);
+      setProjectReceived(receivedByProject);
+    } catch (error) {
+      console.error('Error fetching financial data:', error);
     }
   };
 
@@ -212,9 +256,9 @@ export default function Projects() {
               project_code: p.projectCode,
               type: p.type
             }))}
-            totalExpenses={{}}
-            totalBilled={{}}
-            totalReceived={{}}
+            totalExpenses={projectExpenses}
+            totalBilled={projectBilled}
+            totalReceived={projectReceived}
           />
         </div>
       </Layout>
@@ -283,9 +327,9 @@ export default function Projects() {
               showDeleteButton={true}
               onDelete={handleDeleteProject}
               onUpdate={fetchProjects}
-              totalExpenses={0}
-              totalBilled={0}
-              totalReceived={0}
+              totalExpenses={projectExpenses[project.id] || 0}
+              totalBilled={projectBilled[project.id] || 0}
+              totalReceived={projectReceived[project.id] || 0}
             />
           ))}
 

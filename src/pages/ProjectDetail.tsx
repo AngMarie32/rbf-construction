@@ -196,6 +196,11 @@ export default function ProjectDetail() {
   const totalExpenses = expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
   const paidExpenses = expenses.filter(e => e.status === 'Paid').reduce((sum, expense) => sum + (expense.amount || 0), 0);
   const pendingExpenses = totalExpenses - paidExpenses;
+  const totalBilled = billing.reduce((sum, b) => sum + (b.billed_amount || 0), 0);
+  const totalReceived = billing.reduce((sum, b) => sum + (b.paid_amount || 0), 0);
+  const profitMargin = project.contractValue > 0 
+    ? ((totalReceived - paidExpenses) / project.contractValue) * 100 
+    : 0;
 
   return (
     <Layout 
@@ -222,7 +227,7 @@ export default function ProjectDetail() {
         </div>
 
         {/* Project Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Status</CardTitle>
@@ -242,6 +247,18 @@ export default function ProjectDetail() {
             <CardContent>
               <div className="text-xl font-bold">
                 ${project.contractValue?.toLocaleString() || '0'}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Billed</CardTitle>
+              <DollarSign className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-blue-600">
+                ${totalBilled.toLocaleString()}
               </div>
             </CardContent>
           </Card>
@@ -288,8 +305,20 @@ export default function ProjectDetail() {
               <DollarSign className="h-4 w-4 text-emerald-600" />
             </CardHeader>
             <CardContent>
-              <div className={`text-xl font-bold ${(billing.reduce((sum, b) => sum + (b.paid_amount || 0), 0) - paidExpenses) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                ${(billing.reduce((sum, b) => sum + (b.paid_amount || 0), 0) - paidExpenses).toLocaleString()}
+              <div className={`text-xl font-bold ${(totalReceived - paidExpenses) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                ${(totalReceived - paidExpenses).toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Profit Margin</CardTitle>
+              <TrendingUp className="h-4 w-4 text-indigo-600" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-xl font-bold ${profitMargin >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>
+                {profitMargin.toFixed(1)}%
               </div>
             </CardContent>
           </Card>
