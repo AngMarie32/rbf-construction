@@ -122,27 +122,20 @@ export function CreateTaskDialog({
 
   const availableTasks = tasks.filter(t => t.projectId === projectId);
 
-  const DialogWrapper = controlledOpen !== undefined ? 
-    ({ children }: { children: React.ReactNode }) => <>{children}</> :
-    Dialog;
-
-  const TriggerButton = controlledOpen !== undefined ? null : (
-    <DialogTrigger asChild>
-      <Button className="flex items-center gap-2">
-        <Plus className="w-4 h-4" />
-        Add Task
-      </Button>
-    </DialogTrigger>
-  );
-
   return (
-    <DialogWrapper>
-      {TriggerButton}
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create New Task</DialogTitle>
-          </DialogHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {controlledOpen === undefined && (
+        <DialogTrigger asChild>
+          <Button className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Add Task
+          </Button>
+        </DialogTrigger>
+      )}
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Create New Task</DialogTitle>
+        </DialogHeader>
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -287,6 +280,5 @@ export function CreateTaskDialog({
           </form>
         </DialogContent>
       </Dialog>
-    </DialogWrapper>
   );
 }
