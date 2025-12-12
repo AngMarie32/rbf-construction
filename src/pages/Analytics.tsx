@@ -230,7 +230,7 @@ export default function Analytics() {
         dateRange: dateRange?.from && dateRange?.to 
           ? `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`
           : 'All Time',
-        generatedBy: 'Construction Analytics',
+        generatedBy: 'RBF Construction',
         generatedAt: new Date().toLocaleString(),
         filters: {
           category: selectedCategory,
