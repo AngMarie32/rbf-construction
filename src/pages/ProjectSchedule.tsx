@@ -278,7 +278,7 @@ export default function ProjectSchedule() {
   });
 
   return (
-    <Layout title="Project Schedule" subtitle="Advanced project timeline management with critical path analysis">
+    <Layout title="Project Schedule" subtitle="Manage project timelines and tasks">
       <div className="space-y-8">
         {/* Enhanced Filters & View Options */}
         <CollapsibleFilterSection
@@ -304,10 +304,7 @@ export default function ProjectSchedule() {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
-                Advanced Project Schedule
-              </CardTitle>
+              <CardTitle>Project Schedule</CardTitle>
               <div className="flex items-center gap-2 flex-wrap">
                 <Button 
                   onClick={() => setProjectDelayDialogOpen(true)} 

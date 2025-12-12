@@ -47,16 +47,16 @@ export function EquipmentCard({
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusTextColor = (status: string) => {
     switch (status) {
       case 'Available':
-        return 'bg-green-100 text-green-800';
+        return 'text-green-600';
       case 'In Use':
-        return 'bg-blue-100 text-blue-800';
+        return 'text-blue-600';
       case 'Maintenance':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'text-yellow-600';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'text-gray-600';
     }
   };
 
@@ -76,9 +76,9 @@ export function EquipmentCard({
             <CardTitle className="text-lg truncate" title={equipment.name}>
               {equipment.name}
             </CardTitle>
-            <Badge className={`mt-1 ${getStatusColor(equipment.status)}`}>
+            <span className={`text-sm font-medium mt-1 ${getStatusTextColor(equipment.status)}`}>
               {equipment.status}
-            </Badge>
+            </span>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

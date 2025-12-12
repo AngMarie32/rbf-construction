@@ -3,9 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Download, Calendar, DollarSign, User, Building, MapPin } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
@@ -133,13 +132,15 @@ export const ProfessionalProjectReport: React.FC<ProfessionalProjectReportProps>
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusTextColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'completed': return 'bg-green-500';
-      case 'active': return 'bg-blue-500';
-      case 'on hold': return 'bg-yellow-500';
-      case 'planning': return 'bg-purple-500';
-      default: return 'bg-gray-500';
+      case 'completed': return 'text-green-600';
+      case 'active': return 'text-green-600';
+      case 'open': return 'text-green-600';
+      case 'on hold': return 'text-yellow-600';
+      case 'planning': return 'text-purple-600';
+      case 'closed': return 'text-blue-600';
+      default: return 'text-gray-500';
     }
   };
 
@@ -149,10 +150,7 @@ export const ProfessionalProjectReport: React.FC<ProfessionalProjectReportProps>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Professional Project Report
-            </CardTitle>
+            <CardTitle>Professional Project Report</CardTitle>
             <div className="flex items-center gap-4">
               <Select value={selectedFieldLeader} onValueChange={setSelectedFieldLeader}>
                 <SelectTrigger className="w-48">
@@ -199,35 +197,23 @@ export const ProfessionalProjectReport: React.FC<ProfessionalProjectReportProps>
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Executive Summary</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <Building className="w-4 h-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-600">Projects</span>
-              </div>
+              <span className="text-sm font-medium text-blue-600">Projects</span>
               <p className="text-2xl font-bold text-blue-900">{filteredProjects.length}</p>
             </div>
             <div className="bg-green-50 p-4 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium text-green-600">Contract Value</span>
-              </div>
+              <span className="text-sm font-medium text-green-600">Contract Value</span>
               <p className="text-2xl font-bold text-green-900">
                 ${totals.totalContractValue.toLocaleString()}
               </p>
             </div>
             <div className="bg-orange-50 p-4 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="w-4 h-4 text-orange-600" />
-                <span className="text-sm font-medium text-orange-600">Total Billed</span>
-              </div>
+              <span className="text-sm font-medium text-orange-600">Total Billed</span>
               <p className="text-2xl font-bold text-orange-900">
                 ${totals.totalBilled.toLocaleString()}
               </p>
             </div>
             <div className="bg-purple-50 p-4 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="w-4 h-4 text-purple-600" />
-                <span className="text-sm font-medium text-purple-600">Profit Margin</span>
-              </div>
+              <span className="text-sm font-medium text-purple-600">Profit Margin</span>
               <p className="text-2xl font-bold text-purple-900">
                 {profitMargin.toFixed(1)}%
               </p>
@@ -239,76 +225,78 @@ export const ProfessionalProjectReport: React.FC<ProfessionalProjectReportProps>
         <div>
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Project Details</h2>
           <div className="space-y-4">
-            {filteredProjects.map(project => (
-              <div key={project.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
-                    <p className="text-gray-600">{project.client}</p>
-                    {project.project_code && (
-                      <p className="text-sm text-gray-500">Code: {project.project_code}</p>
-                    )}
+            {filteredProjects.map(project => {
+              const projectProfit = (totalReceived[project.id] || 0) - (totalExpenses[project.id] || 0);
+              return (
+                <div key={project.id} className="border rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
+                      <p className="text-gray-600">{project.client}</p>
+                      {project.project_code && (
+                        <p className="text-sm text-gray-500">Code: {project.project_code}</p>
+                      )}
+                    </div>
+                    <span className={`text-sm font-semibold ${getStatusTextColor(project.status)}`}>
+                      {project.status}
+                    </span>
                   </div>
-                  <Badge className={`${getStatusColor(project.status)} text-white`}>
-                    {project.status}
-                  </Badge>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-                  <div>
-                    <p className="text-sm text-gray-500">Contract Value</p>
-                    <p className="font-semibold">${project.contract_value?.toLocaleString() || 0}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                    <div>
+                      <p className="text-sm text-gray-500">Contract Value</p>
+                      <p className="font-semibold">${project.contract_value?.toLocaleString() || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Completion</p>
+                      <p className="font-semibold">{project.completion_percentage || 0}%</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Field Leader</p>
+                      <p className="font-semibold">{project.field_leader || 'Not assigned'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Completion</p>
-                    <p className="font-semibold">{project.completion_percentage || 0}%</p>
+
+                  {project.address && (
+                    <div className="text-sm text-gray-600 mb-2">
+                      {project.address}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <span>Start: {project.start_date ? format(new Date(project.start_date), 'MMM dd, yyyy') : 'Not set'}</span>
+                    <span>Due: {project.due_date ? format(new Date(project.due_date), 'MMM dd, yyyy') : 'Not set'}</span>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Field Leader</p>
-                    <p className="font-semibold">{project.field_leader || 'Not assigned'}</p>
+
+                  <div className="grid grid-cols-4 gap-4 mt-3 pt-3 border-t">
+                    <div>
+                      <p className="text-xs text-gray-500">Expenses</p>
+                      <p className="text-sm font-medium text-red-600">
+                        ${(totalExpenses[project.id] || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Billed</p>
+                      <p className="text-sm font-medium text-blue-600">
+                        ${(totalBilled[project.id] || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Received</p>
+                      <p className="text-sm font-medium text-green-600">
+                        ${(totalReceived[project.id] || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Profit</p>
+                      <p className={`text-sm font-medium ${projectProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        ${projectProfit.toLocaleString()}
+                      </p>
+                    </div>
                   </div>
                 </div>
-
-                {project.address && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                    <MapPin className="w-3 h-3" />
-                    {project.address}
-                  </div>
-                )}
-
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    Start: {project.start_date ? format(new Date(project.start_date), 'MMM dd, yyyy') : 'Not set'}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    Due: {project.due_date ? format(new Date(project.due_date), 'MMM dd, yyyy') : 'Not set'}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 mt-3 pt-3 border-t">
-                  <div>
-                    <p className="text-xs text-gray-500">Expenses</p>
-                    <p className="text-sm font-medium text-red-600">
-                      ${(totalExpenses[project.id] || 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Billed</p>
-                    <p className="text-sm font-medium text-blue-600">
-                      ${(totalBilled[project.id] || 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Received</p>
-                    <p className="text-sm font-medium text-green-600">
-                      ${(totalReceived[project.id] || 0).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

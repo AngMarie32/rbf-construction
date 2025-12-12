@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Plus, Search, Filter, FileText, Download, Edit, Trash2, Eye, DollarSign, TrendingUp, AlertTriangle, Calendar, MoreHorizontal, ArrowUpDown } from 'lucide-react';
+import { Search, Download, Edit, Trash2, Eye, TrendingUp, MoreHorizontal, ArrowUpDown, FileText } from 'lucide-react';
 import { CreateExpenseDialog } from '@/components/expenses/CreateExpenseDialog';
 import { EditExpenseDialog } from '@/components/expenses/EditExpenseDialog';
 import { BulkExpenseDialog } from '@/components/expenses/BulkExpenseDialog';
@@ -310,43 +310,22 @@ export default function Expenses() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <DollarSign className="w-6 h-6 text-primary" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Paid</p>
-                  <p className="text-2xl font-bold">${expenseSummary.paid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                </div>
-              </div>
+              <p className="text-sm font-medium text-muted-foreground">Paid</p>
+              <p className="text-2xl font-bold">${expenseSummary.paid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 bg-secondary/10 rounded-lg">
-                  <AlertTriangle className="w-6 h-6 text-secondary-foreground" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Approved</p>
-                  <p className="text-2xl font-bold">${expenseSummary.approved.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                </div>
-              </div>
+              <p className="text-sm font-medium text-muted-foreground">Approved</p>
+              <p className="text-2xl font-bold">${expenseSummary.approved.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 bg-muted rounded-lg">
-                  <FileText className="w-6 h-6 text-muted-foreground" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Pending</p>
-                  <p className="text-2xl font-bold">${expenseSummary.pending.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                </div>
-              </div>
+              <p className="text-sm font-medium text-muted-foreground">Pending</p>
+              <p className="text-2xl font-bold">${expenseSummary.pending.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </CardContent>
           </Card>
         </div>
@@ -355,10 +334,7 @@ export default function Expenses() {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Expense Records
-              </CardTitle>
+              <CardTitle>Expense Records</CardTitle>
               <div className="flex gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -520,7 +496,7 @@ export default function Expenses() {
                     <TableRow key={expense.id}>
                       <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
                       <TableCell>{expense.projects?.name || 'Unknown'}</TableCell>
-                      <TableCell>{expense.description}</TableCell>
+                      <TableCell>{expense.description || ''}</TableCell>
                       <TableCell>{expense.category}</TableCell>
                       <TableCell>{expense.vendor || 'N/A'}</TableCell>
                       <TableCell className="font-medium">${expense.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
