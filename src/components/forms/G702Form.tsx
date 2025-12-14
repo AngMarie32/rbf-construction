@@ -329,23 +329,18 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
     console.log('Previous applications found:', previousApps?.length || 0);
     console.log('Previous applications:', previousApps);
 
-    // Calculate from SOV items - include contingency in original contract sum - FIX: Use addition
-    const originalContractSum = sovItems.reduce((sum, item) => sum + (item.scheduledValue || 0), 0);
-    const contingencyAmount = project?.contingency_type === 'percentage' 
-      ? (originalContractSum * (project?.contingency_value || 0)) / 100
-      : (project?.contingency_value || 0);
-    const contractSumWithContingency = originalContractSum + contingencyAmount;
+    // Use contract_value from project directly as the original contract sum
+    const originalContractSum = project?.contractValue || 0;
     const netChangeOrders = sovItems.reduce((sum, item) => sum + (item.changeOrders || 0), 0);
     
-    console.log('Calculated totals from SOV:', {
-      originalContractSum: contractSumWithContingency,
-      contingencyAmount,
+    console.log('Calculated totals:', {
+      originalContractSum,
       netChangeOrders,
       sovItemsCount: sovItems.length
     });
     
-    // Contract Sum to Date = Original Contract Sum (with contingency) + Net Change by Change Orders
-    const contractSumToDate = contractSumWithContingency + netChangeOrders;
+    // Contract Sum to Date = Original Contract Sum + Net Change by Change Orders
+    const contractSumToDate = originalContractSum + netChangeOrders;
     
     // Total Completed & Stored to Date = Sum of all SOV item totals for THIS period
     const totalCompletedAndStored = sovItems.reduce((sum, item) => {
@@ -377,7 +372,7 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
     const balanceToFinish = contractSumToDate - totalCompletedAndStored;
 
     const totals = {
-      originalContractSum: contractSumWithContingency,
+      originalContractSum,
       netChangeOrders,
       contractSumToDate,
       totalCompletedAndStored,
