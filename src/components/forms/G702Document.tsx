@@ -13,10 +13,10 @@ interface G702DocumentProps {
 }
 
 export function G702Document({ project, formData, companyInfo }: G702DocumentProps) {
-  // Calculate contract sum - FIXED: Use the correct base amount of $1,529,940
-  const baseContractSum = 1529940; // Fixed base amount
+  // Use the calculated original contract sum from formData (from SOV items or project)
+  const originalContractSum = formData.originalContractSum || 0;
   const netChangeByChangeOrders = formData.netChangeByChangeOrders || 0;
-  const contractSumToDate = baseContractSum + netChangeByChangeOrders;
+  const contractSumToDate = formData.contractSumToDate || (originalContractSum + netChangeByChangeOrders);
 
   return (
     <div className="bg-white p-6 mx-auto text-black print:shadow-none print:p-4" style={{ width: '11in', minHeight: '8.5in', fontSize: '11px' }}>
@@ -92,7 +92,7 @@ export function G702Document({ project, formData, companyInfo }: G702DocumentPro
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span>1. ORIGINAL CONTRACT SUM</span>
-              <span>$ {baseContractSum.toLocaleString()}</span>
+              <span>$ {originalContractSum.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
               <span>2. NET CHANGE BY CHANGE ORDERS</span>
