@@ -339,7 +339,7 @@ export function EnhancedBidDialog({ open, onOpenChange, onBidCreated, projects }
                           onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
                           className="h-8"
                           min="0"
-                          step="0.01"
+                          step="0.001"
                         />
                       </TableCell>
                       <TableCell>
@@ -356,7 +356,7 @@ export function EnhancedBidDialog({ open, onOpenChange, onBidCreated, projects }
                           onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
                           className="h-8"
                           min="0"
-                          step="0.01"
+                          step="0.001"
                         />
                       </TableCell>
                       <TableCell>

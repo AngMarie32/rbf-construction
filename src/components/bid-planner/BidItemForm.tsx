@@ -742,7 +742,7 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
                       value={item.quantity}
                       onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
                       min="0"
-                      step="0.01"
+                      step="0.001"
                       className="h-8 text-xs"
                     />
                   </div>
@@ -753,7 +753,7 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
                       value={item.unit_cost}
                       onChange={(e) => updateItem(item.id, 'unit_cost', parseFloat(e.target.value) || 0)}
                       min="0"
-                      step="0.01"
+                      step="0.001"
                       className="h-8 text-xs"
                     />
                   </div>
