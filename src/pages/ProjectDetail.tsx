@@ -53,6 +53,7 @@ export default function ProjectDetail() {
   const [changeOrders, setChangeOrders] = useState<any[]>([]);
   const [billing, setBilling] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -141,10 +142,18 @@ export default function ProjectDetail() {
         .eq('project_id', id)
         .order('start_date', { ascending: true });
 
+      // Fetch documents
+      const { data: documentsData } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('project_id', id)
+        .order('created_at', { ascending: false });
+
       setExpenses(expensesData || []);
       setChangeOrders(changeOrdersData || []);
       setBilling(billingData || []);
       setTasks(tasksData || []);
+      setDocuments(documentsData || []);
     } catch (error) {
       console.error('Error fetching project data:', error);
     }
@@ -328,10 +337,8 @@ export default function ProjectDetail() {
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="schedule">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Schedule
-            </TabsTrigger>
+            <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="payment-apps">Payment Apps</TabsTrigger>
             <TabsTrigger value="change-orders">Change Orders</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
@@ -404,6 +411,40 @@ export default function ProjectDetail() {
 
           <TabsContent value="schedule">
             <ProjectScheduleTab projectId={project.id} />
+          </TabsContent>
+
+          <TabsContent value="documents">
+            <Card>
+              <CardHeader>
+                <CardTitle>Project Documents</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {documents.length > 0 ? (
+                  <div className="space-y-4">
+                    {documents.map((doc) => (
+                      <div key={doc.id} className="border rounded p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className="font-semibold">{doc.name}</h4>
+                            {doc.description && (
+                              <p className="text-sm text-muted-foreground">{doc.description}</p>
+                            )}
+                          </div>
+                          <Badge variant="outline">{doc.category || 'General'}</Badge>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4 text-sm text-muted-foreground">
+                          <div>Version: {doc.version || 1}</div>
+                          <div>Size: {doc.file_size ? `${(doc.file_size / 1024).toFixed(1)} KB` : 'N/A'}</div>
+                          <div>Uploaded: {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'N/A'}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No documents found for this project.</p>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="payment-apps">

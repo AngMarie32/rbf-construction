@@ -424,7 +424,7 @@ export default function BidPackages() {
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <CardTitle className="text-lg leading-tight">{pkg.name}</CardTitle>
-                        <Badge className={`${getStatusColor(pkg.status)} border flex items-center gap-1`}>
+                        <Badge className={`${getStatusColor(pkg.status)} flex items-center gap-1`}>
                           {getStatusIcon(pkg.status)}
                           {pkg.status}
                         </Badge>
