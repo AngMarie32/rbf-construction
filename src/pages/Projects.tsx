@@ -233,7 +233,7 @@ export default function Projects() {
 
   if (showReports) {
     return (
-      <Layout title="Report Snapshot" subtitle="Professional project reports">
+      <Layout title="Report Snapshot" subtitle="Project reports">
         <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Button variant="outline" onClick={() => setShowReports(false)}>

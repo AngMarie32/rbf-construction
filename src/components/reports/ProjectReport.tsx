@@ -43,16 +43,21 @@ export const ProjectReport: React.FC<ProjectReportProps> = ({
   totalReceived
 }) => {
   const [selectedFieldLeader, setSelectedFieldLeader] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [fieldLeaders, setFieldLeaders] = useState<string[]>([]);
+  const [statuses, setStatuses] = useState<string[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>(projects);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [pendingExpenses, setPendingExpenses] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    // Extract unique field leaders
+    // Extract unique field leaders and statuses
     const leaders = [...new Set(projects.map(p => p.field_leader).filter(Boolean))] as string[];
     setFieldLeaders(leaders);
+    
+    const projectStatuses = [...new Set(projects.map(p => p.status).filter(Boolean))] as string[];
+    setStatuses(projectStatuses);
     
     // Fetch company information and pending expenses
     fetchCompanyInfo();
@@ -60,11 +65,15 @@ export const ProjectReport: React.FC<ProjectReportProps> = ({
   }, [projects]);
 
   useEffect(() => {
-    // Filter projects by field leader and date range
+    // Filter projects by field leader, status, and date range
     let filtered = projects;
     
     if (selectedFieldLeader !== 'all') {
       filtered = filtered.filter(p => p.field_leader === selectedFieldLeader);
+    }
+    
+    if (selectedStatus !== 'all') {
+      filtered = filtered.filter(p => p.status === selectedStatus);
     }
     
     if (dateRange?.from && dateRange?.to) {
@@ -75,7 +84,7 @@ export const ProjectReport: React.FC<ProjectReportProps> = ({
     }
     
     setFilteredProjects(filtered);
-  }, [selectedFieldLeader, projects, dateRange]);
+  }, [selectedFieldLeader, selectedStatus, projects, dateRange]);
 
   const fetchCompanyInfo = async () => {
     try {
@@ -233,6 +242,22 @@ export const ProjectReport: React.FC<ProjectReportProps> = ({
                   onDateChange={setDateRange}
                   className="w-64"
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Status</label>
+                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Filter by Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {statuses.map(status => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Field Leader</label>
