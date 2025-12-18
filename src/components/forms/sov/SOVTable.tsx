@@ -217,15 +217,20 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
     
     if (breakdownLevel === 'line-items') {
       onUpdateItem(itemId, numericValue);
-      setSovItems(prev => prev.map(item => 
-        item.id === itemId 
-          ? { 
-              ...item, 
-              thisPeriod: numericValue,
-              totalCompletedAndStored: item.previousApplications + numericValue + item.materialsStored
-            }
-          : item
-      ));
+      setSovItems(prev => prev.map(item => {
+        if (item.id === itemId) {
+          const newTotal = item.previousApplications + numericValue + item.materialsStored;
+          const totalContract = item.scheduledValue + item.changeOrders;
+          const newPercent = totalContract > 0 ? (newTotal / totalContract) * 100 : 0;
+          return { 
+            ...item, 
+            thisPeriod: numericValue,
+            totalCompletedAndStored: newTotal,
+            percentComplete: Math.min(newPercent, 100)
+          };
+        }
+        return item;
+      }));
     } else {
       // Handle category/division level updates
       const displayItem = sortedItems.find(item => item.id === itemId);
@@ -250,6 +255,33 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
           });
         }
       }
+    }
+  };
+
+  const handlePercentCompleteChange = (itemId: string, value: string) => {
+    const targetPercent = parseFloat(value) || 0;
+    const clampedPercent = Math.min(Math.max(targetPercent, 0), 100);
+    
+    if (breakdownLevel === 'line-items') {
+      const item = sovItems.find(i => i.id === itemId);
+      if (!item) return;
+      
+      const totalContract = item.scheduledValue + item.changeOrders;
+      const targetTotalCompleted = (clampedPercent / 100) * totalContract;
+      const newThisPeriod = Math.max(targetTotalCompleted - item.previousApplications - item.materialsStored, 0);
+      
+      onUpdateItem(itemId, newThisPeriod);
+      setSovItems(prev => prev.map(i => {
+        if (i.id === itemId) {
+          return { 
+            ...i, 
+            thisPeriod: newThisPeriod,
+            totalCompletedAndStored: targetTotalCompleted,
+            percentComplete: clampedPercent
+          };
+        }
+        return i;
+      }));
     }
   };
 
@@ -435,21 +467,39 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                 <TableCell className="p-2 text-sm">{item.displaySubcategory}</TableCell>
                 <TableCell className="p-2 text-sm max-w-32 truncate" title={item.displayDescription}>{item.displayDescription}</TableCell>
                 <TableCell className="p-2 text-right text-sm">${item.scheduledValue?.toLocaleString()}</TableCell>
-                <TableCell className="p-2 text-right text-sm">${item.changeOrders?.toLocaleString()}</TableCell>
-                <TableCell className="p-2 text-right text-sm">${item.previousApplications?.toLocaleString()}</TableCell>
-                <TableCell className="p-2">
-                  <Input
-                    type="number"
-                    value={item.thisPeriod || ''}
-                    onChange={(e) => handleThisPeriodChange(item.id, e.target.value)}
-                    className="w-full min-w-[100px] text-sm h-8"
-                    step="0.01"
-                    placeholder="0.00"
-                  />
-                </TableCell>
-                <TableCell className="p-2 text-right text-sm">${item.materialsStored?.toLocaleString()}</TableCell>
-                <TableCell className="p-2 text-right text-sm">${item.totalCompletedAndStored?.toLocaleString()}</TableCell>
-                <TableCell className="p-2 text-right text-sm">{item.percentComplete?.toFixed(1)}%</TableCell>
+              <TableCell className="p-2 text-right text-sm">${item.changeOrders?.toLocaleString()}</TableCell>
+              <TableCell className="p-2 text-right text-sm">${item.previousApplications?.toLocaleString()}</TableCell>
+              <TableCell className="p-2">
+                <Input
+                  type="number"
+                  value={item.thisPeriod || ''}
+                  onChange={(e) => handleThisPeriodChange(item.id, e.target.value)}
+                  className="w-full min-w-[100px] text-sm h-8"
+                  step="0.01"
+                  placeholder="0.00"
+                />
+              </TableCell>
+              <TableCell className="p-2 text-right text-sm">${item.materialsStored?.toLocaleString()}</TableCell>
+              <TableCell className="p-2 text-right text-sm">${item.totalCompletedAndStored?.toLocaleString()}</TableCell>
+              <TableCell className="p-2">
+                {breakdownLevel === 'line-items' ? (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={item.percentComplete?.toFixed(1) || ''}
+                      onChange={(e) => handlePercentCompleteChange(item.id, e.target.value)}
+                      className="w-16 text-sm h-8 text-right"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      placeholder="0"
+                    />
+                    <span className="text-sm">%</span>
+                  </div>
+                ) : (
+                  <span className="text-sm">{item.percentComplete?.toFixed(1)}%</span>
+                )}
+              </TableCell>
                 {breakdownLevel === 'line-items' && (
                   <TableCell className="p-2">
                     <Button
