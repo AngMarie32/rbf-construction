@@ -15,7 +15,7 @@ const badgeVariants = cva(
           "bg-gradient-to-r from-gray-100 to-gray-200 text-secondary-foreground hover:from-gray-200 hover:to-gray-300",
         destructive:
           "bg-gradient-to-r from-red-100 to-red-200 text-red-800 hover:from-red-200 hover:to-red-300",
-        outline: "border-2 border-input bg-white/80 text-foreground hover:bg-accent hover:text-accent-foreground",
+        outline: "bg-gray-100 text-foreground hover:bg-gray-200",
         success: "bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-800 hover:from-emerald-200 hover:to-emerald-300",
         warning: "bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 hover:from-amber-200 hover:to-amber-300",
         info: "bg-gradient-to-r from-blue-100 to-blue-200/80 text-blue-800 hover:from-blue-200 hover:to-blue-300",
