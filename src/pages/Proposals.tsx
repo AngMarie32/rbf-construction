@@ -8,20 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Plus, 
-  Search, 
-  Filter, 
   FileText, 
-  Calendar, 
-  DollarSign,
   Download,
   Eye,
   Edit,
-  Trash2,
-  Info,
-  Send,
-  CheckCircle,
-  Clock,
-  AlertTriangle
+  Trash2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -161,45 +152,6 @@ export default function Proposals() {
               </div>
             </div>
 
-            {/* Quick Start Guide */}
-            <div className="bg-white rounded-lg border border-green-200 p-4">
-              <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
-                <div>
-                  <h3 className="text-lg font-semibold text-green-900 mb-3">Proposal Workflow</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Edit className="w-4 h-4 text-green-600" />
-                        <h4 className="font-medium text-green-800">Draft</h4>
-                      </div>
-                      <p className="text-sm text-green-700">Create detailed proposals with scope, timeline, and pricing</p>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Send className="w-4 h-4 text-green-600" />
-                        <h4 className="font-medium text-green-800">Send</h4>
-                      </div>
-                      <p className="text-sm text-green-700">Submit proposals to clients via email or portal</p>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-green-600" />
-                        <h4 className="font-medium text-green-800">Track</h4>
-                      </div>
-                      <p className="text-sm text-green-700">Monitor proposal status and follow up with clients</p>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                        <h4 className="font-medium text-green-800">Convert</h4>
-                      </div>
-                      <p className="text-sm text-green-700">Convert accepted proposals into active projects</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 

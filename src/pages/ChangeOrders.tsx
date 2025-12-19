@@ -8,17 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Plus, 
-  Search, 
-  Filter, 
   FileText, 
-  Calendar, 
-  DollarSign,
-  TrendingUp,
-  Download,
-  Info,
-  Edit3,
-  CheckCircle,
-  Clock
+  Download
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -110,45 +101,6 @@ export default function ChangeOrders() {
               </div>
             </div>
 
-            {/* Quick Start Guide */}
-            <div className="bg-white rounded-lg border border-orange-200 p-4">
-              <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-orange-600 mt-1 flex-shrink-0" />
-                <div>
-                  <h3 className="text-lg font-semibold text-orange-900 mb-3">Change Order Process</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Edit3 className="w-4 h-4 text-orange-600" />
-                        <h4 className="font-medium text-orange-800">Create</h4>
-                      </div>
-                      <p className="text-sm text-orange-700">Document scope changes and cost impacts</p>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-orange-600" />
-                        <h4 className="font-medium text-orange-800">Review</h4>
-                      </div>
-                      <p className="text-sm text-orange-700">Submit for client and stakeholder review</p>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-orange-600" />
-                        <h4 className="font-medium text-orange-800">Approve</h4>
-                      </div>
-                      <p className="text-sm text-orange-700">Obtain necessary approvals and signatures</p>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-orange-600" />
-                        <h4 className="font-medium text-orange-800">Execute</h4>
-                      </div>
-                      <p className="text-sm text-orange-700">Update project budget and schedule accordingly</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
