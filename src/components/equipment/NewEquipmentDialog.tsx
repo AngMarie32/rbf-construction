@@ -25,7 +25,9 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
     year: '',
     value: '',
     image: '',
-    qr_code: ''
+    qr_code: '',
+    vin_serial_number: '',
+    purchase_date: ''
   });
   const [loading, setLoading] = useState(false);
 
@@ -71,6 +73,8 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
         value: formData.value ? parseFloat(formData.value) : null,
         image: formData.image || null,
         qr_code: formData.qr_code.trim() || null,
+        vin_serial_number: formData.vin_serial_number.trim() || null,
+        purchase_date: formData.purchase_date || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -96,7 +100,9 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
         year: '',
         value: '',
         image: '',
-        qr_code: ''
+        qr_code: '',
+        vin_serial_number: '',
+        purchase_date: ''
       });
     } catch (error) {
       console.error('Error creating equipment:', error);
@@ -175,14 +181,24 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
             </div>
 
             <div>
-              <Label htmlFor="qr_code">Serial/VIN Number</Label>
+              <Label htmlFor="purchase_date">Purchase Date</Label>
               <Input
-                id="qr_code"
-                value={formData.qr_code}
-                onChange={(e) => setFormData({ ...formData, qr_code: e.target.value })}
-                placeholder="Enter serial or VIN"
+                id="purchase_date"
+                type="date"
+                value={formData.purchase_date}
+                onChange={(e) => setFormData({ ...formData, purchase_date: e.target.value })}
               />
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="vin_serial_number">VIN/Serial Number</Label>
+            <Input
+              id="vin_serial_number"
+              value={formData.vin_serial_number}
+              onChange={(e) => setFormData({ ...formData, vin_serial_number: e.target.value })}
+              placeholder="Enter VIN or serial number"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

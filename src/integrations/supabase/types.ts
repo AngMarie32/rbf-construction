@@ -945,6 +945,7 @@ export type Database = {
           total_hours_used: number | null
           updated_at: string | null
           value: number | null
+          vin_serial_number: string | null
           year: number | null
         }
         Insert: {
@@ -967,6 +968,7 @@ export type Database = {
           total_hours_used?: number | null
           updated_at?: string | null
           value?: number | null
+          vin_serial_number?: string | null
           year?: number | null
         }
         Update: {
@@ -989,6 +991,7 @@ export type Database = {
           total_hours_used?: number | null
           updated_at?: string | null
           value?: number | null
+          vin_serial_number?: string | null
           year?: number | null
         }
         Relationships: [

@@ -31,7 +31,9 @@ export function EditEquipmentDialog({
     value: equipment.value || '',
     status: equipment.status,
     description: equipment.description || '',
-    image: equipment.image || ''
+    image: equipment.image || '',
+    vin_serial_number: equipment.vin_serial_number || '',
+    purchase_date: equipment.purchase_date || ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,6 +51,8 @@ export function EditEquipmentDialog({
           status: formData.status,
           description: formData.description || null,
           image: formData.image || null,
+          vin_serial_number: formData.vin_serial_number || null,
+          purchase_date: formData.purchase_date || null,
           updated_at: new Date().toISOString()
         })
         .eq('id', equipment.id);
@@ -129,6 +133,27 @@ export function EditEquipmentDialog({
                 step="0.01"
                 value={formData.value}
                 onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="vin_serial_number">VIN/Serial Number</Label>
+              <Input
+                id="vin_serial_number"
+                value={formData.vin_serial_number}
+                onChange={(e) => setFormData({ ...formData, vin_serial_number: e.target.value })}
+                placeholder="Enter VIN or serial number"
+              />
+            </div>
+            <div>
+              <Label htmlFor="purchase_date">Purchase Date</Label>
+              <Input
+                id="purchase_date"
+                type="date"
+                value={formData.purchase_date}
+                onChange={(e) => setFormData({ ...formData, purchase_date: e.target.value })}
               />
             </div>
           </div>
