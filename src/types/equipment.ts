@@ -17,6 +17,7 @@ export interface Equipment {
   depreciation_rate?: number;
   total_hours_used?: number;
   qr_code?: string;
+  vin_serial_number?: string;
   specifications?: Record<string, any>;
   insurance_expiry?: string;
   last_inspection_date?: string;

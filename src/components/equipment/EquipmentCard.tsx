@@ -127,32 +127,46 @@ export function EquipmentCard({
 
         {/* Equipment Details */}
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Badge variant="outline">{equipment.category}</Badge>
             {equipment.year && <span>• {equipment.year}</span>}
           </div>
 
+          {equipment.vin_serial_number && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="font-medium">VIN/SN:</span>
+              <span>{equipment.vin_serial_number}</span>
+            </div>
+          )}
+
+          {equipment.purchase_date && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              <span>Purchased: {new Date(equipment.purchase_date).toLocaleDateString()}</span>
+            </div>
+          )}
+
           {equipment.location && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <MapPin className="h-4 w-4" />
               <span>{equipment.location}</span>
             </div>
           )}
 
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <DollarSign className="h-4 w-4" />
             <span>${equipment.hourly_rate}/hour</span>
           </div>
 
           {equipment.total_hours_used !== undefined && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
               <span>{equipment.total_hours_used} hours used</span>
             </div>
           )}
 
           {equipment.last_inspection_date && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="h-4 w-4" />
               <span>Last inspected: {new Date(equipment.last_inspection_date).toLocaleDateString()}</span>
             </div>

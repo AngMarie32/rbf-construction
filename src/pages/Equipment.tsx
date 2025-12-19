@@ -19,6 +19,7 @@ import { EditEquipmentDialog } from '@/components/equipment/EditEquipmentDialog'
 import { BulkEquipmentDialog } from '@/components/equipment/BulkEquipmentDialog';
 import { useEquipment } from '@/hooks/useEquipment';
 import { EquipmentService } from '@/services/equipmentService';
+import { exportEquipmentToPDF, exportEquipmentToExcel } from '@/utils/equipmentExports';
 import type { Equipment } from '@/types/equipment';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -147,26 +148,22 @@ export default function Equipment() {
     toast.info('Bulk maintenance scheduling coming soon');
   };
 
-  const handleExport = () => {
-    // Simple CSV export
-    const headers = ['Name', 'Category', 'Status', 'Hourly Rate', 'Value', 'Location'];
-    const rows = equipment.map(eq => [
-      eq.name,
-      eq.category,
-      eq.status,
-      eq.hourly_rate,
-      eq.value || '',
-      eq.location || ''
-    ]);
+  const handleExportPDF = () => {
+    exportEquipmentToPDF({
+      equipment,
+      filters,
+      title: 'Equipment Report'
+    });
+    toast.success('PDF report generated');
+  };
 
-    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'equipment.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
+  const handleExportExcel = () => {
+    exportEquipmentToExcel({
+      equipment,
+      filters,
+      title: 'Equipment Report'
+    });
+    toast.success('Excel report generated');
   };
 
   if (loading) {
@@ -237,7 +234,8 @@ export default function Equipment() {
               filters={filters}
               onFiltersChange={updateFilters}
               onClearFilters={clearFilters}
-              onExport={handleExport}
+              onExportPDF={handleExportPDF}
+              onExportExcel={handleExportExcel}
               locations={locations}
               projects={projects}
             />

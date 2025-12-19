@@ -2,14 +2,16 @@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Search, X, Download } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Search, X, Download, FileText, FileSpreadsheet } from 'lucide-react';
 import type { EquipmentFilters as EquipmentFiltersType } from '@/types/equipment';
 
 interface EquipmentFiltersProps {
   filters: EquipmentFiltersType;
   onFiltersChange: (filters: Partial<EquipmentFiltersType>) => void;
   onClearFilters: () => void;
-  onExport: () => void;
+  onExportPDF: () => void;
+  onExportExcel: () => void;
   locations: string[];
   projects: Array<{ id: string; name: string }>;
 }
@@ -18,7 +20,8 @@ export function EquipmentFilters({
   filters,
   onFiltersChange,
   onClearFilters,
-  onExport,
+  onExportPDF,
+  onExportExcel,
   locations
 }: EquipmentFiltersProps) {
   const hasActiveFilters = filters.search || filters.status !== 'all' || 
@@ -26,11 +29,11 @@ export function EquipmentFilters({
     filters.availableOnly;
 
   return (
-    <div className="bg-white p-4 rounded-lg border space-y-4">
+    <div className="bg-card p-4 rounded-lg border space-y-4">
       <div className="flex flex-wrap gap-4">
         {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
             placeholder="Search equipment..."
             value={filters.search}
@@ -97,17 +100,31 @@ export function EquipmentFilters({
       <div className="flex justify-between items-center">
         <div className="flex gap-2">
           {hasActiveFilters && (
-            <Button variant="ghost" onClick={onClearFilters} className="text-gray-600">
+            <Button variant="ghost" onClick={onClearFilters} className="text-muted-foreground">
               <X className="w-4 h-4 mr-1" />
               Clear Filters
             </Button>
           )}
         </div>
         
-        <Button variant="outline" onClick={onExport}>
-          <Download className="w-4 h-4 mr-2" />
-          Export
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              <Download className="w-4 h-4 mr-2" />
+              Export Report
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onExportPDF}>
+              <FileText className="w-4 h-4 mr-2" />
+              Export as PDF
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExportExcel}>
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Export as Excel
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
