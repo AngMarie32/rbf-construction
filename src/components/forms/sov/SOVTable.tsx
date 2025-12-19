@@ -488,7 +488,7 @@ export function SOVTable({ sovItems, setSovItems, projectId, selectedApplication
                       type="number"
                       value={item.percentComplete?.toFixed(1) || ''}
                       onChange={(e) => handlePercentCompleteChange(item.id, e.target.value)}
-                      className="w-16 text-sm h-8 text-right"
+                      className="w-24 text-sm h-8 text-right"
                       step="0.1"
                       min="0"
                       max="100"
