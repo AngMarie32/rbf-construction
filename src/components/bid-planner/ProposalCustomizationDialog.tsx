@@ -93,7 +93,7 @@ export function ProposalCustomizationDialog({ open, onOpenChange, bidItems, proj
         <div style="text-align: center; margin-bottom: 30px; page-break-inside: avoid;">
           ${companyData?.logo_url ? `<img src="${companyData.logo_url}" alt="Company Logo" style="height: 60px; margin-bottom: 20px;" />` : ''}
           <h1 style="font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 5px;">${companyData?.company_name || 'Company Name'}</h1>
-          <h2 style="font-size: 18px; color: #374151; margin-bottom: 20px;">BID PROPOSAL</h2>
+          <h2 style="font-size: 18px; color: #374151; margin-bottom: 20px;">BUDGET ESTIMATE</h2>
           <div style="border-bottom: 2px solid #3b82f6; margin-bottom: 30px;"></div>
         </div>
 
@@ -220,7 +220,7 @@ export function ProposalCustomizationDialog({ open, onOpenChange, bidItems, proj
         <div style="border-top: 2px solid #3b82f6; padding-top: 20px; margin-top: 30px; page-break-inside: avoid;">
           <table style="width: 100%; font-size: 16px; font-weight: bold;">
             <tr>
-              <td style="text-align: right; padding: 8px;">TOTAL BID AMOUNT:</td>
+              <td style="text-align: right; padding: 8px;">TOTAL BUDGET ESTIMATE:</td>
               <td style="text-align: right; padding: 8px; font-size: 20px; color: #3b82f6;">$${totalValue.toLocaleString()}</td>
             </tr>
           </table>

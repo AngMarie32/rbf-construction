@@ -52,7 +52,7 @@ export const generateProfessionalProposalPDF = (proposal: ProposalData) => {
   yPosition += 10;
   pdf.setFontSize(12);
   pdf.setFont('helvetica', 'bold');
-  pdf.text('CONSTRUCTION PROPOSAL', margin, yPosition);
+  pdf.text('BUDGET ESTIMATE', margin, yPosition);
 
   // Proposal details box
   yPosition += 15;
