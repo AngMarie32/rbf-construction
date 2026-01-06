@@ -29,20 +29,19 @@ export class AdvancedExportManager {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
-    let yPosition = 20;
+    let yPosition = 15;
 
     // Header
-    doc.setFontSize(20);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text(options.reportTitle || 'Executive Burn Analysis Report', pageWidth / 2, yPosition, { align: 'center' });
     
-    yPosition += 15;
-    doc.setFontSize(12);
+    yPosition += 8;
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Generated: ${format(new Date(), 'MMMM dd, yyyy')}`, pageWidth / 2, yPosition, { align: 'center' });
-    doc.text(`Projects: ${projectNames.join(', ')}`, pageWidth / 2, yPosition + 10, { align: 'center' });
+    doc.text(`Projects: ${projectNames.join(', ')}`, pageWidth / 2, yPosition, { align: 'center' });
 
-    yPosition += 30;
+    yPosition += 15;
 
     // Executive Summary Section
     this.addSection(doc, 'Executive Summary', yPosition);

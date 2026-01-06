@@ -36,10 +36,10 @@ export const exportEquipmentToPDF = ({ equipment, filters, title = 'Equipment Re
   let yPosition = margin;
 
   // Title
-  doc.setFontSize(20);
+  doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text(title, margin, yPosition);
-  yPosition += 10;
+  yPosition += 7;
 
   // Generated date and filters
   doc.setFontSize(10);
@@ -57,10 +57,10 @@ export const exportEquipmentToPDF = ({ equipment, filters, title = 'Equipment Re
   const inUseCount = equipment.filter(eq => eq.status === 'In Use').length;
   const maintenanceCount = equipment.filter(eq => eq.status === 'Maintenance').length;
 
-  doc.setFontSize(12);
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.text('Summary', margin, yPosition);
-  yPosition += 7;
+  yPosition += 5;
   
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');

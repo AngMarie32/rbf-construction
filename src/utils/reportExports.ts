@@ -41,9 +41,9 @@ export const exportToPDF = async (exportData: ExportData) => {
   let yPosition = margin;
   
   // Title
-  doc.setFontSize(18);
+  doc.setFontSize(14);
   doc.text(exportData.title, margin, yPosition);
-  yPosition += 15;
+  yPosition += 10;
   
   // Metadata
   if (exportData.metadata) {

@@ -244,24 +244,24 @@ export const generateBidReport = async (exportData: any) => {
     reportElement.style.fontFamily = 'Arial, sans-serif';
     
     reportElement.innerHTML = `
-      <div style="text-align: center; margin-bottom: 40px;">
-        <h1 style="font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 10px;">BID REPORT</h1>
-        <div style="width: 100%; height: 2px; background-color: #3b82f6; margin: 20px 0;"></div>
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h1 style="font-size: 16px; font-weight: bold; color: #1f2937; margin-bottom: 6px;">BID REPORT</h1>
+        <div style="width: 100%; height: 1px; background-color: #3b82f6; margin: 8px 0;"></div>
       </div>
 
-      <div style="margin-bottom: 40px;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
+      <div style="margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
           <div>
-            <h3 style="font-size: 16px; font-weight: bold; color: #374151; margin-bottom: 15px;">PROJECT INFORMATION</h3>
-            <table style="width: 100%; font-size: 12px;">
+            <h3 style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 8px;">PROJECT INFORMATION</h3>
+            <table style="width: 100%; font-size: 10px;">
               <tr><td style="padding: 4px 0; font-weight: bold;">Project Name:</td><td style="padding: 4px 0;">${exportData.projectName}</td></tr>
               <tr><td style="padding: 4px 0; font-weight: bold;">Client:</td><td style="padding: 4px 0;">${exportData.client}</td></tr>
               <tr><td style="padding: 4px 0; font-weight: bold;">Date:</td><td style="padding: 4px 0;">${exportData.date}</td></tr>
             </table>
           </div>
           <div>
-            <h3 style="font-size: 16px; font-weight: bold; color: #374151; margin-bottom: 15px;">BID SUMMARY</h3>
-            <table style="width: 100%; font-size: 12px;">
+            <h3 style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 8px;">BID SUMMARY</h3>
+            <table style="width: 100%; font-size: 10px;">
               <tr><td style="padding: 4px 0; font-weight: bold;">Total Items:</td><td style="padding: 4px 0; text-align: right;">${exportData.bidItems.length}</td></tr>
               <tr><td style="padding: 4px 0; font-weight: bold;">Total Amount:</td><td style="padding: 4px 0; text-align: right;">$${exportData.totalAmount.toLocaleString()}</td></tr>
             </table>

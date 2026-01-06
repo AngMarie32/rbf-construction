@@ -27,30 +27,30 @@ export const generateProfessionalProposalPDF = (proposal: ProposalData) => {
   const pdf = new jsPDF('portrait', 'mm', 'letter');
   const pageWidth = pdf.internal.pageSize.getWidth();
   const margin = 20;
-  let yPosition = 30;
+  let yPosition = 18;
 
   // Company Header
-  pdf.setFontSize(24);
+  pdf.setFontSize(14);
   pdf.setFont('helvetica', 'bold');
   pdf.text('BuildPro Construction', margin, yPosition);
   
-  yPosition += 8;
-  pdf.setFontSize(10);
+  yPosition += 5;
+  pdf.setFontSize(8);
   pdf.setFont('helvetica', 'normal');
   pdf.text('Licensed • Bonded • Insured', margin, yPosition);
   
-  yPosition += 5;
-  pdf.text('123 Construction Way, Builder City, ST 12345', margin, yPosition);
   yPosition += 4;
+  pdf.text('123 Construction Way, Builder City, ST 12345', margin, yPosition);
+  yPosition += 3;
   pdf.text('Phone: (555) 123-4567 | Email: info@buildpro.com', margin, yPosition);
   
   // License info
-  yPosition += 4;
+  yPosition += 3;
   pdf.text('License #: ABC123456 | Contractor\'s License', margin, yPosition);
 
   // Title
-  yPosition += 15;
-  pdf.setFontSize(20);
+  yPosition += 10;
+  pdf.setFontSize(12);
   pdf.setFont('helvetica', 'bold');
   pdf.text('CONSTRUCTION PROPOSAL', margin, yPosition);
 

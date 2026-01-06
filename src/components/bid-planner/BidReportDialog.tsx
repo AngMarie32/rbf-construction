@@ -57,16 +57,16 @@ export function BidReportDialog({ open, onOpenChange, projectData, bidItems }: B
       const breakdown = getCategoryBreakdown();
       
       reportElement.innerHTML = `
-        <div style="text-align: center; margin-bottom: 40px;">
-          <h1 style="font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 10px;">BID PROPOSAL</h1>
-          <div style="width: 100%; height: 2px; background-color: #3b82f6; margin: 20px 0;"></div>
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h1 style="font-size: 16px; font-weight: bold; color: #1f2937; margin-bottom: 6px;">BID PROPOSAL</h1>
+          <div style="width: 100%; height: 1px; background-color: #3b82f6; margin: 8px 0;"></div>
         </div>
 
-        <div style="margin-bottom: 40px;">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
+        <div style="margin-bottom: 20px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <div>
-              <h3 style="font-size: 16px; font-weight: bold; color: #374151; margin-bottom: 15px;">PROJECT INFORMATION</h3>
-              <table style="width: 100%; font-size: 12px;">
+              <h3 style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 8px;">PROJECT INFORMATION</h3>
+              <table style="width: 100%; font-size: 10px;">
                 <tr><td style="padding: 4px 0; font-weight: bold;">Project Name:</td><td style="padding: 4px 0;">${projectData?.name || 'N/A'}</td></tr>
                 <tr><td style="padding: 4px 0; font-weight: bold;">Project Code:</td><td style="padding: 4px 0;">${projectData?.project_code || 'N/A'}</td></tr>
                 <tr><td style="padding: 4px 0; font-weight: bold;">Client:</td><td style="padding: 4px 0;">${projectData?.client || 'N/A'}</td></tr>
@@ -75,8 +75,8 @@ export function BidReportDialog({ open, onOpenChange, projectData, bidItems }: B
               </table>
             </div>
             <div>
-              <h3 style="font-size: 16px; font-weight: bold; color: #374151; margin-bottom: 15px;">BID SUMMARY</h3>
-              <table style="width: 100%; font-size: 12px;">
+              <h3 style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 8px;">BID SUMMARY</h3>
+              <table style="width: 100%; font-size: 10px;">
                 <tr><td style="padding: 4px 0; font-weight: bold;">Total Line Items:</td><td style="padding: 4px 0; text-align: right;">${bidItems.length}</td></tr>
                 <tr><td style="padding: 4px 0; font-weight: bold;">Base Bid Amount:</td><td style="padding: 4px 0; text-align: right;">$${totalBidValue.toLocaleString()}</td></tr>
                 <tr><td style="padding: 4px 0; font-weight: bold;">Contingency:</td><td style="padding: 4px 0; text-align: right;">${projectData?.contingency_type === 'percentage' ? projectData?.contingency_value + '%' : '$' + (projectData?.contingency_value || 0).toLocaleString()}</td></tr>
@@ -86,8 +86,8 @@ export function BidReportDialog({ open, onOpenChange, projectData, bidItems }: B
           </div>
         </div>
 
-        <div style="margin-bottom: 30px;">
-          <h3 style="font-size: 16px; font-weight: bold; color: #374151; margin-bottom: 15px;">CATEGORY BREAKDOWN</h3>
+        <div style="margin-bottom: 15px;">
+          <h3 style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 8px;">CATEGORY BREAKDOWN</h3>
           ${Object.entries(breakdown).map(([category, subcategories]) => `
             <div style="margin-bottom: 15px;">
               <h4 style="font-size: 14px; font-weight: bold; color: #4b5563; margin-bottom: 8px;">${category}</h4>
@@ -136,9 +136,6 @@ export function BidReportDialog({ open, onOpenChange, projectData, bidItems }: B
           </tfoot>
         </table>
 
-        <div style="margin-top: 50px; text-align: center; color: #6b7280; font-size: 10px;">
-          <p>Bid proposal generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-        </div>
       `;
 
       document.body.appendChild(reportElement);
