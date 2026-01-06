@@ -33,19 +33,19 @@ export const generateProfessionalGanttPDF = (
   
   // Professional Header
   doc.setFillColor(30, 64, 125);
-  doc.rect(0, 0, pageWidth, 35, 'F');
+  doc.rect(0, 0, pageWidth, 22, 'F');
   
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(20);
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text(options.title || 'PROJECT SCHEDULE REPORT', margin, 15);
+  doc.text(options.title || 'PROJECT SCHEDULE REPORT', margin, 10);
   
-  doc.setFontSize(11);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Report Period: ${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}`, margin, 25);
-  doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, pageWidth - 80, 25);
+  doc.text(`Report Period: ${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}`, margin, 17);
+  doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, pageWidth - 65, 17);
 
-  let currentY = 50;
+  let currentY = 32;
 
   // Executive Summary Table
   addSectionHeader(doc, 'EXECUTIVE SUMMARY', currentY, pageWidth, margin);
