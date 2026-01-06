@@ -50,10 +50,11 @@ export function BidReportDialog({ open, onOpenChange, projectData, bidItems }: B
       reportElement.style.position = 'absolute';
       reportElement.style.left = '-9999px';
       reportElement.style.background = 'white';
-      reportElement.style.padding = '40px';
+      // Reduce top padding so the header sits higher on the page
+      reportElement.style.padding = '16px 40px 32px 40px';
       reportElement.style.width = '800px';
       reportElement.style.fontFamily = 'Arial, sans-serif';
-      
+
       const breakdown = getCategoryBreakdown();
       const itemsPerPage = 20;
       const totalPages = Math.ceil(bidItems.length / itemsPerPage) + 1; // +1 for summary page
@@ -69,7 +70,7 @@ export function BidReportDialog({ open, onOpenChange, projectData, bidItems }: B
       let content = `
         <div style="min-height: 700px; display: flex; flex-direction: column;">
           <div style="text-align: center; margin-bottom: 15px;">
-            <h1 style="font-size: 14px; font-weight: bold; color: #1f2937; margin-bottom: 4px;">BUDGET ESTIMATE</h1>
+            <h1 style="font-size: 14px; font-weight: bold; color: #1f2937; margin: 0 0 4px 0;">BUDGET ESTIMATE</h1>
             <div style="width: 100%; height: 1px; background-color: #3b82f6; margin: 6px 0;"></div>
           </div>
 
@@ -128,10 +129,10 @@ export function BidReportDialog({ open, onOpenChange, projectData, bidItems }: B
         content += `
           <div style="page-break-before: always; min-height: 700px; display: flex; flex-direction: column;">
             <div style="text-align: center; margin-bottom: 10px;">
-              <h1 style="font-size: 12px; font-weight: bold; color: #1f2937;">BUDGET ESTIMATE - LINE ITEMS</h1>
+              <h1 style="font-size: 12px; font-weight: bold; color: #1f2937; margin: 0;">BUDGET ESTIMATE - LINE ITEMS</h1>
               <div style="width: 100%; height: 1px; background-color: #3b82f6; margin: 4px 0;"></div>
             </div>
-            
+
             <table style="width: 100%; border-collapse: collapse; font-size: 9px; flex: 1;">
               <thead>
                 <tr style="background-color: #f8fafc;">
