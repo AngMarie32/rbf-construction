@@ -86,67 +86,159 @@ export function ProposalCustomizationDialog({ open, onOpenChange, bidItems, proj
       reportElement.style.fontSize = '12px';
       reportElement.style.lineHeight = '1.4';
       
-      let content = '';
-
-      // Header
-      content += `
-        <div style="text-align: center; margin-bottom: 30px; page-break-inside: avoid;">
-          ${companyData?.logo_url ? `<img src="${companyData.logo_url}" alt="Company Logo" style="height: 60px; margin-bottom: 20px;" />` : ''}
-          <h1 style="font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 5px;">${companyData?.company_name || 'Company Name'}</h1>
-          <h2 style="font-size: 18px; color: #374151; margin-bottom: 20px;">BUDGET ESTIMATE</h2>
-          <div style="border-bottom: 2px solid #3b82f6; margin-bottom: 30px;"></div>
+      const itemsPerPage = 25;
+      const totalPages = Math.ceil(filteredItems.length / itemsPerPage) + 1; // +1 for first page with header
+      
+      // Helper function to create page footer with page number
+      const createPageFooter = (pageNum: number, total: number) => `
+        <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 9px; color: #6b7280;">
+          Page ${pageNum} of ${total}
         </div>
-
-        <div style="margin-bottom: 30px; page-break-inside: avoid;">
-          <h3 style="font-size: 16px; font-weight: bold; color: #374151; margin-bottom: 15px; text-transform: uppercase; background-color: #f3f4f6; padding: 8px;">${projectData?.name || 'Project Name'}</h3>
-          <div style="margin-bottom: 20px;">
-            <p style="margin-bottom: 5px;"><strong>Project:</strong> ${projectData?.name || 'N/A'}</p>
-            <p style="margin-bottom: 5px;"><strong>Client:</strong> ${projectData?.client || 'N/A'}</p>
-            <p style="margin-bottom: 5px;"><strong>Address:</strong> ${projectData?.address || 'N/A'}</p>
-            <p style="margin-bottom: 5px;"><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
-          </div>
+      `;
+      
+      // Helper function to create mini header for continuation pages
+      const createMiniHeader = (companyName: string) => `
+        <div style="text-align: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #3b82f6;">
+          <span style="font-size: 10px; font-weight: bold; color: #1f2937;">${companyName}</span>
+          <span style="font-size: 10px; color: #374151; margin-left: 10px;">BUDGET ESTIMATE</span>
         </div>
       `;
 
+      let content = '';
+
+      // Page 1: Header and first batch of items
+      content += `
+        <div style="min-height: 700px; display: flex; flex-direction: column;">
+          <div style="text-align: center; margin-bottom: 15px; page-break-inside: avoid;">
+            ${companyData?.logo_url ? `<img src="${companyData.logo_url}" alt="Company Logo" style="height: 40px; margin-bottom: 10px;" />` : ''}
+            <h1 style="font-size: 14px; font-weight: bold; color: #1f2937; margin-bottom: 3px;">${companyData?.company_name || 'Company Name'}</h1>
+            <h2 style="font-size: 11px; color: #374151; margin-bottom: 8px;">BUDGET ESTIMATE</h2>
+            <div style="border-bottom: 2px solid #3b82f6;"></div>
+          </div>
+
+          <div style="margin-bottom: 15px; page-break-inside: avoid;">
+            <div style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 8px; text-transform: uppercase; background-color: #f3f4f6; padding: 6px;">${projectData?.name || 'Project Name'}</div>
+            <div style="font-size: 10px; margin-bottom: 12px;">
+              <p style="margin-bottom: 3px;"><strong>Project:</strong> ${projectData?.name || 'N/A'}</p>
+              <p style="margin-bottom: 3px;"><strong>Client:</strong> ${projectData?.client || 'N/A'}</p>
+              <p style="margin-bottom: 3px;"><strong>Address:</strong> ${projectData?.address || 'N/A'}</p>
+              <p style="margin-bottom: 3px;"><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+            </div>
+          </div>
+      `;
+
       if (exportType === 'itemized') {
-        // Itemized view with table that can span multiple pages
+        // Calculate items for first page (fewer due to header)
+        const firstPageItems = 18;
+        const firstPageData = filteredItems.slice(0, firstPageItems);
+        const remainingItems = filteredItems.slice(firstPageItems);
+        const actualTotalPages = remainingItems.length > 0 ? Math.ceil(remainingItems.length / itemsPerPage) + 1 : 1;
+        
         content += `
-          <h3 style="font-size: 14px; font-weight: bold; color: #374151; margin-bottom: 15px; text-transform: uppercase; background-color: #f3f4f6; padding: 8px;">ITEMIZED BREAKDOWN</h3>
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 10px;">
+          <div style="font-size: 10px; font-weight: bold; color: #374151; margin-bottom: 8px; text-transform: uppercase; background-color: #f3f4f6; padding: 6px;">ITEMIZED BREAKDOWN</div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 9px; flex: 1;">
             <thead>
               <tr style="background-color: #f8fafc;">
-                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-weight: bold;">Division</th>
-                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-weight: bold;">Category</th>
-                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-weight: bold;">Description</th>
-                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">Qty</th>
-                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">Unit</th>
-                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">Unit Cost</th>
-                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">Total</th>
+                <th style="border: 1px solid #d1d5db; padding: 5px; text-align: left; font-weight: bold;">Category</th>
+                <th style="border: 1px solid #d1d5db; padding: 5px; text-align: left; font-weight: bold;">Description</th>
+                <th style="border: 1px solid #d1d5db; padding: 5px; text-align: center; font-weight: bold;">Qty</th>
+                <th style="border: 1px solid #d1d5db; padding: 5px; text-align: center; font-weight: bold;">Unit</th>
+                <th style="border: 1px solid #d1d5db; padding: 5px; text-align: right; font-weight: bold;">Unit Cost</th>
+                <th style="border: 1px solid #d1d5db; padding: 5px; text-align: right; font-weight: bold;">Total</th>
               </tr>
             </thead>
             <tbody>
         `;
 
-        filteredItems.forEach((item, index) => {
-          // Add page break every 25 rows to prevent cramming
-          const pageBreak = index > 0 && index % 25 === 0 ? 'page-break-before: always;' : '';
+        firstPageData.forEach((item) => {
           content += `
-            <tr style="${pageBreak}">
-              <td style="border: 1px solid #d1d5db; padding: 6px;">${item.division || ''}</td>
-              <td style="border: 1px solid #d1d5db; padding: 6px;">${item.category || ''}</td>
-              <td style="border: 1px solid #d1d5db; padding: 6px;">${item.description || ''}</td>
-              <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${item.quantity || 0}</td>
-              <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${item.unit || 'each'}</td>
-              <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${(item.unitCost || 0).toLocaleString()}</td>
-              <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${(item.total || 0).toLocaleString()}</td>
+            <tr>
+              <td style="border: 1px solid #d1d5db; padding: 4px;">${item.category || ''}</td>
+              <td style="border: 1px solid #d1d5db; padding: 4px;">${item.description || ''}</td>
+              <td style="border: 1px solid #d1d5db; padding: 4px; text-align: center;">${item.quantity || 0}</td>
+              <td style="border: 1px solid #d1d5db; padding: 4px; text-align: center;">${item.unit || 'each'}</td>
+              <td style="border: 1px solid #d1d5db; padding: 4px; text-align: right;">$${(item.unitCost || item.unit_cost || 0).toLocaleString()}</td>
+              <td style="border: 1px solid #d1d5db; padding: 4px; text-align: right;">$${(item.total || 0).toLocaleString()}</td>
             </tr>
           `;
         });
 
-        content += `
-            </tbody>
-          </table>
-        `;
+        // Close first page if there are more items
+        if (remainingItems.length > 0) {
+          content += `
+              </tbody>
+            </table>
+            ${createPageFooter(1, actualTotalPages)}
+          </div>
+          `;
+
+          // Create additional pages for remaining items
+          for (let page = 0; page < Math.ceil(remainingItems.length / itemsPerPage); page++) {
+            const startIndex = page * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, remainingItems.length);
+            const pageItems = remainingItems.slice(startIndex, endIndex);
+            const isLastPage = endIndex === remainingItems.length;
+            const currentPageNum = page + 2;
+
+            content += `
+              <div style="page-break-before: always; min-height: 700px; display: flex; flex-direction: column;">
+                ${createMiniHeader(companyData?.company_name || 'Company Name')}
+                <table style="width: 100%; border-collapse: collapse; font-size: 9px; flex: 1;">
+                  <thead>
+                    <tr style="background-color: #f8fafc;">
+                      <th style="border: 1px solid #d1d5db; padding: 5px; text-align: left; font-weight: bold;">Category</th>
+                      <th style="border: 1px solid #d1d5db; padding: 5px; text-align: left; font-weight: bold;">Description</th>
+                      <th style="border: 1px solid #d1d5db; padding: 5px; text-align: center; font-weight: bold;">Qty</th>
+                      <th style="border: 1px solid #d1d5db; padding: 5px; text-align: center; font-weight: bold;">Unit</th>
+                      <th style="border: 1px solid #d1d5db; padding: 5px; text-align: right; font-weight: bold;">Unit Cost</th>
+                      <th style="border: 1px solid #d1d5db; padding: 5px; text-align: right; font-weight: bold;">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+            `;
+
+            pageItems.forEach((item) => {
+              content += `
+                <tr>
+                  <td style="border: 1px solid #d1d5db; padding: 4px;">${item.category || ''}</td>
+                  <td style="border: 1px solid #d1d5db; padding: 4px;">${item.description || ''}</td>
+                  <td style="border: 1px solid #d1d5db; padding: 4px; text-align: center;">${item.quantity || 0}</td>
+                  <td style="border: 1px solid #d1d5db; padding: 4px; text-align: center;">${item.unit || 'each'}</td>
+                  <td style="border: 1px solid #d1d5db; padding: 4px; text-align: right;">$${(item.unitCost || item.unit_cost || 0).toLocaleString()}</td>
+                  <td style="border: 1px solid #d1d5db; padding: 4px; text-align: right;">$${(item.total || 0).toLocaleString()}</td>
+                </tr>
+              `;
+            });
+
+            if (isLastPage) {
+              content += `
+                    <tr style="background-color: #f8fafc; font-weight: bold;">
+                      <td colspan="5" style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">TOTAL BUDGET ESTIMATE:</td>
+                      <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right; color: #3b82f6;">$${totalValue.toLocaleString()}</td>
+                    </tr>
+              `;
+            }
+
+            content += `
+                  </tbody>
+                </table>
+                ${createPageFooter(currentPageNum, actualTotalPages)}
+              </div>
+            `;
+          }
+        } else {
+          // Only one page - add total and close
+          content += `
+                <tr style="background-color: #f8fafc; font-weight: bold;">
+                  <td colspan="5" style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">TOTAL BUDGET ESTIMATE:</td>
+                  <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right; color: #3b82f6;">$${totalValue.toLocaleString()}</td>
+                </tr>
+              </tbody>
+            </table>
+            ${createPageFooter(1, 1)}
+          </div>
+          `;
+        }
       } else if (exportType === 'category') {
         // Category summary
         const categoryTotals: Record<string, number> = {};
@@ -156,12 +248,12 @@ export function ProposalCustomizationDialog({ open, onOpenChange, bidItems, proj
         });
 
         content += `
-          <h3 style="font-size: 14px; font-weight: bold; color: #374151; margin-bottom: 15px; text-transform: uppercase; background-color: #f3f4f6; padding: 8px;">CATEGORY SUMMARY</h3>
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px;">
+          <div style="font-size: 10px; font-weight: bold; color: #374151; margin-bottom: 8px; text-transform: uppercase; background-color: #f3f4f6; padding: 6px;">CATEGORY SUMMARY</div>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10px; flex: 1;">
             <thead>
               <tr style="background-color: #f8fafc;">
-                <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left; font-weight: bold;">Category</th>
-                <th style="border: 1px solid #d1d5db; padding: 12px; text-align: right; font-weight: bold;">Total</th>
+                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-weight: bold;">Category</th>
+                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -170,15 +262,21 @@ export function ProposalCustomizationDialog({ open, onOpenChange, bidItems, proj
         Object.entries(categoryTotals).forEach(([category, total]) => {
           content += `
             <tr>
-              <td style="border: 1px solid #d1d5db; padding: 12px;">${category}</td>
-              <td style="border: 1px solid #d1d5db; padding: 12px; text-align: right; font-weight: bold;">$${total.toLocaleString()}</td>
+              <td style="border: 1px solid #d1d5db; padding: 8px;">${category}</td>
+              <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">$${total.toLocaleString()}</td>
             </tr>
           `;
         });
 
         content += `
+              <tr style="background-color: #f8fafc; font-weight: bold;">
+                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">TOTAL BUDGET ESTIMATE:</td>
+                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right; color: #3b82f6;">$${totalValue.toLocaleString()}</td>
+              </tr>
             </tbody>
           </table>
+          ${createPageFooter(1, 1)}
+        </div>
         `;
       } else {
         // Division summary
@@ -189,12 +287,12 @@ export function ProposalCustomizationDialog({ open, onOpenChange, bidItems, proj
         });
 
         content += `
-          <h3 style="font-size: 14px; font-weight: bold; color: #374151; margin-bottom: 15px; text-transform: uppercase; background-color: #f3f4f6; padding: 8px;">DIVISION SUMMARY</h3>
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px;">
+          <div style="font-size: 10px; font-weight: bold; color: #374151; margin-bottom: 8px; text-transform: uppercase; background-color: #f3f4f6; padding: 6px;">DIVISION SUMMARY</div>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10px; flex: 1;">
             <thead>
               <tr style="background-color: #f8fafc;">
-                <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left; font-weight: bold;">Division</th>
-                <th style="border: 1px solid #d1d5db; padding: 12px; text-align: right; font-weight: bold;">Total</th>
+                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-weight: bold;">Division</th>
+                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -203,42 +301,32 @@ export function ProposalCustomizationDialog({ open, onOpenChange, bidItems, proj
         Object.entries(divisionTotals).forEach(([division, total]) => {
           content += `
             <tr>
-              <td style="border: 1px solid #d1d5db; padding: 12px;">${division}</td>
-              <td style="border: 1px solid #d1d5db; padding: 12px; text-align: right; font-weight: bold;">$${total.toLocaleString()}</td>
+              <td style="border: 1px solid #d1d5db; padding: 8px;">${division}</td>
+              <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">$${total.toLocaleString()}</td>
             </tr>
           `;
         });
 
         content += `
+              <tr style="background-color: #f8fafc; font-weight: bold;">
+                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">TOTAL BUDGET ESTIMATE:</td>
+                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right; color: #3b82f6;">$${totalValue.toLocaleString()}</td>
+              </tr>
             </tbody>
           </table>
+          ${createPageFooter(1, 1)}
+        </div>
         `;
       }
-
-      // Total and footer
-      content += `
-        <div style="border-top: 2px solid #3b82f6; padding-top: 20px; margin-top: 30px; page-break-inside: avoid;">
-          <table style="width: 100%; font-size: 16px; font-weight: bold;">
-            <tr>
-              <td style="text-align: right; padding: 8px;">TOTAL BUDGET ESTIMATE:</td>
-              <td style="text-align: right; padding: 8px; font-size: 20px; color: #3b82f6;">$${totalValue.toLocaleString()}</td>
-            </tr>
-          </table>
-        </div>
-
-        <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 10px; page-break-inside: avoid;">
-          <p>Proposal generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-        </div>
-      `;
 
       reportElement.innerHTML = content;
       document.body.appendChild(reportElement);
       
       const { exportToPDF } = await import('@/utils/pdfExport');
-      await exportToPDF('proposal-report', `Proposal-${projectData?.name?.replace(/\s+/g, '-').toLowerCase()}-${exportType}-${new Date().toISOString().split('T')[0]}.pdf`);
+      await exportToPDF('proposal-report', `Budget-Estimate-${projectData?.name?.replace(/\s+/g, '-').toLowerCase()}-${exportType}-${new Date().toISOString().split('T')[0]}.pdf`);
       
       document.body.removeChild(reportElement);
-      toast.success('Proposal exported successfully');
+      toast.success('Budget estimate exported successfully');
       onOpenChange(false);
     } catch (error) {
       console.error('Error exporting proposal:', error);
