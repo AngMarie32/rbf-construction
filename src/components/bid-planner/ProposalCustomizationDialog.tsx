@@ -80,7 +80,8 @@ export function ProposalCustomizationDialog({ open, onOpenChange, bidItems, proj
       reportElement.style.position = 'absolute';
       reportElement.style.left = '-9999px';
       reportElement.style.background = 'white';
-      reportElement.style.padding = '40px';
+      // Reduce top padding so the header sits higher on the page
+      reportElement.style.padding = '16px 40px 32px 40px';
       reportElement.style.width = '800px';
       reportElement.style.fontFamily = 'Arial, sans-serif';
       reportElement.style.fontSize = '12px';
@@ -98,7 +99,7 @@ export function ProposalCustomizationDialog({ open, onOpenChange, bidItems, proj
       
       // Helper function to create mini header for continuation pages
       const createMiniHeader = (companyName: string) => `
-        <div style="text-align: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #3b82f6;">
+        <div style="text-align: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #3b82f6;">
           <span style="font-size: 10px; font-weight: bold; color: #1f2937;">${companyName}</span>
           <span style="font-size: 10px; color: #374151; margin-left: 10px;">BUDGET ESTIMATE</span>
         </div>
@@ -109,10 +110,10 @@ export function ProposalCustomizationDialog({ open, onOpenChange, bidItems, proj
       // Page 1: Header and first batch of items
       content += `
         <div style="min-height: 700px; display: flex; flex-direction: column;">
-          <div style="text-align: center; margin-bottom: 15px; page-break-inside: avoid;">
-            ${companyData?.logo_url ? `<img src="${companyData.logo_url}" alt="Company Logo" style="height: 40px; margin-bottom: 10px;" />` : ''}
-            <h1 style="font-size: 14px; font-weight: bold; color: #1f2937; margin-bottom: 3px;">${companyData?.company_name || 'Company Name'}</h1>
-            <h2 style="font-size: 11px; color: #374151; margin-bottom: 8px;">BUDGET ESTIMATE</h2>
+          <div style="text-align: center; margin-bottom: 12px; page-break-inside: avoid;">
+            ${companyData?.logo_url ? `<img src="${companyData.logo_url}" alt="Company Logo" style="height: 36px; margin: 0 0 6px 0;" />` : ''}
+            <h1 style="font-size: 14px; font-weight: bold; color: #1f2937; margin: 0 0 2px 0;">${companyData?.company_name || 'Company Name'}</h1>
+            <h2 style="font-size: 11px; color: #374151; margin: 0 0 6px 0;">BUDGET ESTIMATE</h2>
             <div style="border-bottom: 2px solid #3b82f6;"></div>
           </div>
 
