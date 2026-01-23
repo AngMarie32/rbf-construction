@@ -1,12 +1,13 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -37,9 +38,25 @@ const tradeOptions = [
   'Other'
 ];
 
+const defaultRegions = [
+  'Northeast',
+  'Southeast', 
+  'Midwest',
+  'Southwest',
+  'West Coast',
+  'Pacific Northwest',
+  'Mountain Region',
+  'Gulf Coast',
+  'Mid-Atlantic',
+  'New England'
+];
+
 export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontractorDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [regions, setRegions] = useState<string[]>(defaultRegions);
+  const [showNewRegion, setShowNewRegion] = useState(false);
+  const [newRegionName, setNewRegionName] = useState('');
   const [formData, setFormData] = useState({
     company: '',
     name: '',
@@ -50,10 +67,31 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
     state: '',
     zip_code: '',
     specialties: [] as string[],
+    region: '',
     w9_on_file: false,
     insurance_expiry: '',
     notes: ''
   });
+
+  // Fetch existing regions from subcontractors
+  useEffect(() => {
+    const fetchRegions = async () => {
+      const { data } = await supabase
+        .from('subcontractors')
+        .select('region')
+        .not('region', 'is', null);
+      
+      if (data) {
+        const existingRegions = [...new Set(data.map(s => s.region).filter(Boolean))] as string[];
+        const allRegions = [...new Set([...defaultRegions, ...existingRegions])].sort();
+        setRegions(allRegions);
+      }
+    };
+    
+    if (open) {
+      fetchRegions();
+    }
+  }, [open]);
 
   const resetForm = () => {
     setFormData({
@@ -66,10 +104,25 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
       state: '',
       zip_code: '',
       specialties: [],
+      region: '',
       w9_on_file: false,
       insurance_expiry: '',
       notes: ''
     });
+    setShowNewRegion(false);
+    setNewRegionName('');
+  };
+
+  const handleAddNewRegion = () => {
+    if (newRegionName.trim()) {
+      const newRegion = newRegionName.trim();
+      if (!regions.includes(newRegion)) {
+        setRegions(prev => [...prev, newRegion].sort());
+      }
+      setFormData(prev => ({ ...prev, region: newRegion }));
+      setNewRegionName('');
+      setShowNewRegion(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,6 +145,7 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
         state: formData.state.trim() || null,
         zip_code: formData.zip_code.trim() || null,
         specialties: formData.specialties.length > 0 ? formData.specialties : null,
+        region: formData.region || null,
         w9_on_file: formData.w9_on_file,
         insurance_expiry: formData.insurance_expiry || null,
         notes: formData.notes.trim() || null,
@@ -238,6 +292,53 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
                 placeholder="Enter zip code"
               />
             </div>
+          </div>
+
+          {/* Region Selection */}
+          <div>
+            <Label className="flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              Service Region
+            </Label>
+            <div className="flex gap-2 mt-1">
+              <Select 
+                value={formData.region} 
+                onValueChange={(value) => {
+                  if (value === '__new__') {
+                    setShowNewRegion(true);
+                  } else {
+                    setFormData(prev => ({ ...prev, region: value }));
+                  }
+                }}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Select a region" />
+                </SelectTrigger>
+                <SelectContent>
+                  {regions.map(region => (
+                    <SelectItem key={region} value={region}>{region}</SelectItem>
+                  ))}
+                  <SelectItem value="__new__">+ Add New Region</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {showNewRegion && (
+              <div className="flex gap-2 mt-2">
+                <Input
+                  value={newRegionName}
+                  onChange={(e) => setNewRegionName(e.target.value)}
+                  placeholder="Enter new region name"
+                  className="flex-1"
+                />
+                <Button type="button" size="sm" onClick={handleAddNewRegion}>
+                  Add
+                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => setShowNewRegion(false)}>
+                  Cancel
+                </Button>
+              </div>
+            )}
           </div>
 
           <div>
