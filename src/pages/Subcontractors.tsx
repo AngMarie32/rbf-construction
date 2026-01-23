@@ -11,30 +11,17 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Calendar } from 'lucide-react';
-import { Edit, Users } from 'lucide-react';
+import { Edit, Users, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MoreVertical, FileText, User, Phone, Mail, MapPin, Building } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Mail, MapPin, Building, Phone } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
 import { format } from "date-fns"
-import { DateRange } from "react-day-picker"
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { EditSubcontractorDialog } from '@/components/subcontractors/EditSubcontractorDialog';
@@ -58,7 +45,11 @@ interface Subcontractor {
   w9_on_file: boolean;
   insurance_expiry: string | null;
   travel_radius: number | null;
+  region: string | null;
 }
+
+type SortField = 'company' | 'name' | 'specialties' | 'region' | 'insurance_expiry' | 'w9_on_file';
+type SortDirection = 'asc' | 'desc' | null;
 
 export default function Subcontractors() {
   const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
@@ -66,20 +57,23 @@ export default function Subcontractors() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
+  const [selectedRegion, setSelectedRegion] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [editingSubcontractor, setEditingSubcontractor] = useState<Subcontractor | null>(null);
   const [showDocumentIssues, setShowDocumentIssues] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(2023, 0, 20),
-    to: new Date(2023, 0, 22),
-  })
+  
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
 
   const specialties = [
     'Concrete', 'Electrical', 'HVAC', 'Insulation', 'Landscaping', 'Masonry',
     'Painting', 'Plumbing', 'Roofing', 'Siding', 'Tile/Flooring', 'Windows/Doors'
   ].sort();
+
+  // Get unique regions from subcontractors
+  const regions = [...new Set(subcontractors.map(s => s.region).filter(Boolean))].sort() as string[];
 
   const fetchSubcontractors = useCallback(async () => {
     setLoading(true);
@@ -106,28 +100,104 @@ export default function Subcontractors() {
   useEffect(() => {
     let filtered = [...subcontractors];
 
+    // Search filter
     if (searchTerm) {
+      const search = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (s) =>
-          s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (s.company && s.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (s.email && s.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (s.phone && s.phone.toLowerCase().includes(searchTerm.toLowerCase()))
+          s.name?.toLowerCase().includes(search) ||
+          s.company?.toLowerCase().includes(search) ||
+          s.email?.toLowerCase().includes(search) ||
+          s.phone?.toLowerCase().includes(search) ||
+          s.region?.toLowerCase().includes(search) ||
+          s.specialties?.some(sp => sp.toLowerCase().includes(search))
       );
     }
 
+    // Status filter
     if (selectedStatus !== 'All') {
       filtered = filtered.filter((s) => s.status === selectedStatus);
     }
 
+    // Specialties filter
     if (selectedSpecialties.length > 0) {
       filtered = filtered.filter(
         (s) => s.specialties && s.specialties.some((r) => selectedSpecialties.includes(r))
       );
     }
 
+    // Region filter
+    if (selectedRegion !== 'All') {
+      filtered = filtered.filter((s) => s.region === selectedRegion);
+    }
+
+    // Sorting
+    if (sortField && sortDirection) {
+      filtered.sort((a, b) => {
+        let aVal: any;
+        let bVal: any;
+
+        switch (sortField) {
+          case 'company':
+            aVal = a.company?.toLowerCase() || '';
+            bVal = b.company?.toLowerCase() || '';
+            break;
+          case 'name':
+            aVal = a.name?.toLowerCase() || '';
+            bVal = b.name?.toLowerCase() || '';
+            break;
+          case 'specialties':
+            aVal = a.specialties?.join(', ').toLowerCase() || '';
+            bVal = b.specialties?.join(', ').toLowerCase() || '';
+            break;
+          case 'region':
+            aVal = a.region?.toLowerCase() || '';
+            bVal = b.region?.toLowerCase() || '';
+            break;
+          case 'insurance_expiry':
+            aVal = a.insurance_expiry || '';
+            bVal = b.insurance_expiry || '';
+            break;
+          case 'w9_on_file':
+            aVal = a.w9_on_file ? 1 : 0;
+            bVal = b.w9_on_file ? 1 : 0;
+            break;
+          default:
+            return 0;
+        }
+
+        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
     setFilteredSubcontractors(filtered);
-  }, [subcontractors, searchTerm, selectedStatus, selectedSpecialties]);
+  }, [subcontractors, searchTerm, selectedStatus, selectedSpecialties, selectedRegion, sortField, sortDirection]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else if (sortDirection === 'desc') {
+        setSortField(null);
+        setSortDirection(null);
+      }
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-4 h-4 ml-1 opacity-50" />;
+    }
+    if (sortDirection === 'asc') {
+      return <ArrowUp className="w-4 h-4 ml-1" />;
+    }
+    return <ArrowDown className="w-4 h-4 ml-1" />;
+  };
 
   const deleteSubcontractor = async (id: string) => {
     if (!confirm('Are you sure you want to delete this subcontractor?')) {
@@ -150,17 +220,16 @@ export default function Subcontractors() {
     }
   };
 
-  // Calculate trades statistics
-  const tradeStats = subcontractors.reduce((acc: { [key: string]: number }, s) => {
-    s.specialties?.forEach((trade) => {
-      acc[trade] = (acc[trade] || 0) + 1;
-    });
-    return acc;
-  }, {});
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedStatus('All');
+    setSelectedSpecialties([]);
+    setSelectedRegion('All');
+    setSortField(null);
+    setSortDirection(null);
+  };
 
-  const topTrades = Object.entries(tradeStats)
-    .sort(([a], [b]) => a.localeCompare(b)) // Sort alphabetically
-    .slice(0, 4);
+  const hasActiveFilters = searchTerm || selectedStatus !== 'All' || selectedSpecialties.length > 0 || selectedRegion !== 'All';
 
   if (showDocumentIssues) {
     return (
@@ -173,49 +242,42 @@ export default function Subcontractors() {
   return (
     <Layout title="Subcontractors" subtitle="Manage your network of subcontractors">
       <div className="space-y-6">
-        {/* Trade Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {topTrades.map(([trade, count]) => (
-            <Card key={trade} className="bg-white">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{trade}</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{count}</div>
-                <p className="text-xs text-muted-foreground">subcontractors</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
         {/* Controls */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center">
+          <div className="flex items-center gap-2 flex-1">
             <Input
               type="search"
               placeholder="Search subcontractors..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
             />
-            <Button variant="outline" size="sm" className="ml-2">
-              <Calendar className="w-4 h-4 mr-2" />
-              Filters
-            </Button>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center flex-wrap gap-2">
             <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
             
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by Status" />
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="All">All Statuses</SelectItem>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Inactive">Inactive</SelectItem>
                 <SelectItem value="Suspended">Suspended</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Region" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Regions</SelectItem>
+                {regions.map(region => (
+                  <SelectItem key={region} value={region}>{region}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -268,6 +330,12 @@ export default function Subcontractors() {
               </PopoverContent>
             </Popover>
 
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                Clear Filters
+              </Button>
+            )}
+
             <Switch id="list-view" checked={viewMode === 'list'} onCheckedChange={(checked) => setViewMode(checked ? 'list' : 'grid')} />
             <Label htmlFor="list-view" className="text-sm">
               {viewMode === 'list' ? 'List View' : 'Grid View'}
@@ -282,12 +350,60 @@ export default function Subcontractors() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>COMPANY</TableHead>
-                    <TableHead>CONTACT</TableHead>
-                    <TableHead>SPECIALTIES</TableHead>
-                    <TableHead>TRAVEL RADIUS</TableHead>
-                    <TableHead>INSURANCE</TableHead>
-                    <TableHead>W9</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('company')}
+                    >
+                      <div className="flex items-center">
+                        COMPANY
+                        {getSortIcon('company')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center">
+                        CONTACT
+                        {getSortIcon('name')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('specialties')}
+                    >
+                      <div className="flex items-center">
+                        SPECIALTIES
+                        {getSortIcon('specialties')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('region')}
+                    >
+                      <div className="flex items-center">
+                        REGION
+                        {getSortIcon('region')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('insurance_expiry')}
+                    >
+                      <div className="flex items-center">
+                        INSURANCE
+                        {getSortIcon('insurance_expiry')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('w9_on_file')}
+                    >
+                      <div className="flex items-center">
+                        W9
+                        {getSortIcon('w9_on_file')}
+                      </div>
+                    </TableHead>
                     <TableHead>ACTIONS</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -297,16 +413,20 @@ export default function Subcontractors() {
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Avatar className="h-8 w-8">
-                            <AvatarFallback>{subcontractor.company?.charAt(0).toUpperCase() || subcontractor.name.charAt(0).toUpperCase()}</AvatarFallback>
+                            <AvatarFallback>{subcontractor.company?.charAt(0).toUpperCase() || subcontractor.name?.charAt(0).toUpperCase() || '?'}</AvatarFallback>
                           </Avatar>
                           <span>{subcontractor.company || 'N/A'}</span>
                         </div>
                       </TableCell>
-                      <TableCell>{subcontractor.name}</TableCell>
+                      <TableCell>{subcontractor.name || 'N/A'}</TableCell>
                       <TableCell>
                         {subcontractor.specialties ? subcontractor.specialties.join(', ') : 'N/A'}
                       </TableCell>
-                      <TableCell>{subcontractor.travel_radius ? `${subcontractor.travel_radius} miles` : 'N/A'}</TableCell>
+                      <TableCell>
+                        {subcontractor.region ? (
+                          <Badge variant="outline">{subcontractor.region}</Badge>
+                        ) : 'N/A'}
+                      </TableCell>
                       <TableCell>
                         {subcontractor.insurance_expiry ? format(new Date(subcontractor.insurance_expiry), 'MMM dd, yyyy') : 'N/A'}
                       </TableCell>
@@ -353,11 +473,12 @@ export default function Subcontractors() {
                 <CardHeader>
                   <div className="flex items-center">
                     <Avatar className="mr-4">
-                      <AvatarFallback>{subcontractor.company?.charAt(0).toUpperCase() || subcontractor.name.charAt(0).toUpperCase()}</AvatarFallback>
+                      <AvatarFallback>{subcontractor.company?.charAt(0).toUpperCase() || subcontractor.name?.charAt(0).toUpperCase() || '?'}</AvatarFallback>
                     </Avatar>
                     <div className="space-y-1">
                       <CardTitle className="text-lg font-semibold">{subcontractor.company || 'No Company'}</CardTitle>
                       {subcontractor.name && <div className="text-sm text-gray-500">Contact: {subcontractor.name}</div>}
+                      {subcontractor.region && <Badge variant="outline">{subcontractor.region}</Badge>}
                     </div>
                   </div>
                 </CardHeader>
@@ -366,18 +487,24 @@ export default function Subcontractors() {
                     <Building className="w-4 h-4 text-gray-500" />
                     <span>{subcontractor.specialties ? subcontractor.specialties.join(', ') : 'N/A'}</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <MapPin className="w-4 h-4 text-gray-500" />
-                    <span>{subcontractor.address}, {subcontractor.city}, {subcontractor.state}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Mail className="w-4 h-4 text-gray-500" />
-                    <a href={`mailto:${subcontractor.email}`}>{subcontractor.email}</a>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Phone className="w-4 h-4 text-gray-500" />
-                    <span>{subcontractor.phone}</span>
-                  </div>
+                  {(subcontractor.address || subcontractor.city || subcontractor.state) && (
+                    <div className="flex items-center space-x-2">
+                      <MapPin className="w-4 h-4 text-gray-500" />
+                      <span>{[subcontractor.address, subcontractor.city, subcontractor.state].filter(Boolean).join(', ')}</span>
+                    </div>
+                  )}
+                  {subcontractor.email && (
+                    <div className="flex items-center space-x-2">
+                      <Mail className="w-4 h-4 text-gray-500" />
+                      <a href={`mailto:${subcontractor.email}`}>{subcontractor.email}</a>
+                    </div>
+                  )}
+                  {subcontractor.phone && (
+                    <div className="flex items-center space-x-2">
+                      <Phone className="w-4 h-4 text-gray-500" />
+                      <span>{subcontractor.phone}</span>
+                    </div>
+                  )}
                 </CardContent>
                 <CardFooter className="flex justify-end p-4">
                   <Button
