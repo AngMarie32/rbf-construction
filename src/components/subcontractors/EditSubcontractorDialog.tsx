@@ -69,23 +69,10 @@ export const EditSubcontractorDialog: React.FC<EditSubcontractorDialogProps> = (
     'Painting', 'Plumbing', 'Roofing', 'Siding', 'Tile/Flooring', 'Windows/Doors'
   ].sort();
 
-  // Fetch existing regions
+  // Use default regions (database column not yet available)
   useEffect(() => {
-    const fetchRegions = async () => {
-      const { data } = await supabase
-        .from('subcontractors')
-        .select('region')
-        .not('region', 'is', null);
-      
-      if (data) {
-        const existingRegions = [...new Set(data.map(s => s.region).filter(Boolean))] as string[];
-        const allRegions = [...new Set([...defaultRegions, ...existingRegions])].sort();
-        setRegions(allRegions);
-      }
-    };
-    
     if (open) {
-      fetchRegions();
+      setRegions(defaultRegions);
     }
   }, [open]);
 

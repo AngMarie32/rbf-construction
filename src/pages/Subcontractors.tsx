@@ -84,7 +84,12 @@ export default function Subcontractors() {
         .order('name', { ascending: true });
 
       if (error) throw error;
-      setSubcontractors(data || []);
+      // Add region property with default value if not present in database
+      const subsWithRegion = (data || []).map(sub => ({
+        ...sub,
+        region: (sub as any).region || null
+      }));
+      setSubcontractors(subsWithRegion);
     } catch (error) {
       console.error('Error fetching subcontractors:', error);
       toast.error('Failed to load subcontractors');

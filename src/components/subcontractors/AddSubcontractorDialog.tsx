@@ -73,23 +73,10 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
     notes: ''
   });
 
-  // Fetch existing regions from subcontractors
+  // Use default regions (database column not yet available)
   useEffect(() => {
-    const fetchRegions = async () => {
-      const { data } = await supabase
-        .from('subcontractors')
-        .select('region')
-        .not('region', 'is', null);
-      
-      if (data) {
-        const existingRegions = [...new Set(data.map(s => s.region).filter(Boolean))] as string[];
-        const allRegions = [...new Set([...defaultRegions, ...existingRegions])].sort();
-        setRegions(allRegions);
-      }
-    };
-    
     if (open) {
-      fetchRegions();
+      setRegions(defaultRegions);
     }
   }, [open]);
 
