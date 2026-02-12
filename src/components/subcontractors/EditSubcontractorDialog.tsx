@@ -246,6 +246,31 @@ export const EditSubcontractorDialog: React.FC<EditSubcontractorDialogProps> = (
                   <SelectItem value="__new__">+ Add New Region</SelectItem>
                 </SelectContent>
               </Select>
+              {formData.region && !defaultRegions.includes(formData.region) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => {
+                    setRegions(prev => prev.filter(r => r !== formData.region));
+                    setFormData(prev => ({ ...prev, region: '' }));
+                  }}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+              {formData.region && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setFormData(prev => ({ ...prev, region: '' }))}
+                >
+                  Clear
+                </Button>
+              )}
             </div>
             
             {showNewRegion && (
@@ -305,7 +330,6 @@ export const EditSubcontractorDialog: React.FC<EditSubcontractorDialogProps> = (
               <SelectContent>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Inactive">Inactive</SelectItem>
-                <SelectItem value="Suspended">Suspended</SelectItem>
               </SelectContent>
             </Select>
           </div>
