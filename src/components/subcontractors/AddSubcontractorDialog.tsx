@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, MapPin } from 'lucide-react';
+import { Plus, MapPin, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -57,6 +57,9 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
   const [regions, setRegions] = useState<string[]>(defaultRegions);
   const [showNewRegion, setShowNewRegion] = useState(false);
   const [newRegionName, setNewRegionName] = useState('');
+  const [tradesList, setTradesList] = useState<string[]>(tradeOptions);
+  const [showNewTrade, setShowNewTrade] = useState(false);
+  const [newTradeName, setNewTradeName] = useState('');
   const [formData, setFormData] = useState({
     company: '',
     name: '',
@@ -331,16 +334,56 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
           <div>
             <Label>Specialties/Trades</Label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 max-h-32 overflow-y-auto border rounded p-2">
-              {tradeOptions.map(trade => (
-                <div key={trade} className="flex items-center space-x-2">
+              {tradesList.map(trade => (
+                <div key={trade} className="flex items-center space-x-2 group">
                   <Checkbox
-                    id={trade}
+                    id={`add-${trade}`}
                     checked={formData.specialties.includes(trade)}
                     onCheckedChange={(checked) => handleSpecialtyChange(trade, checked as boolean)}
                   />
-                  <Label htmlFor={trade} className="text-sm">{trade}</Label>
+                  <Label htmlFor={`add-${trade}`} className="text-sm flex-1">{trade}</Label>
+                  {!tradeOptions.includes(trade) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                      onClick={() => {
+                        setTradesList(prev => prev.filter(t => t !== trade));
+                        setFormData(prev => ({ ...prev, specialties: prev.specialties.filter(s => s !== trade) }));
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
               ))}
+            </div>
+            <div className="mt-2">
+              {showNewTrade ? (
+                <div className="flex gap-2">
+                  <Input
+                    value={newTradeName}
+                    onChange={(e) => setNewTradeName(e.target.value)}
+                    placeholder="Enter new specialty"
+                    className="flex-1"
+                  />
+                  <Button type="button" size="sm" onClick={() => {
+                    if (newTradeName.trim() && !tradesList.includes(newTradeName.trim())) {
+                      const name = newTradeName.trim();
+                      setTradesList(prev => [...prev, name].sort());
+                      setFormData(prev => ({ ...prev, specialties: [...prev.specialties, name] }));
+                      setNewTradeName('');
+                      setShowNewTrade(false);
+                    }
+                  }}>Add</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => { setShowNewTrade(false); setNewTradeName(''); }}>Cancel</Button>
+                </div>
+              ) : (
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowNewTrade(true)}>
+                  <Plus className="w-3 h-3 mr-1" /> Add Specialty
+                </Button>
+              )}
             </div>
           </div>
 

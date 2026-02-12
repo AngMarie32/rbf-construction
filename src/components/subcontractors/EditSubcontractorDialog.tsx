@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MapPin } from 'lucide-react';
+import { MapPin, Plus, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -63,6 +63,9 @@ export const EditSubcontractorDialog: React.FC<EditSubcontractorDialogProps> = (
   const [regions, setRegions] = useState<string[]>(defaultRegions);
   const [showNewRegion, setShowNewRegion] = useState(false);
   const [newRegionName, setNewRegionName] = useState('');
+  const [customSpecialties, setCustomSpecialties] = useState<string[]>([]);
+  const [showNewSpecialty, setShowNewSpecialty] = useState(false);
+  const [newSpecialtyName, setNewSpecialtyName] = useState('');
 
   const specialties = [
     'Concrete', 'Electrical', 'HVAC', 'Insulation', 'Landscaping', 'Masonry',
@@ -80,6 +83,9 @@ export const EditSubcontractorDialog: React.FC<EditSubcontractorDialogProps> = (
   useEffect(() => {
     setFormData(subcontractor);
     setSelectedSpecialties(subcontractor.specialties || []);
+    // Detect custom specialties not in the default list
+    const customs = (subcontractor.specialties || []).filter(s => !specialties.includes(s));
+    setCustomSpecialties(customs);
   }, [subcontractor]);
 
   const handleAddNewRegion = () => {
@@ -307,16 +313,56 @@ export const EditSubcontractorDialog: React.FC<EditSubcontractorDialogProps> = (
           <div>
             <Label>Specialties</Label>
             <div className="grid grid-cols-3 gap-2 mt-2">
-              {specialties.map(specialty => (
-                <div key={specialty} className="flex items-center space-x-2">
+              {[...specialties, ...customSpecialties].sort().map(specialty => (
+                <div key={specialty} className="flex items-center space-x-2 group">
                   <Checkbox
-                    id={specialty}
+                    id={`edit-${specialty}`}
                     checked={selectedSpecialties.includes(specialty)}
                     onCheckedChange={() => toggleSpecialty(specialty)}
                   />
-                  <Label htmlFor={specialty} className="text-sm">{specialty}</Label>
+                  <Label htmlFor={`edit-${specialty}`} className="text-sm flex-1">{specialty}</Label>
+                  {customSpecialties.includes(specialty) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                      onClick={() => {
+                        setCustomSpecialties(prev => prev.filter(s => s !== specialty));
+                        setSelectedSpecialties(prev => prev.filter(s => s !== specialty));
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
               ))}
+            </div>
+            <div className="mt-2">
+              {showNewSpecialty ? (
+                <div className="flex gap-2">
+                  <Input
+                    value={newSpecialtyName}
+                    onChange={(e) => setNewSpecialtyName(e.target.value)}
+                    placeholder="Enter new specialty"
+                    className="flex-1"
+                  />
+                  <Button type="button" size="sm" onClick={() => {
+                    const name = newSpecialtyName.trim();
+                    if (name && !specialties.includes(name) && !customSpecialties.includes(name)) {
+                      setCustomSpecialties(prev => [...prev, name]);
+                      setSelectedSpecialties(prev => [...prev, name]);
+                      setNewSpecialtyName('');
+                      setShowNewSpecialty(false);
+                    }
+                  }}>Add</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => { setShowNewSpecialty(false); setNewSpecialtyName(''); }}>Cancel</Button>
+                </div>
+              ) : (
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowNewSpecialty(true)}>
+                  <Plus className="w-3 h-3 mr-1" /> Add Specialty
+                </Button>
+              )}
             </div>
           </div>
 
