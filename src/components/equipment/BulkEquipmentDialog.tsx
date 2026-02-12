@@ -22,6 +22,7 @@ interface BulkEquipmentData {
   location: string;
   image: string;
   imageFile?: File;
+  vin_serial_number: string;
 }
 
 interface BulkEquipmentDialogProps {
@@ -40,7 +41,8 @@ export function BulkEquipmentDialog({ onEquipmentCreated }: BulkEquipmentDialogP
       status: 'Available',
       description: '',
       location: '',
-      image: ''
+      image: '',
+      vin_serial_number: ''
     }
   ]);
 
@@ -54,7 +56,8 @@ export function BulkEquipmentDialog({ onEquipmentCreated }: BulkEquipmentDialogP
       status: 'Available',
       description: '',
       location: '',
-      image: ''
+      image: '',
+      vin_serial_number: ''
     }]);
   };
 
@@ -127,7 +130,8 @@ export function BulkEquipmentDialog({ onEquipmentCreated }: BulkEquipmentDialogP
           status: eq.status,
           description: eq.description || null,
           location: eq.location || null,
-          image: imageUrl || null
+          image: imageUrl || null,
+          vin_serial_number: eq.vin_serial_number || null
         };
       }));
 
@@ -149,7 +153,8 @@ export function BulkEquipmentDialog({ onEquipmentCreated }: BulkEquipmentDialogP
         status: 'Available',
         description: '',
         location: '',
-        image: ''
+        image: '',
+        vin_serial_number: ''
       }]);
     } catch (error) {
       console.error('Error adding equipment:', error);
@@ -272,6 +277,15 @@ export function BulkEquipmentDialog({ onEquipmentCreated }: BulkEquipmentDialogP
                     placeholder="Equipment location"
                   />
                 </div>
+              </div>
+
+              <div>
+                <Label>VIN / Serial Number</Label>
+                <Input
+                  value={eq.vin_serial_number}
+                  onChange={(e) => updateEquipment(index, 'vin_serial_number', e.target.value)}
+                  placeholder="Enter VIN or serial number"
+                />
               </div>
 
               <div>
