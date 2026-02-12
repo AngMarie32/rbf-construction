@@ -311,6 +311,31 @@ export function AddSubcontractorDialog({ onSubcontractorCreated }: AddSubcontrac
                   <SelectItem value="__new__">+ Add New Region</SelectItem>
                 </SelectContent>
               </Select>
+              {formData.region && !defaultRegions.includes(formData.region) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => {
+                    setRegions(prev => prev.filter(r => r !== formData.region));
+                    setFormData(prev => ({ ...prev, region: '' }));
+                  }}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              )}
+              {formData.region && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setFormData(prev => ({ ...prev, region: '' }))}
+                >
+                  Clear
+                </Button>
+              )}
             </div>
             
             {showNewRegion && (
