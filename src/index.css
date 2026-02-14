@@ -12,7 +12,7 @@
     font-variation-settings: 'opsz' 32;
   }
   body {
-    @apply bg-gradient-to-br from-slate-50 via-white to-blue-50/30 text-foreground;
+    @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Search, Download, Edit, Trash2, Eye, TrendingUp, MoreHorizontal, ArrowUpDown, FileText } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Search, Download, Edit, Trash2, Eye, TrendingUp, MoreHorizontal, ArrowUpDown, FileText, CheckCircle, XCircle } from 'lucide-react';
 import { CreateExpenseDialog } from '@/components/expenses/CreateExpenseDialog';
 import { EditExpenseDialog } from '@/components/expenses/EditExpenseDialog';
 import { BulkExpenseDialog } from '@/components/expenses/BulkExpenseDialog';
@@ -59,6 +60,7 @@ export default function Expenses() {
   const [vendorAnalysisOpen, setVendorAnalysisOpen] = useState(false);
   const [sortColumn, setSortColumn] = useState<string>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchProjects();
@@ -266,6 +268,43 @@ export default function Expenses() {
 
   const categories = [...new Set(expenses.map(e => e.category))];
 
+  const toggleSelectAll = () => {
+    if (selectedExpenses.size === filteredExpenses.length) {
+      setSelectedExpenses(new Set());
+    } else {
+      setSelectedExpenses(new Set(filteredExpenses.map(e => e.id)));
+    }
+  };
+
+  const toggleSelectExpense = (id: string) => {
+    setSelectedExpenses(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkStatusChange = async (newStatus: string) => {
+    if (selectedExpenses.size === 0) return;
+    try {
+      const ids = Array.from(selectedExpenses);
+      const { error } = await supabase
+        .from('expenses')
+        .update({ status: newStatus })
+        .in('id', ids);
+      if (error) throw error;
+      setExpenses(prev =>
+        prev.map(e => ids.includes(e.id) ? { ...e, status: newStatus } : e)
+      );
+      setSelectedExpenses(new Set());
+      toast.success(`${ids.length} expense(s) updated to ${newStatus}`);
+    } catch (error) {
+      console.error('Error bulk updating:', error);
+      toast.error('Failed to update expenses');
+    }
+  };
+
   const handleExport = (format: 'excel' | 'pdf' | 'csv') => {
     const exportData = {
       title: 'Expense Report',
@@ -437,6 +476,25 @@ export default function Expenses() {
               </Select>
             </div>
 
+            {/* Bulk Actions Bar */}
+            {selectedExpenses.size > 0 && (
+              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                <span className="text-sm font-medium">{selectedExpenses.size} selected</span>
+                <Button size="sm" variant="outline" onClick={() => handleBulkStatusChange('Approved')}>
+                  <CheckCircle className="w-4 h-4 mr-1" /> Approve
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => handleBulkStatusChange('Rejected')}>
+                  <XCircle className="w-4 h-4 mr-1" /> Reject
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => handleBulkStatusChange('Paid')}>
+                  Paid
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setSelectedExpenses(new Set())}>
+                  Clear
+                </Button>
+              </div>
+            )}
+
             {/* Expenses Table */}
             {loading ? (
               <div className="flex justify-center items-center h-64">
@@ -446,6 +504,12 @@ export default function Expenses() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={filteredExpenses.length > 0 && selectedExpenses.size === filteredExpenses.length}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('date')}>
                       <div className="flex items-center gap-1">
                         Date
@@ -493,7 +557,13 @@ export default function Expenses() {
                 </TableHeader>
                 <TableBody>
                   {filteredExpenses.map((expense) => (
-                    <TableRow key={expense.id}>
+                    <TableRow key={expense.id} className={selectedExpenses.has(expense.id) ? 'bg-muted/40' : ''}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedExpenses.has(expense.id)}
+                          onCheckedChange={() => toggleSelectExpense(expense.id)}
+                        />
+                      </TableCell>
                       <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
                       <TableCell>{expense.projects?.name || 'Unknown'}</TableCell>
                       <TableCell>{expense.description || ''}</TableCell>
