@@ -19,7 +19,7 @@ export function Layout({ children, title, subtitle }: LayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 flex">
+    <div className="min-h-screen bg-background flex">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header onMenuClick={handleMenuClick} />

@@ -74,40 +74,40 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 222 47% 8%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 222 47% 11%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
 
     --primary: 220 90% 56%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
 
     --accent: 27 96% 61%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 217 33% 20%;
+    --input: 217 33% 20%;
     --ring: 220 90% 56%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-background: 222 47% 6%;
+    --sidebar-foreground: 210 40% 90%;
     --sidebar-primary: 220 90% 56%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-accent: 217 33% 15%;
+    --sidebar-accent-foreground: 210 40% 90%;
+    --sidebar-border: 217 33% 20%;
     --sidebar-ring: 220 90% 56%;
   }
 }
@@ -121,15 +121,11 @@
 @layer components {
   /* Enhanced card styles */
   .enhanced-card {
-    @apply bg-white/80 backdrop-blur-sm border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300 ease-out;
-    background: var(--gradient-card);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    @apply bg-card backdrop-blur-sm border border-border shadow-lg hover:shadow-xl transition-all duration-300 ease-out;
   }
 
   .enhanced-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
   }
 
   /* Premium button styles */
@@ -175,28 +171,26 @@
 
   /* Enhanced inputs */
   .enhanced-input {
-    @apply border-2 border-gray-200/60 bg-white/50 backdrop-blur-sm focus:border-primary focus:bg-white transition-all duration-200 ease-out;
+    @apply border-2 border-input bg-background focus:border-primary transition-all duration-200 ease-out;
   }
 
   .enhanced-input:focus {
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px hsl(var(--ring) / 0.1);
   }
 
   /* Sidebar enhancements */
   .enhanced-sidebar {
-    @apply bg-white/95 backdrop-blur-lg border-r border-gray-200/50;
-    background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%);
+    @apply bg-sidebar-background backdrop-blur-lg border-r border-sidebar-border;
   }
 
   /* Header enhancements */
   .enhanced-header {
-    @apply bg-white/90 backdrop-blur-lg border-b border-gray-200/50;
-    background: linear-gradient(90deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%);
+    @apply bg-background backdrop-blur-lg border-b border-border;
   }
 
   /* Progress bars */
   .enhanced-progress {
-    @apply bg-gray-200/50 rounded-full overflow-hidden;
+    @apply bg-muted rounded-full overflow-hidden;
   }
 
   .enhanced-progress-fill {
@@ -206,15 +200,15 @@
 
   /* Tables */
   .enhanced-table {
-    @apply bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/50 shadow-sm overflow-hidden;
+    @apply bg-card backdrop-blur-sm rounded-xl border border-border shadow-sm overflow-hidden;
   }
 
   .enhanced-table th {
-    @apply bg-gray-50/80 backdrop-blur-sm font-semibold text-gray-700 tracking-wide;
+    @apply bg-muted backdrop-blur-sm font-semibold text-foreground tracking-wide;
   }
 
   .enhanced-table tbody tr:hover {
-    @apply bg-blue-50/50 transition-colors duration-200;
+    @apply bg-muted/50 transition-colors duration-200;
   }
 
   /* Animation utilities */
