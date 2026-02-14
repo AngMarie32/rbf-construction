@@ -41,7 +41,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   };
 
   return (
-    <div className="bg-[#1e3a5f] sticky top-0 h-screen min-w-[200px] flex flex-col overflow-y-auto">
+    <div className="bg-sidebar-background dark:bg-[hsl(var(--sidebar-background))] sticky top-0 h-screen min-w-[200px] flex flex-col overflow-y-auto" style={{ backgroundColor: 'hsl(222, 47%, 15%)' }}>
       <div className="p-4">
         <h2 className="text-lg font-semibold text-white">Navigation</h2>
       </div>

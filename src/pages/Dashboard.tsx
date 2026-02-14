@@ -301,14 +301,14 @@ export default function Dashboard() {
 
                         <div className="space-y-1">
                           {project.client && (
-                            <div className="text-sm text-gray-600">{project.client}</div>
+                            <div className="text-sm text-muted-foreground">{project.client}</div>
                           )}
 
                           {project.address && (
-                            <div className="text-sm text-gray-600 truncate">{project.address}</div>
+                            <div className="text-sm text-muted-foreground truncate">{project.address}</div>
                           )}
 
-                          <div className="text-sm text-gray-600">
+                          <div className="text-sm text-muted-foreground">
                             Due: {format(new Date(project.due_date), 'MMM dd, yyyy')}
                           </div>
                         </div>
@@ -316,14 +316,14 @@ export default function Dashboard() {
                         <div className="space-y-2">
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-medium">Progress</span>
-                            <span className="text-sm text-gray-600">{project.completion_percentage}%</span>
+                            <span className="text-sm text-muted-foreground">{project.completion_percentage}%</span>
                           </div>
                           <Progress value={project.completion_percentage} className="h-2" />
                         </div>
 
                         {/* Financial Snapshot */}
-                        <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                          <h4 className="text-sm font-semibold text-gray-700">Financial Snapshot</h4>
+                        <div className="bg-muted rounded-lg p-3 space-y-2">
+                          <h4 className="text-sm font-semibold text-muted-foreground">Financial Snapshot</h4>
                           
                           <div className="grid grid-cols-2 gap-3 text-sm">
                             <div className="text-center">
