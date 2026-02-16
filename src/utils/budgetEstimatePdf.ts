@@ -90,20 +90,16 @@ function drawTableRow(
 
 // Column definitions for itemized table
 function getItemizedCols() {
-  const totalW = 30;
-  const ucW = 28;
-  const unitW = 18;
-  const qtyW = 16;
-  const catW = 40;
-  const descW = CONTENT_WIDTH - catW - qtyW - unitW - ucW - totalW;
+  const ucW = 30;
+  const unitW = 22;
+  const qtyW = 20;
+  const catW = CONTENT_WIDTH - qtyW - unitW - ucW;
   let x = MARGIN;
   const cols = [
     { key: 'category', label: 'Category', width: catW, align: 'left' as const },
-    { key: 'description', label: 'Description', width: descW, align: 'left' as const },
     { key: 'qty', label: 'Qty', width: qtyW, align: 'center' as const },
     { key: 'unit', label: 'Unit', width: unitW, align: 'center' as const },
     { key: 'unitCost', label: 'Unit Cost', width: ucW, align: 'right' as const },
-    { key: 'total', label: 'Total', width: totalW, align: 'right' as const },
   ];
   return cols.map(c => {
     const col = { ...c, x };
@@ -249,11 +245,9 @@ export function exportBudgetEstimatePDF(
       const unitCost = item.unitCost ?? item.unit_cost ?? 0;
       drawTableRow(pdf, y, [
         { text: item.category || '', x: cols[0].x, width: cols[0].width, align: 'left' },
-        { text: item.description || '', x: cols[1].x, width: cols[1].width, align: 'left' },
-        { text: String(item.quantity || 0), x: cols[2].x, width: cols[2].width, align: 'center' },
-        { text: item.unit || 'each', x: cols[3].x, width: cols[3].width, align: 'center' },
-        { text: formatCurrency(unitCost), x: cols[4].x, width: cols[4].width, align: 'right' },
-        { text: formatCurrency(item.total || 0), x: cols[5].x, width: cols[5].width, align: 'right' },
+        { text: String(item.quantity || 0), x: cols[1].x, width: cols[1].width, align: 'center' },
+        { text: item.unit || 'each', x: cols[2].x, width: cols[2].width, align: 'center' },
+        { text: formatCurrency(unitCost), x: cols[3].x, width: cols[3].width, align: 'right' },
       ], ROW_HEIGHT);
       y += ROW_HEIGHT;
     });
@@ -266,11 +260,11 @@ export function exportBudgetEstimatePDF(
       y = 15;
     }
 
-    // Merge first 5 cols for total label
-    const totalLabelWidth = cols[0].width + cols[1].width + cols[2].width + cols[3].width + cols[4].width;
+    // Merge first 3 cols for total label
+    const totalLabelWidth = cols[0].width + cols[1].width + cols[2].width;
     drawTableRow(pdf, y, [
       { text: 'TOTAL BUDGET ESTIMATE:', x: cols[0].x, width: totalLabelWidth, align: 'right' },
-      { text: formatCurrency(totalValue), x: cols[5].x, width: cols[5].width, align: 'right' },
+      { text: formatCurrency(totalValue), x: cols[3].x, width: cols[3].width, align: 'right' },
     ], ROW_HEIGHT, { bold: true, bg: '#f8fafc' });
 
     addPageFooter(pdf, currentPage, totalPages);
@@ -445,22 +439,18 @@ export function exportBidReportPDF(
 
   // --- Line item pages ---
   const cols7 = (() => {
-    const catW = 32;
-    const subW = 30;
-    const descW = 40;
-    const qtyW = 14;
-    const unitW = 14;
-    const ucW = 22;
-    const totalW = CONTENT_WIDTH - catW - subW - descW - qtyW - unitW - ucW;
+    const ucW = 30;
+    const unitW = 20;
+    const qtyW = 18;
+    const subW = 40;
+    const catW = CONTENT_WIDTH - subW - qtyW - unitW - ucW;
     let x = MARGIN;
     const defs = [
       { label: 'Category', width: catW, align: 'left' as const },
       { label: 'Subcategory', width: subW, align: 'left' as const },
-      { label: 'Description', width: descW, align: 'left' as const },
       { label: 'Qty', width: qtyW, align: 'center' as const },
       { label: 'Unit', width: unitW, align: 'center' as const },
       { label: 'Unit Cost', width: ucW, align: 'right' as const },
-      { label: 'Total', width: totalW, align: 'right' as const },
     ];
     return defs.map(d => {
       const c = { ...d, x };
@@ -499,20 +489,18 @@ export function exportBidReportPDF(
       drawTableRow(pdf, py, [
         { text: item.category || 'N/A', x: cols7[0].x, width: cols7[0].width, align: 'left' },
         { text: item.subcategory || 'N/A', x: cols7[1].x, width: cols7[1].width, align: 'left' },
-        { text: item.description || 'N/A', x: cols7[2].x, width: cols7[2].width, align: 'left' },
-        { text: String(item.quantity || 0), x: cols7[3].x, width: cols7[3].width, align: 'center' },
-        { text: item.unit || 'each', x: cols7[4].x, width: cols7[4].width, align: 'center' },
-        { text: formatCurrency(uc), x: cols7[5].x, width: cols7[5].width, align: 'right' },
-        { text: formatCurrency(item.total || 0), x: cols7[6].x, width: cols7[6].width, align: 'right' },
+        { text: String(item.quantity || 0), x: cols7[2].x, width: cols7[2].width, align: 'center' },
+        { text: item.unit || 'each', x: cols7[3].x, width: cols7[3].width, align: 'center' },
+        { text: formatCurrency(uc), x: cols7[4].x, width: cols7[4].width, align: 'right' },
       ], ROW_HEIGHT);
       py += ROW_HEIGHT;
     }
 
     if (isLastPage) {
-      const totalLabelW = cols7[0].width + cols7[1].width + cols7[2].width + cols7[3].width + cols7[4].width + cols7[5].width;
+      const totalLabelW = cols7[0].width + cols7[1].width + cols7[2].width + cols7[3].width;
       drawTableRow(pdf, py, [
         { text: 'TOTAL BUDGET ESTIMATE:', x: cols7[0].x, width: totalLabelW, align: 'right' },
-        { text: formatCurrency(totalBidValue), x: cols7[6].x, width: cols7[6].width, align: 'right' },
+        { text: formatCurrency(totalBidValue), x: cols7[4].x, width: cols7[4].width, align: 'right' },
       ], ROW_HEIGHT, { bold: true, bg: '#f8fafc' });
     }
 
