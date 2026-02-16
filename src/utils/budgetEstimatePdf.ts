@@ -90,12 +90,12 @@ function drawTableRow(
 
 // Column definitions for itemized table
 function getItemizedCols() {
-  const catW = 42;
-  const descW = 58;
-  const qtyW = 18;
+  const totalW = 30;
+  const ucW = 28;
   const unitW = 18;
-  const ucW = 22;
-  const totalW = CONTENT_WIDTH - catW - descW - qtyW - unitW - ucW;
+  const qtyW = 16;
+  const catW = 40;
+  const descW = CONTENT_WIDTH - catW - qtyW - unitW - ucW - totalW;
   let x = MARGIN;
   const cols = [
     { key: 'category', label: 'Category', width: catW, align: 'left' as const },
