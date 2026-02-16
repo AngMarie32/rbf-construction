@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import { loadLogoAsDataUrl } from './pdfLogoHelper';
 
 interface BidItem {
   category?: string;
@@ -112,7 +113,7 @@ function formatCurrency(value: number): string {
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export function exportBudgetEstimatePDF(
+export async function exportBudgetEstimatePDF(
   items: BidItem[],
   projectData: ProjectData | null,
   companyData: CompanyData | null,
@@ -126,7 +127,7 @@ export function exportBudgetEstimatePDF(
   const totalValue = filteredItems.reduce((sum, i) => sum + (i.total || 0), 0);
 
   // Calculate total pages
-  const HEADER_HEIGHT = 65;
+  const HEADER_HEIGHT = 80;
   const ROW_HEIGHT = 7;
   const TABLE_HEADER_HEIGHT = 7;
   const FOOTER_SPACE = 20;
@@ -135,21 +136,31 @@ export function exportBudgetEstimatePDF(
   let totalPages = 1;
   if (exportType === 'itemized') {
     const firstPageRows = Math.floor((PAGE_HEIGHT - HEADER_HEIGHT - TABLE_HEADER_HEIGHT - FOOTER_SPACE - 20) / ROW_HEIGHT);
-    const remainingRows = Math.max(0, filteredItems.length - firstPageRows + 1); // +1 for total row
+    const remainingRows = Math.max(0, filteredItems.length - firstPageRows + 1);
     const subsequentPageRows = Math.floor((PAGE_HEIGHT - MINI_HEADER - TABLE_HEADER_HEIGHT - FOOTER_SPACE - 10) / ROW_HEIGHT);
     totalPages = remainingRows > 0 ? 1 + Math.ceil(remainingRows / subsequentPageRows) : 1;
   }
 
-  // --- Page 1: Header ---
-  let y = 16;
+  // --- Page 1: Header with Logo ---
+  let y = 10;
 
-  // Company name
-  pdf.setFontSize(16);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(31, 41, 55);
-  pdf.text(companyData?.company_name || 'Company Name', PAGE_WIDTH / 2, y, { align: 'center' });
+  // Add logo
+  const logoDataUrl = await loadLogoAsDataUrl();
+  if (logoDataUrl) {
+    const logoWidth = 40;
+    const logoHeight = 30;
+    const logoX = (PAGE_WIDTH - logoWidth) / 2;
+    pdf.addImage(logoDataUrl, 'PNG', logoX, y, logoWidth, logoHeight);
+    y += logoHeight + 4;
+  } else {
+    // Fallback: text company name
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(31, 41, 55);
+    pdf.text(companyData?.company_name || 'RBF Construction', PAGE_WIDTH / 2, y + 8, { align: 'center' });
+    y += 14;
+  }
 
-  y += 6;
   pdf.setFontSize(11);
   pdf.setFont('helvetica', 'normal');
   pdf.setTextColor(55, 65, 81);
@@ -329,7 +340,7 @@ function renderSummaryTable(
   addPageFooter(pdf, 1, 1);
 }
 
-export function exportBidReportPDF(
+export async function exportBidReportPDF(
   bidItems: BidItem[],
   projectData: ProjectData | null,
 ) {
@@ -351,8 +362,20 @@ export function exportBidReportPDF(
   const totalItemPages = Math.ceil(bidItems.length / itemsPerPage);
   const totalPages = 1 + totalItemPages;
 
-  // --- Page 1: Summary ---
-  let y = 16;
+  // --- Page 1: Summary with Logo ---
+  let y = 10;
+
+  const logoDataUrl = await loadLogoAsDataUrl();
+  if (logoDataUrl) {
+    const logoWidth = 40;
+    const logoHeight = 30;
+    const logoX = (PAGE_WIDTH - logoWidth) / 2;
+    pdf.addImage(logoDataUrl, 'PNG', logoX, y, logoWidth, logoHeight);
+    y += logoHeight + 4;
+  } else {
+    y = 16;
+  }
+
   pdf.setFontSize(14);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(31, 41, 55);

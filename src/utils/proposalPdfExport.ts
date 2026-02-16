@@ -1,5 +1,6 @@
 
 import jsPDF from 'jspdf';
+import { loadLogoAsDataUrl } from './pdfLogoHelper';
 
 interface ProposalData {
   projectName: string;
@@ -23,30 +24,31 @@ interface ProposalData {
   }>;
 }
 
-export const generateProfessionalProposalPDF = (proposal: ProposalData) => {
+export const generateProfessionalProposalPDF = async (proposal: ProposalData) => {
   const pdf = new jsPDF('portrait', 'mm', 'letter');
   const pageWidth = pdf.internal.pageSize.getWidth();
   const margin = 20;
-  let yPosition = 18;
+  let yPosition = 10;
 
-  // Company Header
-  pdf.setFontSize(14);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('BuildPro Construction', margin, yPosition);
-  
-  yPosition += 5;
-  pdf.setFontSize(8);
-  pdf.setFont('helvetica', 'normal');
-  pdf.text('Licensed • Bonded • Insured', margin, yPosition);
-  
-  yPosition += 4;
-  pdf.text('123 Construction Way, Builder City, ST 12345', margin, yPosition);
-  yPosition += 3;
-  pdf.text('Phone: (555) 123-4567 | Email: info@buildpro.com', margin, yPosition);
-  
-  // License info
-  yPosition += 3;
-  pdf.text('License #: ABC123456 | Contractor\'s License', margin, yPosition);
+  // Company Header with Logo
+  const logoDataUrl = await loadLogoAsDataUrl();
+  if (logoDataUrl) {
+    const logoWidth = 40;
+    const logoHeight = 30;
+    pdf.addImage(logoDataUrl, 'PNG', margin, yPosition, logoWidth, logoHeight);
+    yPosition += logoHeight + 4;
+  } else {
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('RBF Construction', margin, yPosition + 8);
+    yPosition += 14;
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('1411 W Hill Rd, Flint, MI 48507', margin, yPosition);
+    yPosition += 3;
+    pdf.text('Phone: 810-938-8498', margin, yPosition);
+    yPosition += 3;
+  }
 
   // Title
   yPosition += 10;

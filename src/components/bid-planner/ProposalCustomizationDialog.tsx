@@ -72,7 +72,7 @@ export function ProposalCustomizationDialog({ open, onOpenChange, bidItems, proj
 
       const filteredItems = getFilteredItems();
 
-      exportBudgetEstimatePDF(filteredItems, projectData, companyData, exportType, selectedCategories);
+      await exportBudgetEstimatePDF(filteredItems, projectData, companyData, exportType, selectedCategories);
 
       toast.success('Budget estimate exported successfully');
       onOpenChange(false);

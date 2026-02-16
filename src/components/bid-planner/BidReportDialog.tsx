@@ -45,7 +45,7 @@ export function BidReportDialog({ open, onOpenChange, projectData, bidItems }: B
 
     setLoading(true);
     try {
-      exportBidReportPDF(bidItems, projectData);
+      await exportBidReportPDF(bidItems, projectData);
       toast.success('Budget estimate exported successfully');
       onOpenChange(false);
     } catch (error) {
