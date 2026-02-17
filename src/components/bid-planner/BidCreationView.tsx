@@ -366,6 +366,44 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     }
   };
 
+  const handleExportToProposal = async () => {
+    if (!projectId || bidItems.length === 0) {
+      toast.error('No bid items to export');
+      return;
+    }
+
+    try {
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .select('name, client')
+        .eq('id', projectId)
+        .single();
+
+      if (projectError) throw projectError;
+
+      const totalAmount = bidItems.reduce((sum, item) => sum + item.total, 0);
+      const scope = bidItems.map(item => item.category).filter(Boolean).join(', ');
+
+      const { error: insertError } = await supabase
+        .from('proposals')
+        .insert({
+          project_name: project.name || 'Unnamed Project',
+          client: project.client || 'N/A',
+          amount: totalAmount,
+          scope: scope || null,
+          status: 'Draft',
+        });
+
+      if (insertError) throw insertError;
+
+      toast.success('Bid exported to Proposals successfully');
+      navigate('/proposals');
+    } catch (error: any) {
+      console.error('Error exporting to proposal:', error);
+      toast.error(`Failed to export to proposal: ${error.message}`);
+    }
+  };
+
   const handleExportToSOV = async () => {
     if (!projectId) {
       return;
@@ -523,7 +561,10 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
                 Export to SOV
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShowProposalDialog(true)}>
-                Create Proposal
+                Create Proposal PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportToProposal}>
+                Export to Proposals
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportToPDF}>
                 Export to PDF
