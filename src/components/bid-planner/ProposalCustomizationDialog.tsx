@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { FileText, Download } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { FileText, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { exportBudgetEstimatePDF } from '@/utils/budgetEstimatePdf';
@@ -22,6 +24,15 @@ export function ProposalCustomizationDialog({ open, onOpenChange, bidItems, proj
   const [exportType, setExportType] = useState<'itemized' | 'category' | 'division'>('itemized');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [terms, setTerms] = useState<string[]>([
+    'This proposal is valid for 30 days from the date above.',
+    '50% deposit required to begin work, with balance due upon completion.',
+    'All materials will be of good quality and installed in a workmanlike manner.',
+    'Any changes to this scope of work must be approved in writing.',
+    'Contractor will obtain all necessary permits.',
+    'Work area to be left clean and debris removed daily.',
+    'This proposal becomes a contract when signed by both parties.'
+  ]);
 
   // Get unique categories and divisions
   const categories = Array.from(new Set(bidItems.map(item => item.category).filter(Boolean)));
@@ -72,7 +83,7 @@ export function ProposalCustomizationDialog({ open, onOpenChange, bidItems, proj
 
       const filteredItems = getFilteredItems();
 
-      await exportBudgetEstimatePDF(filteredItems, projectData, companyData, exportType, selectedCategories);
+      await exportBudgetEstimatePDF(filteredItems, projectData, companyData, exportType, selectedCategories, terms);
 
       toast.success('Budget estimate exported successfully');
       onOpenChange(false);
@@ -152,6 +163,52 @@ export function ProposalCustomizationDialog({ open, onOpenChange, bidItems, proj
               </CardContent>
             </Card>
           )}
+
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-lg">Terms and Conditions</CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTerms([...terms, ''])}
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Term
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {terms.map((term, index) => (
+                  <div key={index} className="flex items-start gap-2">
+                    <span className="text-sm text-muted-foreground mt-2">•</span>
+                    <Input
+                      value={term}
+                      onChange={(e) => {
+                        const updated = [...terms];
+                        updated[index] = e.target.value;
+                        setTerms(updated);
+                      }}
+                      className="text-sm"
+                      placeholder="Enter term..."
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setTerms(terms.filter((_, i) => i !== index))}
+                      className="shrink-0 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                {terms.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No terms added. Click "Add Term" to include terms and conditions.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="flex justify-end space-x-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
