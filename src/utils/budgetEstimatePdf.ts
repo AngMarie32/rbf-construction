@@ -118,7 +118,8 @@ export async function exportBudgetEstimatePDF(
   projectData: ProjectData | null,
   companyData: CompanyData | null,
   exportType: ExportType = 'itemized',
-  selectedCategories: string[] = []
+  selectedCategories: string[] = [],
+  terms: string[] = []
 ) {
   const pdf = new jsPDF('portrait', 'mm', 'letter');
   const filteredItems = selectedCategories.length > 0 && exportType === 'itemized'
@@ -343,6 +344,7 @@ function renderSummaryTable(
 export async function exportBidReportPDF(
   bidItems: BidItem[],
   projectData: ProjectData | null,
+  terms: string[] = []
 ) {
   const pdf = new jsPDF('portrait', 'mm', 'letter');
   const totalBidValue = bidItems.reduce((sum, i) => sum + (i.total || 0), 0);
@@ -484,7 +486,7 @@ export async function exportBidReportPDF(
 
   for (let page = 0; page < totalItemPages; page++) {
     pdf.addPage();
-    const pageNum = page + 2;
+    let pageNum = page + 2;
     let py = 14;
 
     pdf.setFontSize(11);
@@ -525,6 +527,34 @@ export async function exportBidReportPDF(
         { text: 'TOTAL BUDGET ESTIMATE:', x: cols7[0].x, width: totalLabelW, align: 'right' },
         { text: formatCurrency(totalBidValue), x: cols7[4].x, width: cols7[4].width, align: 'right' },
       ], ROW_HEIGHT, { bold: true, bg: '#f8fafc' });
+      py += ROW_HEIGHT;
+
+      // Add terms if provided
+      if (terms.length > 0) {
+        py += 8;
+        if (py > PAGE_HEIGHT - 60) {
+          pdf.addPage();
+          py = 20;
+          pageNum++;
+        }
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(31, 41, 55);
+        pdf.text('TERMS AND CONDITIONS', MARGIN, py);
+        py += 6;
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'normal');
+        terms.forEach((term) => {
+          if (py > PAGE_HEIGHT - 20) {
+            pdf.addPage();
+            py = 20;
+            pageNum++;
+          }
+          const lines = pdf.splitTextToSize(`• ${term}`, CONTENT_WIDTH);
+          pdf.text(lines, MARGIN, py);
+          py += lines.length * 4;
+        });
+      }
     }
 
     addPageFooter(pdf, pageNum, totalPages);

@@ -15,6 +15,7 @@ interface ProposalData {
   scope?: string;
   notes?: string;
   validDays?: number;
+  terms?: string[];
   proposalItems?: Array<{
     description: string;
     quantity: number;
@@ -171,22 +172,24 @@ export const generateProfessionalProposalPDF = async (proposal: ProposalData) =>
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
   
-  const terms = [
-    '• This proposal is valid for 30 days from the date above.',
-    '• 50% deposit required to begin work, with balance due upon completion.',
-    '• All materials will be of good quality and installed in a workmanlike manner.',
-    '• Any changes to this scope of work must be approved in writing.',
-    '• Contractor will obtain all necessary permits.',
-    '• Work area to be left clean and debris removed daily.',
-    '• This proposal becomes a contract when signed by both parties.'
+  const defaultTerms = [
+    'This proposal is valid for 30 days from the date above.',
+    '50% deposit required to begin work, with balance due upon completion.',
+    'All materials will be of good quality and installed in a workmanlike manner.',
+    'Any changes to this scope of work must be approved in writing.',
+    'Contractor will obtain all necessary permits.',
+    'Work area to be left clean and debris removed daily.',
+    'This proposal becomes a contract when signed by both parties.'
   ];
+
+  const termsToUse = proposal.terms && proposal.terms.length > 0 ? proposal.terms : defaultTerms;
   
   if (proposal.notes) {
-    terms.push(`• ${proposal.notes}`);
+    termsToUse.push(proposal.notes);
   }
   
-  terms.forEach((term) => {
-    pdf.text(term, margin, yPosition);
+  termsToUse.forEach((term) => {
+    pdf.text(`• ${term}`, margin, yPosition);
     yPosition += 5;
   });
 
