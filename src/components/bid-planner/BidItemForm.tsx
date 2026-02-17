@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Trash2, MoreHorizontal } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Trash2, MoreHorizontal, ArrowUpDown } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -403,7 +404,16 @@ interface SearchableSelectProps {
 }
 
 export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }: BidItemFormProps) {
-  const currentItems = items;
+  const [sortBy, setSortBy] = useState<'none' | 'category' | 'division'>('none');
+
+  const currentItems = useMemo(() => {
+    if (sortBy === 'none') return items;
+    return [...items].sort((a, b) => {
+      const valA = (a[sortBy] || '').toLowerCase();
+      const valB = (b[sortBy] || '').toLowerCase();
+      return valA.localeCompare(valB);
+    });
+  }, [items, sortBy]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -645,6 +655,19 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
             <span className="text-lg font-bold text-blue-600">({currentItems.length} items)</span>
           </CardTitle>
           <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
+              <Select value={sortBy} onValueChange={(v: 'none' | 'category' | 'division') => setSortBy(v)}>
+                <SelectTrigger className="h-8 w-[140px] text-xs">
+                  <SelectValue placeholder="Sort by..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Sort</SelectItem>
+                  <SelectItem value="category">Category (A-Z)</SelectItem>
+                  <SelectItem value="division">Division (A-Z)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button onClick={addItem} size="sm">
               <Plus className="w-4 h-4 mr-2" />
               Add Line Item
