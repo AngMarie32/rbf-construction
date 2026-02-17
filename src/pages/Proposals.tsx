@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { EnhancedProposalDialog } from '@/components/proposals/EnhancedProposalDialog';
 import { ProposalTemplateDialog } from '@/components/proposals/ProposalTemplateDialog';
 import { ProposalViewModal } from '@/components/proposals/ProposalViewModal';
+import { generateProfessionalProposalPDF } from '@/utils/proposalPdfExport';
 import { format } from 'date-fns';
 
 interface Proposal {
@@ -93,6 +94,34 @@ export default function Proposals() {
     toast.success(`Proposal "${proposal.project_name}" deleted successfully`);
   };
 
+  const handleExportProposalPDF = async (proposal: Proposal) => {
+    try {
+      await generateProfessionalProposalPDF({
+        projectName: proposal.project_name,
+        client: proposal.client,
+        amount: proposal.amount,
+        status: proposal.status,
+        createdAt: new Date(proposal.created_at),
+        scope: proposal.scope || undefined,
+      });
+      toast.success('Proposal PDF exported successfully');
+    } catch (error) {
+      console.error('Error exporting proposal PDF:', error);
+      toast.error('Failed to export proposal PDF');
+    }
+  };
+
+  const handleExportAll = async () => {
+    if (filteredProposals.length === 0) {
+      toast.error('No proposals to export');
+      return;
+    }
+    for (const proposal of filteredProposals) {
+      await handleExportProposalPDF(proposal);
+    }
+    toast.success(`Exported ${filteredProposals.length} proposal(s)`);
+  };
+
   const handleProposalCreated = () => {
     fetchProposals();
     setNewProposalOpen(false);
@@ -145,7 +174,7 @@ export default function Proposals() {
                   <FileText className="w-4 h-4 mr-2" />
                   Templates
                 </Button>
-                <Button variant="outline">
+                <Button variant="outline" onClick={handleExportAll}>
                   <Download className="w-4 h-4 mr-2" />
                   Export All
                 </Button>
@@ -256,6 +285,9 @@ export default function Proposals() {
                     <div className="flex justify-end gap-2">
                       <Button variant="ghost" size="sm" onClick={() => handleViewProposal(proposal)}>
                         <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleExportProposalPDF(proposal)}>
+                        <Download className="w-4 h-4" />
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleEditProposal(proposal)}>
                         <Edit className="w-4 h-4" />
