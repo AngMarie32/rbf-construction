@@ -330,6 +330,9 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       return;
     }
 
+    // Cache current items for undo
+    const deletedItems = [...bidItems];
+
     try {
       const { error } = await supabase
         .from('bid_items')
@@ -359,7 +362,59 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
       
       onItemsChange([]);
       
-      toast.success('Bid deleted successfully');
+      toast.success('Bid deleted successfully', {
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            try {
+              const itemsToRestore = deletedItems
+                .filter(item => item.category && item.description)
+                .map(item => ({
+                  project_id: projectId,
+                  division: item.division || 'General Conditions',
+                  category: item.category,
+                  subcategory: item.subcategory || null,
+                  description: item.description,
+                  quantity: item.quantity || 1,
+                  unit: item.unit || 'each',
+                  unit_cost: item.unit_cost || 0,
+                }));
+
+              if (itemsToRestore.length === 0) {
+                toast.info('No valid items to restore');
+                return;
+              }
+
+              const { data, error: restoreError } = await supabase
+                .from('bid_items')
+                .insert(itemsToRestore)
+                .select();
+
+              if (restoreError) throw restoreError;
+
+              const restoredItems = (data || []).map((item: any) => ({
+                id: item.id,
+                division: item.division || 'General Conditions',
+                category: item.category,
+                subcategory: item.subcategory || '',
+                description: item.description,
+                quantity: item.quantity,
+                unit: item.unit || 'each',
+                unit_cost: item.unit_cost,
+                total: (item.quantity || 1) * (item.unit_cost || 0),
+              }));
+
+              setBidItems(restoredItems);
+              onItemsChange(restoredItems);
+              toast.success(`${restoredItems.length} bid items restored`);
+            } catch (undoError: any) {
+              console.error('Error restoring bid items:', undoError);
+              toast.error('Failed to restore bid items');
+            }
+          },
+        },
+        duration: 10000,
+      });
     } catch (error: any) {
       console.error('Error deleting bid:', error);
       toast.error(`Failed to delete bid: ${error.message}`);
