@@ -24,7 +24,7 @@ export function StatCard({
   valueColor
 }: StatCardProps) {
   return (
-    <Card className={cn("animate-fade-in bg-white", className)}>
+    <Card className={cn("animate-fade-in", className)}>
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex-1">
@@ -37,8 +37,8 @@ export function StatCard({
             {change && !loading && (
               <p className={cn(
                 "text-sm mt-1",
-                changeType === 'positive' && "text-green-600",
-                changeType === 'negative' && "text-red-600",
+                changeType === 'positive' && "text-success",
+                changeType === 'negative' && "text-destructive",
                 changeType === 'neutral' && "text-muted-foreground"
               )}>
                 {change}
