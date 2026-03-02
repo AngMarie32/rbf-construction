@@ -219,48 +219,48 @@ export default function Dashboard() {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
               <div className="text-center">
-                <div className="text-sm font-medium text-blue-600 mb-2">Total Contract Value</div>
-                <div className="text-2xl font-bold text-blue-600">
+                <div className="text-sm font-medium text-primary mb-2">Total Contract Value</div>
+                <div className="text-2xl font-bold text-primary">
                   ${stats.totalRevenue.toLocaleString()}
                 </div>
                 <div className="text-xs text-muted-foreground">All projects combined</div>
               </div>
 
               <div className="text-center">
-                <div className="text-sm font-medium text-red-600 mb-2">Total Expenses</div>
-                <div className="text-2xl font-bold text-red-600">
+                <div className="text-sm font-medium text-destructive mb-2">Total Expenses</div>
+                <div className="text-2xl font-bold text-destructive">
                   ${totalExpensesPaid.toLocaleString()}
                 </div>
                 <div className="text-xs text-muted-foreground">Approved expenses</div>
               </div>
 
               <div className="text-center">
-                <div className="text-sm font-medium text-emerald-600 mb-2">Profit</div>
-                <div className="text-2xl font-bold text-emerald-600">
+                <div className="text-sm font-medium text-success mb-2">Profit</div>
+                <div className="text-2xl metric-accent">
                   ${(stats.totalRevenue - totalExpensesPaid).toLocaleString()}
                 </div>
                 <div className="text-xs text-muted-foreground">Contract - Expenses</div>
               </div>
 
               <div className="text-center">
-                <div className="text-sm font-medium text-purple-600 mb-2">Remaining Contract Balance</div>
-                <div className="text-2xl font-bold text-purple-600">
+                <div className="text-sm font-medium text-accent mb-2">Remaining Contract Balance</div>
+                <div className="text-2xl font-bold text-accent">
                   ${remainingContract.toLocaleString()}
                 </div>
                 <div className="text-xs text-muted-foreground">Open projects only</div>
               </div>
 
               <div className="text-center">
-                <div className="text-sm font-medium text-blue-600 mb-2">Total Billed</div>
-                <div className="text-2xl font-bold text-blue-600">
+                <div className="text-sm font-medium text-primary mb-2">Total Billed</div>
+                <div className="text-2xl font-bold text-primary">
                   ${totalBilled.toLocaleString()}
                 </div>
                 <div className="text-xs text-muted-foreground">Total invoiced amount</div>
               </div>
 
               <div className="text-center">
-                <div className="text-sm font-medium text-green-600 mb-2">Total Received</div>
-                <div className="text-2xl font-bold text-green-600">
+                <div className="text-sm font-medium text-success mb-2">Total Received</div>
+                <div className="text-2xl font-bold text-success">
                   ${totalReceived.toLocaleString()}
                 </div>
                 <div className="text-xs text-muted-foreground">Payments received</div>
@@ -322,32 +322,32 @@ export default function Dashboard() {
                         </div>
 
                         {/* Financial Snapshot */}
-                        <div className="bg-muted rounded-lg p-3 space-y-2">
+                        <div className="bg-muted/50 dark:bg-secondary/50 rounded-lg p-3 space-y-2 border border-border/50">
                           <h4 className="text-sm font-semibold text-muted-foreground">Financial Snapshot</h4>
                           
                           <div className="grid grid-cols-2 gap-3 text-sm">
                             <div className="text-center">
-                              <div className="text-blue-600 font-medium">Contract</div>
+                              <div className="text-primary font-medium">Contract</div>
                               <div className="font-bold">${project.contract_value.toLocaleString()}</div>
                             </div>
                             <div className="text-center">
-                              <div className="text-green-600 font-medium">Remaining</div>
+                              <div className="text-success font-medium">Remaining</div>
                               <div className="font-bold">${(project.contract_value - project.totalBilled).toLocaleString()}</div>
                             </div>
                             <div className="text-center">
-                              <div className="text-blue-600 font-medium">Billed</div>
+                              <div className="text-primary font-medium">Billed</div>
                               <div className="font-bold">${project.totalBilled.toLocaleString()}</div>
                             </div>
                             <div className="text-center">
-                              <div className="text-green-600 font-medium">Received</div>
+                              <div className="text-success font-medium">Received</div>
                               <div className="font-bold">${project.totalReceived.toLocaleString()}</div>
                             </div>
                             <div className="text-center">
-                              <div className="text-red-600 font-medium">Expenses Paid</div>
+                              <div className="text-destructive font-medium">Expenses Paid</div>
                               <div className="font-bold">${project.expensesPaid.toLocaleString()}</div>
                             </div>
                             <div className="text-center">
-                              <div className="text-orange-600 font-medium">Pending</div>
+                              <div className="text-accent font-medium">Pending</div>
                               <div className="font-bold">${project.pendingExpenses.toLocaleString()}</div>
                             </div>
                           </div>
