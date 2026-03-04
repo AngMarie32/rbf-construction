@@ -91,16 +91,16 @@ function drawTableRow(
 
 // Column definitions for itemized table
 function getItemizedCols() {
-  const ucW = 30;
+  const totalW = 30;
   const unitW = 22;
   const qtyW = 20;
-  const catW = CONTENT_WIDTH - qtyW - unitW - ucW;
+  const catW = CONTENT_WIDTH - qtyW - unitW - totalW;
   let x = MARGIN;
   const cols = [
     { key: 'category', label: 'Category', width: catW, align: 'left' as const },
     { key: 'qty', label: 'Qty', width: qtyW, align: 'center' as const },
     { key: 'unit', label: 'Unit', width: unitW, align: 'center' as const },
-    { key: 'unitCost', label: 'Unit Cost', width: ucW, align: 'right' as const },
+    { key: 'lineTotal', label: 'Total', width: totalW, align: 'right' as const },
   ];
   return cols.map(c => {
     const col = { ...c, x };
@@ -111,6 +111,39 @@ function getItemizedCols() {
 
 function formatCurrency(value: number): string {
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function toNumber(value: unknown): number {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.replace(/[$,\s]/g, '');
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+}
+
+function getItemUnitCost(item: BidItem): number {
+  return toNumber(item.unitCost ?? item.unit_cost ?? 0);
+}
+
+function getItemQuantity(item: BidItem): number {
+  return toNumber(item.quantity ?? 0);
+}
+
+function getItemLineTotal(item: BidItem): number {
+  const quantity = getItemQuantity(item);
+  const unitCost = getItemUnitCost(item);
+
+  if (quantity > 0 || unitCost > 0) {
+    return quantity * unitCost;
+  }
+
+  return toNumber(item.total ?? 0);
 }
 
 export async function exportBudgetEstimatePDF(
@@ -125,7 +158,7 @@ export async function exportBudgetEstimatePDF(
   const filteredItems = selectedCategories.length > 0 && exportType === 'itemized'
     ? items.filter(i => selectedCategories.includes(i.category || ''))
     : items;
-  const totalValue = filteredItems.reduce((sum, i) => sum + (i.total || 0), 0);
+  const totalValue = filteredItems.reduce((sum, i) => sum + getItemLineTotal(i), 0);
 
   // Calculate total pages
   const HEADER_HEIGHT = 80;
