@@ -309,11 +309,11 @@ export async function exportBudgetEstimatePDF(
       y = 15;
     }
 
-    // Merge first 3 cols for total label
-    const totalLabelWidth = cols[0].width + cols[1].width + cols[2].width;
+    // Merge first 4 cols for total label
+    const totalLabelWidth = cols[0].width + cols[1].width + cols[2].width + cols[3].width;
     drawTableRow(pdf, y, [
       { text: 'TOTAL BUDGET ESTIMATE:', x: cols[0].x, width: totalLabelWidth, align: 'right' },
-      { text: formatCurrency(totalValue), x: cols[3].x, width: cols[3].width, align: 'right' },
+      { text: formatCurrency(totalValue), x: cols[4].x, width: cols[4].width, align: 'right' },
     ], ROW_HEIGHT, { bold: true, bg: '#f8fafc' });
 
     addPageFooter(pdf, currentPage, totalPages);
