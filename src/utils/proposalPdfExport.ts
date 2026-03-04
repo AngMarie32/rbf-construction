@@ -132,12 +132,13 @@ export const generateProfessionalProposalPDF = async (proposal: ProposalData) =>
     let subtotal = 0;
     
     proposal.proposalItems.forEach((item) => {
+      const lineTotal = item.quantity * item.unitPrice;
       pdf.text(item.description, margin, yPosition);
       pdf.text(item.quantity.toString(), margin + 100, yPosition);
       pdf.text(item.unit, margin + 120, yPosition);
       pdf.text(`$${item.unitPrice.toFixed(2)}`, margin + 140, yPosition);
-      pdf.text(`$${item.total.toFixed(2)}`, margin + 165, yPosition);
-      subtotal += item.total;
+      pdf.text(`$${lineTotal.toFixed(2)}`, margin + 165, yPosition);
+      subtotal += lineTotal;
       yPosition += 5;
     });
     
