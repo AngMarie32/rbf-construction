@@ -335,7 +335,7 @@ function renderSummaryTable(
   const totals: Record<string, number> = {};
   items.forEach(item => {
     const key = (groupKey === 'category' ? item.category : (item as any).division) || 'Other';
-    totals[key] = (totals[key] || 0) + (item.total || 0);
+    totals[key] = (totals[key] || 0) + getItemLineTotal(item);
   });
 
   pdf.setFillColor(243, 244, 246);
