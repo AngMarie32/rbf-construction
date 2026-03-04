@@ -289,12 +289,14 @@ export async function exportBudgetEstimatePDF(
         y += ROW_HEIGHT;
       }
 
+      const unitCost = getItemUnitCost(item);
       const lineTotal = getItemLineTotal(item);
       drawTableRow(pdf, y, [
         { text: item.category || '', x: cols[0].x, width: cols[0].width, align: 'left' },
         { text: String(item.quantity || 0), x: cols[1].x, width: cols[1].width, align: 'center' },
         { text: item.unit || 'each', x: cols[2].x, width: cols[2].width, align: 'center' },
-        { text: formatCurrency(lineTotal), x: cols[3].x, width: cols[3].width, align: 'right' },
+        { text: formatCurrency(unitCost), x: cols[3].x, width: cols[3].width, align: 'right' },
+        { text: formatCurrency(lineTotal), x: cols[4].x, width: cols[4].width, align: 'right' },
       ], ROW_HEIGHT);
       y += ROW_HEIGHT;
     });
