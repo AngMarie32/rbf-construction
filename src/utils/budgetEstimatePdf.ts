@@ -91,16 +91,18 @@ function drawTableRow(
 
 // Column definitions for itemized table
 function getItemizedCols() {
-  const totalW = 30;
-  const unitW = 22;
-  const qtyW = 20;
-  const catW = CONTENT_WIDTH - qtyW - unitW - totalW;
+  const extW = 30;
+  const ucW = 28;
+  const unitW = 18;
+  const qtyW = 18;
+  const catW = CONTENT_WIDTH - qtyW - unitW - ucW - extW;
   let x = MARGIN;
   const cols = [
     { key: 'category', label: 'Category', width: catW, align: 'left' as const },
     { key: 'qty', label: 'Qty', width: qtyW, align: 'center' as const },
     { key: 'unit', label: 'Unit', width: unitW, align: 'center' as const },
-    { key: 'lineTotal', label: 'Total', width: totalW, align: 'right' as const },
+    { key: 'unitCost', label: 'Unit Cost', width: ucW, align: 'right' as const },
+    { key: 'extCost', label: 'Ext. Cost', width: extW, align: 'right' as const },
   ];
   return cols.map(c => {
     const col = { ...c, x };
@@ -287,12 +289,14 @@ export async function exportBudgetEstimatePDF(
         y += ROW_HEIGHT;
       }
 
+      const unitCost = getItemUnitCost(item);
       const lineTotal = getItemLineTotal(item);
       drawTableRow(pdf, y, [
         { text: item.category || '', x: cols[0].x, width: cols[0].width, align: 'left' },
         { text: String(item.quantity || 0), x: cols[1].x, width: cols[1].width, align: 'center' },
         { text: item.unit || 'each', x: cols[2].x, width: cols[2].width, align: 'center' },
-        { text: formatCurrency(lineTotal), x: cols[3].x, width: cols[3].width, align: 'right' },
+        { text: formatCurrency(unitCost), x: cols[3].x, width: cols[3].width, align: 'right' },
+        { text: formatCurrency(lineTotal), x: cols[4].x, width: cols[4].width, align: 'right' },
       ], ROW_HEIGHT);
       y += ROW_HEIGHT;
     });
@@ -305,11 +309,11 @@ export async function exportBudgetEstimatePDF(
       y = 15;
     }
 
-    // Merge first 3 cols for total label
-    const totalLabelWidth = cols[0].width + cols[1].width + cols[2].width;
+    // Merge first 4 cols for total label
+    const totalLabelWidth = cols[0].width + cols[1].width + cols[2].width + cols[3].width;
     drawTableRow(pdf, y, [
       { text: 'TOTAL BUDGET ESTIMATE:', x: cols[0].x, width: totalLabelWidth, align: 'right' },
-      { text: formatCurrency(totalValue), x: cols[3].x, width: cols[3].width, align: 'right' },
+      { text: formatCurrency(totalValue), x: cols[4].x, width: cols[4].width, align: 'right' },
     ], ROW_HEIGHT, { bold: true, bg: '#f8fafc' });
 
     addPageFooter(pdf, currentPage, totalPages);
