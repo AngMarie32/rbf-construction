@@ -91,16 +91,18 @@ function drawTableRow(
 
 // Column definitions for itemized table
 function getItemizedCols() {
-  const totalW = 30;
-  const unitW = 22;
-  const qtyW = 20;
-  const catW = CONTENT_WIDTH - qtyW - unitW - totalW;
+  const extW = 30;
+  const ucW = 28;
+  const unitW = 18;
+  const qtyW = 18;
+  const catW = CONTENT_WIDTH - qtyW - unitW - ucW - extW;
   let x = MARGIN;
   const cols = [
     { key: 'category', label: 'Category', width: catW, align: 'left' as const },
     { key: 'qty', label: 'Qty', width: qtyW, align: 'center' as const },
     { key: 'unit', label: 'Unit', width: unitW, align: 'center' as const },
-    { key: 'lineTotal', label: 'Total', width: totalW, align: 'right' as const },
+    { key: 'unitCost', label: 'Unit Cost', width: ucW, align: 'right' as const },
+    { key: 'extCost', label: 'Ext. Cost', width: extW, align: 'right' as const },
   ];
   return cols.map(c => {
     const col = { ...c, x };
