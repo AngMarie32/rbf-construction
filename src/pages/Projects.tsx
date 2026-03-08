@@ -1,10 +1,10 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search } from 'lucide-react';
+import { Search, FolderOpen } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { ProjectCard } from '@/components/projects/ProjectCard';
@@ -21,12 +21,10 @@ export default function Projects() {
   const [fieldLeaderFilter, setFieldLeaderFilter] = useState<string>('all');
   const [showReports, setShowReports] = useState(false);
   
-  // Financial data by project
   const [projectExpenses, setProjectExpenses] = useState<Record<string, number>>({});
   const [projectBilled, setProjectBilled] = useState<Record<string, number>>({});
   const [projectReceived, setProjectReceived] = useState<Record<string, number>>({});
 
-  // Get unique field leaders for filter
   const fieldLeaders = useMemo(() => {
     const leaders = [...new Set(projects.map(p => p.fieldLeader).filter(Boolean))] as string[];
     return leaders;
@@ -82,17 +80,14 @@ export default function Projects() {
 
   const fetchFinancialData = async () => {
     try {
-      // Fetch all expenses
       const { data: expensesData } = await supabase
         .from('expenses')
         .select('project_id, amount');
       
-      // Fetch all billing
       const { data: billingData } = await supabase
         .from('project_billing')
         .select('project_id, billed_amount, paid_amount');
       
-      // Calculate totals by project
       const expensesByProject: Record<string, number> = {};
       const billedByProject: Record<string, number> = {};
       const receivedByProject: Record<string, number> = {};
@@ -143,8 +138,6 @@ export default function Projects() {
   const handleDeleteProject = async (projectId: string) => {
     try {
       console.log('Deleting project:', projectId);
-      
-      // Delete related records in correct order to avoid foreign key constraint issues
       
       const { error: billingLineItemsError } = await supabase
         .from('billing_line_items')
@@ -201,7 +194,6 @@ export default function Projects() {
         .delete()
         .eq('project_id', projectId);
 
-      // Finally delete the project
       const { error: projectError } = await supabase
         .from('projects')
         .delete()
@@ -212,7 +204,6 @@ export default function Projects() {
         throw projectError;
       }
 
-      // Update local state
       setProjects(prev => prev.filter(p => p.id !== projectId));
       toast.success('Project deleted successfully');
     } catch (error) {
@@ -224,8 +215,20 @@ export default function Projects() {
   if (loading) {
     return (
       <Layout title="Projects" subtitle="Manage your construction projects">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
+            <div className="flex gap-4 flex-1 flex-wrap">
+              <Skeleton className="h-10 w-64" />
+              <Skeleton className="h-10 w-40" />
+              <Skeleton className="h-10 w-48" />
+            </div>
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton key={i} className="h-[420px] rounded-xl" />
+            ))}
+          </div>
         </div>
       </Layout>
     );
@@ -272,7 +275,7 @@ export default function Projects() {
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
           <div className="flex gap-4 flex-1 flex-wrap">
             <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 placeholder="Search projects..."
                 value={searchTerm}
@@ -320,28 +323,33 @@ export default function Projects() {
 
         {/* Projects Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map((project) => (
-            <ProjectCard 
-              key={project.id} 
-              project={project} 
-              showDeleteButton={true}
-              onDelete={handleDeleteProject}
-              onUpdate={fetchProjects}
-              totalExpenses={projectExpenses[project.id] || 0}
-              totalBilled={projectBilled[project.id] || 0}
-              totalReceived={projectReceived[project.id] || 0}
-            />
+          {filteredProjects.map((project, idx) => (
+            <div key={project.id} className="animate-fade-in-up" style={{ animationDelay: `${idx * 50}ms`, animationFillMode: 'backwards' }}>
+              <ProjectCard 
+                project={project} 
+                showDeleteButton={true}
+                onDelete={handleDeleteProject}
+                onUpdate={fetchProjects}
+                totalExpenses={projectExpenses[project.id] || 0}
+                totalBilled={projectBilled[project.id] || 0}
+                totalReceived={projectReceived[project.id] || 0}
+              />
+            </div>
           ))}
 
           {filteredProjects.length === 0 && (
-            <div className="col-span-full text-center py-12 text-gray-500">
+            <div className="col-span-full text-center py-16">
               {projects.length === 0 ? (
-                <div>
-                  <p className="text-lg mb-4">No projects yet</p>
+                <div className="space-y-4">
+                  <FolderOpen className="w-16 h-16 mx-auto text-muted-foreground/40" />
+                  <p className="text-lg text-muted-foreground">No projects yet</p>
                   <NewProjectDialog onProjectCreated={fetchProjects} />
                 </div>
               ) : (
-                <p>No projects found matching your criteria</p>
+                <div className="space-y-2">
+                  <Search className="w-12 h-12 mx-auto text-muted-foreground/40" />
+                  <p className="text-muted-foreground">No projects found matching your criteria</p>
+                </div>
               )}
             </div>
           )}
