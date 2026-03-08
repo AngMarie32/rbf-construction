@@ -25,29 +25,38 @@ interface ProposalData {
   }>;
 }
 
+const MARGIN = 20;
+const PAGE_HEIGHT = 279.4;
+
 export const generateProfessionalProposalPDF = async (proposal: ProposalData) => {
   const pdf = new jsPDF('portrait', 'mm', 'letter');
   const pageWidth = pdf.internal.pageSize.getWidth();
-  const margin = 20;
   let yPosition = 10;
+
+  const checkPageBreak = (neededSpace: number) => {
+    if (yPosition + neededSpace > PAGE_HEIGHT - 20) {
+      pdf.addPage();
+      yPosition = 20;
+    }
+  };
 
   // Company Header with Logo
   const logoDataUrl = await loadLogoAsDataUrl();
   if (logoDataUrl) {
     const logoWidth = 40;
     const logoHeight = 30;
-    pdf.addImage(logoDataUrl, 'PNG', margin, yPosition, logoWidth, logoHeight);
+    pdf.addImage(logoDataUrl, 'PNG', MARGIN, yPosition, logoWidth, logoHeight);
     yPosition += logoHeight + 4;
   } else {
     pdf.setFontSize(14);
     pdf.setFont('helvetica', 'bold');
-    pdf.text('RBF Construction', margin, yPosition + 8);
+    pdf.text('RBF Construction', MARGIN, yPosition + 8);
     yPosition += 14;
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
-    pdf.text('1411 W Hill Rd, Flint, MI 48507', margin, yPosition);
+    pdf.text('1411 W Hill Rd, Flint, MI 48507', MARGIN, yPosition);
     yPosition += 3;
-    pdf.text('Phone: 810-938-8498', margin, yPosition);
+    pdf.text('Phone: 810-938-8498', MARGIN, yPosition);
     yPosition += 3;
   }
 
@@ -55,119 +64,120 @@ export const generateProfessionalProposalPDF = async (proposal: ProposalData) =>
   yPosition += 10;
   pdf.setFontSize(12);
   pdf.setFont('helvetica', 'bold');
-  pdf.text('BUDGET ESTIMATE', margin, yPosition);
+  pdf.text('BUDGET ESTIMATE', MARGIN, yPosition);
 
   // Proposal details box
   yPosition += 15;
   pdf.setDrawColor(0, 0, 0);
-  pdf.rect(margin, yPosition, pageWidth - 2 * margin, 25);
+  pdf.rect(MARGIN, yPosition, pageWidth - 2 * MARGIN, 25);
   
   yPosition += 8;
   pdf.setFontSize(12);
   pdf.setFont('helvetica', 'bold');
-  pdf.text('Customer Information:', margin + 5, yPosition);
+  pdf.text('Customer Information:', MARGIN + 5, yPosition);
   
   yPosition += 6;
   pdf.setFont('helvetica', 'normal');
-  pdf.text(`Name: ${proposal.client}`, margin + 5, yPosition);
+  pdf.text(`Name: ${proposal.client}`, MARGIN + 5, yPosition);
   
   if (proposal.clientAddress) {
     yPosition += 5;
-    pdf.text(`Address: ${proposal.clientAddress}`, margin + 5, yPosition);
+    pdf.text(`Address: ${proposal.clientAddress}`, MARGIN + 5, yPosition);
   }
   
   if (proposal.clientPhone || proposal.clientEmail) {
     yPosition += 5;
     const contact = [proposal.clientPhone, proposal.clientEmail].filter(Boolean).join(' | ');
-    pdf.text(`Contact: ${contact}`, margin + 5, yPosition);
+    pdf.text(`Contact: ${contact}`, MARGIN + 5, yPosition);
   }
 
   // Project Information
   yPosition += 15;
   pdf.setFont('helvetica', 'bold');
-  pdf.text('Project Information:', margin, yPosition);
+  pdf.text('Project Information:', MARGIN, yPosition);
   
   yPosition += 6;
   pdf.setFont('helvetica', 'normal');
-  pdf.text(`Project: ${proposal.projectName}`, margin, yPosition);
+  pdf.text(`Project: ${proposal.projectName}`, MARGIN, yPosition);
   
   if (proposal.projectAddress) {
     yPosition += 5;
-    pdf.text(`Location: ${proposal.projectAddress}`, margin, yPosition);
+    pdf.text(`Location: ${proposal.projectAddress}`, MARGIN, yPosition);
   }
   
   yPosition += 5;
-  pdf.text(`Date: ${proposal.createdAt.toLocaleDateString()}`, margin, yPosition);
+  pdf.text(`Date: ${proposal.createdAt.toLocaleDateString()}`, MARGIN, yPosition);
   
   yPosition += 5;
   const validUntil = new Date(proposal.createdAt);
   validUntil.setDate(validUntil.getDate() + (proposal.validDays || 30));
-  pdf.text(`Valid Until: ${validUntil.toLocaleDateString()}`, margin, yPosition);
+  pdf.text(`Valid Until: ${validUntil.toLocaleDateString()}`, MARGIN, yPosition);
 
   // Scope of Work
   yPosition += 15;
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(14);
-  pdf.text('SCOPE OF WORK', margin, yPosition);
+  pdf.text('SCOPE OF WORK', MARGIN, yPosition);
   
   yPosition += 8;
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(10);
   
-  // If we have itemized scope
   if (proposal.proposalItems && proposal.proposalItems.length > 0) {
     // Table headers
     pdf.setFont('helvetica', 'bold');
-    pdf.text('Description', margin, yPosition);
-    pdf.text('Qty', margin + 100, yPosition);
-    pdf.text('Unit', margin + 120, yPosition);
-    pdf.text('Price', margin + 140, yPosition);
-    pdf.text('Total', margin + 165, yPosition);
+    pdf.text('Description', MARGIN, yPosition);
+    pdf.text('Qty', MARGIN + 90, yPosition);
+    pdf.text('Unit', MARGIN + 108, yPosition);
+    pdf.text('Unit Price', MARGIN + 128, yPosition);
+    pdf.text('Ext. Cost', MARGIN + 155, yPosition);
     
     yPosition += 5;
-    pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+    pdf.line(MARGIN, yPosition, pageWidth - MARGIN, yPosition);
     yPosition += 5;
     
     pdf.setFont('helvetica', 'normal');
     let subtotal = 0;
     
     proposal.proposalItems.forEach((item) => {
+      checkPageBreak(12);
       const lineTotal = item.quantity * item.unitPrice;
-      pdf.text(item.description, margin, yPosition);
-      pdf.text(item.quantity.toString(), margin + 100, yPosition);
-      pdf.text(item.unit, margin + 120, yPosition);
-      pdf.text(`$${item.unitPrice.toFixed(2)}`, margin + 140, yPosition);
-      pdf.text(`$${lineTotal.toFixed(2)}`, margin + 165, yPosition);
+      pdf.text(item.description, MARGIN, yPosition);
+      pdf.text(item.quantity.toString(), MARGIN + 90, yPosition);
+      pdf.text(item.unit, MARGIN + 108, yPosition);
+      pdf.text(`$${item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, MARGIN + 128, yPosition);
+      pdf.text(`$${lineTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, MARGIN + 155, yPosition);
       subtotal += lineTotal;
-      yPosition += 5;
+      yPosition += 6;
     });
     
     // Total
-    yPosition += 5;
-    pdf.line(margin + 140, yPosition, pageWidth - margin, yPosition);
+    yPosition += 3;
+    checkPageBreak(15);
+    pdf.line(MARGIN + 128, yPosition, pageWidth - MARGIN, yPosition);
     yPosition += 8;
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(12);
-    pdf.text(`TOTAL PROJECT COST: $${subtotal.toLocaleString()}`, margin + 100, yPosition);
+    pdf.text(`TOTAL PROJECT COST: $${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, MARGIN + 90, yPosition);
   } else {
-    // Text-based scope
     if (proposal.scope) {
-      const scopeLines = pdf.splitTextToSize(proposal.scope, pageWidth - 2 * margin);
-      pdf.text(scopeLines, margin, yPosition);
+      const scopeLines = pdf.splitTextToSize(proposal.scope, pageWidth - 2 * MARGIN);
+      pdf.text(scopeLines, MARGIN, yPosition);
       yPosition += scopeLines.length * 5;
     }
     
     yPosition += 10;
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(16);
-    pdf.text(`TOTAL PROJECT COST: $${proposal.amount.toLocaleString()}`, margin, yPosition);
+    pdf.text(`TOTAL PROJECT COST: $${proposal.amount.toLocaleString()}`, MARGIN, yPosition);
   }
 
   // Terms and Conditions
   yPosition += 20;
+  checkPageBreak(40);
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(12);
-  pdf.text('TERMS AND CONDITIONS', margin, yPosition);
+  pdf.text('TERMS AND CONDITIONS', MARGIN, yPosition);
   
   yPosition += 8;
   pdf.setFont('helvetica', 'normal');
@@ -183,36 +193,34 @@ export const generateProfessionalProposalPDF = async (proposal: ProposalData) =>
     'This proposal becomes a contract when signed by both parties.'
   ];
 
-  const termsToUse = proposal.terms && proposal.terms.length > 0 ? proposal.terms : defaultTerms;
+  const termsToUse = proposal.terms && proposal.terms.length > 0 ? [...proposal.terms] : [...defaultTerms];
   
   if (proposal.notes) {
     termsToUse.push(proposal.notes);
   }
   
   termsToUse.forEach((term) => {
-    pdf.text(`• ${term}`, margin, yPosition);
-    yPosition += 5;
+    checkPageBreak(8);
+    const lines = pdf.splitTextToSize(`• ${term}`, pageWidth - 2 * MARGIN);
+    pdf.text(lines, MARGIN, yPosition);
+    yPosition += lines.length * 4.5;
   });
 
   // Signature section
-  yPosition += 20;
+  yPosition += 15;
+  checkPageBreak(45);
   pdf.setFont('helvetica', 'bold');
-  pdf.text('ACCEPTANCE', margin, yPosition);
+  pdf.text('ACCEPTANCE', MARGIN, yPosition);
   
   yPosition += 10;
   pdf.setFont('helvetica', 'normal');
-  pdf.text('Customer Signature: _________________________ Date: ___________', margin, yPosition);
+  pdf.text('Customer Signature: _________________________ Date: ___________', MARGIN, yPosition);
   
   yPosition += 10;
-  pdf.text('Print Name: _________________________', margin, yPosition);
+  pdf.text('Print Name: _________________________', MARGIN, yPosition);
   
   yPosition += 15;
-  pdf.text('Contractor Signature: _________________________ Date: ___________', margin, yPosition);
-
-  // Footer
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  pdf.setFontSize(8);
-  pdf.text('Thank you for choosing BuildPro Construction for your project!', margin, pageHeight - 15);
+  pdf.text('Contractor Signature: _________________________ Date: ___________', MARGIN, yPosition);
 
   const filename = `proposal-${proposal.projectName.replace(/\s+/g, '-').toLowerCase()}.pdf`;
   pdf.save(filename);
