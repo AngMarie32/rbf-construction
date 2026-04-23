@@ -1188,6 +1188,293 @@ export type Database = {
           },
         ]
       }
+      esign_audit_events: {
+        Row: {
+          actor_email: string | null
+          actor_name: string | null
+          created_at: string
+          envelope_id: string
+          event_type: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          signer_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          actor_email?: string | null
+          actor_name?: string | null
+          created_at?: string
+          envelope_id: string
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          signer_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          actor_email?: string | null
+          actor_name?: string | null
+          created_at?: string
+          envelope_id?: string
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          signer_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "esign_audit_events_envelope_id_fkey"
+            columns: ["envelope_id"]
+            isOneToOne: false
+            referencedRelation: "esign_envelopes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "esign_audit_events_signer_id_fkey"
+            columns: ["signer_id"]
+            isOneToOne: false
+            referencedRelation: "esign_signers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      esign_envelopes: {
+        Row: {
+          certificate_path: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          message: string | null
+          original_pdf_path: string | null
+          project_id: string | null
+          sent_at: string | null
+          signed_pdf_path: string | null
+          signing_order: string
+          source_id: string | null
+          source_type: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          certificate_path?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          message?: string | null
+          original_pdf_path?: string | null
+          project_id?: string | null
+          sent_at?: string | null
+          signed_pdf_path?: string | null
+          signing_order?: string
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          certificate_path?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          message?: string | null
+          original_pdf_path?: string | null
+          project_id?: string | null
+          sent_at?: string | null
+          signed_pdf_path?: string | null
+          signing_order?: string
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      esign_fields: {
+        Row: {
+          created_at: string
+          envelope_id: string
+          field_type: string
+          filled_at: string | null
+          height_pct: number
+          id: string
+          page_number: number
+          required: boolean
+          signer_id: string | null
+          value: string | null
+          width_pct: number
+          x_pct: number
+          y_pct: number
+        }
+        Insert: {
+          created_at?: string
+          envelope_id: string
+          field_type: string
+          filled_at?: string | null
+          height_pct?: number
+          id?: string
+          page_number?: number
+          required?: boolean
+          signer_id?: string | null
+          value?: string | null
+          width_pct?: number
+          x_pct: number
+          y_pct: number
+        }
+        Update: {
+          created_at?: string
+          envelope_id?: string
+          field_type?: string
+          filled_at?: string | null
+          height_pct?: number
+          id?: string
+          page_number?: number
+          required?: boolean
+          signer_id?: string | null
+          value?: string | null
+          width_pct?: number
+          x_pct?: number
+          y_pct?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "esign_fields_envelope_id_fkey"
+            columns: ["envelope_id"]
+            isOneToOne: false
+            referencedRelation: "esign_envelopes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "esign_fields_signer_id_fkey"
+            columns: ["signer_id"]
+            isOneToOne: false
+            referencedRelation: "esign_signers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      esign_signers: {
+        Row: {
+          access_token: string
+          created_at: string
+          decline_reason: string | null
+          declined_at: string | null
+          email: string
+          envelope_id: string
+          id: string
+          ip_address: string | null
+          name: string
+          notified_at: string | null
+          order_index: number
+          signature_data: string | null
+          signature_type: string | null
+          signed_at: string | null
+          status: string
+          token_expires_at: string | null
+          user_agent: string | null
+          viewed_at: string | null
+        }
+        Insert: {
+          access_token?: string
+          created_at?: string
+          decline_reason?: string | null
+          declined_at?: string | null
+          email: string
+          envelope_id: string
+          id?: string
+          ip_address?: string | null
+          name: string
+          notified_at?: string | null
+          order_index?: number
+          signature_data?: string | null
+          signature_type?: string | null
+          signed_at?: string | null
+          status?: string
+          token_expires_at?: string | null
+          user_agent?: string | null
+          viewed_at?: string | null
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          decline_reason?: string | null
+          declined_at?: string | null
+          email?: string
+          envelope_id?: string
+          id?: string
+          ip_address?: string | null
+          name?: string
+          notified_at?: string | null
+          order_index?: number
+          signature_data?: string | null
+          signature_type?: string | null
+          signed_at?: string | null
+          status?: string
+          token_expires_at?: string | null
+          user_agent?: string | null
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "esign_signers_envelope_id_fkey"
+            columns: ["envelope_id"]
+            isOneToOne: false
+            referencedRelation: "esign_envelopes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      esign_templates: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string | null
+          default_fields: Json | null
+          description: string | null
+          id: string
+          is_system: boolean
+          name: string
+          source_pdf_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_fields?: Json | null
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name: string
+          source_pdf_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_fields?: Json | null
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name?: string
+          source_pdf_path?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       expense_categories: {
         Row: {
           color: string | null
