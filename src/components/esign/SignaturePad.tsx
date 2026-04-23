@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 // @ts-ignore - react-signature-canvas types are loose
-import SignatureCanvas from 'react-signature-canvas';
+import SignatureCanvasOrig from 'react-signature-canvas';
+const SignatureCanvas: any = SignatureCanvasOrig;
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -43,7 +44,6 @@ export function SignaturePad({ onComplete, signerName }: Props) {
       </TabsList>
       <TabsContent value="draw" className="space-y-3">
         <div className="border-2 border-dashed border-border rounded-lg bg-background">
-          {/* @ts-ignore */}
           <SignatureCanvas
             ref={sigRef}
             penColor="#1a202c"
