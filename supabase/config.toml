@@ -1,1 +1,10 @@
 project_id = "gdrurkccaglzcicpivyy"
+
+[functions.esign-get-envelope]
+verify_jwt = false
+
+[functions.esign-submit-signature]
+verify_jwt = false
+
+[functions.esign-send-invitations]
+verify_jwt = false
