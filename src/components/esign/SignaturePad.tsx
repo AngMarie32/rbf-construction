@@ -13,7 +13,7 @@ interface Props {
 }
 
 export function SignaturePad({ onComplete, signerName }: Props) {
-  const sigRef = useRef<SignatureCanvas>(null);
+  const sigRef = useRef<any>(null);
   const [typed, setTyped] = useState(signerName || '');
 
   const handleApplyDrawn = () => {
