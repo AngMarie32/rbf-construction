@@ -29,7 +29,7 @@ export function PdfViewer({ url, pageNumber, onLoad, className }: Props) {
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         const ctx = canvas.getContext('2d')!;
-        task = page.render({ canvasContext: ctx, viewport, canvas });
+        task = page.render({ canvasContext: ctx, viewport } as any);
         await task.promise;
         onLoad?.(pdf.numPages, { width: viewport.width, height: viewport.height });
       } catch (e: any) {
