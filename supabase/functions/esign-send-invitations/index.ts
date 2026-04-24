@@ -72,7 +72,10 @@ Deno.serve(async (req) => {
           }),
         });
         const data = await r.json();
-        results.push({ signer: signer.email, ok: r.ok, data });
+        results.push({ signer: signer.email, ok: r.ok, status: r.status, data, link });
+        if (!r.ok) {
+          console.error('Resend error for', signer.email, r.status, data);
+        }
       } else {
         results.push({ signer: signer.email, ok: false, simulated: true, link });
       }
@@ -91,7 +94,15 @@ Deno.serve(async (req) => {
       status: 'sent', sent_at: new Date().toISOString(),
     }).eq('id', envelopeId);
 
-    return new Response(JSON.stringify({ success: true, results }), {
+    const anyFailed = results.some(r => r.ok === false && !r.simulated);
+    const allFailed = results.length > 0 && results.every(r => r.ok === false);
+    return new Response(JSON.stringify({
+      success: !allFailed,
+      warning: anyFailed
+        ? 'Some emails were rejected by the email provider. With the default Resend sandbox sender (onboarding@resend.dev), Resend only delivers to the email address that owns the Resend account. Verify a domain in Resend and update the sender to send to anyone.'
+        : undefined,
+      results,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {

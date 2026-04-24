@@ -122,9 +122,34 @@ export function useSendEnvelope() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ['esign-envelopes'] });
-      toast.success('Invitations sent');
+      const failed = (data?.results || []).filter((r: any) => r.ok === false);
+      if (data?.warning) {
+        toast.warning('Some emails were rejected', {
+          description: data.warning,
+          duration: 12000,
+        });
+      } else {
+        toast.success('Invitations sent');
+      }
+      // Always show direct signing links so the user can test/share manually
+      for (const r of (data?.results || [])) {
+        if (r.link) {
+          const status = r.ok ? 'sent' : 'not delivered';
+          toast.message(`${r.signer} (${status})`, {
+            description: r.link,
+            duration: 15000,
+            action: {
+              label: 'Copy link',
+              onClick: () => navigator.clipboard.writeText(r.link),
+            },
+          });
+        }
+      }
+      if (failed.length && !data?.warning) {
+        toast.error(`${failed.length} invitation${failed.length === 1 ? '' : 's'} failed`);
+      }
     },
     onError: (e: any) => toast.error(e?.message || 'Failed to send'),
   });
