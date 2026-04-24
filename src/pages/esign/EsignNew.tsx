@@ -1,5 +1,5 @@
 import { Layout } from '@/components/layout/Layout';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useCreateEnvelope, useUploadEnvelopePdf } from '@/hooks/useEsign';
 import { Upload, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function EsignNew() {
   const navigate = useNavigate();
@@ -18,8 +19,17 @@ export default function EsignNew() {
   const [message, setMessage] = useState('');
   const [order, setOrder] = useState<'parallel' | 'sequential'>('parallel');
   const [file, setFile] = useState<File | null>(null);
+  const [projectId, setProjectId] = useState<string>(params.get('projectId') || 'none');
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const create = useCreateEnvelope();
   const upload = useUploadEnvelopePdf();
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('projects').select('id, name').order('name');
+      setProjects(data || []);
+    })();
+  }, []);
 
   const handleSubmit = async () => {
     if (!title.trim()) return toast.error('Title required');
@@ -29,6 +39,7 @@ export default function EsignNew() {
         title, message, signing_order: order,
         source_type: params.get('source') || undefined,
         source_id: params.get('sourceId') || undefined,
+        project_id: projectId && projectId !== 'none' ? projectId : undefined,
       });
       await upload.mutateAsync({ envelopeId: env.id, file });
       toast.success('Document created');
