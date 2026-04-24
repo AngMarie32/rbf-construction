@@ -280,13 +280,13 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="*" element={<NotFound />} />
             <Route path="/sign/:token" element={<PublicSign />} />
             <Route path="/esign" element={<ProtectedRoute><EsignDashboard /></ProtectedRoute>} />
             <Route path="/esign/documents" element={<ProtectedRoute><EsignDocuments /></ProtectedRoute>} />
             <Route path="/esign/templates" element={<ProtectedRoute><EsignTemplates /></ProtectedRoute>} />
             <Route path="/esign/new" element={<ProtectedRoute><EsignNew /></ProtectedRoute>} />
             <Route path="/esign/documents/:id" element={<ProtectedRoute><EsignDocumentDetail /></ProtectedRoute>} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
         </QueryClientProviderWrapper>
