@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { EditSubcontractorDialog } from '@/components/subcontractors/EditSubcontractorDialog';
 import { AddSubcontractorDialog } from '@/components/subcontractors/AddSubcontractorDialog';
 import { DocumentIssues } from '@/components/subcontractors/DocumentIssues';
+import { SendForSignatureButton } from '@/components/esign/SendForSignatureButton';
 
 interface Subcontractor {
   id: string;
@@ -447,6 +448,14 @@ export default function Subcontractors() {
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
+                          <SendForSignatureButton
+                            source="subcontractor"
+                            sourceId={subcontractor.id}
+                            title={`Subcontractor Agreement – ${subcontractor.company || subcontractor.name}`}
+                            variant="outline"
+                            size="sm"
+                            iconOnly
+                          />
                           <Button
                             size="sm"
                             variant="outline"

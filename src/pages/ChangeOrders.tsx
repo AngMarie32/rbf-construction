@@ -17,6 +17,7 @@ import { CreateChangeOrderDialog } from '@/components/change-orders/CreateChange
 import { ChangeOrderTemplatesDialog } from '@/components/change-orders/ChangeOrderTemplatesDialog';
 import { FinancialImpactDashboard } from '@/components/change-orders/FinancialImpactDashboard';
 import { format } from 'date-fns';
+import { SendForSignatureButton } from '@/components/esign/SendForSignatureButton';
 
 interface ChangeOrder {
   id: string;
@@ -138,7 +139,17 @@ export default function ChangeOrders() {
                   <div key={co.id} className="border rounded p-4">
                     <div className="flex justify-between items-start mb-2">
                       <h4 className="font-semibold">{co.number}</h4>
-                      <Badge variant="outline">{co.status}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{co.status}</Badge>
+                        <SendForSignatureButton
+                          source="change_order"
+                          sourceId={co.id}
+                          projectId={co.project_id}
+                          title={`Change Order ${co.number}`}
+                          variant="outline"
+                          size="sm"
+                        />
+                      </div>
                     </div>
                     <p className="text-sm text-muted-foreground mb-2">{co.description}</p>
                     <div className="flex justify-between text-sm">

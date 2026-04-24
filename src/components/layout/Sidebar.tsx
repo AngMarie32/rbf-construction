@@ -27,6 +27,7 @@ const navGroups: NavGroup[] = [
     items: [
       { name: 'Project Schedule', href: '/project-schedule' },
       { name: 'Documents', href: '/documents' },
+      { name: 'E-Sign', href: '/esign' },
       { name: 'Permits', href: '/permits' },
       { name: 'Punch List', href: '/punch-list' },
       { name: 'Meetings', href: '/meetings' },
