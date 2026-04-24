@@ -38,6 +38,14 @@ import NotFound from '@/pages/NotFound';
 import PunchList from '@/pages/PunchList';
 import Meetings from '@/pages/Meetings';
 
+// E-Sign pages
+import EsignDashboard from '@/pages/esign/EsignDashboard';
+import EsignDocuments from '@/pages/esign/EsignDocuments';
+import EsignTemplates from '@/pages/esign/EsignTemplates';
+import EsignNew from '@/pages/esign/EsignNew';
+import EsignDocumentDetail from '@/pages/esign/EsignDocumentDetail';
+import PublicSign from '@/pages/esign/PublicSign';
+
 const queryClient = new QueryClient();
 
 function QueryClientProviderWrapper({ children }: { children: React.ReactNode }) {
@@ -273,6 +281,12 @@ function App() {
               }
             />
             <Route path="*" element={<NotFound />} />
+            <Route path="/sign/:token" element={<PublicSign />} />
+            <Route path="/esign" element={<ProtectedRoute><EsignDashboard /></ProtectedRoute>} />
+            <Route path="/esign/documents" element={<ProtectedRoute><EsignDocuments /></ProtectedRoute>} />
+            <Route path="/esign/templates" element={<ProtectedRoute><EsignTemplates /></ProtectedRoute>} />
+            <Route path="/esign/new" element={<ProtectedRoute><EsignNew /></ProtectedRoute>} />
+            <Route path="/esign/documents/:id" element={<ProtectedRoute><EsignDocumentDetail /></ProtectedRoute>} />
           </Routes>
           <Toaster />
         </QueryClientProviderWrapper>
