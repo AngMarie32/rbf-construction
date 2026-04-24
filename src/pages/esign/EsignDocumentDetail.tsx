@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, Plus, Trash2, ArrowLeft, Copy } from 'lucide-react';
+import { Send, Plus, Trash2, ArrowLeft, Copy, Download } from 'lucide-react';
 import { STATUS_COLORS, STATUS_LABELS } from '@/types/esign';
 import { FieldEditor } from '@/components/esign/FieldEditor';
 import { useQueryClient } from '@tanstack/react-query';
@@ -21,6 +21,7 @@ export default function EsignDocumentDetail() {
   const qc = useQueryClient();
   const { data, isLoading } = useEnvelope(id);
   const { data: pdfUrl } = useGetSignedPdfUrl(data?.envelope.original_pdf_path);
+  const { data: signedPdfUrl } = useGetSignedPdfUrl(data?.envelope.signed_pdf_path);
   const { data: audit = [] } = useAuditEvents(id);
   const send = useSendEnvelope();
   const [name, setName] = useState('');
@@ -89,6 +90,13 @@ export default function EsignDocumentDetail() {
           </Button>
           <div className="flex items-center gap-2">
             <Badge className={STATUS_COLORS[envelope.status]} variant="outline">{STATUS_LABELS[envelope.status]}</Badge>
+            {envelope.status === 'completed' && signedPdfUrl && (
+              <Button asChild variant="outline">
+                <a href={signedPdfUrl} target="_blank" rel="noreferrer" download>
+                  <Download className="h-4 w-4 mr-2" /> Download Signed PDF
+                </a>
+              </Button>
+            )}
             {isDraft && (
               <Button onClick={handleSend} disabled={send.isPending}>
                 <Send className="h-4 w-4 mr-2" /> {send.isPending ? 'Sending…' : 'Send for Signature'}
@@ -167,7 +175,19 @@ export default function EsignDocumentDetail() {
               />
             ) : (
               <div className="text-center py-12">
-                <p className="text-muted-foreground mb-3">Document sent — view via signer links above.</p>
+                {envelope.status === 'completed' && signedPdfUrl ? (
+                  <div className="space-y-4">
+                    <p className="text-muted-foreground">Document fully signed.</p>
+                    <iframe src={signedPdfUrl} className="w-full h-[700px] border rounded" title="Signed PDF" />
+                    <Button asChild>
+                      <a href={signedPdfUrl} target="_blank" rel="noreferrer" download>
+                        <Download className="h-4 w-4 mr-2" /> Download Signed PDF
+                      </a>
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground mb-3">Document sent — view via signer links above.</p>
+                )}
               </div>
             )}
           </Card>
