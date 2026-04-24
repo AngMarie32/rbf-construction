@@ -1,10 +1,12 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PdfViewer } from './PdfViewer';
 import type { EsignField, EsignSigner, FieldType } from '@/types/esign';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Trash2, PenLine, Type as TypeIcon, Calendar, CheckSquare, User, Hash } from 'lucide-react';
+import { Trash2, PenLine, Type as TypeIcon, Calendar, CheckSquare, User, Hash, Wand2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import * as pdfjsLib from 'pdfjs-dist';
+import { toast } from 'sonner';
 
 interface Props {
   pdfUrl: string;
@@ -32,10 +34,24 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
   const [pageDims, setPageDims] = useState({ width: 0, height: 0 });
   const [selectedSigner, setSelectedSigner] = useState<string>(signers[0]?.id || '');
   const [selectedType, setSelectedType] = useState<FieldType>('signature');
+  const [autoDetecting, setAutoDetecting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Keep selectedSigner in sync as signers load/change
+  useEffect(() => {
+    if (!selectedSigner && signers.length > 0) {
+      setSelectedSigner(signers[0].id);
+    } else if (selectedSigner && !signers.find(s => s.id === selectedSigner)) {
+      setSelectedSigner(signers[0]?.id || '');
+    }
+  }, [signers, selectedSigner]);
+
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!selectedSigner || !pageDims.width) return;
+    if (!pageDims.width) return;
+    if (!selectedSigner) {
+      toast.error(signers.length === 0 ? 'Add a signer first' : 'Select a signer');
+      return;
+    }
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
@@ -49,6 +65,99 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
       height_pct: selectedType === 'checkbox' ? 4 : 5,
       required: true,
     });
+  };
+
+  const autoDetectFields = async () => {
+    if (!selectedSigner) {
+      toast.error(signers.length === 0 ? 'Add a signer first' : 'Select a signer');
+      return;
+    }
+    setAutoDetecting(true);
+    try {
+      const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+      let added = 0;
+      // Patterns that suggest a signature/date/initial/name field
+      const patterns: { re: RegExp; type: FieldType }[] = [
+        { re: /^(signature|signed by|sign here|authori[sz]ed signature|contractor signature|owner signature|client signature|subcontractor signature)\b/i, type: 'signature' },
+        { re: /^(initial|initials)\b/i, type: 'initial' },
+        { re: /^(date|dated|date signed)\b/i, type: 'date' },
+        { re: /^(print(ed)? name|name)\b/i, type: 'name' },
+        { re: /^(title|company|address|email|phone)\b/i, type: 'text' },
+      ];
+
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const pg = await pdf.getPage(p);
+        const viewport = pg.getViewport({ scale: 1 });
+        const tc = await pg.getTextContent();
+        const items = tc.items as any[];
+        // Group by line (similar y)
+        const lines: { y: number; text: string; minX: number; maxX: number; height: number }[] = [];
+        for (const it of items) {
+          const text = (it.str || '').trim();
+          if (!text) continue;
+          const tx = it.transform[4];
+          const ty = it.transform[5];
+          const w = it.width || 0;
+          const h = it.height || 10;
+          const existing = lines.find(l => Math.abs(l.y - ty) < 4);
+          if (existing) {
+            existing.text += ' ' + text;
+            existing.minX = Math.min(existing.minX, tx);
+            existing.maxX = Math.max(existing.maxX, tx + w);
+          } else {
+            lines.push({ y: ty, text, minX: tx, maxX: tx + w, height: h });
+          }
+        }
+
+        for (const line of lines) {
+          const trimmed = line.text.trim();
+          // Look for label patterns, often followed by ":" or underscores
+          const labelMatch = trimmed.match(/^([A-Za-z][A-Za-z \/]+?)\s*[:_]/);
+          const candidate = labelMatch ? labelMatch[1] : trimmed;
+          const match = patterns.find(pt => pt.re.test(candidate));
+          if (!match) continue;
+
+          // Convert PDF coords (origin bottom-left) to viewer coords (top-left, %)
+          const xPct = ((line.maxX + 4) / viewport.width) * 100;
+          const yPct = ((viewport.height - line.y - line.height) / viewport.height) * 100;
+
+          // Field size based on type
+          const wPct = match.type === 'date' ? 15 : match.type === 'initial' ? 8 : 22;
+          const hPct = 4.5;
+
+          // Skip if would overflow or overlap an existing field
+          if (xPct + wPct > 98 || yPct < 0 || yPct + hPct > 98) continue;
+          const overlaps = fields.some(f =>
+            f.page_number === p &&
+            Math.abs(f.x_pct - xPct) < 5 &&
+            Math.abs(f.y_pct - yPct) < 3
+          );
+          if (overlaps) continue;
+
+          await onAddField({
+            signer_id: selectedSigner,
+            field_type: match.type,
+            page_number: p,
+            x_pct: Math.max(0, Math.min(95, xPct)),
+            y_pct: Math.max(0, Math.min(95, yPct)),
+            width_pct: wPct,
+            height_pct: hPct,
+            required: true,
+          });
+          added++;
+        }
+      }
+
+      if (added === 0) {
+        toast.info('No signature fields detected. Add fields manually by clicking the document.');
+      } else {
+        toast.success(`Auto-detected ${added} field${added === 1 ? '' : 's'}`);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Auto-detection failed');
+    } finally {
+      setAutoDetecting(false);
+    }
   };
 
   const signerColor = (id: string | null) => {
@@ -119,7 +228,19 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
             <span className="text-sm">Page {page} of {numPages}</span>
             <Button size="sm" variant="outline" onClick={() => setPage(p => Math.min(numPages, p + 1))} disabled={page >= numPages}>Next</Button>
           </div>
-          <span className="text-xs text-muted-foreground">{pageFields.length} field(s) on this page</span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={autoDetectFields}
+              disabled={autoDetecting || !selectedSigner}
+              title="Scan PDF for signature, date, name labels and place fields automatically"
+            >
+              {autoDetecting ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1.5" />}
+              Auto-detect Fields
+            </Button>
+            <span className="text-xs text-muted-foreground">{pageFields.length} on this page</span>
+          </div>
         </div>
 
         <div
