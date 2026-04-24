@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -65,13 +66,139 @@ Deno.serve(async (req) => {
       .from('esign_envelopes').select('*').eq('id', signer.envelope_id).single();
 
     if (allSigned) {
+      // === Generate flattened signed PDF ===
+      let signedPdfPath: string | null = null;
+      let signedPdfBytes: Uint8Array | null = null;
+      try {
+        if (envelope?.original_pdf_path) {
+          const { data: origFile } = await supabase.storage
+            .from('esign-documents')
+            .download(envelope.original_pdf_path);
+          if (origFile) {
+            const origBytes = new Uint8Array(await origFile.arrayBuffer());
+            const pdfDoc = await PDFDocument.load(origBytes);
+            const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+            const { data: allFields } = await supabase
+              .from('esign_fields').select('*').eq('envelope_id', signer.envelope_id);
+
+            const signerById: Record<string, any> = {};
+            (allSigners || []).forEach(s => { signerById[s.id] = s; });
+
+            const pages = pdfDoc.getPages();
+            for (const f of (allFields || [])) {
+              const pageIdx = (f.page_number || 1) - 1;
+              if (pageIdx < 0 || pageIdx >= pages.length) continue;
+              const page = pages[pageIdx];
+              const pw = page.getWidth();
+              const ph = page.getHeight();
+              const x = (Number(f.x_pct) / 100) * pw;
+              const w = (Number(f.width_pct) / 100) * pw;
+              const h = (Number(f.height_pct) / 100) * ph;
+              // y_pct is from top in our editor; pdf-lib y is from bottom
+              const yTop = (Number(f.y_pct) / 100) * ph;
+              const y = ph - yTop - h;
+
+              const fSigner = f.signer_id ? signerById[f.signer_id] : null;
+
+              if ((f.field_type === 'signature' || f.field_type === 'initial') && fSigner?.signature_data) {
+                try {
+                  const dataUrl: string = fSigner.signature_data;
+                  const isPng = dataUrl.startsWith('data:image/png');
+                  const base64 = dataUrl.split(',')[1];
+                  const bin = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+                  const img = isPng ? await pdfDoc.embedPng(bin) : await pdfDoc.embedJpg(bin);
+                  const dims = img.scaleToFit(w, h);
+                  page.drawImage(img, {
+                    x, y: y + (h - dims.height) / 2,
+                    width: dims.width, height: dims.height,
+                  });
+                } catch (imgErr) {
+                  console.error('Failed to embed signature image:', imgErr);
+                }
+              } else {
+                const textValue = f.value
+                  || (f.field_type === 'date' && fSigner?.signed_at ? new Date(fSigner.signed_at).toLocaleDateString() : '')
+                  || (f.field_type === 'name' && fSigner?.name ? fSigner.name : '');
+                if (textValue) {
+                  const fontSize = Math.max(8, Math.min(h * 0.6, 12));
+                  page.drawText(String(textValue), {
+                    x: x + 2, y: y + (h - fontSize) / 2,
+                    size: fontSize, font: helv, color: rgb(0, 0, 0),
+                  });
+                }
+              }
+            }
+
+            // Append a certificate of completion page
+            const certPage = pdfDoc.addPage();
+            const { width: cw, height: ch } = certPage.getSize();
+            const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+            certPage.drawText('Certificate of Completion', {
+              x: 50, y: ch - 60, size: 20, font: helvBold, color: rgb(0, 0, 0),
+            });
+            certPage.drawText(`Document: ${envelope.title}`, {
+              x: 50, y: ch - 100, size: 12, font: helv,
+            });
+            certPage.drawText(`Envelope ID: ${envelope.id}`, {
+              x: 50, y: ch - 118, size: 10, font: helv, color: rgb(0.4, 0.4, 0.4),
+            });
+            certPage.drawText(`Completed: ${new Date().toLocaleString()}`, {
+              x: 50, y: ch - 136, size: 10, font: helv, color: rgb(0.4, 0.4, 0.4),
+            });
+            let cy = ch - 180;
+            certPage.drawText('Signers:', { x: 50, y: cy, size: 14, font: helvBold });
+            cy -= 24;
+            for (const s of (allSigners || [])) {
+              certPage.drawText(`• ${s.name} <${s.email}>`, { x: 60, y: cy, size: 11, font: helv });
+              cy -= 16;
+              const meta = `   Signed: ${s.signed_at ? new Date(s.signed_at).toLocaleString() : '—'}  •  IP: ${s.ip_address || '—'}`;
+              certPage.drawText(meta, { x: 60, y: cy, size: 9, font: helv, color: rgb(0.4, 0.4, 0.4) });
+              cy -= 22;
+            }
+
+            signedPdfBytes = await pdfDoc.save();
+            signedPdfPath = `${envelope.created_by}/${envelope.id}/signed.pdf`;
+            const { error: upErr } = await supabase.storage
+              .from('esign-documents')
+              .upload(signedPdfPath, signedPdfBytes, {
+                upsert: true, contentType: 'application/pdf',
+              });
+            if (upErr) throw upErr;
+          }
+        }
+      } catch (pdfErr) {
+        console.error('Signed PDF generation failed:', pdfErr);
+      }
+
       await supabase.from('esign_envelopes').update({
-        status: 'completed', completed_at: new Date().toISOString(),
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        signed_pdf_path: signedPdfPath,
       }).eq('id', signer.envelope_id);
 
       await supabase.from('esign_audit_events').insert({
         envelope_id: signer.envelope_id, event_type: 'envelope_completed',
       });
+
+      // Create a document record so it appears in the project's Documents area
+      if (signedPdfPath && envelope) {
+        try {
+          await supabase.from('documents').insert({
+            project_id: envelope.project_id,
+            name: `${envelope.title} (Signed).pdf`,
+            category: 'Signed Documents',
+            file_path: signedPdfPath,
+            mime_type: 'application/pdf',
+            file_size: signedPdfBytes ? signedPdfBytes.byteLength : null,
+            uploaded_by: envelope.created_by,
+            description: `Signed e-signature envelope • ${(allSigners || []).map(s => s.name).join(', ')}`,
+            tags: ['esign', 'signed'],
+          });
+        } catch (docErr) {
+          console.error('Failed to create document record:', docErr);
+        }
+      }
 
       // Send completion emails to contractor + all signers
       if (RESEND_API_KEY && envelope) {
@@ -81,6 +208,22 @@ Deno.serve(async (req) => {
           ...(contractor?.user?.email ? [{ email: contractor.user.email, name: 'Contractor' }] : []),
           ...allSigners!.map(s => ({ email: s.email, name: s.name })),
         ];
+
+        // Build attachment from signed PDF
+        let attachments: any[] | undefined;
+        if (signedPdfBytes) {
+          // base64 encode
+          let binary = '';
+          const chunk = 0x8000;
+          for (let i = 0; i < signedPdfBytes.length; i += chunk) {
+            binary += String.fromCharCode.apply(null, Array.from(signedPdfBytes.subarray(i, i + chunk)) as any);
+          }
+          const b64 = btoa(binary);
+          attachments = [{
+            filename: `${envelope.title.replace(/[^a-z0-9-_ ]/gi, '_')}-signed.pdf`,
+            content: b64,
+          }];
+        }
 
         for (const r of recipients) {
           const html = `
@@ -93,7 +236,7 @@ Deno.serve(async (req) => {
                 <p><strong>${envelope.title}</strong> has been signed by all parties.</p>
                 <p>Signers:</p>
                 <ul>${allSigners!.map(s => `<li>${s.name} (${s.email}) — signed ${new Date(s.signed_at!).toLocaleString()}</li>`).join('')}</ul>
-                <p style="color:#718096;font-size:14px;margin-top:24px">A certificate of completion is available in your dashboard.</p>
+                <p style="margin-top:16px">A signed copy of the document is attached to this email. A certificate of completion is included as the final page.</p>
               </div>
             </div>
           `;
@@ -105,6 +248,7 @@ Deno.serve(async (req) => {
               to: [r.email],
               subject: `Signed: ${envelope.title}`,
               html,
+              attachments,
             }),
           });
         }
