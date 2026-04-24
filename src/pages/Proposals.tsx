@@ -21,6 +21,7 @@ import { ProposalTemplateDialog } from '@/components/proposals/ProposalTemplateD
 import { ProposalViewModal } from '@/components/proposals/ProposalViewModal';
 import { generateProfessionalProposalPDF } from '@/utils/proposalPdfExport';
 import { format } from 'date-fns';
+import { SendForSignatureButton } from '@/components/esign/SendForSignatureButton';
 
 interface Proposal {
   id: string;
@@ -292,6 +293,12 @@ export default function Proposals() {
                       <Button variant="ghost" size="sm" onClick={() => handleEditProposal(proposal)}>
                         <Edit className="w-4 h-4" />
                       </Button>
+                      <SendForSignatureButton
+                        source="proposal"
+                        sourceId={proposal.id}
+                        title={`Proposal – ${proposal.project_name}`}
+                        iconOnly
+                      />
                       <Button variant="ghost" size="sm" onClick={() => handleDeleteProposal(proposal)}>
                         <Trash2 className="w-4 h-4 text-red-500" />
                       </Button>
