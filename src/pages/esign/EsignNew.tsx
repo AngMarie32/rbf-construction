@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 export default function EsignNew() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(params.get('title') || '');
   const [message, setMessage] = useState('');
   const [order, setOrder] = useState<'parallel' | 'sequential'>('parallel');
   const [file, setFile] = useState<File | null>(null);
