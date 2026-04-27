@@ -40,7 +40,11 @@ Deno.serve(async (req) => {
       ? signers.filter(s => s.status === 'pending').slice(0, 1)
       : signers.filter(s => s.status === 'pending');
 
-    const baseUrl = appUrl || req.headers.get('origin') || 'https://app.example.com';
+    // Always use the public production URL so signers never land on the Lovable preview/editor (which requires sign-in).
+    const PUBLIC_APP_URL = 'https://rbf-construction.lovable.app';
+    const requestOrigin = appUrl || req.headers.get('origin') || '';
+    const isLovableInternal = /lovable\.(app|dev)/.test(requestOrigin) && !requestOrigin.includes('rbf-construction');
+    const baseUrl = (!requestOrigin || isLovableInternal) ? PUBLIC_APP_URL : requestOrigin;
     const results: any[] = [];
 
     for (const signer of toNotify) {
