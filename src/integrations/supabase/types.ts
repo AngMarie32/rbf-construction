@@ -1248,6 +1248,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           created_by: string | null
+          document_type: string | null
           expires_at: string | null
           id: string
           message: string | null
@@ -1267,6 +1268,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          document_type?: string | null
           expires_at?: string | null
           id?: string
           message?: string | null
@@ -1286,6 +1288,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          document_type?: string | null
           expires_at?: string | null
           id?: string
           message?: string | null
@@ -1443,6 +1446,7 @@ export type Database = {
           created_by: string | null
           default_fields: Json | null
           description: string | null
+          document_type: string | null
           id: string
           is_system: boolean
           name: string
@@ -1455,6 +1459,7 @@ export type Database = {
           created_by?: string | null
           default_fields?: Json | null
           description?: string | null
+          document_type?: string | null
           id?: string
           is_system?: boolean
           name: string
@@ -1467,6 +1472,7 @@ export type Database = {
           created_by?: string | null
           default_fields?: Json | null
           description?: string | null
+          document_type?: string | null
           id?: string
           is_system?: boolean
           name?: string

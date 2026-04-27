@@ -1,6 +1,6 @@
 import { Layout } from '@/components/layout/Layout';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useEnvelope, useGetSignedPdfUrl, useSendEnvelope, useAuditEvents } from '@/hooks/useEsign';
+import { useEnvelope, useGetSignedPdfUrl, useSendEnvelope, useAuditEvents, useSaveEnvelopeAsTemplate } from '@/hooks/useEsign';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, Plus, Trash2, ArrowLeft, Copy, Download } from 'lucide-react';
+import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save } from 'lucide-react';
 import { STATUS_COLORS, STATUS_LABELS } from '@/types/esign';
 import { FieldEditor } from '@/components/esign/FieldEditor';
 import { useQueryClient } from '@tanstack/react-query';
@@ -25,6 +25,7 @@ export default function EsignDocumentDetail() {
   const { data: certificateUrl } = useGetSignedPdfUrl(data?.envelope.certificate_path);
   const { data: audit = [] } = useAuditEvents(id);
   const send = useSendEnvelope();
+  const saveTpl = useSaveEnvelopeAsTemplate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [signedBlobUrl, setSignedBlobUrl] = useState<string | null>(null);
@@ -92,6 +93,11 @@ export default function EsignDocumentDetail() {
     qc.invalidateQueries({ queryKey: ['esign-envelope', id] });
   };
 
+  const updateField = async (fid: string, updates: any) => {
+    await supabase.from('esign_fields').update(updates).eq('id', fid);
+    qc.invalidateQueries({ queryKey: ['esign-envelope', id] });
+  };
+
   const handleSend = async () => {
     if (signers.length === 0) return toast.error('Add at least one signer');
     if (fields.length === 0) return toast.error('Add at least one field');
@@ -112,6 +118,24 @@ export default function EsignDocumentDetail() {
           </Button>
           <div className="flex items-center gap-2">
             <Badge className={STATUS_COLORS[envelope.status]} variant="outline">{STATUS_LABELS[envelope.status]}</Badge>
+            {fields.length > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const name = prompt('Template name:', envelope.title);
+                  if (!name) return;
+                  saveTpl.mutate({
+                    envelopeId: envelope.id,
+                    name,
+                    description: envelope.message || undefined,
+                    document_type: (envelope as any).document_type || undefined,
+                  });
+                }}
+                disabled={saveTpl.isPending}
+              >
+                <Save className="h-4 w-4 mr-2" /> Save as Template
+              </Button>
+            )}
             {envelope.status === 'completed' && signedPdfUrl && (
               <>
                 <Button asChild variant="outline">
@@ -202,7 +226,7 @@ export default function EsignDocumentDetail() {
                 signers={signers}
                 onAddField={addField}
                 onDeleteField={deleteField}
-                onUpdateField={() => {}}
+                onUpdateField={updateField}
               />
             ) : (
               <div className="text-center py-12">

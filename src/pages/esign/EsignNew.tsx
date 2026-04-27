@@ -11,6 +11,7 @@ import { useCreateEnvelope, useUploadEnvelopePdf } from '@/hooks/useEsign';
 import { Upload, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { DOCUMENT_TYPES } from '@/types/esign';
 
 export default function EsignNew() {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export default function EsignNew() {
   const [order, setOrder] = useState<'parallel' | 'sequential'>('parallel');
   const [file, setFile] = useState<File | null>(null);
   const [projectId, setProjectId] = useState<string>(params.get('projectId') || 'none');
+  const [docType, setDocType] = useState<string>('none');
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const create = useCreateEnvelope();
   const upload = useUploadEnvelopePdf();
@@ -40,6 +42,7 @@ export default function EsignNew() {
         source_type: params.get('source') || undefined,
         source_id: params.get('sourceId') || undefined,
         project_id: projectId && projectId !== 'none' ? projectId : undefined,
+        document_type: docType && docType !== 'none' ? docType : undefined,
       });
       await upload.mutateAsync({ envelopeId: env.id, file });
       toast.success('Document created');
@@ -82,6 +85,19 @@ export default function EsignNew() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label>Document Type (optional)</Label>
+            <Select value={docType} onValueChange={setDocType}>
+              <SelectTrigger><SelectValue placeholder="Untagged" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Untagged</SelectItem>
+                {DOCUMENT_TYPES.map(t => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">Used for filtering on the dashboard.</p>
           </div>
           <div>
             <Label>PDF Document *</Label>

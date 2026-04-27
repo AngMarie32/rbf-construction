@@ -92,10 +92,21 @@ export default function PublicSign() {
   };
 
   const handleSigComplete = (dataUrl: string, type: 'drawn' | 'typed') => {
-    if (activeSigField) {
-      setFieldValues(prev => ({ ...prev, [activeSigField]: dataUrl }));
-      if (!sigData) setSigData({ data: dataUrl, type });
-    }
+    // Always store the latest signature so it can be applied to all sig/initial fields
+    setSigData({ data: dataUrl, type });
+    setFieldValues(prev => {
+      const next = { ...prev };
+      // Apply to the field the signer clicked on (if any)
+      if (activeSigField) next[activeSigField] = dataUrl;
+      // Auto-fill all signature & initial fields belonging to this signer that aren't yet set
+      const myFields = (data?.fields || []).filter((f: any) => f.signer_id === data?.signer.id);
+      for (const f of myFields) {
+        if ((f.field_type === 'signature' || f.field_type === 'initial') && !next[f.id]) {
+          next[f.id] = dataUrl;
+        }
+      }
+      return next;
+    });
     setSigOpen(false);
   };
 

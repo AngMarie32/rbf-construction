@@ -3,23 +3,42 @@ import { useEnvelopes } from '@/hooks/useEsign';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileText, FileCheck, Clock, AlertCircle, Plus, Upload, LayoutTemplate } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { STATUS_COLORS, STATUS_LABELS } from '@/types/esign';
+import { STATUS_COLORS, STATUS_LABELS, DOCUMENT_TYPES } from '@/types/esign';
 import { formatDistanceToNow } from 'date-fns';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function EsignDashboard() {
   const { data: envelopes = [], isLoading } = useEnvelopes();
   const navigate = useNavigate();
+  const [projectFilter, setProjectFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('projects').select('id, name').order('name');
+      setProjects(data || []);
+    })();
+  }, []);
+
+  const filteredEnvelopes = envelopes.filter(e => {
+    const matchP = projectFilter === 'all' ? true : projectFilter === 'none' ? !e.project_id : e.project_id === projectFilter;
+    const matchT = typeFilter === 'all' ? true : typeFilter === 'none' ? !(e as any).document_type : (e as any).document_type === typeFilter;
+    return matchP && matchT;
+  });
 
   const stats = {
-    total: envelopes.length,
-    pending: envelopes.filter(e => ['sent', 'partially_signed'].includes(e.status)).length,
-    completed: envelopes.filter(e => e.status === 'completed').length,
-    drafts: envelopes.filter(e => e.status === 'draft').length,
+    total: filteredEnvelopes.length,
+    pending: filteredEnvelopes.filter(e => ['sent', 'partially_signed'].includes(e.status)).length,
+    completed: filteredEnvelopes.filter(e => e.status === 'completed').length,
+    drafts: filteredEnvelopes.filter(e => e.status === 'draft').length,
   };
 
-  const recent = envelopes.slice(0, 5);
+  const recent = filteredEnvelopes.slice(0, 5);
 
   return (
     <Layout title="E-Sign" subtitle="Send, sign, and track documents">
@@ -50,6 +69,31 @@ export default function EsignDashboard() {
           <StatTile icon={AlertCircle} label="Drafts" value={stats.drafts} color="text-muted-foreground" />
         </div>
 
+        {/* Filters */}
+        <Card className="p-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground px-2">Filter</span>
+          <Select value={projectFilter} onValueChange={setProjectFilter}>
+            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Project" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All projects</SelectItem>
+              <SelectItem value="none">No project</SelectItem>
+              {projects.map(p => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Document type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All types</SelectItem>
+              <SelectItem value="none">Untagged</SelectItem>
+              {DOCUMENT_TYPES.map(t => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Card>
+
         {/* Recent + actions */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <Card className="p-6 lg:col-span-2">
@@ -78,7 +122,12 @@ export default function EsignDashboard() {
                         </p>
                       </div>
                     </div>
-                    <Badge className={STATUS_COLORS[env.status]} variant="outline">{STATUS_LABELS[env.status]}</Badge>
+                    <div className="flex items-center gap-2">
+                      {(env as any).document_type && (
+                        <Badge variant="outline" className="text-xs">{(env as any).document_type}</Badge>
+                      )}
+                      <Badge className={STATUS_COLORS[env.status]} variant="outline">{STATUS_LABELS[env.status]}</Badge>
+                    </div>
                   </button>
                 ))}
               </div>
