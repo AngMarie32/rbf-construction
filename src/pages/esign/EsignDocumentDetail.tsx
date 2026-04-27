@@ -22,10 +22,32 @@ export default function EsignDocumentDetail() {
   const { data, isLoading } = useEnvelope(id);
   const { data: pdfUrl } = useGetSignedPdfUrl(data?.envelope.original_pdf_path);
   const { data: signedPdfUrl } = useGetSignedPdfUrl(data?.envelope.signed_pdf_path);
+  const { data: certificateUrl } = useGetSignedPdfUrl(data?.envelope.certificate_path);
   const { data: audit = [] } = useAuditEvents(id);
   const send = useSendEnvelope();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [signedBlobUrl, setSignedBlobUrl] = useState<string | null>(null);
+
+  // Fetch the signed PDF as a blob so the browser will reliably preview it
+  // in an <iframe> (signed Storage URLs sometimes set headers that browsers
+  // block when embedded).
+  useEffect(() => {
+    let revoke: string | null = null;
+    (async () => {
+      if (!signedPdfUrl) { setSignedBlobUrl(null); return; }
+      try {
+        const res = await fetch(signedPdfUrl);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+        revoke = url;
+        setSignedBlobUrl(url);
+      } catch {
+        setSignedBlobUrl(signedPdfUrl);
+      }
+    })();
+    return () => { if (revoke) URL.revokeObjectURL(revoke); };
+  }, [signedPdfUrl]);
 
   // Realtime updates
   useEffect(() => {
@@ -91,11 +113,20 @@ export default function EsignDocumentDetail() {
           <div className="flex items-center gap-2">
             <Badge className={STATUS_COLORS[envelope.status]} variant="outline">{STATUS_LABELS[envelope.status]}</Badge>
             {envelope.status === 'completed' && signedPdfUrl && (
-              <Button asChild variant="outline">
-                <a href={signedPdfUrl} target="_blank" rel="noreferrer" download>
-                  <Download className="h-4 w-4 mr-2" /> Download Signed PDF
-                </a>
-              </Button>
+              <>
+                <Button asChild variant="outline">
+                  <a href={signedPdfUrl} target="_blank" rel="noreferrer" download>
+                    <Download className="h-4 w-4 mr-2" /> Download Signed PDF
+                  </a>
+                </Button>
+                {certificateUrl && (
+                  <Button asChild variant="outline">
+                    <a href={certificateUrl} target="_blank" rel="noreferrer" download>
+                      <Download className="h-4 w-4 mr-2" /> Certificate
+                    </a>
+                  </Button>
+                )}
+              </>
             )}
             {isDraft && (
               <Button onClick={handleSend} disabled={send.isPending}>
@@ -175,15 +206,26 @@ export default function EsignDocumentDetail() {
               />
             ) : (
               <div className="text-center py-12">
-                {envelope.status === 'completed' && signedPdfUrl ? (
+                {envelope.status === 'completed' && (signedBlobUrl || signedPdfUrl) ? (
                   <div className="space-y-4">
                     <p className="text-muted-foreground">Document fully signed.</p>
-                    <iframe src={signedPdfUrl} className="w-full h-[700px] border rounded" title="Signed PDF" />
-                    <Button asChild>
-                      <a href={signedPdfUrl} target="_blank" rel="noreferrer" download>
-                        <Download className="h-4 w-4 mr-2" /> Download Signed PDF
-                      </a>
-                    </Button>
+                    <object data={signedBlobUrl || signedPdfUrl!} type="application/pdf" className="w-full h-[700px] border rounded">
+                      <iframe src={signedBlobUrl || signedPdfUrl!} className="w-full h-[700px] border rounded" title="Signed PDF" />
+                    </object>
+                    <div className="flex gap-2 justify-center">
+                      <Button asChild>
+                        <a href={signedPdfUrl!} target="_blank" rel="noreferrer" download>
+                          <Download className="h-4 w-4 mr-2" /> Download Signed PDF
+                        </a>
+                      </Button>
+                      {certificateUrl && (
+                        <Button asChild variant="outline">
+                          <a href={certificateUrl} target="_blank" rel="noreferrer" download>
+                            <Download className="h-4 w-4 mr-2" /> Certificate of Completion
+                          </a>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <p className="text-muted-foreground mb-3">Document sent — view via signer links above.</p>
