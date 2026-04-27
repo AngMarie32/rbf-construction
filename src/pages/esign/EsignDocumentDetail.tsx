@@ -92,6 +92,11 @@ export default function EsignDocumentDetail() {
     qc.invalidateQueries({ queryKey: ['esign-envelope', id] });
   };
 
+  const updateField = async (fid: string, updates: any) => {
+    await supabase.from('esign_fields').update(updates).eq('id', fid);
+    qc.invalidateQueries({ queryKey: ['esign-envelope', id] });
+  };
+
   const handleSend = async () => {
     if (signers.length === 0) return toast.error('Add at least one signer');
     if (fields.length === 0) return toast.error('Add at least one field');
@@ -202,7 +207,7 @@ export default function EsignDocumentDetail() {
                 signers={signers}
                 onAddField={addField}
                 onDeleteField={deleteField}
-                onUpdateField={() => {}}
+                onUpdateField={updateField}
               />
             ) : (
               <div className="text-center py-12">
