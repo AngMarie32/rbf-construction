@@ -13,6 +13,7 @@ export interface EsignEnvelope {
   source_type: string | null;
   source_id: string | null;
   project_id: string | null;
+  document_type: string | null;
   original_pdf_path: string | null;
   signed_pdf_path: string | null;
   certificate_path: string | null;
@@ -66,6 +67,7 @@ export interface EsignTemplate {
   name: string;
   description: string | null;
   category: string | null;
+  document_type: string | null;
   source_pdf_path: string | null;
   default_fields: any;
   is_system: boolean;
