@@ -186,3 +186,66 @@ export function useAuditEvents(envelopeId: string | undefined) {
     enabled: !!envelopeId,
   });
 }
+
+export function useDeleteTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('esign_templates').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['esign-templates'] });
+      toast.success('Template deleted');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to delete template'),
+  });
+}
+
+export function useSaveEnvelopeAsTemplate() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (input: {
+      envelopeId: string;
+      name: string;
+      description?: string;
+      document_type?: string;
+    }) => {
+      // Pull envelope + fields
+      const [envRes, fieldsRes] = await Promise.all([
+        supabase.from('esign_envelopes').select('*').eq('id', input.envelopeId).single(),
+        supabase.from('esign_fields').select('*').eq('envelope_id', input.envelopeId),
+      ]);
+      if (envRes.error) throw envRes.error;
+      if (fieldsRes.error) throw fieldsRes.error;
+      const env = envRes.data;
+      // Strip signer-specific & envelope-specific data from fields
+      const default_fields = (fieldsRes.data || []).map((f: any) => ({
+        field_type: f.field_type,
+        page_number: f.page_number,
+        x_pct: f.x_pct,
+        y_pct: f.y_pct,
+        width_pct: f.width_pct,
+        height_pct: f.height_pct,
+        required: f.required,
+      }));
+      const { data, error } = await supabase.from('esign_templates').insert({
+        created_by: user?.id,
+        name: input.name,
+        description: input.description || null,
+        document_type: input.document_type || env.document_type || null,
+        source_pdf_path: env.original_pdf_path,
+        default_fields,
+        is_system: false,
+      }).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['esign-templates'] });
+      toast.success('Saved as template');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to save template'),
+  });
+}
