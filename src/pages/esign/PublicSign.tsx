@@ -160,43 +160,45 @@ export default function PublicSign() {
           )}
           {pageFields.map((f: any) => {
             const v = fieldValues[f.id];
+            const isTextLike = f.field_type === 'text' || f.field_type === 'date' || f.field_type === 'name';
+            const isSig = f.field_type === 'signature' || f.field_type === 'initial';
             return (
               <div
                 key={f.id}
-                onClick={() => handleFieldClick(f)}
-                className={`absolute border-2 rounded flex items-center justify-center cursor-pointer transition ${
-                  v ? 'border-emerald-500 bg-emerald-500/10' : 'border-amber-500 bg-amber-500/20 animate-pulse hover:bg-amber-500/30'
+                onClick={() => isSig && handleFieldClick(f)}
+                className={`absolute border-2 rounded flex items-center justify-center transition ${
+                  isSig ? 'cursor-pointer' : ''
+                } ${
+                  v ? 'border-emerald-500 bg-emerald-500/10' : 'border-amber-500 bg-amber-500/20 hover:bg-amber-500/30'
                 }`}
                 style={{
                   left: `${f.x_pct}%`, top: `${f.y_pct}%`,
                   width: `${f.width_pct}%`, height: `${f.height_pct}%`,
                 }}
               >
-                {v ? (
-                  f.field_type === 'signature' || f.field_type === 'initial' ? (
+                {isSig ? (
+                  v ? (
                     <img src={v} alt="" className="max-h-full max-w-full" />
-                  ) : (
-                    <span className="text-xs px-1 truncate">{v}</span>
-                  )
-                ) : (
-                  f.field_type === 'text' || f.field_type === 'date' || f.field_type === 'name' ? (
-                    <Input
-                      value={fieldValues[f.id] || ''}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => setFieldValues(prev => ({ ...prev, [f.id]: e.target.value }))}
-                      className="h-full w-full text-xs border-0 bg-transparent"
-                      placeholder={f.field_type}
-                    />
-                  ) : f.field_type === 'checkbox' ? (
-                    <input
-                      type="checkbox"
-                      checked={fieldValues[f.id] === 'true'}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => setFieldValues(prev => ({ ...prev, [f.id]: e.target.checked ? 'true' : '' }))}
-                    />
                   ) : (
                     <span className="text-xs font-medium capitalize">{f.field_type}</span>
                   )
+                ) : isTextLike ? (
+                  <Input
+                    value={fieldValues[f.id] || ''}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => setFieldValues(prev => ({ ...prev, [f.id]: e.target.value }))}
+                    className="h-full w-full text-xs border-0 bg-transparent rounded px-1 focus-visible:ring-1"
+                    placeholder={f.field_type}
+                  />
+                ) : f.field_type === 'checkbox' ? (
+                  <input
+                    type="checkbox"
+                    checked={fieldValues[f.id] === 'true'}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => setFieldValues(prev => ({ ...prev, [f.id]: e.target.checked ? 'true' : '' }))}
+                  />
+                ) : (
+                  <span className="text-xs font-medium capitalize">{f.field_type}</span>
                 )}
               </div>
             );

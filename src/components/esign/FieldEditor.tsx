@@ -44,7 +44,9 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
     origY: number;
     origW: number;
     origH: number;
+    started: boolean;
   } | null>(null);
+  const justDraggedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Keep selectedSigner in sync as signers load/change
@@ -57,7 +59,7 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
   }, [signers, selectedSigner]);
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (dragState) return; // ignore clicks at end of drag
+    if (dragState || justDraggedRef.current) return; // ignore clicks at end of drag
     if (!pageDims.width) return;
     if (!selectedSigner) {
       toast.error(signers.length === 0 ? 'Add a signer first' : 'Select a signer');
@@ -81,11 +83,18 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
   // Pointer-based drag/resize for placed fields
   useEffect(() => {
     if (!dragState) return;
+    const DRAG_THRESHOLD = 4; // pixels before a drag actually starts
     const onMove = (ev: PointerEvent) => {
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const dxPct = ((ev.clientX - dragState.startX) / rect.width) * 100;
-      const dyPct = ((ev.clientY - dragState.startY) / rect.height) * 100;
+      const dxRaw = ev.clientX - dragState.startX;
+      const dyRaw = ev.clientY - dragState.startY;
+      if (!dragState.started) {
+        if (Math.abs(dxRaw) < DRAG_THRESHOLD && Math.abs(dyRaw) < DRAG_THRESHOLD) return;
+        dragState.started = true;
+      }
+      const dxPct = (dxRaw / rect.width) * 100;
+      const dyPct = (dyRaw / rect.height) * 100;
       if (dragState.mode === 'move') {
         const x = Math.max(0, Math.min(100 - dragState.origW, dragState.origX + dxPct));
         const y = Math.max(0, Math.min(100 - dragState.origH, dragState.origY + dyPct));
@@ -96,7 +105,13 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
         onUpdateField(dragState.fieldId, { width_pct: w, height_pct: h });
       }
     };
-    const onUp = () => setTimeout(() => setDragState(null), 0);
+    const onUp = () => {
+      if (dragState.started) {
+        justDraggedRef.current = true;
+        setTimeout(() => { justDraggedRef.current = false; }, 200);
+      }
+      setDragState(null);
+    };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
@@ -114,6 +129,7 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
   ) => {
     e.stopPropagation();
     e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     setDragState({
       fieldId: field.id,
       mode,
@@ -123,6 +139,7 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
       origY: field.y_pct,
       origW: field.width_pct,
       origH: field.height_pct,
+      started: false,
     });
   };
 
@@ -346,7 +363,8 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
               {/* Resize handle (bottom-right) */}
               <div
                 onPointerDown={(e) => startDrag(e, f, 'resize')}
-                className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize opacity-0 group-hover:opacity-100 transition"
+                onClick={(e) => e.stopPropagation()}
+                className="absolute -bottom-1 -right-1 w-4 h-4 cursor-se-resize rounded-sm opacity-60 group-hover:opacity-100 transition border border-white"
                 style={{ background: signerColor(f.signer_id) }}
                 title="Drag to resize"
               />
