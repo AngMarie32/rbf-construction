@@ -110,6 +110,9 @@ export default function EsignDocuments() {
                     </div>
                   </button>
                   <div className="flex items-center gap-3">
+                    {(env as any).document_type && (
+                      <Badge variant="outline" className="text-xs">{(env as any).document_type}</Badge>
+                    )}
                     <Badge className={STATUS_COLORS[env.status]} variant="outline">{STATUS_LABELS[env.status]}</Badge>
                     <Button
                       size="icon"
