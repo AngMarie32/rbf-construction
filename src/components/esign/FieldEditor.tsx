@@ -363,7 +363,8 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
               {/* Resize handle (bottom-right) */}
               <div
                 onPointerDown={(e) => startDrag(e, f, 'resize')}
-                className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize opacity-0 group-hover:opacity-100 transition"
+                onClick={(e) => e.stopPropagation()}
+                className="absolute -bottom-1 -right-1 w-4 h-4 cursor-se-resize rounded-sm opacity-60 group-hover:opacity-100 transition border border-white"
                 style={{ background: signerColor(f.signer_id) }}
                 title="Drag to resize"
               />
