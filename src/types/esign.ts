@@ -107,3 +107,16 @@ export const STATUS_LABELS: Record<EnvelopeStatus, string> = {
   expired: 'Expired',
   voided: 'Voided',
 };
+
+export const DOCUMENT_TYPES = [
+  'Contract',
+  'Change Order',
+  'Subcontract',
+  'NDA',
+  'Proposal',
+  'Lien Waiver',
+  'Payment Application',
+  'Bid',
+  'Other',
+] as const;
+export type DocumentType = typeof DOCUMENT_TYPES[number];
