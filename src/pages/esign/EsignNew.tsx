@@ -7,11 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useCreateEnvelope, useUploadEnvelopePdf } from '@/hooks/useEsign';
+import { useCreateEnvelope, useUploadEnvelopePdf, useDocumentTypes } from '@/hooks/useEsign';
 import { Upload, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { DOCUMENT_TYPES } from '@/types/esign';
 
 export default function EsignNew() {
   const navigate = useNavigate();
@@ -25,6 +24,7 @@ export default function EsignNew() {
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const create = useCreateEnvelope();
   const upload = useUploadEnvelopePdf();
+  const { data: docTypes = [] } = useDocumentTypes();
 
   useEffect(() => {
     (async () => {
@@ -92,8 +92,8 @@ export default function EsignNew() {
               <SelectTrigger><SelectValue placeholder="Untagged" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Untagged</SelectItem>
-                {DOCUMENT_TYPES.map(t => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                {docTypes.map(t => (
+                  <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
