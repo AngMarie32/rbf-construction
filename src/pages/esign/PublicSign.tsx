@@ -38,12 +38,11 @@ export default function PublicSign() {
         const json = await r.json();
         if (!r.ok) throw new Error(json.error);
         setData(json);
-        // Pre-fill date and name fields
+        // Pre-fill date fields only; name is typed by the signer
         const initial: Record<string, string> = {};
         const myFields = json.fields.filter((f: any) => f.signer_id === json.signer.id);
         myFields.forEach((f: any) => {
           if (f.field_type === 'date') initial[f.id] = new Date().toLocaleDateString();
-          if (f.field_type === 'name') initial[f.id] = json.signer.name;
         });
         setFieldValues(initial);
       } catch (e: any) {
