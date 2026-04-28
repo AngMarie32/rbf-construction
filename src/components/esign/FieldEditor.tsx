@@ -51,6 +51,8 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
   const [localOverrides, setLocalOverrides] = useState<Record<string, Partial<EsignField>>>({});
   const latestOverrideRef = useRef<Partial<EsignField> | null>(null);
   const justDraggedRef = useRef(false);
+  // Alignment guides shown while dragging/resizing (percent positions)
+  const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] });
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Keep selectedSigner in sync as signers load/change
@@ -88,6 +90,7 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
   useEffect(() => {
     if (!dragState) return;
     const DRAG_THRESHOLD = 4; // pixels before a drag actually starts
+    const SNAP_PCT = 0.6; // snap tolerance in percent
     const onMove = (ev: PointerEvent) => {
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -99,16 +102,68 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
       }
       const dxPct = (dxRaw / rect.width) * 100;
       const dyPct = (dyRaw / rect.height) * 100;
-      let next: Partial<EsignField>;
+      // Compute target rect (before snapping)
+      let x = dragState.origX, y = dragState.origY, w = dragState.origW, h = dragState.origH;
       if (dragState.mode === 'move') {
-        const x = Math.max(0, Math.min(100 - dragState.origW, dragState.origX + dxPct));
-        const y = Math.max(0, Math.min(100 - dragState.origH, dragState.origY + dyPct));
-        next = { x_pct: x, y_pct: y };
+        x = Math.max(0, Math.min(100 - dragState.origW, dragState.origX + dxPct));
+        y = Math.max(0, Math.min(100 - dragState.origH, dragState.origY + dyPct));
       } else {
-        const w = Math.max(2, Math.min(100 - dragState.origX, dragState.origW + dxPct));
-        const h = Math.max(2, Math.min(100 - dragState.origY, dragState.origH + dyPct));
-        next = { width_pct: w, height_pct: h };
+        w = Math.max(2, Math.min(100 - dragState.origX, dragState.origW + dxPct));
+        h = Math.max(2, Math.min(100 - dragState.origY, dragState.origH + dyPct));
       }
+
+      // Build snap targets from other fields on the same page
+      const others = fields.filter(
+        f => f.id !== dragState.fieldId && f.page_number === page
+      );
+      const vTargets: number[] = [];
+      const hTargets: number[] = [];
+      others.forEach(f => {
+        vTargets.push(f.x_pct, f.x_pct + f.width_pct, f.x_pct + f.width_pct / 2);
+        hTargets.push(f.y_pct, f.y_pct + f.height_pct, f.y_pct + f.height_pct / 2);
+      });
+
+      const activeGuidesV: number[] = [];
+      const activeGuidesH: number[] = [];
+
+      const snap = (val: number, targets: number[]) => {
+        let best = val;
+        let bestDiff = SNAP_PCT;
+        for (const t of targets) {
+          const d = Math.abs(t - val);
+          if (d < bestDiff) { bestDiff = d; best = t; }
+        }
+        return { val: best, snapped: best !== val };
+      };
+
+      if (dragState.mode === 'move') {
+        // Try snapping left/center/right edges
+        const leftSnap = snap(x, vTargets);
+        const centerSnap = snap(x + w / 2, vTargets);
+        const rightSnap = snap(x + w, vTargets);
+        if (leftSnap.snapped) { x = leftSnap.val; activeGuidesV.push(x); }
+        else if (centerSnap.snapped) { x = centerSnap.val - w / 2; activeGuidesV.push(centerSnap.val); }
+        else if (rightSnap.snapped) { x = rightSnap.val - w; activeGuidesV.push(rightSnap.val); }
+
+        const topSnap = snap(y, hTargets);
+        const midSnap = snap(y + h / 2, hTargets);
+        const botSnap = snap(y + h, hTargets);
+        if (topSnap.snapped) { y = topSnap.val; activeGuidesH.push(y); }
+        else if (midSnap.snapped) { y = midSnap.val - h / 2; activeGuidesH.push(midSnap.val); }
+        else if (botSnap.snapped) { y = botSnap.val - h; activeGuidesH.push(botSnap.val); }
+      } else {
+        // Resize: snap right and bottom edges
+        const rightSnap = snap(x + w, vTargets);
+        if (rightSnap.snapped) { w = rightSnap.val - x; activeGuidesV.push(rightSnap.val); }
+        const botSnap = snap(y + h, hTargets);
+        if (botSnap.snapped) { h = botSnap.val - y; activeGuidesH.push(botSnap.val); }
+      }
+
+      const next: Partial<EsignField> =
+        dragState.mode === 'move'
+          ? { x_pct: x, y_pct: y }
+          : { width_pct: w, height_pct: h };
+      setGuides({ v: activeGuidesV, h: activeGuidesH });
       latestOverrideRef.current = next;
       setLocalOverrides(prev => ({ ...prev, [dragState.fieldId]: next }));
     };
@@ -122,6 +177,7 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
         }
       }
       latestOverrideRef.current = null;
+      setGuides({ v: [], h: [] });
       // Keep override briefly so UI doesn't flicker before server round-trip
       const fid = dragState.fieldId;
       setTimeout(() => {
@@ -140,7 +196,7 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
     };
-  }, [dragState, onUpdateField]);
+  }, [dragState, onUpdateField, fields, page]);
 
   const startDrag = (
     e: React.PointerEvent,
@@ -351,6 +407,21 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
               onLoad={(n, d) => { setNumPages(n); setPageDims(d); }}
               className="w-full h-auto block"
             />
+            {/* Alignment guides */}
+            {guides.v.map((x, i) => (
+              <div
+                key={`v-${i}`}
+                className="absolute top-0 bottom-0 pointer-events-none"
+                style={{ left: `${x}%`, width: 0, borderLeft: '1px dashed hsl(var(--primary))' }}
+              />
+            ))}
+            {guides.h.map((y, i) => (
+              <div
+                key={`h-${i}`}
+                className="absolute left-0 right-0 pointer-events-none"
+                style={{ top: `${y}%`, height: 0, borderTop: '1px dashed hsl(var(--primary))' }}
+              />
+            ))}
             {pageFields.map(orig => {
               const f = { ...orig, ...(localOverrides[orig.id] || {}) } as EsignField;
               return (
