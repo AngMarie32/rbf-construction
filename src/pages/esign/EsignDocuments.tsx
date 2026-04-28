@@ -1,5 +1,5 @@
 import { Layout } from '@/components/layout/Layout';
-import { useEnvelopes, useDeleteEnvelope } from '@/hooks/useEsign';
+import { useEnvelopes, useDeleteEnvelope, useDocumentTypes } from '@/hooks/useEsign';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,12 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { FileText, Plus, Search, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { STATUS_COLORS, STATUS_LABELS, DOCUMENT_TYPES, type EnvelopeStatus } from '@/types/esign';
+import { STATUS_COLORS, STATUS_LABELS, type EnvelopeStatus } from '@/types/esign';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function EsignDocuments() {
   const { data: envelopes = [], isLoading } = useEnvelopes();
+  const { data: docTypes = [] } = useDocumentTypes();
   const navigate = useNavigate();
   const del = useDeleteEnvelope();
   const [q, setQ] = useState('');
@@ -78,8 +79,8 @@ export default function EsignDocuments() {
               <SelectContent>
                 <SelectItem value="all">All types</SelectItem>
                 <SelectItem value="none">Untagged</SelectItem>
-                {DOCUMENT_TYPES.map(t => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                {docTypes.map(t => (
+                  <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
