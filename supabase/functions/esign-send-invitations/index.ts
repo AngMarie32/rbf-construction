@@ -8,6 +8,8 @@ const corsHeaders = {
 interface SendBody {
   envelopeId: string;
   appUrl?: string;
+  signerId?: string;
+  resend?: boolean;
 }
 
 Deno.serve(async (req) => {
@@ -19,7 +21,7 @@ Deno.serve(async (req) => {
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    const { envelopeId, appUrl }: SendBody = await req.json();
+    const { envelopeId, appUrl, signerId, resend }: SendBody = await req.json();
     if (!envelopeId) {
       return new Response(JSON.stringify({ error: 'envelopeId required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -36,9 +38,25 @@ Deno.serve(async (req) => {
     if (!signers?.length) throw new Error('No signers');
 
     // Determine which signers to notify
-    const toNotify = envelope.signing_order === 'sequential'
-      ? signers.filter(s => s.status === 'pending').slice(0, 1)
-      : signers.filter(s => s.status === 'pending');
+    let toNotify;
+    if (signerId) {
+      // Targeted resend: a specific signer, regardless of status (but never re-notify someone already signed)
+      toNotify = signers.filter((s: any) => s.id === signerId && s.status !== 'signed');
+    } else if (resend) {
+      // Resend all: anyone who has not signed yet
+      toNotify = signers.filter((s: any) => s.status !== 'signed');
+      if (envelope.signing_order === 'sequential') toNotify = toNotify.slice(0, 1);
+    } else {
+      toNotify = envelope.signing_order === 'sequential'
+        ? signers.filter((s: any) => s.status === 'pending').slice(0, 1)
+        : signers.filter((s: any) => s.status === 'pending');
+    }
+
+    if (!toNotify.length) {
+      return new Response(JSON.stringify({ success: true, results: [], note: 'No signers to notify.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Always use the public production URL so signers never land on the Lovable preview/editor (which requires sign-in).
     const PUBLIC_APP_URL = 'https://rbf-construction.lovable.app';
@@ -89,14 +107,17 @@ Deno.serve(async (req) => {
       }).eq('id', signer.id);
 
       await supabase.from('esign_audit_events').insert({
-        envelope_id: envelopeId, signer_id: signer.id, event_type: 'invitation_sent',
+        envelope_id: envelopeId, signer_id: signer.id,
+        event_type: resend || signerId ? 'invitation_resent' : 'invitation_sent',
         actor_email: signer.email, actor_name: signer.name,
       });
     }
 
-    await supabase.from('esign_envelopes').update({
-      status: 'sent', sent_at: new Date().toISOString(),
-    }).eq('id', envelopeId);
+    if (!resend && !signerId) {
+      await supabase.from('esign_envelopes').update({
+        status: 'sent', sent_at: new Date().toISOString(),
+      }).eq('id', envelopeId);
+    }
 
     const anyFailed = results.some(r => r.ok === false && !r.simulated);
     const allFailed = results.length > 0 && results.every(r => r.ok === false);

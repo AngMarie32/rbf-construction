@@ -1,6 +1,6 @@
 import { Layout } from '@/components/layout/Layout';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useEnvelope, useGetSignedPdfUrl, useSendEnvelope, useAuditEvents, useSaveEnvelopeAsTemplate } from '@/hooks/useEsign';
+import { useEnvelope, useGetSignedPdfUrl, useSendEnvelope, useAuditEvents, useSaveEnvelopeAsTemplate, useResendInvitation } from '@/hooks/useEsign';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save } from 'lucide-react';
+import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw } from 'lucide-react';
 import { STATUS_COLORS, STATUS_LABELS } from '@/types/esign';
 import { FieldEditor } from '@/components/esign/FieldEditor';
 import { useQueryClient } from '@tanstack/react-query';
@@ -25,6 +25,7 @@ export default function EsignDocumentDetail() {
   const { data: certificateUrl } = useGetSignedPdfUrl(data?.envelope.certificate_path);
   const { data: audit = [] } = useAuditEvents(id);
   const send = useSendEnvelope();
+  const resend = useResendInvitation();
   const saveTpl = useSaveEnvelopeAsTemplate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -157,6 +158,15 @@ export default function EsignDocumentDetail() {
                 <Send className="h-4 w-4 mr-2" /> {send.isPending ? 'Sending…' : 'Send for Signature'}
               </Button>
             )}
+            {!isDraft && envelope.status !== 'completed' && envelope.status !== 'declined' && envelope.status !== 'voided' && (
+              <Button
+                variant="outline"
+                onClick={() => resend.mutate({ envelopeId: envelope.id })}
+                disabled={resend.isPending}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" /> {resend.isPending ? 'Resending…' : 'Resend All'}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -176,9 +186,23 @@ export default function EsignDocumentDetail() {
                       </div>
                       <div className="flex flex-col gap-1">
                         {!isDraft && (
-                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyLink(s.access_token)} title="Copy link">
-                            <Copy className="h-3 w-3" />
-                          </Button>
+                          <>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyLink(s.access_token)} title="Copy link">
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                            {s.status !== 'signed' && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => resend.mutate({ envelopeId: envelope.id, signerId: s.id })}
+                                disabled={resend.isPending}
+                                title="Resend invitation"
+                              >
+                                <RefreshCw className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </>
                         )}
                         {isDraft && (
                           <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeSigner(s.id)}>

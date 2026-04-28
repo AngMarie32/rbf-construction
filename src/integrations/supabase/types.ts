@@ -1242,6 +1242,27 @@ export type Database = {
           },
         ]
       }
+      esign_document_types: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       esign_envelopes: {
         Row: {
           certificate_path: string | null
