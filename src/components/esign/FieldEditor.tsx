@@ -46,6 +46,10 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
     origH: number;
     started: boolean;
   } | null>(null);
+  // Local overrides applied during drag so we can update visuals at 60fps
+  // without hitting the database on every pointermove (which caused lag).
+  const [localOverrides, setLocalOverrides] = useState<Record<string, Partial<EsignField>>>({});
+  const latestOverrideRef = useRef<Partial<EsignField> | null>(null);
   const justDraggedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -95,21 +99,37 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
       }
       const dxPct = (dxRaw / rect.width) * 100;
       const dyPct = (dyRaw / rect.height) * 100;
+      let next: Partial<EsignField>;
       if (dragState.mode === 'move') {
         const x = Math.max(0, Math.min(100 - dragState.origW, dragState.origX + dxPct));
         const y = Math.max(0, Math.min(100 - dragState.origH, dragState.origY + dyPct));
-        onUpdateField(dragState.fieldId, { x_pct: x, y_pct: y });
+        next = { x_pct: x, y_pct: y };
       } else {
         const w = Math.max(2, Math.min(100 - dragState.origX, dragState.origW + dxPct));
         const h = Math.max(2, Math.min(100 - dragState.origY, dragState.origH + dyPct));
-        onUpdateField(dragState.fieldId, { width_pct: w, height_pct: h });
+        next = { width_pct: w, height_pct: h };
       }
+      latestOverrideRef.current = next;
+      setLocalOverrides(prev => ({ ...prev, [dragState.fieldId]: next }));
     };
     const onUp = () => {
       if (dragState.started) {
         justDraggedRef.current = true;
         setTimeout(() => { justDraggedRef.current = false; }, 200);
+        // Commit final position to the database once
+        if (latestOverrideRef.current) {
+          onUpdateField(dragState.fieldId, latestOverrideRef.current);
+        }
       }
+      latestOverrideRef.current = null;
+      // Keep override briefly so UI doesn't flicker before server round-trip
+      const fid = dragState.fieldId;
+      setTimeout(() => {
+        setLocalOverrides(prev => {
+          const { [fid]: _, ...rest } = prev;
+          return rest;
+        });
+      }, 600);
       setDragState(null);
     };
     window.addEventListener('pointermove', onMove);
@@ -319,18 +339,21 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
           </div>
         </div>
 
-        <div
-          ref={containerRef}
-          className="relative inline-block border rounded-lg overflow-hidden shadow-sm bg-white cursor-crosshair w-full"
-          onClick={handleClick}
-        >
-          <PdfViewer
-            url={pdfUrl}
-            pageNumber={page}
-            onLoad={(n, d) => { setNumPages(n); setPageDims(d); }}
-            className="w-full h-auto block"
-          />
-          {pageFields.map(f => (
+        <div className="border rounded-lg shadow-sm bg-white max-h-[75vh] overflow-auto">
+          <div
+            ref={containerRef}
+            className="relative inline-block cursor-crosshair w-full"
+            onClick={handleClick}
+          >
+            <PdfViewer
+              url={pdfUrl}
+              pageNumber={page}
+              onLoad={(n, d) => { setNumPages(n); setPageDims(d); }}
+              className="w-full h-auto block"
+            />
+            {pageFields.map(orig => {
+              const f = { ...orig, ...(localOverrides[orig.id] || {}) } as EsignField;
+              return (
             <div
               key={f.id}
               className={cn(
@@ -345,6 +368,7 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
                 borderColor: signerColor(f.signer_id),
                 background: `${signerColor(f.signer_id)}22`,
                 touchAction: 'none',
+                willChange: dragState?.fieldId === f.id ? 'left, top, width, height' : undefined,
               }}
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => startDrag(e, f, 'move')}
@@ -369,7 +393,9 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
                 title="Drag to resize"
               />
             </div>
-          ))}
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
