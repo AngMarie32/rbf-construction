@@ -1,18 +1,19 @@
 import { Layout } from '@/components/layout/Layout';
-import { useEnvelopes } from '@/hooks/useEsign';
+import { useEnvelopes, useDocumentTypes } from '@/hooks/useEsign';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileText, FileCheck, Clock, AlertCircle, Plus, Upload, LayoutTemplate } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { STATUS_COLORS, STATUS_LABELS, DOCUMENT_TYPES } from '@/types/esign';
+import { STATUS_COLORS, STATUS_LABELS } from '@/types/esign';
 import { formatDistanceToNow } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function EsignDashboard() {
   const { data: envelopes = [], isLoading } = useEnvelopes();
+  const { data: docTypes = [] } = useDocumentTypes();
   const navigate = useNavigate();
   const [projectFilter, setProjectFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -87,8 +88,8 @@ export default function EsignDashboard() {
             <SelectContent>
               <SelectItem value="all">All types</SelectItem>
               <SelectItem value="none">Untagged</SelectItem>
-              {DOCUMENT_TYPES.map(t => (
-                <SelectItem key={t} value={t}>{t}</SelectItem>
+              {docTypes.map(t => (
+                <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
