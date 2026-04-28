@@ -156,6 +156,146 @@ export function useSendEnvelope() {
   });
 }
 
+export function useResendInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { envelopeId: string; signerId?: string }) => {
+      const { data, error } = await supabase.functions.invoke('esign-send-invitations', {
+        body: { envelopeId: input.envelopeId, signerId: input.signerId, resend: true, appUrl: window.location.origin },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data: any) => {
+      qc.invalidateQueries({ queryKey: ['esign-envelopes'] });
+      const failed = (data?.results || []).filter((r: any) => r.ok === false);
+      if (data?.warning) {
+        toast.warning('Some emails were rejected', { description: data.warning, duration: 12000 });
+      } else {
+        toast.success('Invitation resent');
+      }
+      for (const r of (data?.results || [])) {
+        if (r.link) {
+          const status = r.ok ? 'sent' : 'not delivered';
+          toast.message(`${r.signer} (${status})`, {
+            description: r.link,
+            duration: 15000,
+            action: { label: 'Copy link', onClick: () => navigator.clipboard.writeText(r.link) },
+          });
+        }
+      }
+      if (failed.length && !data?.warning) {
+        toast.error(`${failed.length} resend${failed.length === 1 ? '' : 's'} failed`);
+      }
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to resend'),
+  });
+}
+
+// ----- Document types (user-managed) -----
+export function useDocumentTypes() {
+  return useQuery({
+    queryKey: ['esign-document-types'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('esign_document_types' as any)
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      return (data || []) as { id: string; name: string }[];
+    },
+  });
+}
+
+export function useCreateDocumentType() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) throw new Error('Name required');
+      const { data, error } = await supabase
+        .from('esign_document_types' as any)
+        .insert({ name: trimmed, created_by: user?.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['esign-document-types'] });
+      toast.success('Type added');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to add type'),
+  });
+}
+
+export function useUpdateDocumentType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; name: string; oldName?: string }) => {
+      const trimmed = input.name.trim();
+      if (!trimmed) throw new Error('Name required');
+      const { error } = await supabase
+        .from('esign_document_types' as any)
+        .update({ name: trimmed })
+        .eq('id', input.id);
+      if (error) throw error;
+      // Cascade-rename existing references so filters keep working.
+      if (input.oldName && input.oldName !== trimmed) {
+        await supabase.from('esign_envelopes').update({ document_type: trimmed }).eq('document_type', input.oldName);
+        await supabase.from('esign_templates').update({ document_type: trimmed }).eq('document_type', input.oldName);
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['esign-document-types'] });
+      qc.invalidateQueries({ queryKey: ['esign-envelopes'] });
+      qc.invalidateQueries({ queryKey: ['esign-templates'] });
+      toast.success('Type updated');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to update type'),
+  });
+}
+
+export function useDeleteDocumentType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; name: string }) => {
+      // Untag any envelopes/templates that referenced this type.
+      await supabase.from('esign_envelopes').update({ document_type: null }).eq('document_type', input.name);
+      await supabase.from('esign_templates').update({ document_type: null }).eq('document_type', input.name);
+      const { error } = await supabase.from('esign_document_types' as any).delete().eq('id', input.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['esign-document-types'] });
+      qc.invalidateQueries({ queryKey: ['esign-envelopes'] });
+      qc.invalidateQueries({ queryKey: ['esign-templates'] });
+      toast.success('Type deleted');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to delete type'),
+  });
+}
+
+export function useUpdateTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; name?: string; description?: string | null; document_type?: string | null }) => {
+      const updates: any = {};
+      if (input.name !== undefined) updates.name = input.name;
+      if (input.description !== undefined) updates.description = input.description;
+      if (input.document_type !== undefined) updates.document_type = input.document_type;
+      const { error } = await supabase.from('esign_templates').update(updates).eq('id', input.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['esign-templates'] });
+      toast.success('Template updated');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to update template'),
+  });
+}
+
 export function useDeleteEnvelope() {
   const qc = useQueryClient();
   return useMutation({
