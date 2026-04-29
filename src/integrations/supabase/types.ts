@@ -1266,6 +1266,7 @@ export type Database = {
       esign_envelopes: {
         Row: {
           certificate_path: string | null
+          company: string | null
           completed_at: string | null
           created_at: string
           created_by: string | null
@@ -1274,6 +1275,7 @@ export type Database = {
           id: string
           message: string | null
           original_pdf_path: string | null
+          payment_app_number: string | null
           project_id: string | null
           sent_at: string | null
           signed_pdf_path: string | null
@@ -1286,6 +1288,7 @@ export type Database = {
         }
         Insert: {
           certificate_path?: string | null
+          company?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -1294,6 +1297,7 @@ export type Database = {
           id?: string
           message?: string | null
           original_pdf_path?: string | null
+          payment_app_number?: string | null
           project_id?: string | null
           sent_at?: string | null
           signed_pdf_path?: string | null
@@ -1306,6 +1310,7 @@ export type Database = {
         }
         Update: {
           certificate_path?: string | null
+          company?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -1314,6 +1319,7 @@ export type Database = {
           id?: string
           message?: string | null
           original_pdf_path?: string | null
+          payment_app_number?: string | null
           project_id?: string | null
           sent_at?: string | null
           signed_pdf_path?: string | null

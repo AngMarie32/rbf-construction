@@ -105,8 +105,13 @@ export default function EsignDocuments() {
                     <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
                     <div className="min-w-0">
                       <p className="font-medium truncate">{env.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Created {formatDistanceToNow(new Date(env.created_at), { addSuffix: true })}
+                      <p className="text-xs text-muted-foreground truncate">
+                        {[
+                          (env as any).company,
+                          (env as any).payment_app_number ? `Pay App #${(env as any).payment_app_number}` : null,
+                          env.project_id ? projects.find(p => p.id === env.project_id)?.name : null,
+                          `Created ${formatDistanceToNow(new Date(env.created_at), { addSuffix: true })}`,
+                        ].filter(Boolean).join(' • ')}
                       </p>
                     </div>
                   </button>

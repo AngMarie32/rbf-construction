@@ -66,6 +66,8 @@ export function useCreateEnvelope() {
       source_id?: string;
       project_id?: string;
       document_type?: string;
+      company?: string;
+      payment_app_number?: string;
     }) => {
       const { data, error } = await supabase
         .from('esign_envelopes')

@@ -21,6 +21,8 @@ export default function EsignNew() {
   const [file, setFile] = useState<File | null>(null);
   const [projectId, setProjectId] = useState<string>(params.get('projectId') || 'none');
   const [docType, setDocType] = useState<string>('none');
+  const [company, setCompany] = useState<string>('');
+  const [paymentAppNumber, setPaymentAppNumber] = useState<string>('');
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const create = useCreateEnvelope();
   const upload = useUploadEnvelopePdf();
@@ -43,6 +45,8 @@ export default function EsignNew() {
         source_id: params.get('sourceId') || undefined,
         project_id: projectId && projectId !== 'none' ? projectId : undefined,
         document_type: docType && docType !== 'none' ? docType : undefined,
+        company: company.trim() || undefined,
+        payment_app_number: paymentAppNumber.trim() || undefined,
       });
       await upload.mutateAsync({ envelopeId: env.id, file });
       toast.success('Document created');
@@ -98,6 +102,26 @@ export default function EsignNew() {
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground mt-1">Used for filtering on the dashboard.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Company (optional)</Label>
+              <Input
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                placeholder="e.g., ABC Subcontractors LLC"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Shown on dashboard tiles.</p>
+            </div>
+            <div>
+              <Label>Payment Application # (optional)</Label>
+              <Input
+                value={paymentAppNumber}
+                onChange={(e) => setPaymentAppNumber(e.target.value)}
+                placeholder="e.g., 5"
+              />
+              <p className="text-xs text-muted-foreground mt-1">For Payment Application docs.</p>
+            </div>
           </div>
           <div>
             <Label>PDF Document *</Label>
