@@ -60,6 +60,59 @@ export function PdfEditor({ pdfUrl, onSave, onCancel, hasFields }: Props) {
   const renderTaskRef = useRef<any>(null);
   const [drawing, setDrawing] = useState<Annotation | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [moveState, setMoveState] = useState<{
+    id: string;
+    mode: 'move' | 'resize';
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    origW: number;
+    origH: number;
+  } | null>(null);
+
+  // Pointer-based move/resize for placed annotations
+  useEffect(() => {
+    if (!moveState) return;
+    const onMove = (ev: PointerEvent) => {
+      const rect = overlayRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const dxPct = ((ev.clientX - moveState.startX) / rect.width) * 100;
+      const dyPct = ((ev.clientY - moveState.startY) / rect.height) * 100;
+      if (moveState.mode === 'move') {
+        const nx = Math.max(0, Math.min(100 - moveState.origW, moveState.origX + dxPct));
+        const ny = Math.max(0, Math.min(100 - moveState.origH, moveState.origY + dyPct));
+        updateAnnotation(moveState.id, { x: nx, y: ny });
+      } else {
+        const nw = Math.max(2, Math.min(100 - moveState.origX, moveState.origW + dxPct));
+        const nh = Math.max(2, Math.min(100 - moveState.origY, moveState.origH + dyPct));
+        updateAnnotation(moveState.id, { w: nw, h: nh });
+      }
+    };
+    const onUp = () => setMoveState(null);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, [moveState]);
+
+  const startAnnotationDrag = (
+    e: React.PointerEvent,
+    ann: Annotation,
+    mode: 'move' | 'resize'
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setMoveState({
+      id: ann.id, mode,
+      startX: e.clientX, startY: e.clientY,
+      origX: ann.x, origY: ann.y, origW: ann.w, origH: ann.h,
+    });
+  };
 
   // Load original PDF
   useEffect(() => {
