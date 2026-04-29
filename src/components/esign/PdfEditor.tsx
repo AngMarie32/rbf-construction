@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Type, Highlighter, Pen, Trash2, ChevronUp, ChevronDown,
-  FileUp, Save, X, MousePointer2, Eraser
+  FileUp, Save, X, MousePointer2, Eraser, Files
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
@@ -59,6 +60,59 @@ export function PdfEditor({ pdfUrl, onSave, onCancel, hasFields }: Props) {
   const renderTaskRef = useRef<any>(null);
   const [drawing, setDrawing] = useState<Annotation | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [moveState, setMoveState] = useState<{
+    id: string;
+    mode: 'move' | 'resize';
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    origW: number;
+    origH: number;
+  } | null>(null);
+
+  // Pointer-based move/resize for placed annotations
+  useEffect(() => {
+    if (!moveState) return;
+    const onMove = (ev: PointerEvent) => {
+      const rect = overlayRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const dxPct = ((ev.clientX - moveState.startX) / rect.width) * 100;
+      const dyPct = ((ev.clientY - moveState.startY) / rect.height) * 100;
+      if (moveState.mode === 'move') {
+        const nx = Math.max(0, Math.min(100 - moveState.origW, moveState.origX + dxPct));
+        const ny = Math.max(0, Math.min(100 - moveState.origH, moveState.origY + dyPct));
+        updateAnnotation(moveState.id, { x: nx, y: ny });
+      } else {
+        const nw = Math.max(2, Math.min(100 - moveState.origX, moveState.origW + dxPct));
+        const nh = Math.max(2, Math.min(100 - moveState.origY, moveState.origH + dyPct));
+        updateAnnotation(moveState.id, { w: nw, h: nh });
+      }
+    };
+    const onUp = () => setMoveState(null);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, [moveState]);
+
+  const startAnnotationDrag = (
+    e: React.PointerEvent,
+    ann: Annotation,
+    mode: 'move' | 'resize'
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setMoveState({
+      id: ann.id, mode,
+      startX: e.clientX, startY: e.clientY,
+      origX: ann.x, origY: ann.y, origW: ann.w, origH: ann.h,
+    });
+  };
 
   // Load original PDF
   useEffect(() => {
@@ -388,6 +442,55 @@ export function PdfEditor({ pdfUrl, onSave, onCancel, hasFields }: Props) {
             />
           </div>
         )}
+        <div className="h-6 w-px bg-border mx-1" />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button size="sm" variant="outline" title="Pages">
+              <Files className="h-4 w-4 mr-1" /> Pages ({currentPage}/{pageOrder.length})
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-2" align="start">
+            <div className="flex items-center justify-between px-1 pb-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pages</p>
+              <label className="cursor-pointer text-primary hover:opacity-80" title="Insert PDF after current page">
+                <FileUp className="h-4 w-4" />
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) insertPdf(f);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
+            <div className="max-h-80 overflow-auto space-y-1">
+              {pageOrder.map((_, idx) => (
+                <div
+                  key={idx}
+                  className={`flex items-center gap-1 p-1.5 rounded text-sm border ${
+                    currentPage === idx + 1 ? 'bg-primary/10 border-primary' : 'border-transparent hover:bg-muted'
+                  }`}
+                >
+                  <button className="flex-1 text-left px-1" onClick={() => setCurrentPage(idx + 1)}>
+                    Page {idx + 1}
+                  </button>
+                  <button className="p-0.5 hover:bg-muted rounded disabled:opacity-30" disabled={idx === 0} onClick={() => movePage(idx, -1)} title="Move up">
+                    <ChevronUp className="h-3 w-3" />
+                  </button>
+                  <button className="p-0.5 hover:bg-muted rounded disabled:opacity-30" disabled={idx === pageOrder.length - 1} onClick={() => movePage(idx, 1)} title="Move down">
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                  <button className="p-0.5 hover:bg-destructive/10 rounded text-destructive disabled:opacity-30" disabled={pageOrder.length <= 1} onClick={() => deletePage(idx)} title="Delete page">
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
         <div className="flex-1" />
         <Button size="sm" variant="ghost" onClick={onCancel}>
           <X className="h-4 w-4 mr-1" /> Cancel
@@ -403,72 +506,12 @@ export function PdfEditor({ pdfUrl, onSave, onCancel, hasFields }: Props) {
         </div>
       )}
 
-      <div className="grid grid-cols-[200px_1fr] gap-3">
-        {/* Pages panel */}
-        <div className="border rounded-lg p-2 space-y-1 max-h-[75vh] overflow-auto bg-card">
-          <div className="flex items-center justify-between px-1 pb-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pages</p>
-            <label className="cursor-pointer text-primary hover:opacity-80" title="Insert PDF after current page">
-              <FileUp className="h-4 w-4" />
-              <input
-                type="file"
-                accept="application/pdf"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) insertPdf(f);
-                  e.target.value = '';
-                }}
-              />
-            </label>
-          </div>
-          {pageOrder.map((_, idx) => (
-            <div
-              key={idx}
-              className={`flex items-center gap-1 p-1.5 rounded text-sm border ${
-                currentPage === idx + 1 ? 'bg-primary/10 border-primary' : 'border-transparent hover:bg-muted'
-              }`}
-            >
-              <button
-                className="flex-1 text-left px-1"
-                onClick={() => setCurrentPage(idx + 1)}
-              >
-                Page {idx + 1}
-              </button>
-              <button
-                className="p-0.5 hover:bg-muted rounded disabled:opacity-30"
-                disabled={idx === 0}
-                onClick={() => movePage(idx, -1)}
-                title="Move up"
-              >
-                <ChevronUp className="h-3 w-3" />
-              </button>
-              <button
-                className="p-0.5 hover:bg-muted rounded disabled:opacity-30"
-                disabled={idx === pageOrder.length - 1}
-                onClick={() => movePage(idx, 1)}
-                title="Move down"
-              >
-                <ChevronDown className="h-3 w-3" />
-              </button>
-              <button
-                className="p-0.5 hover:bg-destructive/10 rounded text-destructive disabled:opacity-30"
-                disabled={pageOrder.length <= 1}
-                onClick={() => deletePage(idx)}
-                title="Delete page"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* Page canvas + overlay */}
-        <div className="border rounded-lg max-h-[75vh] overflow-auto bg-muted/20 p-3">
-          <div
-            className="relative inline-block mx-auto"
-            style={{ width: renderDims.w || 'auto' }}
-          >
+      {/* Page canvas + overlay (full width) */}
+      <div className="border rounded-lg max-h-[75vh] overflow-auto bg-muted/20 p-3">
+        <div
+          className="relative inline-block mx-auto"
+          style={{ width: renderDims.w || 'auto' }}
+        >
             <canvas ref={canvasRef} className="block shadow-md" />
             <div
               ref={overlayRef}
@@ -491,26 +534,29 @@ export function PdfEditor({ pdfUrl, onSave, onCancel, hasFields }: Props) {
                   onStopEdit={() => setEditingId(null)}
                   onChange={(u) => updateAnnotation(a.id, u)}
                   onRemove={() => removeAnnotation(a.id)}
+                  onDragStart={(e, mode) => startAnnotationDrag(e, a, mode)}
+                  selectable={tool === 'select'}
                 />
               ))}
               {drawing && drawing.page === currentPage && (
                 <DrawingPreview ann={drawing} />
               )}
             </div>
-          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function AnnotationView({ ann, editing, onStartEdit, onStopEdit, onChange, onRemove }: {
+function AnnotationView({ ann, editing, onStartEdit, onStopEdit, onChange, onRemove, onDragStart, selectable }: {
   ann: Annotation;
   editing: boolean;
   onStartEdit: () => void;
   onStopEdit: () => void;
   onChange: (u: Partial<Annotation>) => void;
   onRemove: () => void;
+  onDragStart: (e: React.PointerEvent, mode: 'move' | 'resize') => void;
+  selectable: boolean;
 }) {
   const baseStyle: React.CSSProperties = {
     position: 'absolute',
@@ -518,30 +564,54 @@ function AnnotationView({ ann, editing, onStartEdit, onStopEdit, onChange, onRem
     top: `${ann.y}%`,
     width: `${ann.w}%`,
     height: `${ann.h}%`,
+    touchAction: 'none',
   };
+
+  const ResizeHandle = () => (
+    <div
+      onPointerDown={(e) => onDragStart(e, 'resize')}
+      className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-sm cursor-se-resize border border-white"
+      title="Drag to resize"
+    />
+  );
 
   if (ann.type === 'highlight') {
     return (
-      <div data-annotation style={{ ...baseStyle, background: 'rgba(255, 240, 50, 0.4)' }}>
+      <div
+        data-annotation
+        style={{ ...baseStyle, background: 'rgba(255, 240, 50, 0.4)', cursor: selectable ? 'grab' : 'default' }}
+        onPointerDown={(e) => selectable && onDragStart(e, 'move')}
+      >
         <RemoveBtn onClick={onRemove} />
+        {selectable && <ResizeHandle />}
       </div>
     );
   }
   if (ann.type === 'whiteout') {
     return (
-      <div data-annotation style={{ ...baseStyle, background: 'white', border: '1px dashed rgba(0,0,0,0.3)' }}>
+      <div
+        data-annotation
+        style={{ ...baseStyle, background: 'white', border: '1px dashed rgba(0,0,0,0.3)', cursor: selectable ? 'grab' : 'default' }}
+        onPointerDown={(e) => selectable && onDragStart(e, 'move')}
+      >
         <RemoveBtn onClick={onRemove} />
+        {selectable && <ResizeHandle />}
       </div>
     );
   }
   if (ann.type === 'draw' && ann.points) {
     const path = pointsToPath(ann.points);
     return (
-      <div data-annotation style={baseStyle}>
+      <div
+        data-annotation
+        style={{ ...baseStyle, cursor: selectable ? 'grab' : 'default' }}
+        onPointerDown={(e) => selectable && onDragStart(e, 'move')}
+      >
         <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
           <path d={path} stroke="black" strokeWidth="0.5" fill="none" vectorEffect="non-scaling-stroke" />
         </svg>
         <RemoveBtn onClick={onRemove} />
+        {selectable && <ResizeHandle />}
       </div>
     );
   }
@@ -568,20 +638,25 @@ function AnnotationView({ ann, editing, onStartEdit, onStopEdit, onChange, onRem
           }}
         />
       ) : (
-        <div
-          style={{
-            width: '100%', height: '100%',
-            border: '1px dashed rgba(0,0,0,0.3)',
-            background: 'rgba(255,255,255,0.6)',
-            color: 'black',
-            fontSize: ann.fontSize || 14,
-            padding: 2, whiteSpace: 'pre-wrap', overflow: 'hidden',
-            cursor: 'text',
-          }}
-          onClick={onStartEdit}
-        >
-          {ann.text || <span style={{ opacity: 0.5 }}>Click to type…</span>}
-        </div>
+        <>
+          {/* Drag handle layer (covers text); double-click to edit */}
+          <div
+            onPointerDown={(e) => selectable && onDragStart(e, 'move')}
+            style={{
+              width: '100%', height: '100%',
+              border: '1px dashed rgba(0,0,0,0.3)',
+              background: 'rgba(255,255,255,0.6)',
+              color: 'black',
+              fontSize: ann.fontSize || 14,
+              padding: 2, whiteSpace: 'pre-wrap', overflow: 'hidden',
+              cursor: selectable ? 'grab' : 'text',
+            }}
+            onDoubleClick={onStartEdit}
+          >
+            {ann.text || <span style={{ opacity: 0.5 }}>Double-click to type…</span>}
+          </div>
+          {selectable && <ResizeHandle />}
+        </>
       )}
       <RemoveBtn onClick={onRemove} />
     </div>
