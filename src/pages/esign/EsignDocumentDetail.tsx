@@ -108,11 +108,11 @@ export default function EsignDocumentDetail() {
   };
 
   const handleSaveEditedPdf = async (file: File): Promise<void> => {
-    if (!envelope.original_pdf_path) return toast.error('No PDF path');
+    if (!envelope.original_pdf_path) { toast.error('No PDF path'); return; }
     const { error: upErr } = await supabase.storage
       .from('esign-documents')
       .upload(envelope.original_pdf_path, file, { upsert: true, contentType: 'application/pdf' });
-    if (upErr) return toast.error(upErr.message);
+    if (upErr) { toast.error(upErr.message); return; }
     // Edits may have changed page count/order, so clear existing field placements.
     if (fields.length > 0) {
       await supabase.from('esign_fields').delete().eq('envelope_id', envelope.id);
