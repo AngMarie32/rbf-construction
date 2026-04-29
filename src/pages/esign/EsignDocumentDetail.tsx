@@ -107,7 +107,7 @@ export default function EsignDocumentDetail() {
     await send.mutateAsync(envelope.id);
   };
 
-  const handleSaveEditedPdf = async (file: File) => {
+  const handleSaveEditedPdf = async (file: File): Promise<void> => {
     if (!envelope.original_pdf_path) return toast.error('No PDF path');
     const { error: upErr } = await supabase.storage
       .from('esign-documents')
