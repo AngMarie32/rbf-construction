@@ -15,6 +15,12 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
+    label: 'Quick Access',
+    items: [
+      { name: 'E-Sign', href: '/esign' },
+    ],
+  },
+  {
     label: 'Overview',
     items: [
       { name: 'Dashboard', href: '/dashboard' },
@@ -27,7 +33,6 @@ const navGroups: NavGroup[] = [
     items: [
       { name: 'Project Schedule', href: '/project-schedule' },
       { name: 'Documents', href: '/documents' },
-      { name: 'E-Sign', href: '/esign' },
       { name: 'Permits', href: '/permits' },
       { name: 'Punch List', href: '/punch-list' },
       { name: 'Meetings', href: '/meetings' },
