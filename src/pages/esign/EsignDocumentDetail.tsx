@@ -9,9 +9,10 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw } from 'lucide-react';
+import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit } from 'lucide-react';
 import { STATUS_COLORS, STATUS_LABELS } from '@/types/esign';
 import { FieldEditor } from '@/components/esign/FieldEditor';
+import { PdfEditor } from '@/components/esign/PdfEditor';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 
@@ -30,6 +31,7 @@ export default function EsignDocumentDetail() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [signedBlobUrl, setSignedBlobUrl] = useState<string | null>(null);
+  const [editingPdf, setEditingPdf] = useState(false);
 
   // Fetch the signed PDF as a blob so the browser will reliably preview it
   // in an <iframe> (signed Storage URLs sometimes set headers that browsers
@@ -105,6 +107,23 @@ export default function EsignDocumentDetail() {
     await send.mutateAsync(envelope.id);
   };
 
+  const handleSaveEditedPdf = async (file: File) => {
+    if (!envelope.original_pdf_path) return toast.error('No PDF path');
+    const { error: upErr } = await supabase.storage
+      .from('esign-documents')
+      .upload(envelope.original_pdf_path, file, { upsert: true, contentType: 'application/pdf' });
+    if (upErr) return toast.error(upErr.message);
+    // Edits may have changed page count/order, so clear existing field placements.
+    if (fields.length > 0) {
+      await supabase.from('esign_fields').delete().eq('envelope_id', envelope.id);
+    }
+    // Force PDF + fields refresh
+    qc.invalidateQueries({ queryKey: ['esign-envelope', id] });
+    qc.invalidateQueries({ queryKey: ['esign-pdf-url'] });
+    toast.success('PDF updated');
+    setEditingPdf(false);
+  };
+
   const copyLink = (token: string) => {
     navigator.clipboard.writeText(`${window.location.origin}/sign/${token}`);
     toast.success('Link copied');
@@ -152,6 +171,14 @@ export default function EsignDocumentDetail() {
                   </Button>
                 )}
               </>
+            )}
+            {isDraft && (
+              <Button
+                variant="outline"
+                onClick={() => setEditingPdf(v => !v)}
+              >
+                <FileEdit className="h-4 w-4 mr-2" /> {editingPdf ? 'Close Editor' : 'Edit PDF'}
+              </Button>
             )}
             {isDraft && (
               <Button onClick={handleSend} disabled={send.isPending}>
@@ -243,6 +270,13 @@ export default function EsignDocumentDetail() {
           <Card className="p-4">
             {!pdfUrl ? (
               <div className="text-center py-12 text-muted-foreground">Loading PDF…</div>
+            ) : isDraft && editingPdf ? (
+              <PdfEditor
+                pdfUrl={pdfUrl}
+                hasFields={fields.length > 0}
+                onCancel={() => setEditingPdf(false)}
+                onSave={handleSaveEditedPdf}
+              />
             ) : isDraft ? (
               <FieldEditor
                 pdfUrl={pdfUrl}
