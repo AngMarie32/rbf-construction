@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Type, Highlighter, Pen, Trash2, ChevronUp, ChevronDown,
-  FileUp, Save, X, MousePointer2, Eraser
+  FileUp, Save, X, MousePointer2, Eraser, Files
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
