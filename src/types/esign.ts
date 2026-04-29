@@ -14,6 +14,8 @@ export interface EsignEnvelope {
   source_id: string | null;
   project_id: string | null;
   document_type: string | null;
+  company: string | null;
+  payment_app_number: string | null;
   original_pdf_path: string | null;
   signed_pdf_path: string | null;
   certificate_path: string | null;
