@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { PDFDocument, rgb, StandardFonts, degrees } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Type, Highlighter, Pen, Square, Trash2, Plus, ChevronUp, ChevronDown,
+  Type, Highlighter, Pen, Trash2, ChevronUp, ChevronDown,
   FileUp, Save, X, MousePointer2, Eraser
 } from 'lucide-react';
 import { toast } from 'sonner';
