@@ -38,6 +38,16 @@ Deno.serve(async (req) => {
 
     const { data: envelope } = await supabase
       .from('esign_envelopes').select('*').eq('id', signer.envelope_id).single();
+    if (envelope && envelope.status === 'voided') {
+      return new Response(JSON.stringify({ error: 'This document has been cancelled by the sender.', voided: true, reason: envelope.void_reason }), {
+        status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (envelope && envelope.expires_at && new Date(envelope.expires_at) < new Date()) {
+      return new Response(JSON.stringify({ error: 'This document has expired.', expired: true }), {
+        status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const { data: fields } = await supabase
       .from('esign_fields').select('*').eq('envelope_id', signer.envelope_id);
     const { data: allSigners } = await supabase
