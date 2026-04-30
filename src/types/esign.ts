@@ -22,6 +22,11 @@ export interface EsignEnvelope {
   expires_at: string | null;
   sent_at: string | null;
   completed_at: string | null;
+  voided_at?: string | null;
+  void_reason?: string | null;
+  reminder_cadence_days?: number | null;
+  last_reminder_sent_at?: string | null;
+  reminder_count?: number | null;
   created_at: string;
   updated_at: string;
 }

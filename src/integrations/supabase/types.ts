@@ -1273,10 +1273,13 @@ export type Database = {
           document_type: string | null
           expires_at: string | null
           id: string
+          last_reminder_sent_at: string | null
           message: string | null
           original_pdf_path: string | null
           payment_app_number: string | null
           project_id: string | null
+          reminder_cadence_days: number | null
+          reminder_count: number
           sent_at: string | null
           signed_pdf_path: string | null
           signing_order: string
@@ -1285,6 +1288,8 @@ export type Database = {
           status: string
           title: string
           updated_at: string
+          void_reason: string | null
+          voided_at: string | null
         }
         Insert: {
           certificate_path?: string | null
@@ -1295,10 +1300,13 @@ export type Database = {
           document_type?: string | null
           expires_at?: string | null
           id?: string
+          last_reminder_sent_at?: string | null
           message?: string | null
           original_pdf_path?: string | null
           payment_app_number?: string | null
           project_id?: string | null
+          reminder_cadence_days?: number | null
+          reminder_count?: number
           sent_at?: string | null
           signed_pdf_path?: string | null
           signing_order?: string
@@ -1307,6 +1315,8 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Update: {
           certificate_path?: string | null
@@ -1317,10 +1327,13 @@ export type Database = {
           document_type?: string | null
           expires_at?: string | null
           id?: string
+          last_reminder_sent_at?: string | null
           message?: string | null
           original_pdf_path?: string | null
           payment_app_number?: string | null
           project_id?: string | null
+          reminder_cadence_days?: number | null
+          reminder_count?: number
           sent_at?: string | null
           signed_pdf_path?: string | null
           signing_order?: string
@@ -1329,6 +1342,8 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Relationships: []
       }

@@ -312,6 +312,112 @@ export function useDeleteEnvelope() {
   });
 }
 
+export function useUpdateEnvelopeSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; expires_at?: string | null; reminder_cadence_days?: number | null }) => {
+      const updates: any = {};
+      if (input.expires_at !== undefined) updates.expires_at = input.expires_at;
+      if (input.reminder_cadence_days !== undefined) updates.reminder_cadence_days = input.reminder_cadence_days;
+      const { error } = await supabase.from('esign_envelopes').update(updates).eq('id', input.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['esign-envelopes'] });
+      qc.invalidateQueries({ queryKey: ['esign-envelope', vars.id] });
+      toast.success('Settings updated');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to update'),
+  });
+}
+
+export function useVoidEnvelope() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { envelopeId: string; reason: string; notify: boolean }) => {
+      const { data, error } = await supabase.functions.invoke('esign-void-envelope', {
+        body: input,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['esign-envelopes'] });
+      qc.invalidateQueries({ queryKey: ['esign-envelope', vars.envelopeId] });
+      toast.success('Document cancelled');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to cancel'),
+  });
+}
+
+export function useBulkSendEnvelope() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (input: {
+      sourceEnvelopeId: string;
+      recipients: { name: string; email: string; company?: string }[];
+    }) => {
+      // Pull source envelope, fields
+      const [envRes, fieldsRes] = await Promise.all([
+        supabase.from('esign_envelopes').select('*').eq('id', input.sourceEnvelopeId).single(),
+        supabase.from('esign_fields').select('*').eq('envelope_id', input.sourceEnvelopeId),
+      ]);
+      if (envRes.error) throw envRes.error;
+      if (fieldsRes.error) throw fieldsRes.error;
+      const src = envRes.data;
+      const created: string[] = [];
+      for (const r of input.recipients) {
+        // Create envelope
+        const { data: env, error: cErr } = await supabase.from('esign_envelopes').insert({
+          created_by: user?.id,
+          title: src.title,
+          message: src.message,
+          signing_order: 'parallel',
+          source_type: src.source_type,
+          source_id: src.source_id,
+          project_id: src.project_id,
+          document_type: src.document_type,
+          company: r.company || src.company,
+          payment_app_number: src.payment_app_number,
+          original_pdf_path: src.original_pdf_path, // share the same uploaded file
+          status: 'draft',
+        }).select().single();
+        if (cErr) throw cErr;
+        // Add signer
+        const { data: signer, error: sErr } = await supabase.from('esign_signers').insert({
+          envelope_id: env.id, name: r.name, email: r.email, order_index: 0,
+        }).select().single();
+        if (sErr) throw sErr;
+        // Copy fields, all assigned to this signer
+        if (fieldsRes.data?.length) {
+          const newFields = fieldsRes.data.map((f: any) => ({
+            envelope_id: env.id,
+            signer_id: signer.id,
+            field_type: f.field_type,
+            page_number: f.page_number,
+            x_pct: f.x_pct, y_pct: f.y_pct,
+            width_pct: f.width_pct, height_pct: f.height_pct,
+            required: f.required,
+          }));
+          await supabase.from('esign_fields').insert(newFields);
+        }
+        // Send invitation
+        await supabase.functions.invoke('esign-send-invitations', {
+          body: { envelopeId: env.id, appUrl: window.location.origin },
+        });
+        created.push(env.id);
+      }
+      return created;
+    },
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: ['esign-envelopes'] });
+      toast.success(`${created.length} envelope${created.length === 1 ? '' : 's'} sent`);
+    },
+    onError: (e: any) => toast.error(e?.message || 'Bulk send failed'),
+  });
+}
+
 export function useAuditEvents(envelopeId: string | undefined) {
   return useQuery({
     queryKey: ['esign-audit', envelopeId],

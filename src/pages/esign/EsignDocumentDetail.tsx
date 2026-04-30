@@ -1,6 +1,6 @@
 import { Layout } from '@/components/layout/Layout';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useEnvelope, useGetSignedPdfUrl, useSendEnvelope, useAuditEvents, useSaveEnvelopeAsTemplate, useResendInvitation } from '@/hooks/useEsign';
+import { useEnvelope, useGetSignedPdfUrl, useSendEnvelope, useAuditEvents, useSaveEnvelopeAsTemplate, useResendInvitation, useUpdateEnvelopeSettings, useVoidEnvelope, useBulkSendEnvelope } from '@/hooks/useEsign';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,11 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit } from 'lucide-react';
+import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit, Ban, CalendarClock, BellRing, Users } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { STATUS_COLORS, STATUS_LABELS } from '@/types/esign';
 import { FieldEditor } from '@/components/esign/FieldEditor';
 import { PdfEditor } from '@/components/esign/PdfEditor';
@@ -28,10 +32,21 @@ export default function EsignDocumentDetail() {
   const send = useSendEnvelope();
   const resend = useResendInvitation();
   const saveTpl = useSaveEnvelopeAsTemplate();
+  const updateSettings = useUpdateEnvelopeSettings();
+  const voidEnv = useVoidEnvelope();
+  const bulkSend = useBulkSendEnvelope();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [signedBlobUrl, setSignedBlobUrl] = useState<string | null>(null);
   const [editingPdf, setEditingPdf] = useState(false);
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidNotify, setVoidNotify] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [expiresInput, setExpiresInput] = useState('');
+  const [cadenceInput, setCadenceInput] = useState<string>('off');
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState('');
 
   // Fetch the signed PDF as a blob so the browser will reliably preview it
   // in an <iframe> (signed Storage URLs sometimes set headers that browsers
@@ -69,6 +84,8 @@ export default function EsignDocumentDetail() {
 
   const { envelope, signers, fields } = data;
   const isDraft = envelope.status === 'draft';
+  const isActive = ['sent', 'partially_signed'].includes(envelope.status);
+  const canVoid = isDraft || isActive;
 
   const addSigner = async () => {
     if (!name || !email) return toast.error('Name and email required');
@@ -194,8 +211,51 @@ export default function EsignDocumentDetail() {
                 <RefreshCw className="h-4 w-4 mr-2" /> {resend.isPending ? 'Resending…' : 'Resend All'}
               </Button>
             )}
+            {(isDraft || isActive) && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setExpiresInput(envelope.expires_at ? envelope.expires_at.slice(0, 10) : '');
+                  setCadenceInput(envelope.reminder_cadence_days ? String(envelope.reminder_cadence_days) : 'off');
+                  setSettingsOpen(true);
+                }}
+              >
+                <CalendarClock className="h-4 w-4 mr-2" /> Expiration & Reminders
+              </Button>
+            )}
+            {!isDraft && envelope.original_pdf_path && (
+              <Button
+                variant="outline"
+                onClick={() => { setBulkText(''); setBulkOpen(true); }}
+              >
+                <Users className="h-4 w-4 mr-2" /> Bulk Send
+              </Button>
+            )}
+            {canVoid && (
+              <Button
+                variant="outline"
+                onClick={() => { setVoidReason(''); setVoidNotify(true); setVoidOpen(true); }}
+                className="text-destructive hover:text-destructive"
+              >
+                <Ban className="h-4 w-4 mr-2" /> Cancel
+              </Button>
+            )}
           </div>
         </div>
+
+        {(envelope.expires_at || envelope.reminder_cadence_days || envelope.status === 'voided') && (
+          <Card className="p-3 text-xs text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
+            {envelope.expires_at && (
+              <span><CalendarClock className="h-3 w-3 inline mr-1" /> Expires {format(new Date(envelope.expires_at), 'MMM d, yyyy')}</span>
+            )}
+            {envelope.reminder_cadence_days ? (
+              <span><BellRing className="h-3 w-3 inline mr-1" /> Reminders every {envelope.reminder_cadence_days} day{envelope.reminder_cadence_days === 1 ? '' : 's'}{(envelope as any).reminder_count ? ` • ${(envelope as any).reminder_count} sent` : ''}</span>
+            ) : null}
+            {envelope.status === 'voided' && (
+              <span className="text-destructive">Cancelled{(envelope as any).void_reason ? `: ${(envelope as any).void_reason}` : ''}</span>
+            )}
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
           {/* Signers + audit */}
@@ -317,6 +377,144 @@ export default function EsignDocumentDetail() {
           </Card>
         </div>
       </div>
+
+      {/* Cancel envelope dialog */}
+      <Dialog open={voidOpen} onOpenChange={setVoidOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel this document?</DialogTitle>
+            <DialogDescription>
+              The envelope will be marked as voided and signers can no longer sign it. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Reason (optional)</Label>
+              <Textarea
+                value={voidReason}
+                onChange={(e) => setVoidReason(e.target.value)}
+                placeholder="e.g., Replaced by an updated version"
+              />
+            </div>
+            <div className="flex items-center justify-between rounded border p-3">
+              <div>
+                <p className="text-sm font-medium">Notify pending signers by email</p>
+                <p className="text-xs text-muted-foreground">Lets them know the document was cancelled.</p>
+              </div>
+              <Switch checked={voidNotify} onCheckedChange={setVoidNotify} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVoidOpen(false)}>Keep document</Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                await voidEnv.mutateAsync({ envelopeId: envelope.id, reason: voidReason, notify: voidNotify });
+                setVoidOpen(false);
+              }}
+              disabled={voidEnv.isPending}
+            >
+              {voidEnv.isPending ? 'Cancelling…' : 'Cancel document'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Expiration & reminders dialog */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Expiration & Reminders</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Expires on</Label>
+              <Input
+                type="date"
+                value={expiresInput}
+                onChange={(e) => setExpiresInput(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">Leave blank to never expire.</p>
+            </div>
+            <div>
+              <Label>Reminder cadence</Label>
+              <Select value={cadenceInput} onValueChange={setCadenceInput}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="off">Off</SelectItem>
+                  <SelectItem value="1">Every day</SelectItem>
+                  <SelectItem value="2">Every 2 days</SelectItem>
+                  <SelectItem value="3">Every 3 days</SelectItem>
+                  <SelectItem value="7">Weekly</SelectItem>
+                  <SelectItem value="14">Every 2 weeks</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">Auto-emails any signer who hasn't signed yet.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSettingsOpen(false)}>Cancel</Button>
+            <Button
+              onClick={async () => {
+                await updateSettings.mutateAsync({
+                  id: envelope.id,
+                  expires_at: expiresInput ? new Date(expiresInput + 'T23:59:59').toISOString() : null,
+                  reminder_cadence_days: cadenceInput === 'off' ? null : Number(cadenceInput),
+                });
+                setSettingsOpen(false);
+              }}
+              disabled={updateSettings.isPending}
+            >
+              {updateSettings.isPending ? 'Saving…' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk send dialog */}
+      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk send to multiple recipients</DialogTitle>
+            <DialogDescription>
+              Creates a separate envelope for each recipient using this document and its field placements.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Recipients</Label>
+              <Textarea
+                rows={8}
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+                placeholder={'One per line: Name, email@domain.com, Company (optional)\nJohn Smith, john@acme.com, Acme Subs\nJane Doe, jane@buildco.com'}
+              />
+              <p className="text-xs text-muted-foreground mt-1">Format: Name, Email, Company (company optional).</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkOpen(false)}>Cancel</Button>
+            <Button
+              onClick={async () => {
+                const lines = bulkText.split('\n').map(l => l.trim()).filter(Boolean);
+                const recipients = lines.map(l => {
+                  const [name, email, company] = l.split(',').map(s => s?.trim() || '');
+                  return { name, email, company: company || undefined };
+                }).filter(r => r.name && r.email && /\S+@\S+\.\S+/.test(r.email));
+                if (recipients.length === 0) {
+                  toast.error('Add at least one valid recipient (Name, email)');
+                  return;
+                }
+                await bulkSend.mutateAsync({ sourceEnvelopeId: envelope.id, recipients });
+                setBulkOpen(false);
+              }}
+              disabled={bulkSend.isPending}
+            >
+              {bulkSend.isPending ? 'Sending…' : 'Send to all'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
