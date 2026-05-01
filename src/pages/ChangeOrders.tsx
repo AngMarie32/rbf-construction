@@ -146,6 +146,7 @@ export default function ChangeOrders() {
                           sourceId={co.id}
                           projectId={co.project_id}
                           title={`Change Order ${co.number}`}
+                          documentType="Change Order"
                           variant="outline"
                           size="sm"
                         />

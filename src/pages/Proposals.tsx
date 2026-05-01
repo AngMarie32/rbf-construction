@@ -297,6 +297,8 @@ export default function Proposals() {
                         source="proposal"
                         sourceId={proposal.id}
                         title={`Proposal – ${proposal.project_name}`}
+                        company={proposal.client}
+                        documentType="Proposal"
                         iconOnly
                       />
                       <Button variant="ghost" size="sm" onClick={() => handleDeleteProposal(proposal)}>

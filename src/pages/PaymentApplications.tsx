@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { G702Dialog } from '@/components/forms/G702Dialog';
+import { SendForSignatureButton } from '@/components/esign/SendForSignatureButton';
 
 interface PaymentApplication {
   id: string;
@@ -395,6 +396,17 @@ export default function PaymentApplications() {
                                 <Download className="w-4 h-4 mr-1" />
                                 Export
                               </Button>
+                              <SendForSignatureButton
+                                source="invoice"
+                                sourceId={app.id}
+                                projectId={app.project_id}
+                                title={`Payment Application #${app.application_number} – ${app.projects?.name || ''}`.trim()}
+                                company={app.projects?.client}
+                                paymentAppNumber={app.application_number}
+                                documentType="Payment Application"
+                                variant="outline"
+                                size="sm"
+                              />
                               <Button
                                 variant="outline"
                                 size="sm"

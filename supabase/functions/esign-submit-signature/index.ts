@@ -238,6 +238,31 @@ Deno.serve(async (req) => {
         envelope_id: signer.envelope_id, event_type: 'envelope_completed',
       });
 
+      // Update source record status when fully signed
+      if (envelope?.source_type && envelope?.source_id) {
+        try {
+          if (envelope.source_type === 'change_order') {
+            await supabase.from('change_orders')
+              .update({ status: 'Approved' })
+              .eq('id', envelope.source_id);
+          } else if (envelope.source_type === 'proposal') {
+            await supabase.from('proposals')
+              .update({ status: 'Signed' })
+              .eq('id', envelope.source_id);
+          } else if (envelope.source_type === 'invoice') {
+            // Payment Application
+            // No "status" column on payment_applications_g702; record signature meta
+            await supabase.from('payment_applications_g702')
+              .update({ contractor_date: new Date().toISOString().slice(0, 10) })
+              .eq('id', envelope.source_id);
+          } else if (envelope.source_type === 'subcontractor') {
+            // No status column; skip silently
+          }
+        } catch (statusErr) {
+          console.error('Failed to update source status:', statusErr);
+        }
+      }
+
       // Create document records so the signed PDF + certificate appear in
       // the project's Documents area (and the global Documents page).
       if (signedPdfPath && envelope) {
