@@ -452,6 +452,8 @@ export default function Subcontractors() {
                             source="subcontractor"
                             sourceId={subcontractor.id}
                             title={`Subcontractor Agreement – ${subcontractor.company || subcontractor.name}`}
+                            company={subcontractor.company || subcontractor.name}
+                            documentType="Subcontract"
                             variant="outline"
                             size="sm"
                             iconOnly
