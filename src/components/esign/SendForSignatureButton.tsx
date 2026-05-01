@@ -7,13 +7,17 @@ interface Props {
   sourceId?: string;
   projectId?: string;
   title?: string;
+  company?: string;
+  paymentAppNumber?: string | number;
+  documentType?: string;
   variant?: 'ghost' | 'outline' | 'default';
   size?: 'sm' | 'icon' | 'default';
   iconOnly?: boolean;
 }
 
 export function SendForSignatureButton({
-  source, sourceId, projectId, title, variant = 'ghost', size = 'sm', iconOnly = false,
+  source, sourceId, projectId, title, company, paymentAppNumber, documentType,
+  variant = 'ghost', size = 'sm', iconOnly = false,
 }: Props) {
   const navigate = useNavigate();
   const handle = () => {
@@ -22,6 +26,10 @@ export function SendForSignatureButton({
     if (sourceId) params.set('sourceId', sourceId);
     if (projectId) params.set('projectId', projectId);
     if (title) params.set('title', title);
+    if (company) params.set('company', company);
+    if (paymentAppNumber !== undefined && paymentAppNumber !== null && String(paymentAppNumber) !== '')
+      params.set('paymentAppNumber', String(paymentAppNumber));
+    if (documentType) params.set('documentType', documentType);
     navigate(`/esign/new?${params.toString()}`);
   };
   return (

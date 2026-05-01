@@ -20,9 +20,18 @@ export default function EsignNew() {
   const [order, setOrder] = useState<'parallel' | 'sequential'>('parallel');
   const [file, setFile] = useState<File | null>(null);
   const [projectId, setProjectId] = useState<string>(params.get('projectId') || 'none');
-  const [docType, setDocType] = useState<string>('none');
-  const [company, setCompany] = useState<string>('');
-  const [paymentAppNumber, setPaymentAppNumber] = useState<string>('');
+  const [docType, setDocType] = useState<string>(
+    params.get('documentType') || (() => {
+      const src = params.get('source');
+      if (src === 'change_order') return 'Change Order';
+      if (src === 'proposal') return 'Proposal';
+      if (src === 'subcontractor') return 'Subcontract';
+      if (src === 'invoice') return 'Payment Application';
+      return 'none';
+    })(),
+  );
+  const [company, setCompany] = useState<string>(params.get('company') || '');
+  const [paymentAppNumber, setPaymentAppNumber] = useState<string>(params.get('paymentAppNumber') || '');
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const create = useCreateEnvelope();
   const upload = useUploadEnvelopePdf();
