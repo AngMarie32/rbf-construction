@@ -4,10 +4,10 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, FileCheck, Clock, AlertCircle, Plus, Upload, LayoutTemplate } from 'lucide-react';
+import { FileText, FileCheck, Clock, AlertCircle, Plus, Upload, LayoutTemplate, ChevronRight, Building2, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { STATUS_COLORS, STATUS_LABELS } from '@/types/esign';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -44,20 +44,19 @@ export default function EsignDashboard() {
   return (
     <Layout title="E-Sign" subtitle="Send, sign, and track documents">
       <div className="space-y-6">
-        {/* Hero header */}
-        <div className="rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border p-6 md:p-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">E-Signature</h1>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => navigate('/esign/new')} size="lg">
-                <Plus className="h-4 w-4 mr-2" /> New Document
-              </Button>
-              <Button variant="outline" onClick={() => navigate('/esign/templates')} size="lg">
-                <LayoutTemplate className="h-4 w-4 mr-2" /> Templates
-              </Button>
-            </div>
+        {/* Header actions */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">E-Signature</h1>
+            <p className="text-sm text-muted-foreground mt-1">Send, sign, and track documents in one place.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => navigate('/esign/templates')}>
+              <LayoutTemplate className="h-4 w-4 mr-2" /> Templates
+            </Button>
+            <Button onClick={() => navigate('/esign/new')}>
+              <Plus className="h-4 w-4 mr-2" /> New Document
+            </Button>
           </div>
         </div>
 
@@ -70,8 +69,8 @@ export default function EsignDashboard() {
         </div>
 
         {/* Filters */}
-        <Card className="p-3 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-muted-foreground px-2">Filter</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs uppercase tracking-wide text-muted-foreground px-1">Filter</span>
           <Select value={projectFilter} onValueChange={setProjectFilter}>
             <SelectTrigger className="w-[200px]"><SelectValue placeholder="Project" /></SelectTrigger>
             <SelectContent>
@@ -92,49 +91,68 @@ export default function EsignDashboard() {
               ))}
             </SelectContent>
           </Select>
-        </Card>
+        </div>
 
         {/* Recent + actions */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Card className="p-6 lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">Recent Documents</h2>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/esign/documents')}>View all</Button>
+          <Card className="lg:col-span-2 !p-0 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <div>
+                <h2 className="font-semibold">Recent Documents</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Latest activity across your envelopes</p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/esign/documents')}>
+                View all <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
             </div>
             {isLoading ? (
-              <div className="text-sm text-muted-foreground">Loading…</div>
+              <div className="p-6 text-sm text-muted-foreground">Loading…</div>
             ) : recent.length === 0 ? (
-              <EmptyState onCreate={() => navigate('/esign/new')} />
+              <div className="p-6"><EmptyState onCreate={() => navigate('/esign/new')} /></div>
             ) : (
-              <div className="space-y-2">
-                {recent.map(env => (
-                  <button
-                    key={env.id}
-                    onClick={() => navigate(`/esign/documents/${env.id}`)}
-                    className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted transition text-left"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{env.title}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {[
-                            (env as any).company,
-                            (env as any).payment_app_number ? `Pay App #${(env as any).payment_app_number}` : null,
-                            env.project_id ? projects.find(p => p.id === env.project_id)?.name : null,
-                          ].filter(Boolean).join(' • ') || formatDistanceToNow(new Date(env.created_at), { addSuffix: true })}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {(env as any).document_type && (
-                        <Badge variant="outline" className="text-xs">{(env as any).document_type}</Badge>
-                      )}
-                      <Badge className={STATUS_COLORS[env.status]} variant="outline">{STATUS_LABELS[env.status]}</Badge>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              <ul className="divide-y divide-border">
+                {recent.map(env => {
+                  const company = (env as any).company as string | null;
+                  const payApp = (env as any).payment_app_number as string | null;
+                  const docType = (env as any).document_type as string | null;
+                  const projectName = env.project_id ? projects.find(p => p.id === env.project_id)?.name : null;
+                  return (
+                    <li key={env.id}>
+                      <button
+                        onClick={() => navigate(`/esign/documents/${env.id}`)}
+                        className="w-full flex items-center gap-4 p-4 hover:bg-muted/50 transition text-left group"
+                      >
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium truncate">{env.title}</p>
+                            {docType && (
+                              <Badge variant="secondary" className="text-[10px] font-medium shrink-0">{docType}</Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                            {company && (
+                              <span className="inline-flex items-center gap-1 truncate"><Building2 className="h-3 w-3" />{company}</span>
+                            )}
+                            {projectName && <span className="truncate">{projectName}</span>}
+                            {payApp && <span>Pay App #{payApp}</span>}
+                            <span className="inline-flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {format(new Date(env.created_at), 'MMM d, yyyy')}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge className={STATUS_COLORS[env.status]} variant="outline">{STATUS_LABELS[env.status]}</Badge>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </Card>
 
