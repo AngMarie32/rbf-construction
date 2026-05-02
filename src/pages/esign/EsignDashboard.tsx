@@ -18,6 +18,29 @@ export default function EsignDashboard() {
   const { data: docTypes = [] } = useDocumentTypes();
   const navigate = useNavigate();
   const resend = useResendInvitation();
+
+  async function copySigningLink(envelopeId: string) {
+    const { data, error } = await supabase
+      .from('esign_signers')
+      .select('access_token, status')
+      .eq('envelope_id', envelopeId)
+      .order('order_index');
+    if (error || !data?.length) return toast.error('No signers found');
+    const pending = data.find((s: any) => s.status !== 'signed') || data[0];
+    const link = `${window.location.origin}/sign/${pending.access_token}`;
+    await navigator.clipboard.writeText(link);
+    toast.success('Signing link copied');
+  }
+
+  async function downloadSignedPdf(path: string | null) {
+    if (!path) return;
+    const { data, error } = await supabase.storage
+      .from('esign-documents')
+      .createSignedUrl(path, 3600);
+    if (error || !data?.signedUrl) return toast.error('Could not get download URL');
+    window.open(data.signedUrl, '_blank');
+  }
+
   const [projectFilter, setProjectFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
