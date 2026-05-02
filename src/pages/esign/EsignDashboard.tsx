@@ -1,14 +1,19 @@
 import { Layout } from '@/components/layout/Layout';
-import { useEnvelopes, useDocumentTypes, useResendInvitation } from '@/hooks/useEsign';
+import { useEnvelopes, useDocumentTypes, useResendInvitation, useArchiveEnvelope } from '@/hooks/useEsign';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Calendar as CalendarComp } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, FileCheck, Clock, AlertCircle, Plus, Upload, LayoutTemplate, ChevronRight, Building2, Calendar, MoreHorizontal, Send, Link2, Download } from 'lucide-react';
+import { FileText, FileCheck, Clock, AlertCircle, Plus, Upload, LayoutTemplate, ChevronRight, Building2, Calendar, MoreHorizontal, Send, Link2, Download, Search, CalendarRange, X, Archive, ArchiveRestore } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useNavigate } from 'react-router-dom';
 import { STATUS_COLORS, STATUS_LABELS } from '@/types/esign';
-import { formatDistanceToNow, format } from 'date-fns';
+import { format, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
+import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -18,6 +23,7 @@ export default function EsignDashboard() {
   const { data: docTypes = [] } = useDocumentTypes();
   const navigate = useNavigate();
   const resend = useResendInvitation();
+  const archive = useArchiveEnvelope();
 
   async function copySigningLink(envelopeId: string) {
     const { data, error } = await supabase
@@ -43,6 +49,9 @@ export default function EsignDashboard() {
 
   const [projectFilter, setProjectFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [showArchived, setShowArchived] = useState(false);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
@@ -53,9 +62,16 @@ export default function EsignDashboard() {
   }, []);
 
   const filteredEnvelopes = envelopes.filter(e => {
+    const isArchived = !!(e as any).archived_at;
+    if (showArchived ? !isArchived : isArchived) return false;
     const matchP = projectFilter === 'all' ? true : projectFilter === 'none' ? !e.project_id : e.project_id === projectFilter;
     const matchT = typeFilter === 'all' ? true : typeFilter === 'none' ? !(e as any).document_type : (e as any).document_type === typeFilter;
-    return matchP && matchT;
+    const matchQ = !search || e.title.toLowerCase().includes(search.toLowerCase()) ||
+      ((e as any).company || '').toLowerCase().includes(search.toLowerCase());
+    const created = new Date(e.created_at);
+    const matchFrom = !dateRange?.from || !isBefore(created, startOfDay(dateRange.from));
+    const matchTo = !dateRange?.to || !isAfter(created, endOfDay(dateRange.to));
+    return matchP && matchT && matchQ && matchFrom && matchTo;
   });
 
   const stats = {
@@ -96,7 +112,15 @@ export default function EsignDashboard() {
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs uppercase tracking-wide text-muted-foreground px-1">Filter</span>
+          <div className="relative flex-1 min-w-[220px] max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search recent documents…"
+              className="pl-9"
+            />
+          </div>
           <Select value={projectFilter} onValueChange={setProjectFilter}>
             <SelectTrigger className="w-[200px]"><SelectValue placeholder="Project" /></SelectTrigger>
             <SelectContent>
@@ -117,6 +141,41 @@ export default function EsignDashboard() {
               ))}
             </SelectContent>
           </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn('justify-start font-normal', !dateRange?.from && 'text-muted-foreground')}>
+                <CalendarRange className="h-4 w-4 mr-2" />
+                {dateRange?.from
+                  ? dateRange.to
+                    ? `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d, yyyy')}`
+                    : format(dateRange.from, 'MMM d, yyyy')
+                  : 'Created date'}
+                {dateRange?.from && (
+                  <X
+                    className="h-3.5 w-3.5 ml-2 opacity-60 hover:opacity-100"
+                    onClick={(e) => { e.stopPropagation(); setDateRange(undefined); }}
+                  />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComp
+                mode="range"
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={2}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+          <Button
+            variant={showArchived ? 'default' : 'outline'}
+            onClick={() => setShowArchived(s => !s)}
+          >
+            <Archive className="h-4 w-4 mr-2" />
+            {showArchived ? 'Showing archived' : 'Archived'}
+          </Button>
         </div>
 
         {/* Recent + actions */}
@@ -124,8 +183,10 @@ export default function EsignDashboard() {
           <Card className="lg:col-span-2 !p-0 overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-border">
               <div>
-                <h2 className="font-semibold">Recent Documents</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Latest activity across your envelopes</p>
+                <h2 className="font-semibold">{showArchived ? 'Archived Documents' : 'Recent Documents'}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {recent.length} of {filteredEnvelopes.length} shown
+                </p>
               </div>
               <Button variant="ghost" size="sm" onClick={() => navigate('/esign/documents')}>
                 View all <ChevronRight className="h-4 w-4 ml-1" />
@@ -206,6 +267,16 @@ export default function EsignDashboard() {
                                 onClick={() => downloadSignedPdf(env.signed_pdf_path)}
                               >
                                 <Download className="h-4 w-4 mr-2" /> Download signed PDF
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => archive.mutate({ id: env.id, archive: !((env as any).archived_at) })}
+                              >
+                                {(env as any).archived_at ? (
+                                  <><ArchiveRestore className="h-4 w-4 mr-2" /> Restore</>
+                                ) : (
+                                  <><Archive className="h-4 w-4 mr-2" /> Archive</>
+                                )}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>

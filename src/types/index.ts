@@ -22,6 +22,7 @@ export interface Project {
   description?: string;
   contingency_type?: 'percentage' | 'dollar';
   contingency_value?: number;
+  archivedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

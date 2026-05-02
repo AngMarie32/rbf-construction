@@ -312,6 +312,25 @@ export function useDeleteEnvelope() {
   });
 }
 
+export function useArchiveEnvelope() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; archive: boolean }) => {
+      const { error } = await supabase
+        .from('esign_envelopes')
+        .update({ archived_at: input.archive ? new Date().toISOString() : null } as any)
+        .eq('id', input.id);
+      if (error) throw error;
+      return input;
+    },
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['esign-envelopes'] });
+      toast.success(res.archive ? 'Document archived' : 'Document restored');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed'),
+  });
+}
+
 export function useUpdateEnvelopeSettings() {
   const qc = useQueryClient();
   return useMutation({

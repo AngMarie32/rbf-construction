@@ -1265,6 +1265,7 @@ export type Database = {
       }
       esign_envelopes: {
         Row: {
+          archived_at: string | null
           certificate_path: string | null
           company: string | null
           completed_at: string | null
@@ -1292,6 +1293,7 @@ export type Database = {
           voided_at: string | null
         }
         Insert: {
+          archived_at?: string | null
           certificate_path?: string | null
           company?: string | null
           completed_at?: string | null
@@ -1319,6 +1321,7 @@ export type Database = {
           voided_at?: string | null
         }
         Update: {
+          archived_at?: string | null
           certificate_path?: string | null
           company?: string | null
           completed_at?: string | null
@@ -2098,6 +2101,7 @@ export type Database = {
       projects: {
         Row: {
           address: string | null
+          archived_at: string | null
           client: string | null
           completion_percentage: number | null
           contingency_type: string | null
@@ -2119,6 +2123,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          archived_at?: string | null
           client?: string | null
           completion_percentage?: number | null
           contingency_type?: string | null
@@ -2140,6 +2145,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          archived_at?: string | null
           client?: string | null
           completion_percentage?: number | null
           contingency_type?: string | null
