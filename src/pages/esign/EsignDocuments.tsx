@@ -1,15 +1,20 @@
 import { Layout } from '@/components/layout/Layout';
-import { useEnvelopes, useDeleteEnvelope, useDocumentTypes } from '@/hooks/useEsign';
+import { useEnvelopes, useDeleteEnvelope, useDocumentTypes, useArchiveEnvelope } from '@/hooks/useEsign';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Calendar as CalendarComp } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Plus, Search, Trash2 } from 'lucide-react';
+import { FileText, Plus, Search, Trash2, CalendarRange, X, Archive, ArchiveRestore, MoreHorizontal } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { STATUS_COLORS, STATUS_LABELS, type EnvelopeStatus } from '@/types/esign';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
+import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function EsignDocuments() {
@@ -17,10 +22,13 @@ export default function EsignDocuments() {
   const { data: docTypes = [] } = useDocumentTypes();
   const navigate = useNavigate();
   const del = useDeleteEnvelope();
+  const archive = useArchiveEnvelope();
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [showArchived, setShowArchived] = useState(false);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
@@ -31,6 +39,8 @@ export default function EsignDocuments() {
   }, []);
 
   const filtered = envelopes.filter(e => {
+    const isArchived = !!(e as any).archived_at;
+    if (showArchived ? !isArchived : isArchived) return false;
     const matchQ = !q || e.title.toLowerCase().includes(q.toLowerCase());
     const matchS = statusFilter === 'all' || e.status === statusFilter;
     const matchP = projectFilter === 'all'
@@ -43,7 +53,10 @@ export default function EsignDocuments() {
       : typeFilter === 'none'
         ? !(e as any).document_type
         : (e as any).document_type === typeFilter;
-    return matchQ && matchS && matchP && matchT;
+    const created = new Date(e.created_at);
+    const matchFrom = !dateRange?.from || !isBefore(created, startOfDay(dateRange.from));
+    const matchTo = !dateRange?.to || !isAfter(created, endOfDay(dateRange.to));
+    return matchQ && matchS && matchP && matchT && matchFrom && matchTo;
   });
 
   return (
@@ -84,6 +97,36 @@ export default function EsignDocuments() {
                 ))}
               </SelectContent>
             </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn('justify-start font-normal', !dateRange?.from && 'text-muted-foreground')}>
+                  <CalendarRange className="h-4 w-4 mr-2" />
+                  {dateRange?.from
+                    ? dateRange.to
+                      ? `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d, yyyy')}`
+                      : format(dateRange.from, 'MMM d, yyyy')
+                    : 'Created date'}
+                  {dateRange?.from && (
+                    <X className="h-3.5 w-3.5 ml-2 opacity-60 hover:opacity-100"
+                      onClick={(e) => { e.stopPropagation(); setDateRange(undefined); }} />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComp
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={2}
+                  initialFocus
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            <Button variant={showArchived ? 'default' : 'outline'} onClick={() => setShowArchived(s => !s)}>
+              <Archive className="h-4 w-4 mr-2" />
+              {showArchived ? 'Showing archived' : 'Archived'}
+            </Button>
           </div>
           <Button onClick={() => navigate('/esign/new')}><Plus className="h-4 w-4 mr-2" /> New Document</Button>
         </div>
@@ -120,14 +163,29 @@ export default function EsignDocuments() {
                       <Badge variant="outline" className="text-xs">{(env as any).document_type}</Badge>
                     )}
                     <Badge className={STATUS_COLORS[env.status]} variant="outline">{STATUS_LABELS[env.status]}</Badge>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={(e) => { e.stopPropagation(); if (confirm('Delete this document?')) del.mutate(env.id); }}
-                      className="opacity-0 group-hover:opacity-100"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="icon" variant="ghost" className="opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => archive.mutate({ id: env.id, archive: !((env as any).archived_at) })}>
+                          {(env as any).archived_at ? (
+                            <><ArchiveRestore className="h-4 w-4 mr-2" /> Restore</>
+                          ) : (
+                            <><Archive className="h-4 w-4 mr-2" /> Archive</>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => { if (confirm('Delete this document?')) del.mutate(env.id); }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               ))}
