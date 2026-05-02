@@ -1,20 +1,23 @@
 import { Layout } from '@/components/layout/Layout';
-import { useEnvelopes, useDocumentTypes } from '@/hooks/useEsign';
+import { useEnvelopes, useDocumentTypes, useResendInvitation } from '@/hooks/useEsign';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, FileCheck, Clock, AlertCircle, Plus, Upload, LayoutTemplate, ChevronRight, Building2, Calendar } from 'lucide-react';
+import { FileText, FileCheck, Clock, AlertCircle, Plus, Upload, LayoutTemplate, ChevronRight, Building2, Calendar, MoreHorizontal, Send, Link2, Download } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useNavigate } from 'react-router-dom';
 import { STATUS_COLORS, STATUS_LABELS } from '@/types/esign';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export default function EsignDashboard() {
   const { data: envelopes = [], isLoading } = useEnvelopes();
   const { data: docTypes = [] } = useDocumentTypes();
   const navigate = useNavigate();
+  const resend = useResendInvitation();
   const [projectFilter, setProjectFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
@@ -116,12 +119,15 @@ export default function EsignDashboard() {
                   const payApp = (env as any).payment_app_number as string | null;
                   const docType = (env as any).document_type as string | null;
                   const projectName = env.project_id ? projects.find(p => p.id === env.project_id)?.name : null;
+                  const canResend = ['sent', 'partially_signed'].includes(env.status);
+                  const canDownload = env.status === 'completed' && !!env.signed_pdf_path;
                   return (
                     <li key={env.id}>
-                      <button
-                        onClick={() => navigate(`/esign/documents/${env.id}`)}
-                        className="w-full flex items-center gap-4 p-4 hover:bg-muted/50 transition text-left group"
-                      >
+                      <div className="w-full flex items-center gap-4 p-4 hover:bg-muted/50 transition group">
+                        <button
+                          onClick={() => navigate(`/esign/documents/${env.id}`)}
+                          className="flex items-center gap-4 flex-1 min-w-0 text-left"
+                        >
                         <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
                           <FileText className="h-5 w-5" />
                         </div>
@@ -144,11 +150,44 @@ export default function EsignDashboard() {
                             </span>
                           </div>
                         </div>
+                        </button>
                         <div className="flex items-center gap-2 shrink-0">
                           <Badge className={STATUS_COLORS[env.status]} variant="outline">{STATUS_LABELS[env.status]}</Badge>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem
+                                disabled={!canResend || resend.isPending}
+                                onClick={() => resend.mutate({ envelopeId: env.id })}
+                              >
+                                <Send className="h-4 w-4 mr-2" /> Resend invitation
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={!canResend}
+                                onClick={() => copySigningLink(env.id)}
+                              >
+                                <Link2 className="h-4 w-4 mr-2" /> Copy signing link
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                disabled={!canDownload}
+                                onClick={() => downloadSignedPdf(env.signed_pdf_path)}
+                              >
+                                <Download className="h-4 w-4 mr-2" /> Download signed PDF
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                      </button>
+                      </div>
                     </li>
                   );
                 })}
