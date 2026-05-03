@@ -3,7 +3,7 @@ import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, FolderOpen } from 'lucide-react';
+import { Search, FolderOpen, Archive } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
@@ -20,6 +20,7 @@ export default function Projects() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [fieldLeaderFilter, setFieldLeaderFilter] = useState<string>('all');
   const [showReports, setShowReports] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   
   const [projectExpenses, setProjectExpenses] = useState<Record<string, number>>({});
   const [projectBilled, setProjectBilled] = useState<Record<string, number>>({});
@@ -37,7 +38,7 @@ export default function Projects() {
 
   useEffect(() => {
     filterProjects();
-  }, [projects, searchTerm, statusFilter, fieldLeaderFilter]);
+  }, [projects, searchTerm, statusFilter, fieldLeaderFilter, showArchived]);
 
   const fetchProjects = async () => {
     setLoading(true);
@@ -65,6 +66,7 @@ export default function Projects() {
         description: item.description || '',
         contingency_type: item.contingency_type || 'percentage',
         contingency_value: item.contingency_value || 0,
+        archivedAt: (item as any).archived_at ? new Date((item as any).archived_at) : null,
         createdAt: new Date(item.created_at),
         updatedAt: new Date(item.updated_at)
       })) as Project[];
@@ -114,7 +116,7 @@ export default function Projects() {
   };
 
   const filterProjects = () => {
-    let filtered = projects;
+    let filtered = projects.filter(p => showArchived ? !!p.archivedAt : !p.archivedAt);
 
     if (searchTerm) {
       filtered = filtered.filter(project =>
@@ -133,6 +135,21 @@ export default function Projects() {
     }
 
     setFilteredProjects(filtered);
+  };
+
+  const handleArchiveProject = async (projectId: string, archive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ archived_at: archive ? new Date().toISOString() : null } as any)
+        .eq('id', projectId);
+      if (error) throw error;
+      toast.success(archive ? 'Project archived' : 'Project restored');
+      fetchProjects();
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to update project');
+    }
   };
 
   const handleDeleteProject = async (projectId: string) => {
@@ -314,6 +331,13 @@ export default function Projects() {
           </div>
 
           <div className="flex gap-2">
+            <Button
+              variant={showArchived ? 'default' : 'outline'}
+              onClick={() => setShowArchived(v => !v)}
+            >
+              <Archive className="w-4 h-4 mr-2" />
+              {showArchived ? 'Showing Archived' : 'Archived'}
+            </Button>
             <Button variant="outline" onClick={() => setShowReports(true)}>
               Report Snapshot
             </Button>
@@ -330,6 +354,7 @@ export default function Projects() {
                 showDeleteButton={true}
                 onDelete={handleDeleteProject}
                 onUpdate={fetchProjects}
+                onArchive={handleArchiveProject}
                 totalExpenses={projectExpenses[project.id] || 0}
                 totalBilled={projectBilled[project.id] || 0}
                 totalReceived={projectReceived[project.id] || 0}
