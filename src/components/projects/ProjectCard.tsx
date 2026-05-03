@@ -18,7 +18,9 @@ import {
   Clock,
   CreditCard,
   CheckCircle,
-  Shield
+  Shield,
+  Archive,
+  ArchiveRestore
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { EditProjectDialog } from './EditProjectDialog';
@@ -31,6 +33,7 @@ interface ProjectCardProps {
   showDeleteButton?: boolean;
   onDelete?: (id: string) => void;
   onUpdate?: () => void;
+  onArchive?: (id: string, archive: boolean) => void;
   totalExpenses?: number;
   totalBilled?: number;
   totalReceived?: number;
@@ -41,6 +44,7 @@ export function ProjectCard({
   showDeleteButton = false,
   onDelete,
   onUpdate,
+  onArchive,
   totalExpenses = 0,
   totalBilled = 0,
   totalReceived = 0
@@ -179,6 +183,18 @@ export function ProjectCard({
                   <Edit className="w-4 h-4 mr-2" />
                   Edit
                 </DropdownMenuItem>
+                {onArchive && (
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    onArchive(project.id, !project.archivedAt);
+                  }}>
+                    {project.archivedAt ? (
+                      <><ArchiveRestore className="w-4 h-4 mr-2" />Restore</>
+                    ) : (
+                      <><Archive className="w-4 h-4 mr-2" />Archive</>
+                    )}
+                  </DropdownMenuItem>
+                )}
                 {showDeleteButton && (
                   <DropdownMenuItem onClick={(e) => {
                     e.stopPropagation();
