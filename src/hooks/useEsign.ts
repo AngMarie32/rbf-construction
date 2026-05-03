@@ -516,3 +516,74 @@ export function useSaveEnvelopeAsTemplate() {
     onError: (e: any) => toast.error(e?.message || 'Failed to save template'),
   });
 }
+
+// ----- Reusable recipient groups -----
+export interface RecipientGroupMember { name: string; email: string; company?: string }
+export interface RecipientGroup {
+  id: string;
+  created_by: string | null;
+  name: string;
+  description: string | null;
+  members: RecipientGroupMember[];
+  created_at: string;
+  updated_at: string;
+}
+
+export function useRecipientGroups() {
+  return useQuery({
+    queryKey: ['esign-recipient-groups'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('esign_recipient_groups' as any)
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      return ((data || []) as any[]).map((g) => ({
+        ...g,
+        members: Array.isArray(g.members) ? g.members : [],
+      })) as RecipientGroup[];
+    },
+  });
+}
+
+export function useSaveRecipientGroup() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (input: { id?: string; name: string; description?: string; members: RecipientGroupMember[] }) => {
+      if (!input.name.trim()) throw new Error('Group name required');
+      if (input.id) {
+        const { error } = await supabase
+          .from('esign_recipient_groups' as any)
+          .update({ name: input.name, description: input.description || null, members: input.members } as any)
+          .eq('id', input.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('esign_recipient_groups' as any)
+          .insert({ name: input.name, description: input.description || null, members: input.members, created_by: user?.id } as any);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['esign-recipient-groups'] });
+      toast.success('Group saved');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to save group'),
+  });
+}
+
+export function useDeleteRecipientGroup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('esign_recipient_groups' as any).delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['esign-recipient-groups'] });
+      toast.success('Group deleted');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to delete'),
+  });
+}
