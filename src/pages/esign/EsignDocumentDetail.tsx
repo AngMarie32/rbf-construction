@@ -1,6 +1,7 @@
 import { Layout } from '@/components/layout/Layout';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useEnvelope, useGetSignedPdfUrl, useSendEnvelope, useAuditEvents, useSaveEnvelopeAsTemplate, useResendInvitation, useUpdateEnvelopeSettings, useVoidEnvelope, useBulkSendEnvelope } from '@/hooks/useEsign';
+import { useEnvelope, useGetSignedPdfUrl, useSendEnvelope, useAuditEvents, useSaveEnvelopeAsTemplate, useResendInvitation, useUpdateEnvelopeSettings, useVoidEnvelope, useBulkSendEnvelope, useRecipientGroups, useSaveRecipientGroup } from '@/hooks/useEsign';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit, Ban, CalendarClock, BellRing, Users } from 'lucide-react';
+import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit, Ban, CalendarClock, BellRing, Users, PenLine, UsersRound } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -25,6 +26,9 @@ export default function EsignDocumentDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data, isLoading } = useEnvelope(id);
+  const { user } = useAuth();
+  const { data: groups = [] } = useRecipientGroups();
+  const saveGroup = useSaveRecipientGroup();
   const { data: pdfUrl } = useGetSignedPdfUrl(data?.envelope.original_pdf_path);
   const { data: signedPdfUrl } = useGetSignedPdfUrl(data?.envelope.signed_pdf_path);
   const { data: certificateUrl } = useGetSignedPdfUrl(data?.envelope.certificate_path);
@@ -47,6 +51,9 @@ export default function EsignDocumentDetail() {
   const [cadenceInput, setCadenceInput] = useState<string>('off');
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
+  const [groupSaveOpen, setGroupSaveOpen] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [groupDesc, setGroupDesc] = useState('');
 
   // Fetch the signed PDF as a blob so the browser will reliably preview it
   // in an <iframe> (signed Storage URLs sometimes set headers that browsers
