@@ -413,6 +413,11 @@ export default function EsignDocumentDetail() {
                 onAddField={addField}
                 onDeleteField={deleteField}
                 onUpdateField={updateField}
+                envelopeMeta={{
+                  projectId: envelope.project_id,
+                  paymentAppNumber: (envelope as any).payment_app_number,
+                  documentType: (envelope as any).document_type,
+                }}
               />
             ) : (
               <div className="text-center py-12">

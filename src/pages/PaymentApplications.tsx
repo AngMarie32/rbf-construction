@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Eye, Download, Delete, FileText, DollarSign, Calendar, HelpCircle, CheckSquare, Upload } from 'lucide-react';
+import { Plus, Eye, Download, Delete, FileText, DollarSign, Calendar, HelpCircle, CheckSquare, Upload, FileSignature } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { G702Dialog } from '@/components/forms/G702Dialog';
 import { SendForSignatureButton } from '@/components/esign/SendForSignatureButton';
+import { LienWaiverDialog } from '@/components/payment-applications/LienWaiverDialog';
 
 interface PaymentApplication {
   id: string;
@@ -44,6 +45,7 @@ export default function PaymentApplications() {
   const [loading, setLoading] = useState(true);
   const [selectedApplication, setSelectedApplication] = useState<PaymentApplication | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [waiverApp, setWaiverApp] = useState<PaymentApplication | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -410,6 +412,15 @@ export default function PaymentApplications() {
                               <Button
                                 variant="outline"
                                 size="sm"
+                                onClick={() => setWaiverApp(app)}
+                                title="Generate lien waiver"
+                              >
+                                <FileSignature className="w-4 h-4 mr-1" />
+                                Lien Waiver
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={() => handleDeleteApplication(app.id, app.application_number)}
                                 className="text-red-600 hover:text-red-700"
                               >
@@ -483,6 +494,22 @@ export default function PaymentApplications() {
         applicationId={selectedApplication?.id}
         onSave={handleApplicationSaved}
       />
+
+      {waiverApp && (
+        <LienWaiverDialog
+          open={!!waiverApp}
+          onOpenChange={(v) => !v && setWaiverApp(null)}
+          paymentApp={{
+            id: waiverApp.id,
+            application_number: waiverApp.application_number,
+            project_id: waiverApp.project_id,
+            period_to: waiverApp.period_to,
+            current_payment_due: waiverApp.current_payment_due,
+            project_name: waiverApp.projects?.name,
+            client: waiverApp.projects?.client,
+          }}
+        />
+      )}
     </Layout>
   );
 }
