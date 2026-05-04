@@ -255,6 +255,38 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
       return;
     }
     setAutoDetecting(true);
+    // Place AIA G702 contractor + architect signature & date fields if the
+    // first page contains the canonical AIA G702 markers.
+    const tryAutoDetectG702 = async (pdf: any): Promise<number> => {
+      const pg = await pdf.getPage(1);
+      const tc = await pg.getTextContent();
+      const text = (tc.items as any[]).map(i => i.str || '').join(' ').toUpperCase();
+      const isG702 = /G702|APPLICATION\s+AND\s+CERTIFICATE\s+FOR\s+PAYMENT/.test(text)
+        && /CONTRACTOR/.test(text) && /ARCHITECT/.test(text);
+      if (!isG702) return 0;
+
+      // Standard AIA G702 layout — signatures sit in the lower third of page 1.
+      // Coordinates are tuned to portrait letter; landscape skew is acceptable.
+      const placements = [
+        // Contractor signature + date (left column)
+        { type: 'signature' as FieldType, x: 8,  y: 70, w: 32, h: 5 },
+        { type: 'date'      as FieldType, x: 42, y: 70, w: 14, h: 4 },
+        // Architect signature + date (right column)
+        { type: 'signature' as FieldType, x: 58, y: 80, w: 32, h: 5 },
+        { type: 'date'      as FieldType, x: 8,  y: 86, w: 14, h: 4 },
+      ];
+      for (const p of placements) {
+        await onAddField({
+          signer_id: selectedSigner,
+          field_type: p.type,
+          page_number: 1,
+          x_pct: p.x, y_pct: p.y,
+          width_pct: p.w, height_pct: p.h,
+          required: true,
+        });
+      }
+      return placements.length;
+    };
     try {
       const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
       let added = 0;
