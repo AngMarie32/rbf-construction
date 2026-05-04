@@ -66,7 +66,9 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
-    navGroups.forEach((g) => { initial[g.label] = true; });
+    navGroups.forEach((g) => {
+      initial[g.label] = g.label !== 'Quick Access' && g.label !== 'Overview';
+    });
     return initial;
   });
 
@@ -121,7 +123,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
               </button>
             )}
 
-            {(collapsed || openGroups[group.label]) && (
+            {!collapsed && openGroups[group.label] && (
               <ul className="space-y-0.5 px-2">
                 {group.items.map((item) => {
                   const isActive = location.pathname === item.href;
@@ -137,11 +139,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                             : 'text-white/70 hover:bg-white/8 hover:text-white'
                         )}
                       >
-                        {collapsed ? (
-                          <span className="text-xs font-bold">{item.name.charAt(0)}</span>
-                        ) : (
-                          item.name
-                        )}
+                        {item.name}
                       </button>
                     </li>
                   );
