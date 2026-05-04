@@ -12,7 +12,7 @@ import { generateLienWaiverPdf, WAIVER_LABELS, type WaiverType } from '@/utils/l
 import { useCreateEnvelope, useUploadEnvelopePdf, useSendEnvelope } from '@/hooks/useEsign';
 import { FileSignature, Download, Send } from 'lucide-react';
 
-interface Sub { id: string; name: string; email: string | null; company_name: string | null; }
+interface Sub { id: string; name: string; email: string | null; company: string | null; }
 
 interface Props {
   open: boolean;
@@ -52,14 +52,14 @@ export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
     (async () => {
       const { data } = await supabase
         .from('subcontractors')
-        .select('id, name, email, company_name')
+        .select('id, name, email, company')
         .order('name');
       setSubs((data as any) || []);
     })();
   }, [open, paymentApp]);
 
   const selectedSub = subs.find(s => s.id === subId);
-  const recipientName = overrideName.trim() || selectedSub?.company_name || selectedSub?.name || '';
+  const recipientName = overrideName.trim() || selectedSub?.company || selectedSub?.name || '';
   const recipientEmail = overrideEmail.trim() || selectedSub?.email || '';
 
   const buildPdf = async () => {
@@ -194,7 +194,7 @@ export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
                   <SelectContent>
                     {subs.map(s => (
                       <SelectItem key={s.id} value={s.id}>
-                        {s.company_name || s.name}{s.email ? ` — ${s.email}` : ''}
+                        {s.company || s.name}{s.email ? ` — ${s.email}` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -202,7 +202,7 @@ export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
               </div>
               <div>
                 <Label className="text-xs">Override Name</Label>
-                <Input value={overrideName} onChange={e => setOverrideName(e.target.value)} placeholder={selectedSub?.company_name || selectedSub?.name || ''} />
+                <Input value={overrideName} onChange={e => setOverrideName(e.target.value)} placeholder={selectedSub?.company || selectedSub?.name || ''} />
               </div>
               <div>
                 <Label className="text-xs">Override Email</Label>
