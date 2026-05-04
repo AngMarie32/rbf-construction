@@ -458,6 +458,18 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
 
       {/* PDF + fields overlay */}
       <div className="space-y-3">
+        {linkedAmount !== null && (
+          <Card className="p-3 flex flex-wrap items-center gap-3 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900">
+            <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+              Linked Payment App #{envelopeMeta?.paymentAppNumber}
+            </span>
+            <span className="text-sm">
+              Period amount: <strong>{linkedAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</strong>
+              {linkedPeriodTo && <> · Through {new Date(linkedPeriodTo).toLocaleDateString('en-US')}</>}
+            </span>
+            <span className="text-xs text-muted-foreground ml-auto">Verify this matches the figure shown on the form before sending.</span>
+          </Card>
+        )}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>Prev</Button>
