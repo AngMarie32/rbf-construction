@@ -7,6 +7,7 @@ import { Trash2, PenLine, Type as TypeIcon, Calendar, CheckSquare, User, Hash, W
 import { cn } from '@/lib/utils';
 import * as pdfjsLib from 'pdfjs-dist';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
   pdfUrl: string;
@@ -15,6 +16,11 @@ interface Props {
   onAddField: (field: Omit<EsignField, 'id' | 'envelope_id' | 'created_at' | 'value' | 'filled_at'>) => void;
   onDeleteField: (id: string) => void;
   onUpdateField: (id: string, updates: Partial<EsignField>) => void;
+  envelopeMeta?: {
+    projectId?: string | null;
+    paymentAppNumber?: string | null;
+    documentType?: string | null;
+  };
 }
 
 const FIELD_TYPES: { type: FieldType; label: string; icon: any; color: string }[] = [
@@ -28,13 +34,15 @@ const FIELD_TYPES: { type: FieldType; label: string; icon: any; color: string }[
 
 const SIGNER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
-export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField, onUpdateField }: Props) {
+export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField, onUpdateField, envelopeMeta }: Props) {
   const [page, setPage] = useState(1);
   const [numPages, setNumPages] = useState(1);
   const [pageDims, setPageDims] = useState({ width: 0, height: 0 });
   const [selectedSigner, setSelectedSigner] = useState<string>(signers[0]?.id || '');
   const [selectedType, setSelectedType] = useState<FieldType>('signature');
   const [autoDetecting, setAutoDetecting] = useState(false);
+  const [linkedAmount, setLinkedAmount] = useState<number | null>(null);
+  const [linkedPeriodTo, setLinkedPeriodTo] = useState<string | null>(null);
   const [dragState, setDragState] = useState<{
     fieldId: string;
     mode: 'move' | 'resize';
@@ -63,6 +71,28 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
       setSelectedSigner(signers[0]?.id || '');
     }
   }, [signers, selectedSigner]);
+
+  // Fetch the linked payment application's period amount so the user can
+  // verify the figure shown on the G702 form before sending it out.
+  useEffect(() => {
+    (async () => {
+      const projectId = envelopeMeta?.projectId;
+      const appNum = envelopeMeta?.paymentAppNumber;
+      if (!projectId || !appNum) { setLinkedAmount(null); setLinkedPeriodTo(null); return; }
+      const n = parseInt(String(appNum), 10);
+      if (Number.isNaN(n)) return;
+      const { data } = await supabase
+        .from('payment_applications_g702')
+        .select('current_payment_due, period_to')
+        .eq('project_id', projectId)
+        .eq('application_number', n)
+        .maybeSingle();
+      if (data) {
+        setLinkedAmount(Number(data.current_payment_due) || 0);
+        setLinkedPeriodTo(data.period_to || null);
+      }
+    })();
+  }, [envelopeMeta?.projectId, envelopeMeta?.paymentAppNumber]);
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (dragState || justDraggedRef.current) return; // ignore clicks at end of drag
@@ -228,6 +258,15 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
     try {
       const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
       let added = 0;
+      // First pass: detect AIA G702 form. If present, place canonical
+      // contractor + architect signature/date fields and skip generic scan.
+      const g702Added = await tryAutoDetectG702(pdf);
+      if (g702Added > 0) {
+        added += g702Added;
+        toast.success(`G702 detected — placed ${g702Added} signature field${g702Added === 1 ? '' : 's'}`);
+        setAutoDetecting(false);
+        return;
+      }
       // Patterns that suggest a signature/date/initial/name field
       const patterns: { re: RegExp; type: FieldType }[] = [
         { re: /^(x\s*[_\-]+|signature|signed by|sign(?:ed)? here|authori[sz]ed signature|contractor signature|owner signature|client signature|subcontractor signature|architect signature|project manager signature|by\s*[:_])/i, type: 'signature' },
