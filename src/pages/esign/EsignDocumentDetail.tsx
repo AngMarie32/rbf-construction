@@ -153,6 +153,24 @@ export default function EsignDocumentDetail() {
     toast.success('Link copied');
   };
 
+  const applyGroup = async (groupId: string) => {
+    const g = groups.find(x => x.id === groupId);
+    if (!g || !g.members?.length) return toast.error('Group has no members');
+    const existing = new Set(signers.map(s => s.email.toLowerCase()));
+    const toAdd = g.members.filter(m => m.email && !existing.has(m.email.toLowerCase()));
+    if (toAdd.length === 0) return toast.info('All members are already added');
+    const rows = toAdd.map((m, i) => ({
+      envelope_id: envelope.id,
+      name: m.name,
+      email: m.email,
+      order_index: signers.length + i,
+    }));
+    const { error } = await supabase.from('esign_signers').insert(rows);
+    if (error) return toast.error(error.message);
+    toast.success(`Added ${rows.length} signer${rows.length === 1 ? '' : 's'}`);
+    qc.invalidateQueries({ queryKey: ['esign-envelope', id] });
+  };
+
   return (
     <Layout title={envelope.title} subtitle="Document details">
       <div className="space-y-4">
