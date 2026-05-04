@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { PdfViewer } from '@/components/esign/PdfViewer';
 import { SignaturePad } from '@/components/esign/SignaturePad';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CheckCircle2, FileCheck } from 'lucide-react';
+import { CheckCircle2, FileCheck, Camera, WifiOff, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function PublicSign() {
@@ -22,6 +22,71 @@ export default function PublicSign() {
   const [sigData, setSigData] = useState<{ data: string; type: 'drawn' | 'typed' } | null>(null);
   const [activeSigField, setActiveSigField] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
+  const [idPhoto, setIdPhoto] = useState<string | null>(null);
+  const [online, setOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [pendingQueued, setPendingQueued] = useState(false);
+  const idInputRef = useRef<HTMLInputElement>(null);
+
+  // Online/offline detection
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
+
+  // Auto-retry queued submission when back online
+  useEffect(() => {
+    if (!online || !token) return;
+    const queued = localStorage.getItem(`esign_pending_${token}`);
+    if (queued) {
+      (async () => {
+        try {
+          const payload = JSON.parse(queued);
+          const r = await fetch(
+            `https://gdrurkccaglzcicpivyy.supabase.co/functions/v1/esign-submit-signature`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+              body: JSON.stringify(payload),
+            }
+          );
+          if (r.ok) {
+            localStorage.removeItem(`esign_pending_${token}`);
+            setPendingQueued(false);
+            setCompleted(true);
+            toast.success('Submission completed');
+          }
+        } catch {}
+      })();
+    }
+  }, [online, token]);
+
+  // Persist field values locally for offline tolerance
+  useEffect(() => {
+    if (!token) return;
+    try {
+      localStorage.setItem(`esign_draft_${token}`, JSON.stringify({ fieldValues, idPhoto }));
+    } catch {}
+  }, [fieldValues, idPhoto, token]);
+
+  // Restore draft on load
+  useEffect(() => {
+    if (!token) return;
+    try {
+      const draft = localStorage.getItem(`esign_draft_${token}`);
+      if (draft) {
+        const parsed = JSON.parse(draft);
+        if (parsed.fieldValues) setFieldValues(prev => ({ ...prev, ...parsed.fieldValues }));
+        if (parsed.idPhoto) setIdPhoto(parsed.idPhoto);
+      }
+      if (localStorage.getItem(`esign_pending_${token}`)) setPendingQueued(true);
+    } catch {}
+  }, [token]);
 
   useEffect(() => {
     (async () => {
@@ -111,25 +176,71 @@ export default function PublicSign() {
 
   const handleSubmit = async () => {
     if (!sigData) return toast.error('Please add your signature');
+    const payload = { token, fieldValues, signatureData: sigData.data, signatureType: sigData.type, idPhoto };
+    if (!online) {
+      try {
+        localStorage.setItem(`esign_pending_${token}`, JSON.stringify(payload));
+        setPendingQueued(true);
+        toast.success("You're offline — we'll submit automatically when you reconnect.");
+      } catch {
+        toast.error('Could not save offline. Please reconnect and try again.');
+      }
+      return;
+    }
     try {
       const r = await fetch(
         `https://gdrurkccaglzcicpivyy.supabase.co/functions/v1/esign-submit-signature`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
-          body: JSON.stringify({ token, fieldValues, signatureData: sigData.data, signatureType: sigData.type }),
+          body: JSON.stringify(payload),
         }
       );
       const json = await r.json();
       if (!r.ok) throw new Error(json.error);
+      localStorage.removeItem(`esign_draft_${token}`);
+      localStorage.removeItem(`esign_pending_${token}`);
       setCompleted(true);
     } catch (e: any) {
-      toast.error(e.message);
+      // Network failure → queue for retry
+      try {
+        localStorage.setItem(`esign_pending_${token}`, JSON.stringify(payload));
+        setPendingQueued(true);
+        toast.error('Submission failed — queued for retry when connection improves.');
+      } catch {
+        toast.error(e.message);
+      }
     }
+  };
+
+  const handleIdCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Photo too large (max 5MB)');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setIdPhoto(reader.result as string);
+      toast.success('ID photo captured');
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
     <div className="min-h-screen bg-muted/30">
+      {/* Offline / queued banners */}
+      {!online && (
+        <div className="bg-amber-500 text-white text-sm px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-30">
+          <WifiOff className="h-4 w-4" /> You are offline. Your progress is saved on this device.
+        </div>
+      )}
+      {pendingQueued && online && (
+        <div className="bg-blue-600 text-white text-sm px-4 py-2 text-center sticky top-0 z-30">
+          Submitting your signed document…
+        </div>
+      )}
       {/* Top bar */}
       <div className="bg-background border-b sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
@@ -137,24 +248,54 @@ export default function PublicSign() {
             <h1 className="font-semibold truncate">{envelope.title}</h1>
             <p className="text-xs text-muted-foreground truncate">Signing as {signer.name} ({signer.email})</p>
           </div>
-          <Button onClick={handleSubmit} disabled={!allFilled} size="sm">
+          <Button onClick={handleSubmit} disabled={!allFilled} size="lg" className="hidden sm:inline-flex h-12 px-6 text-base">
             <FileCheck className="h-4 w-4 mr-2" /> Finish & Submit
           </Button>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto p-4 space-y-3">
+      <div className="max-w-5xl mx-auto p-4 space-y-3 pb-32 sm:pb-4">
         {envelope.message && (
           <Card className="p-4 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
             <p className="text-sm">{envelope.message}</p>
           </Card>
         )}
 
+        {/* Notary ID capture */}
+        <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Photo ID (for notarization)</p>
+            <p className="text-xs text-muted-foreground">Optional. Use your camera to capture a clear photo of your government-issued ID.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {idPhoto ? (
+              <>
+                <img src={idPhoto} alt="ID" className="h-12 w-16 object-cover rounded border" />
+                <Button size="lg" variant="outline" className="h-12" onClick={() => setIdPhoto(null)}>
+                  <X className="h-4 w-4 mr-1" /> Remove
+                </Button>
+              </>
+            ) : (
+              <Button size="lg" variant="outline" className="h-12" onClick={() => idInputRef.current?.click()}>
+                <Camera className="h-5 w-5 mr-2" /> Capture ID
+              </Button>
+            )}
+            <input
+              ref={idInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleIdCapture}
+            />
+          </div>
+        </Card>
+
         <div className="flex items-center justify-between">
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>Prev</Button>
-            <span className="text-sm self-center">Page {page} of {numPages}</span>
-            <Button size="sm" variant="outline" onClick={() => setPage(p => Math.min(numPages, p + 1))} disabled={page >= numPages}>Next</Button>
+          <div className="flex gap-2 items-center">
+            <Button size="lg" variant="outline" className="h-11 min-w-[72px]" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>Prev</Button>
+            <span className="text-sm self-center px-2">Page {page} of {numPages}</span>
+            <Button size="lg" variant="outline" className="h-11 min-w-[72px]" onClick={() => setPage(p => Math.min(numPages, p + 1))} disabled={page >= numPages}>Next</Button>
           </div>
           <span className="text-xs text-muted-foreground">{myFields.filter((f: any) => fieldValues[f.id]).length} of {myFields.length} fields completed</span>
         </div>
@@ -222,6 +363,13 @@ export default function PublicSign() {
           <SignaturePad onComplete={handleSigComplete} signerName={signer.name} />
         </DialogContent>
       </Dialog>
+
+      {/* Mobile sticky submit bar — large tap target */}
+      <div className="sm:hidden fixed bottom-0 inset-x-0 bg-background border-t p-3 z-30 shadow-lg">
+        <Button onClick={handleSubmit} disabled={!allFilled} className="w-full h-14 text-base">
+          <FileCheck className="h-5 w-5 mr-2" /> Finish & Submit
+        </Button>
+      </div>
     </div>
   );
 }
