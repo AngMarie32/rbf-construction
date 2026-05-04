@@ -299,6 +299,17 @@ export default function EsignDocumentDetail() {
                       <div className="flex flex-col gap-1">
                         {!isDraft && (
                           <>
+                            {user?.email && s.email.toLowerCase() === user.email.toLowerCase() && s.status !== 'signed' && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6 text-primary"
+                                onClick={() => window.open(`/sign/${s.access_token}`, '_blank')}
+                                title="Sign in app"
+                              >
+                                <PenLine className="h-3 w-3" />
+                              </Button>
+                            )}
                             <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyLink(s.access_token)} title="Copy link">
                               <Copy className="h-3 w-3" />
                             </Button>
@@ -328,10 +339,42 @@ export default function EsignDocumentDetail() {
               </div>
               {isDraft && (
                 <div className="space-y-2 pt-2 border-t">
+                  {groups.length > 0 && (
+                    <Select onValueChange={(v) => applyGroup(v)}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Apply a group…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {groups.map(g => (
+                          <SelectItem key={g.id} value={g.id}>
+                            {g.name} ({g.members.length})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <Input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
                   <Input placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                   <Button size="sm" variant="outline" className="w-full" onClick={addSigner}>
                     <Plus className="h-3 w-3 mr-1" /> Add Signer
+                  </Button>
+                  {signers.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full text-xs"
+                      onClick={() => { setGroupName(envelope.title); setGroupDesc(''); setGroupSaveOpen(true); }}
+                    >
+                      <UsersRound className="h-3 w-3 mr-1" /> Save signers as group
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-full text-xs"
+                    onClick={() => navigate('/esign/recipient-groups')}
+                  >
+                    Manage groups
                   </Button>
                 </div>
               )}
