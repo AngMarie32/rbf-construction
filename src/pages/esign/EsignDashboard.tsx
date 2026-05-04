@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Calendar as CalendarComp } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, FileCheck, Clock, AlertCircle, Plus, Upload, LayoutTemplate, ChevronRight, Building2, Calendar, MoreHorizontal, Send, Link2, Download, Search, CalendarRange, X, Archive, ArchiveRestore } from 'lucide-react';
+import { FileText, FileCheck, Clock, AlertCircle, Plus, Upload, LayoutTemplate, ChevronRight, Building2, Calendar, MoreHorizontal, Send, Link2, Download, Search, CalendarRange, X, Archive, ArchiveRestore, UsersRound } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useNavigate } from 'react-router-dom';
 import { STATUS_COLORS, STATUS_LABELS } from '@/types/esign';
@@ -95,6 +95,9 @@ export default function EsignDashboard() {
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => navigate('/esign/templates')}>
               <LayoutTemplate className="h-4 w-4 mr-2" /> Templates
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/esign/recipient-groups')}>
+              <UsersRound className="h-4 w-4 mr-2" /> Groups
             </Button>
             <Button onClick={() => navigate('/esign/new')}>
               <Plus className="h-4 w-4 mr-2" /> New Document
