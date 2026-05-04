@@ -45,6 +45,7 @@ import EsignTemplates from '@/pages/esign/EsignTemplates';
 import EsignNew from '@/pages/esign/EsignNew';
 import EsignDocumentDetail from '@/pages/esign/EsignDocumentDetail';
 import PublicSign from '@/pages/esign/PublicSign';
+import EsignRecipientGroups from '@/pages/esign/EsignRecipientGroups';
 
 const queryClient = new QueryClient();
 
@@ -286,6 +287,7 @@ function App() {
             <Route path="/esign/templates" element={<ProtectedRoute><EsignTemplates /></ProtectedRoute>} />
             <Route path="/esign/new" element={<ProtectedRoute><EsignNew /></ProtectedRoute>} />
             <Route path="/esign/documents/:id" element={<ProtectedRoute><EsignDocumentDetail /></ProtectedRoute>} />
+            <Route path="/esign/recipient-groups" element={<ProtectedRoute><EsignRecipientGroups /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />

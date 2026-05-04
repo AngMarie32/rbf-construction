@@ -1,6 +1,7 @@
 import { Layout } from '@/components/layout/Layout';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useEnvelope, useGetSignedPdfUrl, useSendEnvelope, useAuditEvents, useSaveEnvelopeAsTemplate, useResendInvitation, useUpdateEnvelopeSettings, useVoidEnvelope, useBulkSendEnvelope } from '@/hooks/useEsign';
+import { useEnvelope, useGetSignedPdfUrl, useSendEnvelope, useAuditEvents, useSaveEnvelopeAsTemplate, useResendInvitation, useUpdateEnvelopeSettings, useVoidEnvelope, useBulkSendEnvelope, useRecipientGroups, useSaveRecipientGroup } from '@/hooks/useEsign';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit, Ban, CalendarClock, BellRing, Users } from 'lucide-react';
+import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit, Ban, CalendarClock, BellRing, Users, PenLine, UsersRound } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -25,6 +26,9 @@ export default function EsignDocumentDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data, isLoading } = useEnvelope(id);
+  const { user } = useAuth();
+  const { data: groups = [] } = useRecipientGroups();
+  const saveGroup = useSaveRecipientGroup();
   const { data: pdfUrl } = useGetSignedPdfUrl(data?.envelope.original_pdf_path);
   const { data: signedPdfUrl } = useGetSignedPdfUrl(data?.envelope.signed_pdf_path);
   const { data: certificateUrl } = useGetSignedPdfUrl(data?.envelope.certificate_path);
@@ -47,6 +51,9 @@ export default function EsignDocumentDetail() {
   const [cadenceInput, setCadenceInput] = useState<string>('off');
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
+  const [groupSaveOpen, setGroupSaveOpen] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [groupDesc, setGroupDesc] = useState('');
 
   // Fetch the signed PDF as a blob so the browser will reliably preview it
   // in an <iframe> (signed Storage URLs sometimes set headers that browsers
@@ -144,6 +151,24 @@ export default function EsignDocumentDetail() {
   const copyLink = (token: string) => {
     navigator.clipboard.writeText(`${window.location.origin}/sign/${token}`);
     toast.success('Link copied');
+  };
+
+  const applyGroup = async (groupId: string) => {
+    const g = groups.find(x => x.id === groupId);
+    if (!g || !g.members?.length) return toast.error('Group has no members');
+    const existing = new Set(signers.map(s => s.email.toLowerCase()));
+    const toAdd = g.members.filter(m => m.email && !existing.has(m.email.toLowerCase()));
+    if (toAdd.length === 0) return toast.info('All members are already added');
+    const rows = toAdd.map((m, i) => ({
+      envelope_id: envelope.id,
+      name: m.name,
+      email: m.email,
+      order_index: signers.length + i,
+    }));
+    const { error } = await supabase.from('esign_signers').insert(rows);
+    if (error) return toast.error(error.message);
+    toast.success(`Added ${rows.length} signer${rows.length === 1 ? '' : 's'}`);
+    qc.invalidateQueries({ queryKey: ['esign-envelope', id] });
   };
 
   return (
@@ -274,6 +299,17 @@ export default function EsignDocumentDetail() {
                       <div className="flex flex-col gap-1">
                         {!isDraft && (
                           <>
+                            {user?.email && s.email.toLowerCase() === user.email.toLowerCase() && s.status !== 'signed' && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6 text-primary"
+                                onClick={() => window.open(`/sign/${s.access_token}`, '_blank')}
+                                title="Sign in app"
+                              >
+                                <PenLine className="h-3 w-3" />
+                              </Button>
+                            )}
                             <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyLink(s.access_token)} title="Copy link">
                               <Copy className="h-3 w-3" />
                             </Button>
@@ -303,10 +339,42 @@ export default function EsignDocumentDetail() {
               </div>
               {isDraft && (
                 <div className="space-y-2 pt-2 border-t">
+                  {groups.length > 0 && (
+                    <Select onValueChange={(v) => applyGroup(v)}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Apply a group…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {groups.map(g => (
+                          <SelectItem key={g.id} value={g.id}>
+                            {g.name} ({g.members.length})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <Input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
                   <Input placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                   <Button size="sm" variant="outline" className="w-full" onClick={addSigner}>
                     <Plus className="h-3 w-3 mr-1" /> Add Signer
+                  </Button>
+                  {signers.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full text-xs"
+                      onClick={() => { setGroupName(envelope.title); setGroupDesc(''); setGroupSaveOpen(true); }}
+                    >
+                      <UsersRound className="h-3 w-3 mr-1" /> Save signers as group
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-full text-xs"
+                    onClick={() => navigate('/esign/recipient-groups')}
+                  >
+                    Manage groups
                   </Button>
                 </div>
               )}
@@ -511,6 +579,45 @@ export default function EsignDocumentDetail() {
               disabled={bulkSend.isPending}
             >
               {bulkSend.isPending ? 'Sending…' : 'Send to all'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Save signers as group */}
+      <Dialog open={groupSaveOpen} onOpenChange={setGroupSaveOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save signers as group</DialogTitle>
+            <DialogDescription>
+              Reuse this set of recipients on future envelopes with one click.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Group name</Label>
+              <Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="e.g., PM + Owner + Architect" />
+            </div>
+            <div>
+              <Label>Description (optional)</Label>
+              <Input value={groupDesc} onChange={(e) => setGroupDesc(e.target.value)} />
+            </div>
+            <p className="text-xs text-muted-foreground">{signers.length} signer{signers.length === 1 ? '' : 's'} will be saved.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGroupSaveOpen(false)}>Cancel</Button>
+            <Button
+              disabled={saveGroup.isPending || !groupName.trim()}
+              onClick={async () => {
+                await saveGroup.mutateAsync({
+                  name: groupName,
+                  description: groupDesc,
+                  members: signers.map(s => ({ name: s.name, email: s.email })),
+                });
+                setGroupSaveOpen(false);
+              }}
+            >
+              {saveGroup.isPending ? 'Saving…' : 'Save group'}
             </Button>
           </DialogFooter>
         </DialogContent>

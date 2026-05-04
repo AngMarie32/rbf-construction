@@ -230,11 +230,11 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
       let added = 0;
       // Patterns that suggest a signature/date/initial/name field
       const patterns: { re: RegExp; type: FieldType }[] = [
-        { re: /^(signature|signed by|sign here|authori[sz]ed signature|contractor signature|owner signature|client signature|subcontractor signature)\b/i, type: 'signature' },
-        { re: /^(initial|initials)\b/i, type: 'initial' },
-        { re: /^(date|dated|date signed)\b/i, type: 'date' },
-        { re: /^(print(ed)? name|name)\b/i, type: 'name' },
-        { re: /^(title|company|address|email|phone)\b/i, type: 'text' },
+        { re: /^(x\s*[_\-]+|signature|signed by|sign(?:ed)? here|authori[sz]ed signature|contractor signature|owner signature|client signature|subcontractor signature|architect signature|project manager signature|by\s*[:_])/i, type: 'signature' },
+        { re: /^(initial|initials|init\.)/i, type: 'initial' },
+        { re: /^(date|dated|date signed|signed on|date of (signature|execution)|effective date)/i, type: 'date' },
+        { re: /^(print(ed)? name|name|full name|signer name)/i, type: 'name' },
+        { re: /^(title|position|company|firm|address|email|e-mail|phone|tel|fax|license #|contractor license)/i, type: 'text' },
       ];
 
       for (let p = 1; p <= pdf.numPages; p++) {
@@ -263,19 +263,32 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
 
         for (const line of lines) {
           const trimmed = line.text.trim();
+          // Detect long underscore runs as signature lines (no label, just "________")
+          const isUnderscoreLine = /^_{6,}\s*$/.test(trimmed);
           // Look for label patterns, often followed by ":" or underscores
-          const labelMatch = trimmed.match(/^([A-Za-z][A-Za-z \/]+?)\s*[:_]/);
+          const labelMatch = trimmed.match(/^([A-Za-z][A-Za-z \/.&-]+?)\s*[:_]/);
           const candidate = labelMatch ? labelMatch[1] : trimmed;
-          const match = patterns.find(pt => pt.re.test(candidate));
+          const match = isUnderscoreLine
+            ? { re: /./, type: 'signature' as FieldType }
+            : patterns.find(pt => pt.re.test(candidate));
           if (!match) continue;
 
           // Convert PDF coords (origin bottom-left) to viewer coords (top-left, %)
-          const xPct = ((line.maxX + 4) / viewport.width) * 100;
+          // For label lines, place the field after the label. For pure underscore
+          // lines, overlay the line itself.
+          const xPct = isUnderscoreLine
+            ? (line.minX / viewport.width) * 100
+            : ((line.maxX + 4) / viewport.width) * 100;
           const yPct = ((viewport.height - line.y - line.height) / viewport.height) * 100;
 
           // Field size based on type
-          const wPct = match.type === 'date' ? 15 : match.type === 'initial' ? 8 : 22;
-          const hPct = 4.5;
+          const wPct =
+            isUnderscoreLine ? Math.min(40, ((line.maxX - line.minX) / viewport.width) * 100) :
+            match.type === 'date' ? 15 :
+            match.type === 'initial' ? 8 :
+            match.type === 'checkbox' ? 4 :
+            match.type === 'signature' ? 28 : 22;
+          const hPct = match.type === 'signature' ? 5.5 : 4.5;
 
           // Skip if would overflow or overlap an existing field
           if (xPct + wPct > 98 || yPct < 0 || yPct + hPct > 98) continue;
