@@ -274,11 +274,16 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
           if (!match) continue;
 
           // Convert PDF coords (origin bottom-left) to viewer coords (top-left, %)
-          const xPct = ((line.maxX + 4) / viewport.width) * 100;
+          // For label lines, place the field after the label. For pure underscore
+          // lines, overlay the line itself.
+          const xPct = isUnderscoreLine
+            ? (line.minX / viewport.width) * 100
+            : ((line.maxX + 4) / viewport.width) * 100;
           const yPct = ((viewport.height - line.y - line.height) / viewport.height) * 100;
 
           // Field size based on type
           const wPct =
+            isUnderscoreLine ? Math.min(40, ((line.maxX - line.minX) / viewport.width) * 100) :
             match.type === 'date' ? 15 :
             match.type === 'initial' ? 8 :
             match.type === 'checkbox' ? 4 :
