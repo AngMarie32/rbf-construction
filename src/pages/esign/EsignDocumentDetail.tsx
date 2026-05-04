@@ -583,6 +583,45 @@ export default function EsignDocumentDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Save signers as group */}
+      <Dialog open={groupSaveOpen} onOpenChange={setGroupSaveOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save signers as group</DialogTitle>
+            <DialogDescription>
+              Reuse this set of recipients on future envelopes with one click.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Group name</Label>
+              <Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="e.g., PM + Owner + Architect" />
+            </div>
+            <div>
+              <Label>Description (optional)</Label>
+              <Input value={groupDesc} onChange={(e) => setGroupDesc(e.target.value)} />
+            </div>
+            <p className="text-xs text-muted-foreground">{signers.length} signer{signers.length === 1 ? '' : 's'} will be saved.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGroupSaveOpen(false)}>Cancel</Button>
+            <Button
+              disabled={saveGroup.isPending || !groupName.trim()}
+              onClick={async () => {
+                await saveGroup.mutateAsync({
+                  name: groupName,
+                  description: groupDesc,
+                  members: signers.map(s => ({ name: s.name, email: s.email })),
+                });
+                setGroupSaveOpen(false);
+              }}
+            >
+              {saveGroup.isPending ? 'Saving…' : 'Save group'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
