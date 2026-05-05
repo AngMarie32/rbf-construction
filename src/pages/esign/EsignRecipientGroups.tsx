@@ -4,9 +4,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Plus, Trash2, Pencil, UsersRound } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Plus, Trash2, Pencil, UsersRound, X } from 'lucide-react';
 import { useRecipientGroups, useSaveRecipientGroup, useDeleteRecipientGroup, type RecipientGroup } from '@/hooks/useEsign';
 import { toast } from 'sonner';
 
@@ -18,46 +17,45 @@ export default function EsignRecipientGroups() {
   const [editing, setEditing] = useState<RecipientGroup | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [membersText, setMembersText] = useState('');
+  const [members, setMembers] = useState<{ name: string; email: string; company?: string }[]>([
+    { name: '', email: '', company: '' },
+  ]);
 
   const openNew = () => {
     setEditing(null);
     setName('');
     setDescription('');
-    setMembersText('');
+    setMembers([{ name: '', email: '', company: '' }]);
     setOpen(true);
   };
   const openEdit = (g: RecipientGroup) => {
     setEditing(g);
     setName(g.name);
     setDescription(g.description || '');
-    setMembersText(g.members.map(m => `${m.name}, ${m.email}${m.company ? `, ${m.company}` : ''}`).join('\n'));
+    setMembers(g.members.length ? g.members.map(m => ({ name: m.name, email: m.email, company: m.company || '' })) : [{ name: '', email: '', company: '' }]);
     setOpen(true);
   };
 
+  const updateMember = (i: number, patch: Partial<{ name: string; email: string; company: string }>) => {
+    setMembers(prev => prev.map((m, idx) => (idx === i ? { ...m, ...patch } : m)));
+  };
+  const addMember = () => setMembers(prev => [...prev, { name: '', email: '', company: '' }]);
+  const removeMember = (i: number) => setMembers(prev => prev.filter((_, idx) => idx !== i));
+
   const handleSave = async () => {
-    const members = membersText
-      .split('\n')
-      .map(l => l.trim())
-      .filter(Boolean)
-      .map(l => {
-        const [n, e, c] = l.split(',').map(s => s?.trim() || '');
-        return { name: n, email: e, company: c || undefined };
-      })
+    const cleaned = members
+      .map(m => ({ name: m.name.trim(), email: m.email.trim(), company: (m.company || '').trim() || undefined }))
       .filter(m => m.name && m.email && /\S+@\S+\.\S+/.test(m.email));
     if (!name.trim()) return toast.error('Group name required');
-    if (members.length === 0) return toast.error('Add at least one valid member (Name, email)');
-    await save.mutateAsync({ id: editing?.id, name, description, members });
+    if (cleaned.length === 0) return toast.error('Add at least one valid member');
+    await save.mutateAsync({ id: editing?.id, name, description, members: cleaned });
     setOpen(false);
   };
 
   return (
     <Layout title="Recipient Groups" subtitle="Reusable signer lists for E-Signature">
       <div className="space-y-4 max-w-4xl">
-        <div className="flex justify-between items-center">
-          <p className="text-sm text-muted-foreground">
-            Save common groups like “All subs on Project X” or “PM + Owner + Architect” and apply them to envelopes in one click.
-          </p>
+        <div className="flex justify-end items-center">
           <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> New Group</Button>
         </div>
 
@@ -116,28 +114,59 @@ export default function EsignRecipientGroups() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit group' : 'New recipient group'}</DialogTitle>
-            <DialogDescription>One member per line. Format: <code>Name, email, Company (optional)</code></DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
               <Label>Group name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., PM + Owner + Architect" />
+              <Input value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div>
               <Label>Description (optional)</Label>
               <Input value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label>Members</Label>
-              <Textarea
-                rows={8}
-                value={membersText}
-                onChange={(e) => setMembersText(e.target.value)}
-                placeholder={'John Smith, john@acme.com, Acme Subs\nJane Doe, jane@buildco.com'}
-              />
+              <div className="space-y-2">
+                {members.map((m, i) => (
+                  <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                    <Input
+                      className="col-span-4"
+                      placeholder="Name"
+                      value={m.name}
+                      onChange={(e) => updateMember(i, { name: e.target.value })}
+                    />
+                    <Input
+                      className="col-span-4"
+                      type="email"
+                      placeholder="Email"
+                      value={m.email}
+                      onChange={(e) => updateMember(i, { email: e.target.value })}
+                    />
+                    <Input
+                      className="col-span-3"
+                      placeholder="Company"
+                      value={m.company || ''}
+                      onChange={(e) => updateMember(i, { company: e.target.value })}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="col-span-1 h-9 w-9"
+                      onClick={() => removeMember(i)}
+                      disabled={members.length === 1}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={addMember}>
+                <Plus className="h-4 w-4 mr-1" /> Add member
+              </Button>
             </div>
           </div>
           <DialogFooter>
