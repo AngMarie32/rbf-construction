@@ -71,11 +71,11 @@ export default function EsignNew() {
         <Card className="p-6 space-y-4">
           <div>
             <Label>Document Title *</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Construction Contract – 123 Main St" />
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
           <div>
             <Label>Message to Signers (optional)</Label>
-            <Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Please review and sign at your earliest convenience." />
+            <Textarea value={message} onChange={(e) => setMessage(e.target.value)} />
           </div>
           <div>
             <Label>Signing Order</Label>
@@ -118,18 +118,14 @@ export default function EsignNew() {
               <Input
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
-                placeholder="e.g., ABC Subcontractors LLC"
               />
-              <p className="text-xs text-muted-foreground mt-1">Shown on dashboard tiles.</p>
             </div>
             <div>
               <Label>Payment Application # (optional)</Label>
               <Input
                 value={paymentAppNumber}
                 onChange={(e) => setPaymentAppNumber(e.target.value)}
-                placeholder="e.g., 5"
               />
-              <p className="text-xs text-muted-foreground mt-1">For Payment Application docs.</p>
             </div>
           </div>
           <div>
