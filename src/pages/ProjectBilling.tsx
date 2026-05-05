@@ -89,6 +89,7 @@ export default function ProjectBilling() {
       const { data, error } = await supabase
         .from('projects')
         .select('id, name, client')
+        .is('archived_at', null)
         .order('name');
 
       if (error) throw error;
