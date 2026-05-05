@@ -149,7 +149,7 @@ export default function EsignDocumentDetail() {
   };
 
   const copyLink = (token: string) => {
-    navigator.clipboard.writeText(`${window.location.origin}/sign/${token}`);
+    navigator.clipboard.writeText(`https://portal.rbfconstruction.com/sign/${token}`);
     toast.success('Link copied');
   };
 

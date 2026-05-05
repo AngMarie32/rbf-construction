@@ -33,7 +33,7 @@ export default function EsignDashboard() {
       .order('order_index');
     if (error || !data?.length) return toast.error('No signers found');
     const pending = data.find((s: any) => s.status !== 'signed') || data[0];
-    const link = `${window.location.origin}/sign/${pending.access_token}`;
+    const link = `https://portal.rbfconstruction.com/sign/${pending.access_token}`;
     await navigator.clipboard.writeText(link);
     toast.success('Signing link copied');
   }

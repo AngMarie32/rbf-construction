@@ -58,11 +58,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Always use the public production URL so signers never land on the Lovable preview/editor (which requires sign-in).
-    const PUBLIC_APP_URL = 'https://rbf-construction.lovable.app';
-    const requestOrigin = appUrl || req.headers.get('origin') || '';
-    const isLovableInternal = /lovable\.(app|dev)/.test(requestOrigin) && !requestOrigin.includes('rbf-construction');
-    const baseUrl = (!requestOrigin || isLovableInternal) ? PUBLIC_APP_URL : requestOrigin;
+    // Always use the RBF custom domain so signers never see a lovable.app URL.
+    const PUBLIC_APP_URL = 'https://portal.rbfconstruction.com';
+    const baseUrl = PUBLIC_APP_URL;
     const results: any[] = [];
 
     for (const signer of toNotify) {
