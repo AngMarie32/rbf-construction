@@ -33,7 +33,7 @@ export default function EsignDocuments() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('projects').select('id, name').order('name');
+      const { data } = await supabase.from('projects').select('id, name').is('archived_at', null).order('name');
       setProjects(data || []);
     })();
   }, []);
