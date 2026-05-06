@@ -1,0 +1,1 @@
+DELETE FROM public.esign_templates WHERE is_system = true AND source_pdf_path IS NULL;
