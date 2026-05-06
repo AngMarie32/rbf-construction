@@ -67,7 +67,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     navGroups.forEach((g) => {
-      initial[g.label] = g.label !== 'Quick Access' && g.label !== 'Overview';
+      initial[g.label] = g.label === 'Quick Access';
     });
     return initial;
   });
