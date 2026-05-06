@@ -122,7 +122,7 @@ export default function EsignTemplates() {
                     {(t as any).document_type && (
                       <Badge variant="outline" className="text-xs">{(t as any).document_type}</Badge>
                     )}
-                    {t.is_system && <Badge variant="outline" className="text-xs">System</Badge>}
+                    {/* System badge intentionally hidden */}
                   </div>
                 </div>
                 <h3 className="font-semibold mb-1">{t.name}</h3>
