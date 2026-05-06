@@ -15,10 +15,12 @@ import { supabase } from '@/integrations/supabase/client';
 export default function EsignNew() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const templateId = params.get('template');
   const [title, setTitle] = useState(params.get('title') || '');
   const [message, setMessage] = useState('');
   const [order, setOrder] = useState<'parallel' | 'sequential'>('parallel');
   const [file, setFile] = useState<File | null>(null);
+  const [template, setTemplate] = useState<any | null>(null);
   const [projectId, setProjectId] = useState<string>(params.get('projectId') || 'none');
   const [docType, setDocType] = useState<string>(
     params.get('documentType') || (() => {
@@ -44,9 +46,29 @@ export default function EsignNew() {
     })();
   }, []);
 
+  // Load template (if any) so the uploaded/marked-up PDF and fields are reused.
+  useEffect(() => {
+    if (!templateId) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from('esign_templates')
+        .select('*')
+        .eq('id', templateId)
+        .single();
+      if (error || !data) {
+        toast.error('Template not found');
+        return;
+      }
+      setTemplate(data);
+      if (!title && data.name) setTitle(data.name);
+      if (data.document_type && (!docType || docType === 'none')) setDocType(data.document_type);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templateId]);
+
   const handleSubmit = async () => {
     if (!title.trim()) return toast.error('Title required');
-    if (!file) return toast.error('Upload a PDF');
+    if (!file && !template?.source_pdf_path) return toast.error('Upload a PDF');
     try {
       const env = await create.mutateAsync({
         title, message, signing_order: order,
@@ -57,7 +79,33 @@ export default function EsignNew() {
         company: company.trim() || undefined,
         payment_app_number: paymentAppNumber.trim() || undefined,
       });
-      await upload.mutateAsync({ envelopeId: env.id, file });
+      if (file) {
+        // User explicitly uploaded a new file — overrides any template PDF.
+        await upload.mutateAsync({ envelopeId: env.id, file });
+      } else if (template?.source_pdf_path) {
+        // Reuse the template's stored PDF (the marked-up file).
+        const { data: blob, error: dlErr } = await supabase.storage
+          .from('esign-documents')
+          .download(template.source_pdf_path);
+        if (dlErr) throw dlErr;
+        const tplFile = new File([blob], `${template.name || 'template'}.pdf`, { type: 'application/pdf' });
+        await upload.mutateAsync({ envelopeId: env.id, file: tplFile });
+        // Copy default fields from the template (unassigned to signers).
+        const defaults = Array.isArray(template.default_fields) ? template.default_fields : [];
+        if (defaults.length) {
+          const rows = defaults.map((f: any) => ({
+            envelope_id: env.id,
+            field_type: f.field_type,
+            page_number: f.page_number ?? 1,
+            x_pct: f.x_pct,
+            y_pct: f.y_pct,
+            width_pct: f.width_pct ?? 20,
+            height_pct: f.height_pct ?? 5,
+            required: f.required ?? true,
+          }));
+          await supabase.from('esign_fields').insert(rows);
+        }
+      }
       toast.success('Document created');
       navigate(`/esign/documents/${env.id}`);
     } catch (e: any) {
@@ -129,7 +177,14 @@ export default function EsignNew() {
             </div>
           </div>
           <div>
-            <Label>PDF Document *</Label>
+            <Label>
+              PDF Document {template?.source_pdf_path ? '(using template PDF)' : '*'}
+            </Label>
+            {template?.source_pdf_path && !file && (
+              <p className="text-xs text-muted-foreground mt-1 mb-2">
+                Using marked-up PDF from template "{template.name}". Upload a file below only to replace it.
+              </p>
+            )}
             <label className="block mt-2 border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition">
               <input
                 type="file"
