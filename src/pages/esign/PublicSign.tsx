@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { PdfViewer } from '@/components/esign/PdfViewer';
 import { SignaturePad } from '@/components/esign/SignaturePad';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CheckCircle2, FileCheck, Camera, WifiOff, X } from 'lucide-react';
+import { CheckCircle2, FileCheck, Camera, WifiOff, X, ZoomIn, ZoomOut, ArrowDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function PublicSign() {
@@ -26,6 +26,11 @@ export default function PublicSign() {
   const [online, setOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [pendingQueued, setPendingQueued] = useState(false);
   const idInputRef = useRef<HTMLInputElement>(null);
+  const [zoom, setZoom] = useState(1);
+  const [showErrors, setShowErrors] = useState(false);
+  const pdfWrapRef = useRef<HTMLDivElement>(null);
+  const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const pinchRef = useRef<{ startDist: number; startZoom: number } | null>(null);
 
   // Online/offline detection
   useEffect(() => {
@@ -139,14 +144,59 @@ export default function PublicSign() {
   const myFields = fields.filter((f: any) => f.signer_id === signer.id);
   const pageFields = myFields.filter((f: any) => f.page_number === page);
 
-  const allFilled = myFields.every((f: any) => {
-    if (f.field_type === 'signature' || f.field_type === 'initial') {
-      return !!fieldValues[f.id];
-    }
-    if (!f.required) return true;
-    if (f.field_type === 'checkbox') return true; // optional check
+  const isFieldFilled = (f: any) => {
+    if (f.field_type === 'signature' || f.field_type === 'initial') return !!fieldValues[f.id];
+    if (f.field_type === 'checkbox') return true;
     return !!fieldValues[f.id];
-  });
+  };
+  const isFieldRequired = (f: any) =>
+    f.field_type === 'signature' || f.field_type === 'initial' || f.required;
+  const requiredFields = myFields.filter(isFieldRequired);
+  const missingFields = requiredFields.filter((f: any) => !isFieldFilled(f));
+  const remaining = missingFields.length;
+  const allFilled = remaining === 0;
+
+  const goToNextRequired = () => {
+    if (missingFields.length === 0) return;
+    // Prefer a missing field on the current page; otherwise jump pages
+    const onPage = missingFields.find((f: any) => f.page_number === page);
+    const target = onPage || missingFields[0];
+    if (target.page_number !== page) {
+      setPage(target.page_number);
+      // wait for re-render then scroll
+      setTimeout(() => scrollToField(target.id), 250);
+    } else {
+      scrollToField(target.id);
+    }
+  };
+
+  const scrollToField = (id: string) => {
+    const el = fieldRefs.current[id];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('ring-4', 'ring-amber-400');
+      setTimeout(() => el.classList.remove('ring-4', 'ring-amber-400'), 1600);
+    }
+  };
+
+  // Pinch-to-zoom on PDF wrapper
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchRef.current = { startDist: Math.hypot(dx, dy), startZoom: zoom };
+    }
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && pinchRef.current) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const next = Math.max(0.5, Math.min(3, pinchRef.current.startZoom * (dist / pinchRef.current.startDist)));
+      setZoom(next);
+    }
+  };
+  const onTouchEnd = () => { pinchRef.current = null; };
 
   const handleFieldClick = (f: any) => {
     if (f.field_type === 'signature' || f.field_type === 'initial') {
@@ -175,6 +225,12 @@ export default function PublicSign() {
   };
 
   const handleSubmit = async () => {
+    if (remaining > 0) {
+      setShowErrors(true);
+      toast.error(`${remaining} required field${remaining === 1 ? '' : 's'} remaining`);
+      goToNextRequired();
+      return;
+    }
     if (!sigData) return toast.error('Please add your signature');
     const payload = { token, fieldValues, signatureData: sigData.data, signatureType: sigData.type, idPhoto };
     if (!online) {
@@ -248,9 +304,16 @@ export default function PublicSign() {
             <h1 className="font-semibold truncate">{envelope.title}</h1>
             <p className="text-xs text-muted-foreground truncate">Signing as {signer.name} ({signer.email})</p>
           </div>
-          <Button onClick={handleSubmit} disabled={!allFilled} size="lg" className="hidden sm:inline-flex h-12 px-6 text-base">
-            <FileCheck className="h-4 w-4 mr-2" /> Finish & Submit
-          </Button>
+          <div className="hidden sm:flex items-center gap-3">
+            {remaining > 0 && (
+              <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                {remaining} required field{remaining === 1 ? '' : 's'} remaining
+              </span>
+            )}
+            <Button onClick={handleSubmit} size="lg" className="h-12 px-6 text-base">
+              <FileCheck className="h-4 w-4 mr-2" /> Finish & Submit
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -291,16 +354,29 @@ export default function PublicSign() {
           </div>
         </Card>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex gap-2 items-center">
             <Button size="lg" variant="outline" className="h-11 min-w-[72px]" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>Prev</Button>
             <span className="text-sm self-center px-2">Page {page} of {numPages}</span>
             <Button size="lg" variant="outline" className="h-11 min-w-[72px]" onClick={() => setPage(p => Math.min(numPages, p + 1))} disabled={page >= numPages}>Next</Button>
           </div>
+          <div className="flex gap-2 items-center">
+            <Button size="icon" variant="outline" className="h-11 w-11" onClick={() => setZoom(z => Math.max(0.5, z - 0.25))} aria-label="Zoom out"><ZoomOut className="h-4 w-4" /></Button>
+            <span className="text-xs w-12 text-center">{Math.round(zoom * 100)}%</span>
+            <Button size="icon" variant="outline" className="h-11 w-11" onClick={() => setZoom(z => Math.min(3, z + 0.25))} aria-label="Zoom in"><ZoomIn className="h-4 w-4" /></Button>
+          </div>
           <span className="text-xs text-muted-foreground">{myFields.filter((f: any) => fieldValues[f.id]).length} of {myFields.length} fields completed</span>
         </div>
 
-        <div className="relative inline-block bg-white shadow-sm border rounded-lg overflow-hidden w-full">
+        <div className="overflow-auto bg-muted/40 rounded-lg border" style={{ touchAction: 'pan-x pan-y pinch-zoom' }}>
+          <div
+            ref={pdfWrapRef}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            className="relative bg-white shadow-sm overflow-hidden mx-auto"
+            style={{ width: `${zoom * 100}%`, transition: 'width 0.15s ease' }}
+          >
           {pdfUrl && (
             <PdfViewer
               url={pdfUrl}
@@ -313,14 +389,20 @@ export default function PublicSign() {
             const v = fieldValues[f.id];
             const isTextLike = f.field_type === 'text' || f.field_type === 'date' || f.field_type === 'name';
             const isSig = f.field_type === 'signature' || f.field_type === 'initial';
+            const missing = showErrors && isFieldRequired(f) && !isFieldFilled(f);
             return (
               <div
                 key={f.id}
+                ref={(el) => { fieldRefs.current[f.id] = el; }}
                 onClick={() => isSig && handleFieldClick(f)}
                 className={`absolute border-2 rounded flex items-center justify-center transition ${
                   isSig ? 'cursor-pointer' : ''
                 } ${
-                  v ? 'border-emerald-500 bg-emerald-500/10' : 'border-amber-500 bg-amber-500/20 hover:bg-amber-500/30'
+                  v
+                    ? 'border-emerald-500 bg-emerald-500/10'
+                    : missing
+                      ? 'border-red-500 bg-red-500/20 animate-pulse'
+                      : 'border-amber-500 bg-amber-500/20 hover:bg-amber-500/30'
                 }`}
                 style={{
                   left: `${f.x_pct}%`, top: `${f.y_pct}%`,
@@ -354,6 +436,7 @@ export default function PublicSign() {
               </div>
             );
           })}
+          </div>
         </div>
       </div>
 
@@ -364,11 +447,22 @@ export default function PublicSign() {
         </DialogContent>
       </Dialog>
 
-      {/* Mobile sticky submit bar — large tap target */}
-      <div className="sm:hidden fixed bottom-0 inset-x-0 bg-background border-t p-3 z-30 shadow-lg">
-        <Button onClick={handleSubmit} disabled={!allFilled} className="w-full h-14 text-base">
-          <FileCheck className="h-5 w-5 mr-2" /> Finish & Submit
-        </Button>
+      {/* Mobile sticky submit bar — large tap targets */}
+      <div className="sm:hidden fixed bottom-0 inset-x-0 bg-background border-t p-3 z-30 shadow-lg space-y-2">
+        {remaining > 0 ? (
+          <>
+            <p className="text-center text-sm font-medium text-amber-600 dark:text-amber-400">
+              {remaining} required field{remaining === 1 ? '' : 's'} remaining
+            </p>
+            <Button onClick={goToNextRequired} variant="outline" className="w-full h-12 text-base">
+              <ArrowDown className="h-5 w-5 mr-2" /> Next required field
+            </Button>
+          </>
+        ) : (
+          <Button onClick={handleSubmit} className="w-full h-14 text-base">
+            <FileCheck className="h-5 w-5 mr-2" /> Finish & Submit
+          </Button>
+        )}
       </div>
     </div>
   );
