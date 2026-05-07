@@ -43,16 +43,17 @@ export function SignaturePad({ onComplete, signerName }: Props) {
         <TabsTrigger value="type">Type</TabsTrigger>
       </TabsList>
       <TabsContent value="draw" className="space-y-3">
-        <div className="border-2 border-dashed border-border rounded-lg bg-background">
+        <div className="border-2 border-dashed border-border rounded-lg bg-background touch-none">
           <SignatureCanvas
             ref={sigRef}
             penColor="#1a202c"
-            canvasProps={{ width: 560, height: 200, className: 'w-full h-[200px]' }}
+            canvasProps={{ width: 560, height: 280, className: 'w-full h-[280px] touch-none' }}
           />
         </div>
+        <p className="text-xs text-muted-foreground">Draw with your finger or stylus. Tap Clear to start over.</p>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => sigRef.current?.clear()}>Clear</Button>
-          <Button onClick={handleApplyDrawn} className="flex-1">Apply Signature</Button>
+          <Button variant="outline" size="lg" className="h-12" onClick={() => sigRef.current?.clear()}>Clear</Button>
+          <Button onClick={handleApplyDrawn} size="lg" className="flex-1 h-12 text-base">Apply Signature</Button>
         </div>
       </TabsContent>
       <TabsContent value="type" className="space-y-3">
@@ -63,7 +64,7 @@ export function SignaturePad({ onComplete, signerName }: Props) {
             {typed || 'Preview'}
           </span>
         </div>
-        <Button onClick={handleApplyTyped} className="w-full" disabled={!typed.trim()}>Apply Signature</Button>
+        <Button onClick={handleApplyTyped} size="lg" className="w-full h-12 text-base" disabled={!typed.trim()}>Apply Signature</Button>
       </TabsContent>
     </Tabs>
   );
