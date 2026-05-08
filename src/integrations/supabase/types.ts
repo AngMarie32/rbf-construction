@@ -1828,6 +1828,66 @@ export type Database = {
           },
         ]
       }
+      payment_app_lien_waivers: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          envelope_id: string | null
+          id: string
+          notes: string | null
+          payment_app_id: string
+          project_id: string | null
+          received_at: string | null
+          recipient_email: string | null
+          recipient_name: string
+          signed_pdf_path: string | null
+          status: string
+          subcontractor_id: string | null
+          through_date: string | null
+          updated_at: string
+          waiver_type: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          envelope_id?: string | null
+          id?: string
+          notes?: string | null
+          payment_app_id: string
+          project_id?: string | null
+          received_at?: string | null
+          recipient_email?: string | null
+          recipient_name: string
+          signed_pdf_path?: string | null
+          status?: string
+          subcontractor_id?: string | null
+          through_date?: string | null
+          updated_at?: string
+          waiver_type?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          envelope_id?: string | null
+          id?: string
+          notes?: string | null
+          payment_app_id?: string
+          project_id?: string | null
+          received_at?: string | null
+          recipient_email?: string | null
+          recipient_name?: string
+          signed_pdf_path?: string | null
+          status?: string
+          subcontractor_id?: string | null
+          through_date?: string | null
+          updated_at?: string
+          waiver_type?: string
+        }
+        Relationships: []
+      }
       payment_applications: {
         Row: {
           application_number: number
@@ -1904,6 +1964,8 @@ export type Database = {
           less_previous_certificates: number | null
           net_change_by_change_orders: number | null
           original_contract_sum: number
+          paid_at: string | null
+          payment_status: string
           period_to: string
           project_id: string | null
           project_name: string
@@ -1931,6 +1993,8 @@ export type Database = {
           less_previous_certificates?: number | null
           net_change_by_change_orders?: number | null
           original_contract_sum?: number
+          paid_at?: string | null
+          payment_status?: string
           period_to: string
           project_id?: string | null
           project_name: string
@@ -1958,6 +2022,8 @@ export type Database = {
           less_previous_certificates?: number | null
           net_change_by_change_orders?: number | null
           original_contract_sum?: number
+          paid_at?: string | null
+          payment_status?: string
           period_to?: string
           project_id?: string | null
           project_name?: string

@@ -12,6 +12,8 @@ import { format } from 'date-fns';
 import { G702Dialog } from '@/components/forms/G702Dialog';
 import { SendForSignatureButton } from '@/components/esign/SendForSignatureButton';
 import { LienWaiverDialog } from '@/components/payment-applications/LienWaiverDialog';
+import { LienWaiverTracker } from '@/components/payment-applications/LienWaiverTracker';
+import { CheckCircle2, ShieldAlert } from 'lucide-react';
 
 interface PaymentApplication {
   id: string;
@@ -25,6 +27,8 @@ interface PaymentApplication {
   total_retainage?: number;
   current_payment_due: number;
   created_at: string;
+  payment_status?: string;
+  paid_at?: string | null;
   projects?: {
     name: string;
     client: string;
@@ -46,6 +50,8 @@ export default function PaymentApplications() {
   const [selectedApplication, setSelectedApplication] = useState<PaymentApplication | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [waiverApp, setWaiverApp] = useState<PaymentApplication | null>(null);
+  const [trackerApp, setTrackerApp] = useState<PaymentApplication | null>(null);
+  const [waiverSummaries, setWaiverSummaries] = useState<Record<string, { received: number; total: number; allCleared: boolean }>>({});
 
   useEffect(() => {
     fetchProjects();
@@ -97,6 +103,25 @@ export default function PaymentApplications() {
       if (error) throw error;
       
       setApplications(data || []);
+      // Fetch waiver summary for all apps in one query
+      const ids = (data || []).map((a: any) => a.id);
+      if (ids.length) {
+        const { data: wRows } = await supabase
+          .from('payment_app_lien_waivers')
+          .select('payment_app_id, status')
+          .in('payment_app_id', ids);
+        const summary: Record<string, { received: number; total: number; allCleared: boolean }> = {};
+        ids.forEach(id => { summary[id] = { received: 0, total: 0, allCleared: false }; });
+        ((wRows as any[]) || []).forEach(r => {
+          const s = summary[r.payment_app_id];
+          s.total += 1;
+          if (r.status === 'received' || r.status === 'waived') s.received += 1;
+        });
+        Object.values(summary).forEach(s => { s.allCleared = s.total > 0 && s.received === s.total; });
+        setWaiverSummaries(summary);
+      } else {
+        setWaiverSummaries({});
+      }
     } catch (error) {
       console.error('Error fetching applications:', error);
       toast.error('Failed to load payment applications');
@@ -230,6 +255,30 @@ export default function PaymentApplications() {
     fetchApplications();
     setDialogOpen(false);
     setSelectedApplication(null);
+  };
+
+  const handleMarkPaid = async (app: PaymentApplication) => {
+    const summary = waiverSummaries[app.id];
+    if (!summary || !summary.allCleared) {
+      toast.error('Cannot mark paid: all lien waivers must be received first.');
+      return;
+    }
+    const { error } = await supabase
+      .from('payment_applications_g702')
+      .update({ payment_status: 'paid', paid_at: new Date().toISOString() })
+      .eq('id', app.id);
+    if (error) return toast.error(error.message);
+    toast.success(`Application #${app.application_number} marked as paid`);
+    fetchApplications();
+  };
+
+  const handleMarkUnpaid = async (app: PaymentApplication) => {
+    const { error } = await supabase
+      .from('payment_applications_g702')
+      .update({ payment_status: 'unpaid', paid_at: null })
+      .eq('id', app.id);
+    if (error) return toast.error(error.message);
+    fetchApplications();
   };
 
   // Calculate stats
@@ -418,6 +467,43 @@ export default function PaymentApplications() {
                                 <FileSignature className="w-4 h-4 mr-1" />
                                 Lien Waiver
                               </Button>
+                              {(() => {
+                                const s = waiverSummaries[app.id] || { received: 0, total: 0, allCleared: false };
+                                return (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setTrackerApp(app)}
+                                    title="Track lien waivers"
+                                  >
+                                    <ShieldAlert className={`w-4 h-4 mr-1 ${s.total === 0 ? 'text-muted-foreground' : s.allCleared ? 'text-emerald-600' : 'text-yellow-600'}`} />
+                                    Waivers {s.total > 0 ? `(${s.received}/${s.total})` : ''}
+                                  </Button>
+                                );
+                              })()}
+                              {app.payment_status === 'paid' ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleMarkUnpaid(app)}
+                                  className="text-emerald-700 border-emerald-300"
+                                  title={app.paid_at ? `Paid on ${format(new Date(app.paid_at), 'MMM d, yyyy')}` : 'Paid'}
+                                >
+                                  <CheckCircle2 className="w-4 h-4 mr-1" /> Paid
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleMarkPaid(app)}
+                                  disabled={!(waiverSummaries[app.id]?.allCleared)}
+                                  title={(waiverSummaries[app.id]?.allCleared)
+                                    ? 'Mark this application as paid'
+                                    : 'All lien waivers must be received before marking paid'}
+                                >
+                                  <CheckCircle2 className="w-4 h-4 mr-1" /> Mark Paid
+                                </Button>
+                              )}
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -498,7 +584,7 @@ export default function PaymentApplications() {
       {waiverApp && (
         <LienWaiverDialog
           open={!!waiverApp}
-          onOpenChange={(v) => !v && setWaiverApp(null)}
+          onOpenChange={(v) => { if (!v) { setWaiverApp(null); fetchApplications(); } }}
           paymentApp={{
             id: waiverApp.id,
             application_number: waiverApp.application_number,
@@ -508,6 +594,15 @@ export default function PaymentApplications() {
             project_name: waiverApp.projects?.name,
             client: waiverApp.projects?.client,
           }}
+        />
+      )}
+
+      {trackerApp && (
+        <LienWaiverTracker
+          open={!!trackerApp}
+          onOpenChange={(v) => !v && setTrackerApp(null)}
+          paymentApp={{ id: trackerApp.id, application_number: trackerApp.application_number }}
+          onChanged={fetchApplications}
         />
       )}
     </Layout>

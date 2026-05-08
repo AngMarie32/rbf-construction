@@ -86,7 +86,21 @@ export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
       a.download = `Lien_Waiver_${paymentApp.application_number}_${recipientName || 'Sub'}.pdf`.replace(/\s+/g, '_');
       a.click();
       URL.revokeObjectURL(url);
+      // Track this waiver as pending
+      await supabase.from('payment_app_lien_waivers').insert({
+        payment_app_id: paymentApp.id,
+        project_id: paymentApp.project_id,
+        subcontractor_id: subId || null,
+        recipient_name: recipientName || '[Subcontractor]',
+        recipient_email: recipientEmail || null,
+        waiver_type: type,
+        amount: Number(amount) || 0,
+        through_date: throughDate,
+        status: 'pending',
+        notes: exceptions || null,
+      });
       toast.success('Waiver downloaded');
+      onOpenChange(false);
     } catch (e: any) {
       toast.error(e.message || 'Failed to generate PDF');
     } finally {
@@ -137,6 +151,20 @@ export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
       }
 
       await send.mutateAsync(env.id);
+      // Track waiver as requested
+      await supabase.from('payment_app_lien_waivers').insert({
+        payment_app_id: paymentApp.id,
+        project_id: paymentApp.project_id,
+        subcontractor_id: subId || null,
+        recipient_name: recipientName,
+        recipient_email: recipientEmail,
+        waiver_type: type,
+        amount: Number(amount) || 0,
+        through_date: throughDate,
+        status: 'requested',
+        envelope_id: env.id,
+        notes: exceptions || null,
+      });
       toast.success('Waiver sent for signature');
       onOpenChange(false);
     } catch (e: any) {
