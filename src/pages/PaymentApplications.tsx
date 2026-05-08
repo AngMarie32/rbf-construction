@@ -584,7 +584,7 @@ export default function PaymentApplications() {
       {waiverApp && (
         <LienWaiverDialog
           open={!!waiverApp}
-          onOpenChange={(v) => !v && setWaiverApp(null)}
+          onOpenChange={(v) => { if (!v) { setWaiverApp(null); fetchApplications(); } }}
           paymentApp={{
             id: waiverApp.id,
             application_number: waiverApp.application_number,
