@@ -12,6 +12,8 @@ import { format } from 'date-fns';
 import { G702Dialog } from '@/components/forms/G702Dialog';
 import { SendForSignatureButton } from '@/components/esign/SendForSignatureButton';
 import { LienWaiverDialog } from '@/components/payment-applications/LienWaiverDialog';
+import { LienWaiverTracker } from '@/components/payment-applications/LienWaiverTracker';
+import { CheckCircle2, ShieldAlert } from 'lucide-react';
 
 interface PaymentApplication {
   id: string;
@@ -25,6 +27,8 @@ interface PaymentApplication {
   total_retainage?: number;
   current_payment_due: number;
   created_at: string;
+  payment_status?: string;
+  paid_at?: string | null;
   projects?: {
     name: string;
     client: string;
@@ -46,6 +50,8 @@ export default function PaymentApplications() {
   const [selectedApplication, setSelectedApplication] = useState<PaymentApplication | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [waiverApp, setWaiverApp] = useState<PaymentApplication | null>(null);
+  const [trackerApp, setTrackerApp] = useState<PaymentApplication | null>(null);
+  const [waiverSummaries, setWaiverSummaries] = useState<Record<string, { received: number; total: number; allCleared: boolean }>>({});
 
   useEffect(() => {
     fetchProjects();
@@ -97,6 +103,25 @@ export default function PaymentApplications() {
       if (error) throw error;
       
       setApplications(data || []);
+      // Fetch waiver summary for all apps in one query
+      const ids = (data || []).map((a: any) => a.id);
+      if (ids.length) {
+        const { data: wRows } = await supabase
+          .from('payment_app_lien_waivers')
+          .select('payment_app_id, status')
+          .in('payment_app_id', ids);
+        const summary: Record<string, { received: number; total: number; allCleared: boolean }> = {};
+        ids.forEach(id => { summary[id] = { received: 0, total: 0, allCleared: false }; });
+        ((wRows as any[]) || []).forEach(r => {
+          const s = summary[r.payment_app_id];
+          s.total += 1;
+          if (r.status === 'received' || r.status === 'waived') s.received += 1;
+        });
+        Object.values(summary).forEach(s => { s.allCleared = s.total > 0 && s.received === s.total; });
+        setWaiverSummaries(summary);
+      } else {
+        setWaiverSummaries({});
+      }
     } catch (error) {
       console.error('Error fetching applications:', error);
       toast.error('Failed to load payment applications');
@@ -230,6 +255,30 @@ export default function PaymentApplications() {
     fetchApplications();
     setDialogOpen(false);
     setSelectedApplication(null);
+  };
+
+  const handleMarkPaid = async (app: PaymentApplication) => {
+    const summary = waiverSummaries[app.id];
+    if (!summary || !summary.allCleared) {
+      toast.error('Cannot mark paid: all lien waivers must be received first.');
+      return;
+    }
+    const { error } = await supabase
+      .from('payment_applications_g702')
+      .update({ payment_status: 'paid', paid_at: new Date().toISOString() })
+      .eq('id', app.id);
+    if (error) return toast.error(error.message);
+    toast.success(`Application #${app.application_number} marked as paid`);
+    fetchApplications();
+  };
+
+  const handleMarkUnpaid = async (app: PaymentApplication) => {
+    const { error } = await supabase
+      .from('payment_applications_g702')
+      .update({ payment_status: 'unpaid', paid_at: null })
+      .eq('id', app.id);
+    if (error) return toast.error(error.message);
+    fetchApplications();
   };
 
   // Calculate stats
