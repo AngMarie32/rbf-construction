@@ -467,6 +467,43 @@ export default function PaymentApplications() {
                                 <FileSignature className="w-4 h-4 mr-1" />
                                 Lien Waiver
                               </Button>
+                              {(() => {
+                                const s = waiverSummaries[app.id] || { received: 0, total: 0, allCleared: false };
+                                return (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setTrackerApp(app)}
+                                    title="Track lien waivers"
+                                  >
+                                    <ShieldAlert className={`w-4 h-4 mr-1 ${s.total === 0 ? 'text-muted-foreground' : s.allCleared ? 'text-emerald-600' : 'text-yellow-600'}`} />
+                                    Waivers {s.total > 0 ? `(${s.received}/${s.total})` : ''}
+                                  </Button>
+                                );
+                              })()}
+                              {app.payment_status === 'paid' ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleMarkUnpaid(app)}
+                                  className="text-emerald-700 border-emerald-300"
+                                  title={app.paid_at ? `Paid on ${format(new Date(app.paid_at), 'MMM d, yyyy')}` : 'Paid'}
+                                >
+                                  <CheckCircle2 className="w-4 h-4 mr-1" /> Paid
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleMarkPaid(app)}
+                                  disabled={!(waiverSummaries[app.id]?.allCleared)}
+                                  title={(waiverSummaries[app.id]?.allCleared)
+                                    ? 'Mark this application as paid'
+                                    : 'All lien waivers must be received before marking paid'}
+                                >
+                                  <CheckCircle2 className="w-4 h-4 mr-1" /> Mark Paid
+                                </Button>
+                              )}
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -557,6 +594,15 @@ export default function PaymentApplications() {
             project_name: waiverApp.projects?.name,
             client: waiverApp.projects?.client,
           }}
+        />
+      )}
+
+      {trackerApp && (
+        <LienWaiverTracker
+          open={!!trackerApp}
+          onOpenChange={(v) => !v && setTrackerApp(null)}
+          paymentApp={{ id: trackerApp.id, application_number: trackerApp.application_number }}
+          onChanged={fetchApplications}
         />
       )}
     </Layout>
