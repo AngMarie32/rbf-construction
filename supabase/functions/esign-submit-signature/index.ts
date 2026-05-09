@@ -277,6 +277,8 @@ Deno.serve(async (req) => {
             uploaded_by: envelope.created_by,
             description: `Signed e-signature envelope • ${(allSigners || []).map(s => s.name).join(', ')}`,
             tags: ['esign', 'signed'],
+            source_type: envelope.source_type,
+            source_id: envelope.source_id,
           });
           if (certificatePath) {
             await supabase.from('documents').insert({
@@ -289,6 +291,8 @@ Deno.serve(async (req) => {
               uploaded_by: envelope.created_by,
               description: `Certificate of completion for ${envelope.title}`,
               tags: ['esign', 'certificate'],
+              source_type: envelope.source_type,
+              source_id: envelope.source_id,
             });
           }
         } catch (docErr) {
