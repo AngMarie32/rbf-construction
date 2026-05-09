@@ -877,6 +877,8 @@ export type Database = {
           mime_type: string | null
           name: string
           project_id: string | null
+          source_id: string | null
+          source_type: string | null
           tags: string[] | null
           updated_at: string | null
           uploaded_by: string | null
@@ -893,6 +895,8 @@ export type Database = {
           mime_type?: string | null
           name: string
           project_id?: string | null
+          source_id?: string | null
+          source_type?: string | null
           tags?: string[] | null
           updated_at?: string | null
           uploaded_by?: string | null
@@ -909,6 +913,8 @@ export type Database = {
           mime_type?: string | null
           name?: string
           project_id?: string | null
+          source_id?: string | null
+          source_type?: string | null
           tags?: string[] | null
           updated_at?: string | null
           uploaded_by?: string | null
