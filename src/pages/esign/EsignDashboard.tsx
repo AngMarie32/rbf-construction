@@ -90,7 +90,6 @@ export default function EsignDashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">E-Signature</h1>
-            <p className="text-sm text-muted-foreground mt-1">Send, sign, and track documents in one place.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => navigate('/esign/templates')}>
