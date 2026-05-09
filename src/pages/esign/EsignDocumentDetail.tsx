@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit, Ban, CalendarClock, BellRing, Users, PenLine, UsersRound } from 'lucide-react';
+import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit, Ban, CalendarClock, BellRing, Users, PenLine, UsersRound, Zap } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -54,6 +54,25 @@ export default function EsignDocumentDetail() {
   const [groupSaveOpen, setGroupSaveOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [groupDesc, setGroupDesc] = useState('');
+  const [myPrefs, setMyPrefs] = useState<{ full_name: string | null; signature_data: string | null; signature_type: 'drawn' | 'typed' | null } | null>(null);
+  const [signingAsMe, setSigningAsMe] = useState<string | null>(null);
+
+  // Load saved signature for the current user
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data: prefs } = await supabase
+        .from('user_esign_preferences')
+        .select('full_name, signature_data, signature_type')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (prefs) setMyPrefs(prefs as any);
+      // Prefill the "Add signer" name field if we have a saved name
+      if (prefs?.full_name && !name) setName(prefs.full_name);
+      if (user.email && !email) setEmail(user.email);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Fetch the signed PDF as a blob so the browser will reliably preview it
   // in an <iframe> (signed Storage URLs sometimes set headers that browsers
