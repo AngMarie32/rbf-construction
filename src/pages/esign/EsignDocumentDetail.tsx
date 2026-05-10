@@ -369,15 +369,29 @@ export default function EsignDocumentDetail() {
                         {!isDraft && (
                           <>
                             {user?.email && s.email.toLowerCase() === user.email.toLowerCase() && s.status !== 'signed' && (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-6 w-6 text-primary"
-                                onClick={() => window.open(`/sign/${s.access_token}`, '_blank')}
-                                title="Sign in app"
-                              >
-                                <PenLine className="h-3 w-3" />
-                              </Button>
+                              <>
+                                {myPrefs?.signature_data && (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6 text-primary"
+                                    onClick={() => signAsMeNow(s)}
+                                    disabled={signingAsMe === s.id}
+                                    title="Sign now with my saved signature"
+                                  >
+                                    <Zap className="h-3 w-3" />
+                                  </Button>
+                                )}
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 text-primary"
+                                  onClick={() => window.open(`/sign/${s.access_token}`, '_blank')}
+                                  title="Sign in app"
+                                >
+                                  <PenLine className="h-3 w-3" />
+                                </Button>
+                              </>
                             )}
                             <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyLink(s.access_token)} title="Copy link">
                               <Copy className="h-3 w-3" />
