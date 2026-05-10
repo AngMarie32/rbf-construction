@@ -128,6 +128,56 @@ export default function EsignDocumentDetail() {
     qc.invalidateQueries({ queryKey: ['esign-envelope', id] });
   };
 
+  // One-click "Sign as me now" using the user's saved signature.
+  const signAsMeNow = async (signer: any) => {
+    if (!myPrefs?.signature_data) {
+      toast.error('Save a signature first under My Signature');
+      return;
+    }
+    // Refuse if there are required text/checkbox fields owned by this signer.
+    const blockers = (fields || []).filter(
+      (f: any) =>
+        f.signer_id === signer.id &&
+        f.required &&
+        (f.field_type === 'text' || f.field_type === 'checkbox') &&
+        !f.value,
+    );
+    if (blockers.length > 0) {
+      toast.message('This document needs other fields filled — opening full signing view.');
+      window.open(`/sign/${signer.access_token}`, '_blank');
+      return;
+    }
+    setSigningAsMe(signer.id);
+    try {
+      const r = await fetch(
+        `https://gdrurkccaglzcicpivyy.supabase.co/functions/v1/esign-submit-signature`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            token: signer.access_token,
+            fieldValues: {},
+            signatureData: myPrefs.signature_data,
+            signatureType: myPrefs.signature_type || 'drawn',
+          }),
+        },
+      );
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to sign');
+      }
+      toast.success('Signed with your saved signature');
+      qc.invalidateQueries({ queryKey: ['esign-envelope', id] });
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to sign');
+    } finally {
+      setSigningAsMe(null);
+    }
+  };
+
   const addField = async (f: any) => {
     const { error } = await supabase.from('esign_fields').insert({ ...f, envelope_id: envelope.id });
     if (error) return toast.error(error.message);
