@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit, Ban, CalendarClock, BellRing, Users, PenLine, UsersRound } from 'lucide-react';
+import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit, Ban, CalendarClock, BellRing, Users, PenLine, UsersRound, Zap } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -54,6 +54,25 @@ export default function EsignDocumentDetail() {
   const [groupSaveOpen, setGroupSaveOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [groupDesc, setGroupDesc] = useState('');
+  const [myPrefs, setMyPrefs] = useState<{ full_name: string | null; signature_data: string | null; signature_type: 'drawn' | 'typed' | null } | null>(null);
+  const [signingAsMe, setSigningAsMe] = useState<string | null>(null);
+
+  // Load saved signature for the current user
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data: prefs } = await supabase
+        .from('user_esign_preferences')
+        .select('full_name, signature_data, signature_type')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (prefs) setMyPrefs(prefs as any);
+      // Prefill the "Add signer" name field if we have a saved name
+      if (prefs?.full_name && !name) setName(prefs.full_name);
+      if (user.email && !email) setEmail(user.email);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Fetch the signed PDF as a blob so the browser will reliably preview it
   // in an <iframe> (signed Storage URLs sometimes set headers that browsers
@@ -107,6 +126,56 @@ export default function EsignDocumentDetail() {
   const removeSigner = async (sid: string) => {
     await supabase.from('esign_signers').delete().eq('id', sid);
     qc.invalidateQueries({ queryKey: ['esign-envelope', id] });
+  };
+
+  // One-click "Sign as me now" using the user's saved signature.
+  const signAsMeNow = async (signer: any) => {
+    if (!myPrefs?.signature_data) {
+      toast.error('Save a signature first under My Signature');
+      return;
+    }
+    // Refuse if there are required text/checkbox fields owned by this signer.
+    const blockers = (fields || []).filter(
+      (f: any) =>
+        f.signer_id === signer.id &&
+        f.required &&
+        (f.field_type === 'text' || f.field_type === 'checkbox') &&
+        !f.value,
+    );
+    if (blockers.length > 0) {
+      toast.message('This document needs other fields filled — opening full signing view.');
+      window.open(`/sign/${signer.access_token}`, '_blank');
+      return;
+    }
+    setSigningAsMe(signer.id);
+    try {
+      const r = await fetch(
+        `https://gdrurkccaglzcicpivyy.supabase.co/functions/v1/esign-submit-signature`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            token: signer.access_token,
+            fieldValues: {},
+            signatureData: myPrefs.signature_data,
+            signatureType: myPrefs.signature_type || 'drawn',
+          }),
+        },
+      );
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to sign');
+      }
+      toast.success('Signed with your saved signature');
+      qc.invalidateQueries({ queryKey: ['esign-envelope', id] });
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to sign');
+    } finally {
+      setSigningAsMe(null);
+    }
   };
 
   const addField = async (f: any) => {
@@ -300,15 +369,29 @@ export default function EsignDocumentDetail() {
                         {!isDraft && (
                           <>
                             {user?.email && s.email.toLowerCase() === user.email.toLowerCase() && s.status !== 'signed' && (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-6 w-6 text-primary"
-                                onClick={() => window.open(`/sign/${s.access_token}`, '_blank')}
-                                title="Sign in app"
-                              >
-                                <PenLine className="h-3 w-3" />
-                              </Button>
+                              <>
+                                {myPrefs?.signature_data && (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6 text-primary"
+                                    onClick={() => signAsMeNow(s)}
+                                    disabled={signingAsMe === s.id}
+                                    title="Sign now with my saved signature"
+                                  >
+                                    <Zap className="h-3 w-3" />
+                                  </Button>
+                                )}
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 text-primary"
+                                  onClick={() => window.open(`/sign/${s.access_token}`, '_blank')}
+                                  title="Sign in app"
+                                >
+                                  <PenLine className="h-3 w-3" />
+                                </Button>
+                              </>
                             )}
                             <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyLink(s.access_token)} title="Copy link">
                               <Copy className="h-3 w-3" />

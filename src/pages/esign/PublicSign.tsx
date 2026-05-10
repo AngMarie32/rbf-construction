@@ -31,6 +31,7 @@ export default function PublicSign() {
   const pdfWrapRef = useRef<HTMLDivElement>(null);
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const pinchRef = useRef<{ startDist: number; startZoom: number } | null>(null);
+  const [savedSig, setSavedSig] = useState<{ data: string; type: 'drawn' | 'typed' } | null>(null);
 
   // Online/offline detection
   useEffect(() => {
@@ -115,6 +116,21 @@ export default function PublicSign() {
           if (f.field_type === 'date') initial[f.id] = new Date().toLocaleDateString();
         });
         setFieldValues(initial);
+        // If the viewer is logged in and matches the signer, load their saved signature.
+        try {
+          const { data: sess } = await supabase.auth.getSession();
+          const u = sess?.session?.user;
+          if (u?.email && json.signer?.email && u.email.toLowerCase() === json.signer.email.toLowerCase()) {
+            const { data: prefs } = await supabase
+              .from('user_esign_preferences')
+              .select('signature_data, signature_type')
+              .eq('user_id', u.id)
+              .maybeSingle();
+            if (prefs?.signature_data) {
+              setSavedSig({ data: prefs.signature_data, type: (prefs.signature_type as any) || 'drawn' });
+            }
+          }
+        } catch {}
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -443,6 +459,22 @@ export default function PublicSign() {
       <Dialog open={sigOpen} onOpenChange={setSigOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Add Your Signature</DialogTitle></DialogHeader>
+          {savedSig && (
+            <div className="border rounded-lg p-3 bg-muted/30 flex items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-3 min-w-0">
+                <img src={savedSig.data} alt="Saved signature" className="h-12 object-contain" />
+                <span className="text-xs text-muted-foreground">Your saved signature</span>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => {
+                  handleSigComplete(savedSig.data, savedSig.type);
+                }}
+              >
+                Use saved
+              </Button>
+            </div>
+          )}
           <SignaturePad onComplete={handleSigComplete} signerName={signer.name} />
         </DialogContent>
       </Dialog>
