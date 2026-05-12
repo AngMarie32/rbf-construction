@@ -71,9 +71,6 @@ export default function EsignDocumentDetail() {
         .eq('user_id', user.id)
         .maybeSingle();
       if (prefs) setMyPrefs(prefs as any);
-      // Prefill the "Add signer" name field if we have a saved name
-      if (prefs?.full_name && !name) setName(prefs.full_name);
-      if (user.email && !email) setEmail(user.email);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -408,7 +405,7 @@ export default function EsignDocumentDetail() {
                       <div className="flex flex-col gap-1">
                         {!isDraft && (
                           <>
-                            {user?.email && s.email.toLowerCase() === user.email.toLowerCase() && s.status !== 'signed' && (
+                            {s.status !== 'signed' && (
                               <>
                                 {myPrefs?.signature_data && (
                                   <Button
@@ -417,7 +414,7 @@ export default function EsignDocumentDetail() {
                                     className="h-6 w-6 text-primary"
                                     onClick={() => signAsMeNow(s)}
                                     disabled={signingAsMe === s.id}
-                                    title="Sign now with my saved signature"
+                                    title="Sign in-app with saved signature"
                                   >
                                     <Zap className="h-3 w-3" />
                                   </Button>
