@@ -132,6 +132,42 @@ export default function EsignDocumentDetail() {
     qc.invalidateQueries({ queryKey: ['esign-envelope', id] });
   };
 
+  // Subcontract workflow: Management → Subcontractor → General Contractor (sequential)
+  const applySubcontractWorkflow = async () => {
+    const roles = [
+      { role: 'Management', ...wfMgmt },
+      { role: 'Subcontractor', ...wfSub },
+      { role: 'General Contractor', ...wfGc },
+    ];
+    for (const r of roles) {
+      if (!r.name.trim() || !r.email.trim()) {
+        return toast.error(`${r.role}: name and email required`);
+      }
+    }
+    // Force sequential signing order on the envelope
+    const { error: updErr } = await supabase
+      .from('esign_envelopes')
+      .update({ signing_order: 'sequential' })
+      .eq('id', envelope.id);
+    if (updErr) return toast.error(updErr.message);
+    // Replace any existing draft signers with the 3 ordered roles
+    await supabase.from('esign_signers').delete().eq('envelope_id', envelope.id);
+    const rows = roles.map((r, i) => ({
+      envelope_id: envelope.id,
+      name: `${r.name} (${r.role})`,
+      email: r.email.trim().toLowerCase(),
+      order_index: i,
+    }));
+    const { error } = await supabase.from('esign_signers').insert(rows);
+    if (error) return toast.error(error.message);
+    toast.success('Subcontract workflow applied — Management signs first, then Subcontractor, then GC');
+    setWorkflowOpen(false);
+    setWfMgmt({ name: '', email: '' });
+    setWfSub({ name: '', email: '' });
+    setWfGc({ name: '', email: '' });
+    qc.invalidateQueries({ queryKey: ['esign-envelope', id] });
+  };
+
   // One-click "Sign as me now" using the user's saved signature.
   const signAsMeNow = async (signer: any) => {
     if (!myPrefs?.signature_data) {
