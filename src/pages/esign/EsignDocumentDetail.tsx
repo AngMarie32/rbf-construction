@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit, Ban, CalendarClock, BellRing, Users, PenLine, UsersRound, Zap } from 'lucide-react';
+import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit, Ban, CalendarClock, BellRing, Users, PenLine, UsersRound, Zap, Workflow } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -54,6 +54,10 @@ export default function EsignDocumentDetail() {
   const [groupSaveOpen, setGroupSaveOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [groupDesc, setGroupDesc] = useState('');
+  const [workflowOpen, setWorkflowOpen] = useState(false);
+  const [wfMgmt, setWfMgmt] = useState({ name: '', email: '' });
+  const [wfSub, setWfSub] = useState({ name: '', email: '' });
+  const [wfGc, setWfGc] = useState({ name: '', email: '' });
   const [myPrefs, setMyPrefs] = useState<{ full_name: string | null; signature_data: string | null; signature_type: 'drawn' | 'typed' | null } | null>(null);
   const [signingAsMe, setSigningAsMe] = useState<string | null>(null);
 
