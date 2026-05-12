@@ -481,6 +481,15 @@ export default function EsignDocumentDetail() {
                   <Button size="sm" variant="outline" className="w-full" onClick={addSigner}>
                     <Plus className="h-3 w-3 mr-1" /> Add Signer
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setWorkflowOpen(true)}
+                    title="Management → Subcontractor → General Contractor (sequential)"
+                  >
+                    <Workflow className="h-3 w-3 mr-1" /> Subcontract Workflow (3-party)
+                  </Button>
                   {signers.length > 0 && (
                     <Button
                       size="sm"
