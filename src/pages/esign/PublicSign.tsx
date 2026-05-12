@@ -340,36 +340,6 @@ export default function PublicSign() {
           </Card>
         )}
 
-        {/* Notary ID capture */}
-        <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Photo ID (for notarization)</p>
-            <p className="text-xs text-muted-foreground">Optional. Use your camera to capture a clear photo of your government-issued ID.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {idPhoto ? (
-              <>
-                <img src={idPhoto} alt="ID" className="h-12 w-16 object-cover rounded border" />
-                <Button size="lg" variant="outline" className="h-12" onClick={() => setIdPhoto(null)}>
-                  <X className="h-4 w-4 mr-1" /> Remove
-                </Button>
-              </>
-            ) : (
-              <Button size="lg" variant="outline" className="h-12" onClick={() => idInputRef.current?.click()}>
-                <Camera className="h-5 w-5 mr-2" /> Capture ID
-              </Button>
-            )}
-            <input
-              ref={idInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handleIdCapture}
-            />
-          </div>
-        </Card>
-
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex gap-2 items-center">
             <Button size="lg" variant="outline" className="h-11 min-w-[72px]" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>Prev</Button>

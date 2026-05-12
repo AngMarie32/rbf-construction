@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit, Ban, CalendarClock, BellRing, Users, PenLine, UsersRound, Zap } from 'lucide-react';
+import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit, Ban, CalendarClock, BellRing, Users, PenLine, UsersRound, Zap, Workflow } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -54,6 +54,10 @@ export default function EsignDocumentDetail() {
   const [groupSaveOpen, setGroupSaveOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [groupDesc, setGroupDesc] = useState('');
+  const [workflowOpen, setWorkflowOpen] = useState(false);
+  const [wfMgmt, setWfMgmt] = useState({ name: '', email: '' });
+  const [wfSub, setWfSub] = useState({ name: '', email: '' });
+  const [wfGc, setWfGc] = useState({ name: '', email: '' });
   const [myPrefs, setMyPrefs] = useState<{ full_name: string | null; signature_data: string | null; signature_type: 'drawn' | 'typed' | null } | null>(null);
   const [signingAsMe, setSigningAsMe] = useState<string | null>(null);
 
@@ -125,6 +129,42 @@ export default function EsignDocumentDetail() {
 
   const removeSigner = async (sid: string) => {
     await supabase.from('esign_signers').delete().eq('id', sid);
+    qc.invalidateQueries({ queryKey: ['esign-envelope', id] });
+  };
+
+  // Subcontract workflow: Management → Subcontractor → General Contractor (sequential)
+  const applySubcontractWorkflow = async () => {
+    const roles = [
+      { role: 'Management', ...wfMgmt },
+      { role: 'Subcontractor', ...wfSub },
+      { role: 'General Contractor', ...wfGc },
+    ];
+    for (const r of roles) {
+      if (!r.name.trim() || !r.email.trim()) {
+        return toast.error(`${r.role}: name and email required`);
+      }
+    }
+    // Force sequential signing order on the envelope
+    const { error: updErr } = await supabase
+      .from('esign_envelopes')
+      .update({ signing_order: 'sequential' })
+      .eq('id', envelope.id);
+    if (updErr) return toast.error(updErr.message);
+    // Replace any existing draft signers with the 3 ordered roles
+    await supabase.from('esign_signers').delete().eq('envelope_id', envelope.id);
+    const rows = roles.map((r, i) => ({
+      envelope_id: envelope.id,
+      name: `${r.name} (${r.role})`,
+      email: r.email.trim().toLowerCase(),
+      order_index: i,
+    }));
+    const { error } = await supabase.from('esign_signers').insert(rows);
+    if (error) return toast.error(error.message);
+    toast.success('Subcontract workflow applied — Management signs first, then Subcontractor, then GC');
+    setWorkflowOpen(false);
+    setWfMgmt({ name: '', email: '' });
+    setWfSub({ name: '', email: '' });
+    setWfGc({ name: '', email: '' });
     qc.invalidateQueries({ queryKey: ['esign-envelope', id] });
   };
 
@@ -441,6 +481,15 @@ export default function EsignDocumentDetail() {
                   <Button size="sm" variant="outline" className="w-full" onClick={addSigner}>
                     <Plus className="h-3 w-3 mr-1" /> Add Signer
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setWorkflowOpen(true)}
+                    title="Management → Subcontractor → General Contractor (sequential)"
+                  >
+                    <Workflow className="h-3 w-3 mr-1" /> Subcontract Workflow (3-party)
+                  </Button>
                   {signers.length > 0 && (
                     <Button
                       size="sm"
@@ -707,6 +756,45 @@ export default function EsignDocumentDetail() {
             >
               {saveGroup.isPending ? 'Saving…' : 'Save group'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Subcontract Workflow (3-party sequential) */}
+      <Dialog open={workflowOpen} onOpenChange={setWorkflowOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Subcontract Workflow</DialogTitle>
+            <DialogDescription>
+              Sequential signing in this order: Management Company → Subcontractor → General Contractor.
+              Each party is only notified after the previous one signs. This will replace any existing signers on this draft.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {[
+              { label: '1. Management Company (signs first)', state: wfMgmt, set: setWfMgmt },
+              { label: '2. Subcontractor (signs second)', state: wfSub, set: setWfSub },
+              { label: '3. General Contractor (final sign-off)', state: wfGc, set: setWfGc },
+            ].map((row) => (
+              <div key={row.label} className="space-y-2 border rounded-lg p-3">
+                <p className="text-sm font-medium">{row.label}</p>
+                <Input
+                  placeholder="Full name"
+                  value={row.state.name}
+                  onChange={(e) => row.set({ ...row.state, name: e.target.value })}
+                />
+                <Input
+                  placeholder="Email"
+                  type="email"
+                  value={row.state.email}
+                  onChange={(e) => row.set({ ...row.state, email: e.target.value })}
+                />
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWorkflowOpen(false)}>Cancel</Button>
+            <Button onClick={applySubcontractWorkflow}>Apply Workflow</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
