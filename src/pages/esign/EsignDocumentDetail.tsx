@@ -759,6 +759,45 @@ export default function EsignDocumentDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Subcontract Workflow (3-party sequential) */}
+      <Dialog open={workflowOpen} onOpenChange={setWorkflowOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Subcontract Workflow</DialogTitle>
+            <DialogDescription>
+              Sequential signing in this order: Management Company → Subcontractor → General Contractor.
+              Each party is only notified after the previous one signs. This will replace any existing signers on this draft.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {[
+              { label: '1. Management Company (signs first)', state: wfMgmt, set: setWfMgmt },
+              { label: '2. Subcontractor (signs second)', state: wfSub, set: setWfSub },
+              { label: '3. General Contractor (final sign-off)', state: wfGc, set: setWfGc },
+            ].map((row) => (
+              <div key={row.label} className="space-y-2 border rounded-lg p-3">
+                <p className="text-sm font-medium">{row.label}</p>
+                <Input
+                  placeholder="Full name"
+                  value={row.state.name}
+                  onChange={(e) => row.set({ ...row.state, name: e.target.value })}
+                />
+                <Input
+                  placeholder="Email"
+                  type="email"
+                  value={row.state.email}
+                  onChange={(e) => row.set({ ...row.state, email: e.target.value })}
+                />
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWorkflowOpen(false)}>Cancel</Button>
+            <Button onClick={applySubcontractWorkflow}>Apply Workflow</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
