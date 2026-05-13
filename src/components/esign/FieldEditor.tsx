@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Trash2, PenLine, Type as TypeIcon, Calendar, CheckSquare, User, Hash, Wand2, Loader2, Move } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import * as pdfjsLib from 'pdfjs-dist';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
