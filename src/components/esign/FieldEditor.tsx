@@ -521,30 +521,54 @@ export function FieldEditor({ pdfUrl, fields, signers, onAddField, onDeleteField
             ))}
             {pageFields.map(orig => {
               const f = { ...orig, ...(localOverrides[orig.id] || {}) } as EsignField;
+              const assignedName = signers.find(s => s.id === f.signer_id)?.name;
               return (
             <div
               key={f.id}
               className={cn(
                 "absolute border-2 rounded flex items-center justify-center text-xs font-medium group select-none",
-                dragState?.fieldId === f.id ? "cursor-grabbing" : "cursor-grab"
+                dragState?.fieldId === f.id ? "cursor-grabbing" : "cursor-grab",
+                !f.signer_id && "ring-2 ring-red-500 ring-offset-1"
               )}
               style={{
                 left: `${f.x_pct}%`,
                 top: `${f.y_pct}%`,
                 width: `${f.width_pct}%`,
                 height: `${f.height_pct}%`,
-                borderColor: signerColor(f.signer_id),
-                background: `${signerColor(f.signer_id)}22`,
+                borderColor: f.signer_id ? signerColor(f.signer_id) : '#ef4444',
+                background: f.signer_id ? `${signerColor(f.signer_id)}22` : '#ef444422',
                 touchAction: 'none',
                 willChange: dragState?.fieldId === f.id ? 'left, top, width, height' : undefined,
               }}
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => startDrag(e, f, 'move')}
             >
-              <span className="capitalize pointer-events-none flex items-center gap-1" style={{ color: signerColor(f.signer_id) }}>
-                <Move className="h-3 w-3 opacity-60" />
-                {f.field_type}
+              <span className="capitalize pointer-events-none flex flex-col items-center gap-0 leading-tight" style={{ color: f.signer_id ? signerColor(f.signer_id) : '#ef4444' }}>
+                <span className="flex items-center gap-1">
+                  <Move className="h-3 w-3 opacity-60" />
+                  {f.field_type}
+                </span>
+                <span className="text-[9px] font-normal opacity-80 truncate max-w-full px-1">
+                  {assignedName || 'Unassigned'}
+                </span>
               </span>
+              {/* Assign signer dropdown — appears on hover */}
+              <div
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="absolute -bottom-7 left-0 right-0 opacity-0 group-hover:opacity-100 transition z-10"
+              >
+                <select
+                  value={f.signer_id || ''}
+                  onChange={(e) => onUpdateField(f.id, { signer_id: e.target.value || null } as any)}
+                  className="w-full text-[10px] bg-background border border-border rounded px-1 py-0.5 shadow-sm"
+                >
+                  <option value="">— Unassigned —</option>
+                  {signers.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
               <button
                 onClick={(e) => { e.stopPropagation(); onDeleteField(f.id); }}
                 onPointerDown={(e) => e.stopPropagation()}
