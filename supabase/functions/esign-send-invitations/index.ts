@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
           method: 'POST',
           headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            from: 'RBF Construction <onboarding@resend.dev>',
+            from: 'RBF Construction <noreply@portal.rbfconstruction.com>',
             to: [signer.email],
             subject: `Signature requested: ${envelope.title}`,
             html,
