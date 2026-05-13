@@ -33,11 +33,23 @@ Deno.serve(async (req) => {
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
     const ua = req.headers.get('user-agent') || 'unknown';
 
-    // Update field values
-    for (const [fieldId, value] of Object.entries(fieldValues)) {
-      await supabase.from('esign_fields').update({
-        value, filled_at: new Date().toISOString(),
-      }).eq('id', fieldId);
+    // Only allow updating fields that are assigned to THIS signer.
+    // This prevents signer 1 from filling signer 2's fields.
+    const incomingIds = Object.keys(fieldValues);
+    if (incomingIds.length > 0) {
+      const { data: ownedFields } = await supabase
+        .from('esign_fields')
+        .select('id')
+        .eq('envelope_id', signer.envelope_id)
+        .eq('signer_id', signer.id)
+        .in('id', incomingIds);
+      const ownedSet = new Set((ownedFields || []).map((f: any) => f.id));
+      for (const [fieldId, value] of Object.entries(fieldValues)) {
+        if (!ownedSet.has(fieldId)) continue; // silently ignore fields not owned by this signer
+        await supabase.from('esign_fields').update({
+          value, filled_at: new Date().toISOString(),
+        }).eq('id', fieldId);
+      }
     }
 
     // Mark signer as signed

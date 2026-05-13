@@ -234,6 +234,10 @@ export default function EsignDocumentDetail() {
   const handleSend = async () => {
     if (signers.length === 0) return toast.error('Add at least one signer');
     if (fields.length === 0) return toast.error('Add at least one field');
+    const unassigned = fields.filter((f: any) => !f.signer_id);
+    if (unassigned.length > 0) {
+      return toast.error(`${unassigned.length} field${unassigned.length === 1 ? '' : 's'} not assigned to a signer. Use the dropdown on each field to assign it.`);
+    }
     await send.mutateAsync(envelope.id);
   };
 

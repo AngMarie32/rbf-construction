@@ -159,6 +159,9 @@ export default function PublicSign() {
 
   const myFields = fields.filter((f: any) => f.signer_id === signer.id);
   const pageFields = myFields.filter((f: any) => f.page_number === page);
+  const otherFieldsOnPage = fields.filter(
+    (f: any) => f.page_number === page && f.signer_id && f.signer_id !== signer.id,
+  );
 
   const isFieldFilled = (f: any) => {
     if (f.field_type === 'signature' || f.field_type === 'initial') return !!fieldValues[f.id];
@@ -415,6 +418,20 @@ export default function PublicSign() {
               </div>
             );
           })}
+          {/* Read-only placeholders for fields belonging to other signers */}
+          {otherFieldsOnPage.map((f: any) => (
+            <div
+              key={`other-${f.id}`}
+              className="absolute border border-dashed border-muted-foreground/40 bg-muted/30 rounded flex items-center justify-center text-[10px] text-muted-foreground pointer-events-none"
+              style={{
+                left: `${f.x_pct}%`, top: `${f.y_pct}%`,
+                width: `${f.width_pct}%`, height: `${f.height_pct}%`,
+              }}
+              title="Assigned to another signer"
+            >
+              <span className="capitalize">{f.field_type} (other signer)</span>
+            </div>
+          ))}
           </div>
         </div>
       </div>
