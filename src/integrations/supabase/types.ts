@@ -606,6 +606,122 @@ export type Database = {
           },
         ]
       }
+      bulk_invoice_sends: {
+        Row: {
+          bulk_invoice_id: string
+          error_message: string | null
+          file_path: string | null
+          id: string
+          resend_id: string | null
+          sent_at: string
+          sent_to: string
+          status: string
+        }
+        Insert: {
+          bulk_invoice_id: string
+          error_message?: string | null
+          file_path?: string | null
+          id?: string
+          resend_id?: string | null
+          sent_at?: string
+          sent_to: string
+          status?: string
+        }
+        Update: {
+          bulk_invoice_id?: string
+          error_message?: string | null
+          file_path?: string | null
+          id?: string
+          resend_id?: string | null
+          sent_at?: string
+          sent_to?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bulk_invoice_sends_bulk_invoice_id_fkey"
+            columns: ["bulk_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "bulk_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bulk_invoices: {
+        Row: {
+          amount: number | null
+          category: string | null
+          cc_emails: string[] | null
+          created_at: string
+          created_by: string
+          file_name: string | null
+          file_path: string
+          id: string
+          invoice_number: string | null
+          last_sent_at: string | null
+          message: string | null
+          next_send_date: string | null
+          notes: string | null
+          project_id: string | null
+          recipient_email: string
+          recipient_name: string
+          schedule_type: string
+          send_count: number
+          status: string
+          subject: string | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          category?: string | null
+          cc_emails?: string[] | null
+          created_at?: string
+          created_by: string
+          file_name?: string | null
+          file_path: string
+          id?: string
+          invoice_number?: string | null
+          last_sent_at?: string | null
+          message?: string | null
+          next_send_date?: string | null
+          notes?: string | null
+          project_id?: string | null
+          recipient_email: string
+          recipient_name: string
+          schedule_type?: string
+          send_count?: number
+          status?: string
+          subject?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          category?: string | null
+          cc_emails?: string[] | null
+          created_at?: string
+          created_by?: string
+          file_name?: string | null
+          file_path?: string
+          id?: string
+          invoice_number?: string | null
+          last_sent_at?: string | null
+          message?: string | null
+          next_send_date?: string | null
+          notes?: string | null
+          project_id?: string | null
+          recipient_email?: string
+          recipient_name?: string
+          schedule_type?: string
+          send_count?: number
+          status?: string
+          subject?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       burn_records: {
         Row: {
           actual_cost: number
