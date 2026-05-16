@@ -18,6 +18,7 @@ const navGroups: NavGroup[] = [
     label: 'Quick Access',
     items: [
       { name: 'E-Sign', href: '/esign' },
+      { name: 'Invoice Sender', href: '/invoice-sender' },
     ],
   },
   {
