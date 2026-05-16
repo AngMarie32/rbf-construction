@@ -606,12 +606,42 @@ export type Database = {
           },
         ]
       }
+      bulk_invoice_folders: {
+        Row: {
+          color: string | null
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bulk_invoice_sends: {
         Row: {
           bulk_invoice_id: string
+          delivered_at: string | null
           error_message: string | null
           file_path: string | null
           id: string
+          last_event_at: string | null
+          opened_at: string | null
           resend_id: string | null
           sent_at: string
           sent_to: string
@@ -619,9 +649,12 @@ export type Database = {
         }
         Insert: {
           bulk_invoice_id: string
+          delivered_at?: string | null
           error_message?: string | null
           file_path?: string | null
           id?: string
+          last_event_at?: string | null
+          opened_at?: string | null
           resend_id?: string | null
           sent_at?: string
           sent_to: string
@@ -629,9 +662,12 @@ export type Database = {
         }
         Update: {
           bulk_invoice_id?: string
+          delivered_at?: string | null
           error_message?: string | null
           file_path?: string | null
           id?: string
+          last_event_at?: string | null
+          opened_at?: string | null
           resend_id?: string | null
           sent_at?: string
           sent_to?: string
@@ -650,12 +686,14 @@ export type Database = {
       bulk_invoices: {
         Row: {
           amount: number | null
+          archived_at: string | null
           category: string | null
           cc_emails: string[] | null
           created_at: string
           created_by: string
           file_name: string | null
           file_path: string
+          folder_id: string | null
           id: string
           invoice_number: string | null
           last_sent_at: string | null
@@ -674,12 +712,14 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          archived_at?: string | null
           category?: string | null
           cc_emails?: string[] | null
           created_at?: string
           created_by: string
           file_name?: string | null
           file_path: string
+          folder_id?: string | null
           id?: string
           invoice_number?: string | null
           last_sent_at?: string | null
@@ -698,12 +738,14 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          archived_at?: string | null
           category?: string | null
           cc_emails?: string[] | null
           created_at?: string
           created_by?: string
           file_name?: string | null
           file_path?: string
+          folder_id?: string | null
           id?: string
           invoice_number?: string | null
           last_sent_at?: string | null
@@ -720,7 +762,15 @@ export type Database = {
           tags?: string[] | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bulk_invoices_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "bulk_invoice_folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       burn_records: {
         Row: {
