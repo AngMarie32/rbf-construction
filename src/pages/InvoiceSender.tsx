@@ -291,17 +291,34 @@ export default function InvoiceSender() {
     if (!newFolderName.trim()) return;
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
-    const { error } = await supabase.from('bulk_invoice_folders').insert({ name: newFolderName.trim(), created_by: u.user.id });
+    const { error } = await supabase.from('bulk_invoice_folders').insert({
+      name: newFolderName.trim(),
+      created_by: u.user.id,
+      parent_id: newFolderParent,
+    } as any);
     if (error) return toast.error(error.message);
-    toast.success('Folder created'); setNewFolderName(''); setNewFolderOpen(false); load();
+    toast.success('Folder created');
+    if (newFolderParent) setExpandedFolders(prev => new Set(prev).add(newFolderParent));
+    setNewFolderName(''); setNewFolderParent(null); setNewFolderOpen(false); load();
   };
 
   const deleteFolder = async (id: string) => {
-    if (!confirm('Delete this folder? Invoices inside will become Unfiled.')) return;
-    await supabase.from('bulk_invoices').update({ folder_id: null }).eq('folder_id', id);
+    if (!confirm('Delete this folder and all its sub-folders? Invoices inside will become Unfiled.')) return;
+    const descendants = new Set<string>([id]);
+    let added = true;
+    while (added) {
+      added = false;
+      for (const f of folders) {
+        if (f.parent_id && descendants.has(f.parent_id) && !descendants.has(f.id)) {
+          descendants.add(f.id); added = true;
+        }
+      }
+    }
+    const ids = Array.from(descendants);
+    await supabase.from('bulk_invoices').update({ folder_id: null }).in('folder_id', ids);
     await supabase.from('bulk_invoice_folders').delete().eq('id', id);
     toast.success('Folder deleted');
-    if (folderFilter === id) setFolderFilter('all');
+    if (typeof folderFilter === 'string' && ids.includes(folderFilter)) setFolderFilter('all');
     load();
   };
 
@@ -310,6 +327,75 @@ export default function InvoiceSender() {
     if (!name || name === current) return;
     await supabase.from('bulk_invoice_folders').update({ name }).eq('id', id);
     toast.success('Renamed'); load();
+  };
+
+  const downloadFile = async (path: string, name: string | null) => {
+    const { data, error } = await supabase.storage.from('bulk-invoices').createSignedUrl(path, 3600, {
+      download: (name || true) as any,
+    });
+    if (error || !data) return toast.error('Could not download');
+    const a = document.createElement('a');
+    a.href = data.signedUrl; a.download = name || 'invoice'; document.body.appendChild(a); a.click(); a.remove();
+  };
+
+  const openNewFolder = (parent: string | null) => {
+    setNewFolderParent(parent); setNewFolderName(''); setNewFolderOpen(true);
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedFolders(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  };
+
+  const folderTotalCount = useMemo(() => {
+    const childrenMap = new Map<string | null, FolderRow[]>();
+    for (const f of folders) {
+      const k = f.parent_id || null;
+      if (!childrenMap.has(k)) childrenMap.set(k, []);
+      childrenMap.get(k)!.push(f);
+    }
+    const totals = new Map<string, number>();
+    const compute = (id: string): number => {
+      if (totals.has(id)) return totals.get(id)!;
+      let n = counts[id] || 0;
+      for (const c of childrenMap.get(id) || []) n += compute(c.id);
+      totals.set(id, n); return n;
+    };
+    for (const f of folders) compute(f.id);
+    return totals;
+  }, [folders, counts]);
+
+  const renderFolderTree = (parent: string | null, depth: number): JSX.Element[] => {
+    const children = folders.filter(f => (f.parent_id || null) === parent);
+    return children.flatMap(f => {
+      const hasKids = folders.some(x => x.parent_id === f.id);
+      const expanded = expandedFolders.has(f.id);
+      const total = folderTotalCount.get(f.id) || 0;
+      return [
+        <div key={f.id} className={cn('group flex items-center justify-between px-2 py-1.5 rounded text-sm hover:bg-muted',
+          folderFilter === f.id && 'bg-muted font-medium')} style={{ paddingLeft: 8 + depth * 14 }}>
+          <button onClick={hasKids ? () => toggleExpand(f.id) : undefined}
+            className="w-4 h-4 mr-1 flex items-center justify-center shrink-0">
+            {hasKids ? (expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />) : null}
+          </button>
+          <button onClick={() => setFolderFilter(f.id)} className="flex items-center gap-2 flex-1 text-left truncate">
+            <Folder className="w-4 h-4" />{f.name}
+          </button>
+          <span className="text-xs text-muted-foreground mr-1">{total}</span>
+          <div className="hidden group-hover:flex gap-0.5">
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => openNewFolder(f.id)} title="New sub-folder">
+              <FolderPlus className="w-3 h-3" />
+            </Button>
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => renameFolder(f.id, f.name)}>
+              <Pencil className="w-3 h-3" />
+            </Button>
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => deleteFolder(f.id)}>
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
+        </div>,
+        ...(expanded ? renderFolderTree(f.id, depth + 1) : []),
+      ];
+    });
   };
 
   const renderStatusBadges = (i: Invoice) => {
