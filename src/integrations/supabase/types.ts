@@ -613,6 +613,7 @@ export type Database = {
           created_by: string
           id: string
           name: string
+          parent_id: string | null
           updated_at: string
         }
         Insert: {
@@ -621,6 +622,7 @@ export type Database = {
           created_by: string
           id?: string
           name: string
+          parent_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -629,9 +631,18 @@ export type Database = {
           created_by?: string
           id?: string
           name?: string
+          parent_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bulk_invoice_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "bulk_invoice_folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bulk_invoice_sends: {
         Row: {
