@@ -1,0 +1,2 @@
+ALTER TABLE public.bulk_invoice_folders ADD COLUMN IF NOT EXISTS parent_id uuid REFERENCES public.bulk_invoice_folders(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_bulk_invoice_folders_parent ON public.bulk_invoice_folders(parent_id);

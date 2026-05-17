@@ -15,14 +15,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   Upload, Send, Trash2, FileText, Search, Eye, Pencil, Archive, ArchiveRestore,
-  Folder, FolderPlus, Inbox,
+  Folder, FolderPlus, Inbox, Download, ChevronRight, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const CATEGORIES = ['Progress', 'Final', 'Retainer', 'Reimbursable', 'Material', 'Service', 'Other'];
 
 interface Project { id: string; name: string }
-interface FolderRow { id: string; name: string; color: string | null }
+interface FolderRow { id: string; name: string; color: string | null; parent_id: string | null }
 interface SendRow {
   id: string;
   bulk_invoice_id: string;
@@ -94,6 +94,8 @@ export default function InvoiceSender() {
   const [replaceFor, setReplaceFor] = useState<Invoice | null>(null);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderParent, setNewFolderParent] = useState<string | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
   const [files, setFiles] = useState<File[]>([]);
   const [form, setForm] = useState(emptyForm);
@@ -103,7 +105,7 @@ export default function InvoiceSender() {
     setLoading(true);
     const [{ data: proj }, { data: fold }, { data: inv }, { data: snd }] = await Promise.all([
       supabase.from('projects').select('id, name').order('name'),
-      supabase.from('bulk_invoice_folders').select('id, name, color').order('name'),
+      supabase.from('bulk_invoice_folders').select('id, name, color, parent_id').order('name'),
       supabase.from('bulk_invoices').select('*').order('created_at', { ascending: false }),
       supabase.from('bulk_invoice_sends').select('id, bulk_invoice_id, sent_at, status, delivered_at, opened_at').order('sent_at', { ascending: false }),
     ]);
@@ -289,17 +291,34 @@ export default function InvoiceSender() {
     if (!newFolderName.trim()) return;
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
-    const { error } = await supabase.from('bulk_invoice_folders').insert({ name: newFolderName.trim(), created_by: u.user.id });
+    const { error } = await supabase.from('bulk_invoice_folders').insert({
+      name: newFolderName.trim(),
+      created_by: u.user.id,
+      parent_id: newFolderParent,
+    } as any);
     if (error) return toast.error(error.message);
-    toast.success('Folder created'); setNewFolderName(''); setNewFolderOpen(false); load();
+    toast.success('Folder created');
+    if (newFolderParent) setExpandedFolders(prev => new Set(prev).add(newFolderParent));
+    setNewFolderName(''); setNewFolderParent(null); setNewFolderOpen(false); load();
   };
 
   const deleteFolder = async (id: string) => {
-    if (!confirm('Delete this folder? Invoices inside will become Unfiled.')) return;
-    await supabase.from('bulk_invoices').update({ folder_id: null }).eq('folder_id', id);
+    if (!confirm('Delete this folder and all its sub-folders? Invoices inside will become Unfiled.')) return;
+    const descendants = new Set<string>([id]);
+    let added = true;
+    while (added) {
+      added = false;
+      for (const f of folders) {
+        if (f.parent_id && descendants.has(f.parent_id) && !descendants.has(f.id)) {
+          descendants.add(f.id); added = true;
+        }
+      }
+    }
+    const ids = Array.from(descendants);
+    await supabase.from('bulk_invoices').update({ folder_id: null }).in('folder_id', ids);
     await supabase.from('bulk_invoice_folders').delete().eq('id', id);
     toast.success('Folder deleted');
-    if (folderFilter === id) setFolderFilter('all');
+    if (typeof folderFilter === 'string' && ids.includes(folderFilter)) setFolderFilter('all');
     load();
   };
 
@@ -308,6 +327,75 @@ export default function InvoiceSender() {
     if (!name || name === current) return;
     await supabase.from('bulk_invoice_folders').update({ name }).eq('id', id);
     toast.success('Renamed'); load();
+  };
+
+  const downloadFile = async (path: string, name: string | null) => {
+    const { data, error } = await supabase.storage.from('bulk-invoices').createSignedUrl(path, 3600, {
+      download: (name || true) as any,
+    });
+    if (error || !data) return toast.error('Could not download');
+    const a = document.createElement('a');
+    a.href = data.signedUrl; a.download = name || 'invoice'; document.body.appendChild(a); a.click(); a.remove();
+  };
+
+  const openNewFolder = (parent: string | null) => {
+    setNewFolderParent(parent); setNewFolderName(''); setNewFolderOpen(true);
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedFolders(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  };
+
+  const folderTotalCount = useMemo(() => {
+    const childrenMap = new Map<string | null, FolderRow[]>();
+    for (const f of folders) {
+      const k = f.parent_id || null;
+      if (!childrenMap.has(k)) childrenMap.set(k, []);
+      childrenMap.get(k)!.push(f);
+    }
+    const totals = new Map<string, number>();
+    const compute = (id: string): number => {
+      if (totals.has(id)) return totals.get(id)!;
+      let n = counts[id] || 0;
+      for (const c of childrenMap.get(id) || []) n += compute(c.id);
+      totals.set(id, n); return n;
+    };
+    for (const f of folders) compute(f.id);
+    return totals;
+  }, [folders, counts]);
+
+  const renderFolderTree = (parent: string | null, depth: number): JSX.Element[] => {
+    const children = folders.filter(f => (f.parent_id || null) === parent);
+    return children.flatMap(f => {
+      const hasKids = folders.some(x => x.parent_id === f.id);
+      const expanded = expandedFolders.has(f.id);
+      const total = folderTotalCount.get(f.id) || 0;
+      return [
+        <div key={f.id} className={cn('group flex items-center justify-between px-2 py-1.5 rounded text-sm hover:bg-muted',
+          folderFilter === f.id && 'bg-muted font-medium')} style={{ paddingLeft: 8 + depth * 14 }}>
+          <button onClick={hasKids ? () => toggleExpand(f.id) : undefined}
+            className="w-4 h-4 mr-1 flex items-center justify-center shrink-0">
+            {hasKids ? (expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />) : null}
+          </button>
+          <button onClick={() => setFolderFilter(f.id)} className="flex items-center gap-2 flex-1 text-left truncate">
+            <Folder className="w-4 h-4" />{f.name}
+          </button>
+          <span className="text-xs text-muted-foreground mr-1">{total}</span>
+          <div className="hidden group-hover:flex gap-0.5">
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => openNewFolder(f.id)} title="New sub-folder">
+              <FolderPlus className="w-3 h-3" />
+            </Button>
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => renameFolder(f.id, f.name)}>
+              <Pencil className="w-3 h-3" />
+            </Button>
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => deleteFolder(f.id)}>
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
+        </div>,
+        ...(expanded ? renderFolderTree(f.id, depth + 1) : []),
+      ];
+    });
   };
 
   const renderStatusBadges = (i: Invoice) => {
@@ -331,7 +419,7 @@ export default function InvoiceSender() {
         <aside className="w-64 border-r p-3 overflow-y-auto shrink-0">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-semibold">Folders</h3>
-            <Button size="sm" variant="ghost" onClick={() => setNewFolderOpen(true)} title="New folder">
+            <Button size="sm" variant="ghost" onClick={() => openNewFolder(null)} title="New folder">
               <FolderPlus className="w-4 h-4" />
             </Button>
           </div>
@@ -347,23 +435,7 @@ export default function InvoiceSender() {
                 <span className="text-xs text-muted-foreground">{item.count}</span>
               </button>
             ))}
-            {folders.map(f => (
-              <div key={f.id} className={cn('group flex items-center justify-between px-2 py-1.5 rounded text-sm hover:bg-muted',
-                folderFilter === f.id && 'bg-muted font-medium')}>
-                <button onClick={() => setFolderFilter(f.id)} className="flex items-center gap-2 flex-1 text-left truncate">
-                  <Folder className="w-4 h-4" />{f.name}
-                </button>
-                <span className="text-xs text-muted-foreground mr-1">{counts[f.id] || 0}</span>
-                <div className="hidden group-hover:flex gap-0.5">
-                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => renameFolder(f.id, f.name)}>
-                    <Pencil className="w-3 h-3" />
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => deleteFolder(f.id)}>
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+            {renderFolderTree(null, 0)}
             <button onClick={() => setFolderFilter('archived')}
               className={cn('w-full flex items-center justify-between px-2 py-1.5 rounded text-sm hover:bg-muted mt-2 border-t pt-3',
                 folderFilter === 'archived' && 'bg-muted font-medium')}>
@@ -500,12 +572,9 @@ export default function InvoiceSender() {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button size="sm" variant="ghost" onClick={() => preview(i.file_path)} title="Preview"><Eye className="w-4 h-4" /></Button>
+                            <Button size="sm" variant="ghost" onClick={() => downloadFile(i.file_path, i.file_name)} title="Download"><Download className="w-4 h-4" /></Button>
+                            <Button size="sm" variant="ghost" onClick={() => setReplaceFor(i)} title="Replace file"><Upload className="w-4 h-4" /></Button>
                             <Button size="sm" variant="ghost" onClick={() => setEditFor({ ...i })} title="Edit"><Pencil className="w-4 h-4" /></Button>
-                            {i.schedule_type === 'monthly' && (
-                              <Button size="sm" variant="ghost" onClick={() => setReplaceFor(i)} title="Replace file">
-                                <FileText className="w-4 h-4" />
-                              </Button>
-                            )}
                             {!i.archived_at ? (
                               <>
                                 <Button size="sm" variant="default" disabled={sending} onClick={() => sendNow([i.id])} title="Send"><Send className="w-4 h-4" /></Button>
@@ -530,12 +599,22 @@ export default function InvoiceSender() {
       {/* New folder */}
       <Dialog open={newFolderOpen} onOpenChange={setNewFolderOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>New folder</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{newFolderParent ? `New sub-folder in "${folderName(newFolderParent)}"` : 'New folder'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <Input placeholder="Folder name" value={newFolderName} onChange={e => setNewFolderName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && createFolder()} />
+            <div>
+              <Label className="text-xs">Parent folder</Label>
+              <Select value={newFolderParent || '__root'} onValueChange={v => setNewFolderParent(v === '__root' ? null : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__root">— None (top-level) —</SelectItem>
+                  {folders.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setNewFolderOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setNewFolderOpen(false); setNewFolderParent(null); }}>Cancel</Button>
               <Button onClick={createFolder}>Create</Button>
             </div>
           </div>
@@ -767,9 +846,9 @@ export default function InvoiceSender() {
       {/* Replace file */}
       <Dialog open={!!replaceFor} onOpenChange={o => !o && setReplaceFor(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Replace file for next monthly send</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Replace invoice PDF</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Upload this month's invoice. The previous file will be replaced.</p>
+            <p className="text-sm text-muted-foreground">Upload a new PDF or image. The previous file will be replaced.</p>
             <Input type="file" accept="application/pdf,image/*" onChange={e => { const f = e.target.files?.[0]; if (f) replaceFile(f); }} />
           </div>
         </DialogContent>
