@@ -599,12 +599,22 @@ export default function InvoiceSender() {
       {/* New folder */}
       <Dialog open={newFolderOpen} onOpenChange={setNewFolderOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>New folder</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{newFolderParent ? `New sub-folder in "${folderName(newFolderParent)}"` : 'New folder'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <Input placeholder="Folder name" value={newFolderName} onChange={e => setNewFolderName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && createFolder()} />
+            <div>
+              <Label className="text-xs">Parent folder</Label>
+              <Select value={newFolderParent || '__root'} onValueChange={v => setNewFolderParent(v === '__root' ? null : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__root">— None (top-level) —</SelectItem>
+                  {folders.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setNewFolderOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setNewFolderOpen(false); setNewFolderParent(null); }}>Cancel</Button>
               <Button onClick={createFolder}>Create</Button>
             </div>
           </div>
@@ -836,9 +846,9 @@ export default function InvoiceSender() {
       {/* Replace file */}
       <Dialog open={!!replaceFor} onOpenChange={o => !o && setReplaceFor(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Replace file for next monthly send</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Replace invoice PDF</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Upload this month's invoice. The previous file will be replaced.</p>
+            <p className="text-sm text-muted-foreground">Upload a new PDF or image. The previous file will be replaced.</p>
             <Input type="file" accept="application/pdf,image/*" onChange={e => { const f = e.target.files?.[0]; if (f) replaceFile(f); }} />
           </div>
         </DialogContent>
