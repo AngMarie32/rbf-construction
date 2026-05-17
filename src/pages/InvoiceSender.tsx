@@ -572,12 +572,9 @@ export default function InvoiceSender() {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button size="sm" variant="ghost" onClick={() => preview(i.file_path)} title="Preview"><Eye className="w-4 h-4" /></Button>
+                            <Button size="sm" variant="ghost" onClick={() => downloadFile(i.file_path, i.file_name)} title="Download"><Download className="w-4 h-4" /></Button>
+                            <Button size="sm" variant="ghost" onClick={() => setReplaceFor(i)} title="Replace file"><Upload className="w-4 h-4" /></Button>
                             <Button size="sm" variant="ghost" onClick={() => setEditFor({ ...i })} title="Edit"><Pencil className="w-4 h-4" /></Button>
-                            {i.schedule_type === 'monthly' && (
-                              <Button size="sm" variant="ghost" onClick={() => setReplaceFor(i)} title="Replace file">
-                                <FileText className="w-4 h-4" />
-                              </Button>
-                            )}
                             {!i.archived_at ? (
                               <>
                                 <Button size="sm" variant="default" disabled={sending} onClick={() => sendNow([i.id])} title="Send"><Send className="w-4 h-4" /></Button>
