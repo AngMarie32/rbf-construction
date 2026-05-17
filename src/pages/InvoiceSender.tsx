@@ -419,7 +419,7 @@ export default function InvoiceSender() {
         <aside className="w-64 border-r p-3 overflow-y-auto shrink-0">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-semibold">Folders</h3>
-            <Button size="sm" variant="ghost" onClick={() => setNewFolderOpen(true)} title="New folder">
+            <Button size="sm" variant="ghost" onClick={() => openNewFolder(null)} title="New folder">
               <FolderPlus className="w-4 h-4" />
             </Button>
           </div>
@@ -435,23 +435,7 @@ export default function InvoiceSender() {
                 <span className="text-xs text-muted-foreground">{item.count}</span>
               </button>
             ))}
-            {folders.map(f => (
-              <div key={f.id} className={cn('group flex items-center justify-between px-2 py-1.5 rounded text-sm hover:bg-muted',
-                folderFilter === f.id && 'bg-muted font-medium')}>
-                <button onClick={() => setFolderFilter(f.id)} className="flex items-center gap-2 flex-1 text-left truncate">
-                  <Folder className="w-4 h-4" />{f.name}
-                </button>
-                <span className="text-xs text-muted-foreground mr-1">{counts[f.id] || 0}</span>
-                <div className="hidden group-hover:flex gap-0.5">
-                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => renameFolder(f.id, f.name)}>
-                    <Pencil className="w-3 h-3" />
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => deleteFolder(f.id)}>
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+            {renderFolderTree(null, 0)}
             <button onClick={() => setFolderFilter('archived')}
               className={cn('w-full flex items-center justify-between px-2 py-1.5 rounded text-sm hover:bg-muted mt-2 border-t pt-3',
                 folderFilter === 'archived' && 'bg-muted font-medium')}>
