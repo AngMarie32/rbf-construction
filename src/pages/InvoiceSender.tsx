@@ -15,14 +15,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   Upload, Send, Trash2, FileText, Search, Eye, Pencil, Archive, ArchiveRestore,
-  Folder, FolderPlus, Inbox,
+  Folder, FolderPlus, Inbox, Download, ChevronRight, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const CATEGORIES = ['Progress', 'Final', 'Retainer', 'Reimbursable', 'Material', 'Service', 'Other'];
 
 interface Project { id: string; name: string }
-interface FolderRow { id: string; name: string; color: string | null }
+interface FolderRow { id: string; name: string; color: string | null; parent_id: string | null }
 interface SendRow {
   id: string;
   bulk_invoice_id: string;
@@ -103,7 +103,7 @@ export default function InvoiceSender() {
     setLoading(true);
     const [{ data: proj }, { data: fold }, { data: inv }, { data: snd }] = await Promise.all([
       supabase.from('projects').select('id, name').order('name'),
-      supabase.from('bulk_invoice_folders').select('id, name, color').order('name'),
+      supabase.from('bulk_invoice_folders').select('id, name, color, parent_id').order('name'),
       supabase.from('bulk_invoices').select('*').order('created_at', { ascending: false }),
       supabase.from('bulk_invoice_sends').select('id, bulk_invoice_id, sent_at, status, delivered_at, opened_at').order('sent_at', { ascending: false }),
     ]);
