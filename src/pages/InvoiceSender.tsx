@@ -96,6 +96,7 @@ export default function InvoiceSender() {
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderParent, setNewFolderParent] = useState<string | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [foldersCollapsed, setFoldersCollapsed] = useState(false);
 
   const [files, setFiles] = useState<File[]>([]);
   const [form, setForm] = useState(emptyForm);
