@@ -417,33 +417,40 @@ export default function InvoiceSender() {
     <Layout title="Invoice Sender" subtitle="Upload invoices, organize in folders, send single or monthly.">
       <div className="flex h-[calc(100vh-8rem)]">
         {/* Folders sidebar */}
-        <aside className="w-64 border-r p-3 overflow-y-auto shrink-0">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold">Folders</h3>
-            <Button size="sm" variant="ghost" onClick={() => openNewFolder(null)} title="New folder">
-              <FolderPlus className="w-4 h-4" />
+        <aside className={cn("border-r shrink-0 transition-all duration-200 flex flex-col", foldersCollapsed ? "w-10" : "w-64")}>
+          <div className="flex items-center justify-between p-2 border-b">
+            {!foldersCollapsed && <h3 className="text-sm font-semibold">Folders</h3>}
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setFoldersCollapsed(!foldersCollapsed)} title={foldersCollapsed ? "Expand" : "Collapse"}>
+              {foldersCollapsed ? <ChevronRightIcon className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </Button>
+            {!foldersCollapsed && (
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openNewFolder(null)} title="New folder">
+                <FolderPlus className="w-4 h-4" />
+              </Button>
+            )}
           </div>
-          <div className="space-y-1">
-            {[
-              { id: 'all' as FolderFilter, name: 'All Invoices', icon: Inbox, count: counts.all },
-              { id: 'unfiled' as FolderFilter, name: 'Unfiled', icon: Folder, count: counts.unfiled },
-            ].map(item => (
-              <button key={item.id} onClick={() => setFolderFilter(item.id)}
-                className={cn('w-full flex items-center justify-between px-2 py-1.5 rounded text-sm hover:bg-muted',
-                  folderFilter === item.id && 'bg-muted font-medium')}>
-                <span className="flex items-center gap-2"><item.icon className="w-4 h-4" />{item.name}</span>
-                <span className="text-xs text-muted-foreground">{item.count}</span>
+          {!foldersCollapsed && (
+            <div className="p-3 overflow-y-auto flex-1 space-y-1">
+              {[
+                { id: 'all' as FolderFilter, name: 'All Invoices', icon: Inbox, count: counts.all },
+                { id: 'unfiled' as FolderFilter, name: 'Unfiled', icon: Folder, count: counts.unfiled },
+              ].map(item => (
+                <button key={item.id} onClick={() => setFolderFilter(item.id)}
+                  className={cn('w-full flex items-center justify-between px-2 py-1.5 rounded text-sm hover:bg-muted',
+                    folderFilter === item.id && 'bg-muted font-medium')}>
+                  <span className="flex items-center gap-2"><item.icon className="w-4 h-4" />{item.name}</span>
+                  <span className="text-xs text-muted-foreground">{item.count}</span>
+                </button>
+              ))}
+              {renderFolderTree(null, 0)}
+              <button onClick={() => setFolderFilter('archived')}
+                className={cn('w-full flex items-center justify-between px-2 py-1.5 rounded text-sm hover:bg-muted mt-2 border-t pt-3',
+                  folderFilter === 'archived' && 'bg-muted font-medium')}>
+                <span className="flex items-center gap-2"><Archive className="w-4 h-4" />Archived</span>
+                <span className="text-xs text-muted-foreground">{counts.archived}</span>
               </button>
-            ))}
-            {renderFolderTree(null, 0)}
-            <button onClick={() => setFolderFilter('archived')}
-              className={cn('w-full flex items-center justify-between px-2 py-1.5 rounded text-sm hover:bg-muted mt-2 border-t pt-3',
-                folderFilter === 'archived' && 'bg-muted font-medium')}>
-              <span className="flex items-center gap-2"><Archive className="w-4 h-4" />Archived</span>
-              <span className="text-xs text-muted-foreground">{counts.archived}</span>
-            </button>
-          </div>
+            </div>
+          )}
         </aside>
 
         <div className="flex-1 p-6 space-y-4 overflow-y-auto">
