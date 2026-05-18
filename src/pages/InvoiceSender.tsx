@@ -15,7 +15,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   Upload, Send, Trash2, FileText, Search, Eye, Pencil, Archive, ArchiveRestore,
-  Folder, FolderPlus, Inbox, Download, ChevronRight, ChevronDown, ChevronLeft, ChevronRight as ChevronRightIcon,
+  Folder, FolderPlus, Inbox, Download, ChevronDown, ChevronRight, ChevronLeft, ChevronRight as ChevronRightIcon,
+  ChevronsDownUp, ChevronsUpDown,
+
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
