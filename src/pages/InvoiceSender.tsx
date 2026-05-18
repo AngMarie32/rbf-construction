@@ -355,6 +355,9 @@ export default function InvoiceSender() {
     setExpandedFolders(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   };
 
+  const expandAllFolders = () => setExpandedFolders(new Set(folders.map(f => f.id)));
+  const collapseAllFolders = () => setExpandedFolders(new Set());
+
   const folderTotalCount = useMemo(() => {
     const childrenMap = new Map<string | null, FolderRow[]>();
     for (const f of folders) {
