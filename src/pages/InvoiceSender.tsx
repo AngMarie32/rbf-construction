@@ -15,7 +15,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   Upload, Send, Trash2, FileText, Search, Eye, Pencil, Archive, ArchiveRestore,
-  Folder, FolderPlus, Inbox, Download, ChevronRight, ChevronDown, ChevronLeft, ChevronRight as ChevronRightIcon,
+  Folder, FolderPlus, Inbox, Download, ChevronDown, ChevronRight, ChevronLeft, ChevronRight as ChevronRightIcon,
+  ChevronsDownUp, ChevronsUpDown,
+
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -96,7 +98,13 @@ export default function InvoiceSender() {
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderParent, setNewFolderParent] = useState<string | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
-  const [foldersCollapsed, setFoldersCollapsed] = useState(false);
+  const [foldersCollapsed, setFoldersCollapsed] = useState(() => {
+    try { return localStorage.getItem('invoice_sender_folders_collapsed') === 'true'; } catch { return false; }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('invoice_sender_folders_collapsed', String(foldersCollapsed));
+  }, [foldersCollapsed]);
 
   const [files, setFiles] = useState<File[]>([]);
   const [form, setForm] = useState(emptyForm);
@@ -347,6 +355,9 @@ export default function InvoiceSender() {
     setExpandedFolders(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   };
 
+  const expandAllFolders = () => setExpandedFolders(new Set(folders.map(f => f.id)));
+  const collapseAllFolders = () => setExpandedFolders(new Set());
+
   const folderTotalCount = useMemo(() => {
     const childrenMap = new Map<string | null, FolderRow[]>();
     for (const f of folders) {
@@ -420,14 +431,24 @@ export default function InvoiceSender() {
         <aside className={cn("border-r shrink-0 transition-all duration-200 flex flex-col", foldersCollapsed ? "w-10" : "w-64")}>
           <div className="flex items-center justify-between p-2 border-b">
             {!foldersCollapsed && <h3 className="text-sm font-semibold">Folders</h3>}
-            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setFoldersCollapsed(!foldersCollapsed)} title={foldersCollapsed ? "Expand" : "Collapse"}>
-              {foldersCollapsed ? <ChevronRightIcon className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-            </Button>
-            {!foldersCollapsed && (
-              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openNewFolder(null)} title="New folder">
-                <FolderPlus className="w-4 h-4" />
+            <div className="flex items-center gap-0.5">
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setFoldersCollapsed(!foldersCollapsed)} title={foldersCollapsed ? "Expand" : "Collapse"}>
+                {foldersCollapsed ? <ChevronRightIcon className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
               </Button>
-            )}
+              {!foldersCollapsed && (
+                <>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={expandAllFolders} title="Expand all sub-folders">
+                    <ChevronsUpDown className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={collapseAllFolders} title="Collapse all sub-folders">
+                    <ChevronsDownUp className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openNewFolder(null)} title="New folder">
+                    <FolderPlus className="w-4 h-4" />
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
           {!foldersCollapsed && (
             <div className="p-3 overflow-y-auto flex-1 space-y-1">
