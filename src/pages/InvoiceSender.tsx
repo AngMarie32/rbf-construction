@@ -98,7 +98,13 @@ export default function InvoiceSender() {
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderParent, setNewFolderParent] = useState<string | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
-  const [foldersCollapsed, setFoldersCollapsed] = useState(false);
+  const [foldersCollapsed, setFoldersCollapsed] = useState(() => {
+    try { return localStorage.getItem('invoice_sender_folders_collapsed') === 'true'; } catch { return false; }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('invoice_sender_folders_collapsed', String(foldersCollapsed));
+  }, [foldersCollapsed]);
 
   const [files, setFiles] = useState<File[]>([]);
   const [form, setForm] = useState(emptyForm);
