@@ -11,10 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
-  Upload, Send, Trash2, FileText, Search, Eye, Pencil, Archive, ArchiveRestore,
+  Upload, Send, Trash2, FileText, Search, Eye, Pencil, Archive, ArchiveRestore, Mails,
   Folder, FolderPlus, Inbox, Download, ChevronDown, ChevronRight, ChevronLeft, ChevronRight as ChevronRightIcon,
   ChevronsDownUp, ChevronsUpDown,
 
@@ -236,15 +237,15 @@ export default function InvoiceSender() {
     setEditFor(null); load();
   };
 
-  const sendNow = async (ids: string[]) => {
+  const sendNow = async (ids: string[], combined = false) => {
     if (!ids.length) return toast.error('Select invoices to send');
     setSending(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-bulk-invoice', { body: { invoiceIds: ids } });
+      const { data, error } = await supabase.functions.invoke('send-bulk-invoice', { body: { invoiceIds: ids, combined } });
       if (error) throw error;
       const failed = (data?.results || []).filter((r: any) => !r.ok);
       if (failed.length) toast.error(`${failed.length} failed: ${failed[0].error || ''}`);
-      else toast.success(`Sent ${ids.length} invoice${ids.length > 1 ? 's' : ''}`);
+      else toast.success(combined ? `Sent ${ids.length} invoices in one email` : `Sent ${ids.length} invoice${ids.length > 1 ? 's' : ''}`);
       setSelected(new Set()); load();
     } catch (e: any) { toast.error(e.message || 'Send failed'); }
     finally { setSending(false); }
@@ -498,9 +499,22 @@ export default function InvoiceSender() {
               {selected.size > 0 && folderFilter === 'archived' && (
                 <Button variant="outline" onClick={() => bulkArchive(false)}><ArchiveRestore className="w-4 h-4 mr-1" />Restore</Button>
               )}
-              <Button variant="default" disabled={!selected.size || sending} onClick={() => sendNow(Array.from(selected))}>
-                <Send className="w-4 h-4 mr-2" />Send Selected ({selected.size})
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="default" disabled={!selected.size || sending}>
+                    <Send className="w-4 h-4 mr-2" />Send Selected ({selected.size})
+                    <ChevronDown className="w-4 h-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => sendNow(Array.from(selected), false)}>
+                    <Send className="w-4 h-4 mr-2" />Send individually (separate emails)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => sendNow(Array.from(selected), true)} disabled={selected.size < 2}>
+                    <Mails className="w-4 h-4 mr-2" />Send as one combined email
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button onClick={() => setUploadOpen(true)}><Upload className="w-4 h-4 mr-2" />Upload Invoices</Button>
             </div>
           </div>
