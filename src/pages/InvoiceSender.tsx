@@ -517,7 +517,7 @@ export default function InvoiceSender() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button onClick={() => setUploadOpen(true)}><Upload className="w-4 h-4 mr-2" />Upload Invoices</Button>
+              <Button onClick={() => setUploadOpen(true)}><Upload className="w-4 h-4 mr-2" />Upload Documents</Button>
             </div>
           </div>
 
@@ -555,7 +555,7 @@ export default function InvoiceSender() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Invoices ({filtered.length})</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Documents ({filtered.length})</CardTitle></CardHeader>
             <CardContent>
               {loading ? (
                 <div className="text-center text-muted-foreground py-8">Loading…</div>
@@ -669,7 +669,7 @@ export default function InvoiceSender() {
       {/* Upload dialog */}
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Upload Invoices</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Upload Documents</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Files (PDF or image) — multiple allowed</Label>
