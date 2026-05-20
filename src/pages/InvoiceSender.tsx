@@ -103,6 +103,8 @@ export default function InvoiceSender() {
     try { return localStorage.getItem('invoice_sender_folders_collapsed') === 'true'; } catch { return false; }
   });
 
+  const [previewSend, setPreviewSend] = useState<{ ids: string[]; combined: boolean } | null>(null);
+
   useEffect(() => {
     localStorage.setItem('invoice_sender_folders_collapsed', String(foldersCollapsed));
   }, [foldersCollapsed]);
@@ -426,7 +428,7 @@ export default function InvoiceSender() {
   };
 
   return (
-    <Layout title="Invoice Sender" subtitle="Upload invoices, organize in folders, send single or monthly.">
+    <Layout title="Document Sender" subtitle="Upload documents, organize in folders, send single or monthly.">
       <div className="flex h-[calc(100vh-8rem)]">
         {/* Folders sidebar */}
         <aside className={cn("border-r shrink-0 transition-all duration-200 flex flex-col", foldersCollapsed ? "w-10" : "w-64")}>
@@ -507,10 +509,10 @@ export default function InvoiceSender() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => sendNow(Array.from(selected), false)}>
+                  <DropdownMenuItem onClick={() => setPreviewSend({ ids: Array.from(selected), combined: false })}>
                     <Send className="w-4 h-4 mr-2" />Send individually (separate emails)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => sendNow(Array.from(selected), true)} disabled={selected.size < 2}>
+                  <DropdownMenuItem onClick={() => setPreviewSend({ ids: Array.from(selected), combined: true })} disabled={selected.size < 2}>
                     <Mails className="w-4 h-4 mr-2" />Send as one combined email
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -620,7 +622,7 @@ export default function InvoiceSender() {
                             <Button size="sm" variant="ghost" onClick={() => setEditFor({ ...i })} title="Edit"><Pencil className="w-4 h-4" /></Button>
                             {!i.archived_at ? (
                               <>
-                                <Button size="sm" variant="default" disabled={sending} onClick={() => sendNow([i.id])} title="Send"><Send className="w-4 h-4" /></Button>
+                                <Button size="sm" variant="default" disabled={sending} onClick={() => setPreviewSend({ ids: [i.id], combined: false })} title="Send"><Send className="w-4 h-4" /></Button>
                                 <Button size="sm" variant="ghost" onClick={() => setArchived(i.id, true)} title="Archive"><Archive className="w-4 h-4" /></Button>
                               </>
                             ) : (
