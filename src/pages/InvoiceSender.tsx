@@ -456,7 +456,7 @@ export default function InvoiceSender() {
           {!foldersCollapsed && (
             <div className="p-3 overflow-y-auto flex-1 space-y-1">
               {[
-                { id: 'all' as FolderFilter, name: 'All Invoices', icon: Inbox, count: counts.all },
+                { id: 'all' as FolderFilter, name: 'All Documents', icon: Inbox, count: counts.all },
                 { id: 'unfiled' as FolderFilter, name: 'Unfiled', icon: Folder, count: counts.unfiled },
               ].map(item => (
                 <button key={item.id} onClick={() => setFolderFilter(item.id)}
@@ -480,7 +480,7 @@ export default function InvoiceSender() {
         <div className="flex-1 p-6 space-y-4 overflow-y-auto">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h2 className="text-lg font-semibold">
-              {folderFilter === 'all' ? 'All Invoices'
+              {folderFilter === 'all' ? 'All Documents'
                 : folderFilter === 'unfiled' ? 'Unfiled'
                 : folderFilter === 'archived' ? 'Archived'
                 : folderName(folderFilter)}
