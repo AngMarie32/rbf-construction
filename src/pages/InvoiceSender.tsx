@@ -103,6 +103,8 @@ export default function InvoiceSender() {
     try { return localStorage.getItem('invoice_sender_folders_collapsed') === 'true'; } catch { return false; }
   });
 
+  const [previewSend, setPreviewSend] = useState<{ ids: string[]; combined: boolean } | null>(null);
+
   useEffect(() => {
     localStorage.setItem('invoice_sender_folders_collapsed', String(foldersCollapsed));
   }, [foldersCollapsed]);
@@ -426,7 +428,7 @@ export default function InvoiceSender() {
   };
 
   return (
-    <Layout title="Invoice Sender" subtitle="Upload invoices, organize in folders, send single or monthly.">
+    <Layout title="Document Sender" subtitle="Upload documents, organize in folders, send single or monthly.">
       <div className="flex h-[calc(100vh-8rem)]">
         {/* Folders sidebar */}
         <aside className={cn("border-r shrink-0 transition-all duration-200 flex flex-col", foldersCollapsed ? "w-10" : "w-64")}>
@@ -454,7 +456,7 @@ export default function InvoiceSender() {
           {!foldersCollapsed && (
             <div className="p-3 overflow-y-auto flex-1 space-y-1">
               {[
-                { id: 'all' as FolderFilter, name: 'All Invoices', icon: Inbox, count: counts.all },
+                { id: 'all' as FolderFilter, name: 'All Documents', icon: Inbox, count: counts.all },
                 { id: 'unfiled' as FolderFilter, name: 'Unfiled', icon: Folder, count: counts.unfiled },
               ].map(item => (
                 <button key={item.id} onClick={() => setFolderFilter(item.id)}
@@ -478,7 +480,7 @@ export default function InvoiceSender() {
         <div className="flex-1 p-6 space-y-4 overflow-y-auto">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h2 className="text-lg font-semibold">
-              {folderFilter === 'all' ? 'All Invoices'
+              {folderFilter === 'all' ? 'All Documents'
                 : folderFilter === 'unfiled' ? 'Unfiled'
                 : folderFilter === 'archived' ? 'Archived'
                 : folderName(folderFilter)}
@@ -507,15 +509,15 @@ export default function InvoiceSender() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => sendNow(Array.from(selected), false)}>
+                  <DropdownMenuItem onClick={() => setPreviewSend({ ids: Array.from(selected), combined: false })}>
                     <Send className="w-4 h-4 mr-2" />Send individually (separate emails)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => sendNow(Array.from(selected), true)} disabled={selected.size < 2}>
+                  <DropdownMenuItem onClick={() => setPreviewSend({ ids: Array.from(selected), combined: true })} disabled={selected.size < 2}>
                     <Mails className="w-4 h-4 mr-2" />Send as one combined email
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button onClick={() => setUploadOpen(true)}><Upload className="w-4 h-4 mr-2" />Upload Invoices</Button>
+              <Button onClick={() => setUploadOpen(true)}><Upload className="w-4 h-4 mr-2" />Upload Documents</Button>
             </div>
           </div>
 
@@ -553,7 +555,7 @@ export default function InvoiceSender() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Invoices ({filtered.length})</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Documents ({filtered.length})</CardTitle></CardHeader>
             <CardContent>
               {loading ? (
                 <div className="text-center text-muted-foreground py-8">Loading…</div>
@@ -620,7 +622,7 @@ export default function InvoiceSender() {
                             <Button size="sm" variant="ghost" onClick={() => setEditFor({ ...i })} title="Edit"><Pencil className="w-4 h-4" /></Button>
                             {!i.archived_at ? (
                               <>
-                                <Button size="sm" variant="default" disabled={sending} onClick={() => sendNow([i.id])} title="Send"><Send className="w-4 h-4" /></Button>
+                                <Button size="sm" variant="default" disabled={sending} onClick={() => setPreviewSend({ ids: [i.id], combined: false })} title="Send"><Send className="w-4 h-4" /></Button>
                                 <Button size="sm" variant="ghost" onClick={() => setArchived(i.id, true)} title="Archive"><Archive className="w-4 h-4" /></Button>
                               </>
                             ) : (
@@ -667,7 +669,7 @@ export default function InvoiceSender() {
       {/* Upload dialog */}
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Upload Invoices</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Upload Documents</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Files (PDF or image) — multiple allowed</Label>
@@ -889,10 +891,87 @@ export default function InvoiceSender() {
       {/* Replace file */}
       <Dialog open={!!replaceFor} onOpenChange={o => !o && setReplaceFor(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Replace invoice PDF</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Replace document file</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Upload a new PDF or image. The previous file will be replaced.</p>
+            <p className="text-sm text-muted-foreground">Upload a new file. The previous one will be replaced.</p>
             <Input type="file" accept="application/pdf,image/*" onChange={e => { const f = e.target.files?.[0]; if (f) replaceFile(f); }} />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send preview */}
+      <Dialog open={!!previewSend} onOpenChange={o => !o && setPreviewSend(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {previewSend?.combined ? 'Preview combined email' : `Preview ${previewSend?.ids.length || 0} email${(previewSend?.ids.length || 0) > 1 ? 's' : ''}`}
+            </DialogTitle>
+          </DialogHeader>
+          {previewSend && (() => {
+            const items = previewSend.ids
+              .map(id => invoices.find(i => i.id === id))
+              .filter((x): x is Invoice => !!x);
+            if (previewSend.combined) {
+              const to = Array.from(new Set(items.map(i => i.recipient_email).filter(Boolean)));
+              const cc = Array.from(new Set(items.flatMap(i => i.cc_emails || []).filter(e => !to.includes(e))));
+              const first = items[0];
+              return (
+                <div className="space-y-3 text-sm">
+                  <div className="rounded-md border p-3 space-y-2">
+                    <div><span className="text-muted-foreground">To:</span> {to.join(', ') || '—'}</div>
+                    {cc.length > 0 && <div><span className="text-muted-foreground">Cc:</span> {cc.join(', ')}</div>}
+                    <div><span className="text-muted-foreground">Subject:</span> {first?.subject || '(no subject)'}</div>
+                    <div className="pt-2 border-t whitespace-pre-wrap text-muted-foreground">
+                      {first?.message || '(no message body)'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium mb-1">Attachments ({items.length})</div>
+                    <ul className="space-y-1">
+                      {items.map(i => (
+                        <li key={i.id} className="flex items-center gap-2 text-xs">
+                          <FileText className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{i.file_name || i.invoice_number || 'document'}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Subject and message use the first selected document.
+                  </p>
+                </div>
+              );
+            }
+            return (
+              <div className="space-y-3 text-sm">
+                {items.map((i, idx) => (
+                  <div key={i.id} className="rounded-md border p-3 space-y-1">
+                    <div className="text-xs text-muted-foreground">Email {idx + 1} of {items.length}</div>
+                    <div><span className="text-muted-foreground">To:</span> {i.recipient_name} &lt;{i.recipient_email}&gt;</div>
+                    {(i.cc_emails || []).length > 0 && <div><span className="text-muted-foreground">Cc:</span> {(i.cc_emails || []).join(', ')}</div>}
+                    <div><span className="text-muted-foreground">Subject:</span> {i.subject || '(no subject)'}</div>
+                    <div className="flex items-center gap-2 text-xs pt-1">
+                      <FileText className="w-3 h-3" />
+                      <span className="truncate">{i.file_name || 'document'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+          <div className="flex justify-end gap-2 pt-3">
+            <Button variant="outline" onClick={() => setPreviewSend(null)}>Cancel</Button>
+            <Button
+              disabled={sending}
+              onClick={async () => {
+                const cfg = previewSend!;
+                setPreviewSend(null);
+                await sendNow(cfg.ids, cfg.combined);
+              }}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {previewSend?.combined ? 'Send combined email' : `Send ${previewSend?.ids.length || 0} email${(previewSend?.ids.length || 0) > 1 ? 's' : ''}`}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
