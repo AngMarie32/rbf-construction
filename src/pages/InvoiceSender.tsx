@@ -1011,12 +1011,17 @@ export default function InvoiceSender() {
                   <div>
                     <div className="font-medium mb-1">Attachments ({items.length})</div>
                     <ul className="space-y-1">
-                      {items.map(i => (
-                        <li key={i.id} className="flex items-center gap-2 text-xs">
-                          <FileText className="w-3 h-3 shrink-0" />
-                          <span className="truncate">{i.file_name || i.invoice_number || 'document'}</span>
-                        </li>
-                      ))}
+                      {items.map(i => {
+                        const pc = pageCounts[i.id];
+                        const pcLabel = pc === 'loading' ? 'counting pages…' : pc === 'error' ? 'page count unavailable' : typeof pc === 'number' ? `${pc} page${pc === 1 ? '' : 's'}` : '';
+                        return (
+                          <li key={i.id} className="flex items-center gap-2 text-xs">
+                            <FileText className="w-3 h-3 shrink-0" />
+                            <span className="font-mono truncate">{i.file_name || 'document'}</span>
+                            {pcLabel && <span className="text-muted-foreground shrink-0">— {pcLabel}</span>}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -1033,10 +1038,17 @@ export default function InvoiceSender() {
                     <div><span className="text-muted-foreground">To:</span> {i.recipient_name} &lt;{i.recipient_email}&gt;</div>
                     {(i.cc_emails || []).length > 0 && <div><span className="text-muted-foreground">Cc:</span> {(i.cc_emails || []).join(', ')}</div>}
                     <div><span className="text-muted-foreground">Subject:</span> {i.subject || '(no subject)'}</div>
-                    <div className="flex items-center gap-2 text-xs pt-1">
-                      <FileText className="w-3 h-3" />
-                      <span className="truncate">{i.file_name || 'document'}</span>
-                    </div>
+                    {(() => {
+                      const pc = pageCounts[i.id];
+                      const pcLabel = pc === 'loading' ? 'counting pages…' : pc === 'error' ? 'page count unavailable' : typeof pc === 'number' ? `${pc} page${pc === 1 ? '' : 's'}` : '';
+                      return (
+                        <div className="flex items-center gap-2 text-xs pt-1">
+                          <FileText className="w-3 h-3" />
+                          <span className="font-mono truncate">{i.file_name || 'document'}</span>
+                          {pcLabel && <span className="text-muted-foreground shrink-0">— {pcLabel}</span>}
+                        </div>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
