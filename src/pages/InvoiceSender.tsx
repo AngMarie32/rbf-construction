@@ -21,6 +21,7 @@ import {
 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PDFDocument } from 'pdf-lib';
 
 const CATEGORIES = ['Progress', 'Final', 'Retainer', 'Reimbursable', 'Material', 'Service', 'Other'];
 
@@ -104,10 +105,45 @@ export default function InvoiceSender() {
   });
 
   const [previewSend, setPreviewSend] = useState<{ ids: string[]; combined: boolean } | null>(null);
+  const [pageCounts, setPageCounts] = useState<Record<string, number | 'loading' | 'error'>>({});
 
   useEffect(() => {
     localStorage.setItem('invoice_sender_folders_collapsed', String(foldersCollapsed));
   }, [foldersCollapsed]);
+
+  // Load page counts for files in the send preview
+  useEffect(() => {
+    if (!previewSend) return;
+    const items = previewSend.ids
+      .map(id => invoices.find(i => i.id === id))
+      .filter((x): x is Invoice => !!x);
+    let cancelled = false;
+    (async () => {
+      for (const inv of items) {
+        if (pageCounts[inv.id] != null) continue;
+        setPageCounts(prev => ({ ...prev, [inv.id]: 'loading' }));
+        const name = (inv.file_name || '').toLowerCase();
+        const isPdf = name.endsWith('.pdf');
+        if (!isPdf) {
+          if (!cancelled) setPageCounts(prev => ({ ...prev, [inv.id]: 1 }));
+          continue;
+        }
+        try {
+          const { data, error } = await supabase.storage
+            .from('bulk-invoices')
+            .createSignedUrl(inv.file_path, 600);
+          if (error || !data) throw new Error('no url');
+          const resp = await fetch(data.signedUrl);
+          const buf = await resp.arrayBuffer();
+          const pdf = await PDFDocument.load(buf, { ignoreEncryption: true });
+          if (!cancelled) setPageCounts(prev => ({ ...prev, [inv.id]: pdf.getPageCount() }));
+        } catch {
+          if (!cancelled) setPageCounts(prev => ({ ...prev, [inv.id]: 'error' }));
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [previewSend, invoices]);
 
   const [files, setFiles] = useState<File[]>([]);
   const [form, setForm] = useState(emptyForm);
@@ -204,8 +240,29 @@ export default function InvoiceSender() {
           status: form.schedule_type === 'monthly' ? 'active' : 'draft',
         });
       }
-      const { error } = await supabase.from('bulk_invoices').insert(rows);
+      const { data: inserted, error } = await supabase.from('bulk_invoices').insert(rows).select('id, file_path, file_name, project_id, category, tags, notes');
       if (error) throw error;
+      // Mirror to project files when a project is selected
+      const docRows = (inserted || [])
+        .filter((r: any) => r.project_id)
+        .map((r: any) => ({
+          name: r.file_name || 'Document',
+          file_path: r.file_path,
+          file_size: files.find(f => f.name === r.file_name)?.size ?? null,
+          mime_type: files.find(f => f.name === r.file_name)?.type ?? null,
+          project_id: r.project_id,
+          category: r.category || 'Document Sender',
+          tags: r.tags,
+          description: r.notes,
+          uploaded_by: u.user.id,
+          is_current_version: true,
+          source_type: 'document_sender',
+          source_id: r.id,
+        }));
+      if (docRows.length) {
+        const { error: dErr } = await supabase.from('documents').insert(docRows);
+        if (dErr) console.error('Mirror to documents failed', dErr);
+      }
       toast.success(`${rows.length} invoice${rows.length > 1 ? 's' : ''} uploaded`);
       setUploadOpen(false); setFiles([]); setForm(emptyForm); load();
     } catch (e: any) { toast.error(e.message || 'Upload failed'); }
@@ -235,6 +292,32 @@ export default function InvoiceSender() {
       next_send_date: editFor.next_send_date,
     }).eq('id', editFor.id);
     if (error) return toast.error(error.message);
+    // Sync to project files if assigned to a project
+    if (editFor.project_id) {
+      const { data: existing } = await supabase
+        .from('documents')
+        .select('id')
+        .eq('source_type', 'document_sender')
+        .eq('source_id', editFor.id)
+        .maybeSingle();
+      const payload = {
+        name: editFor.file_name || 'Document',
+        file_path: editFor.file_path,
+        project_id: editFor.project_id,
+        category: editFor.category || 'Document Sender',
+        tags: tagsArr,
+        description: editFor.notes,
+        is_current_version: true,
+        source_type: 'document_sender',
+        source_id: editFor.id,
+      };
+      if (existing?.id) {
+        await supabase.from('documents').update(payload).eq('id', existing.id);
+      } else {
+        const { data: u } = await supabase.auth.getUser();
+        await supabase.from('documents').insert({ ...payload, uploaded_by: u.user?.id });
+      }
+    }
     toast.success('Invoice updated');
     setEditFor(null); load();
   };
