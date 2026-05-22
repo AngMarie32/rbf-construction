@@ -56,6 +56,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'Admin',
     items: [
+      { name: 'Weekly Reports', href: '/weekly-reports' },
       { name: 'Settings', href: '/settings' },
     ],
   },
