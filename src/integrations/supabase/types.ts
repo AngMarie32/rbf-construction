@@ -2893,6 +2893,98 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_report_runs: {
+        Row: {
+          error_message: string | null
+          id: string
+          is_test: boolean
+          recipient_count: number
+          sections: string[]
+          sent_at: string
+          status: string
+          subscription_id: string
+        }
+        Insert: {
+          error_message?: string | null
+          id?: string
+          is_test?: boolean
+          recipient_count?: number
+          sections?: string[]
+          sent_at?: string
+          status: string
+          subscription_id: string
+        }
+        Update: {
+          error_message?: string | null
+          id?: string
+          is_test?: boolean
+          recipient_count?: number
+          sections?: string[]
+          sent_at?: string
+          status?: string
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_report_runs_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_report_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_report_subscriptions: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          enabled: boolean
+          hour: number
+          id: string
+          last_sent_at: string | null
+          name: string
+          next_send_at: string | null
+          project_ids: string[] | null
+          recipients: string[]
+          sections: string[]
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week?: number
+          enabled?: boolean
+          hour?: number
+          id?: string
+          last_sent_at?: string | null
+          name?: string
+          next_send_at?: string | null
+          project_ids?: string[] | null
+          recipients?: string[]
+          sections?: string[]
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          enabled?: boolean
+          hour?: number
+          id?: string
+          last_sent_at?: string | null
+          name?: string
+          next_send_at?: string | null
+          project_ids?: string[] | null
+          recipients?: string[]
+          sections?: string[]
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -2901,6 +2993,10 @@ export type Database = {
       approve_role_change: {
         Args: { admin_notes?: string; request_id: string }
         Returns: undefined
+      }
+      compute_next_weekly_send: {
+        Args: { p_after: string; p_day: number; p_hour: number; p_tz: string }
+        Returns: string
       }
       generate_equipment_alerts: { Args: never; Returns: undefined }
     }
