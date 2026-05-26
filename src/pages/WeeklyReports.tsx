@@ -51,7 +51,7 @@ const FREQS: { id: Sub['frequency']; label: string }[] = [
   { id: 'monthly', label: 'Monthly' },
 ];
 const RANGE_OPTS = [
-  { v: '', label: 'Default for frequency' },
+  { v: 'default', label: 'Default for frequency' },
   { v: '7', label: 'Last 7 days' },
   { v: '14', label: 'Last 14 days' },
   { v: '30', label: 'Last 30 days' },
@@ -298,12 +298,12 @@ export default function WeeklyReports() {
             <div>
               <Label>Date range</Label>
               <Select
-                value={form.date_range_days == null ? '' : String(form.date_range_days)}
-                onValueChange={(v) => setForm({ ...form, date_range_days: v === '' ? null : Number(v) })}
+                value={form.date_range_days == null ? 'default' : String(form.date_range_days)}
+                onValueChange={(v) => setForm({ ...form, date_range_days: v === 'default' ? null : Number(v) })}
               >
                 <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
                 <SelectContent>
-                  {RANGE_OPTS.map((o) => <SelectItem key={o.v || 'def'} value={o.v || 'default'}>{o.label}</SelectItem>)}
+                  {RANGE_OPTS.map((o) => <SelectItem key={o.v} value={o.v}>{o.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
