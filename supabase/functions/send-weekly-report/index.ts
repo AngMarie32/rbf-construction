@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const SECTIONS = ['projects', 'financials', 'schedule', 'documents'] as const;
+const SECTIONS = ['projects', 'financials', 'schedule', 'documents', 'expenses', 'payment_apps', 'equipment', 'subcontractors'] as const;
 type Section = typeof SECTIONS[number];
 
 interface Sub {
@@ -16,10 +16,18 @@ interface Sub {
   sections: string[];
   recipients: string[];
   day_of_week: number;
+  day_of_month: number | null;
   hour: number;
   timezone: string;
+  frequency: string;
+  run_at: string | null;
+  subject_override: string | null;
+  date_range_days: number | null;
+  only_changes: boolean;
+  attach_csv: boolean;
   project_ids: string[] | null;
   enabled: boolean;
+  last_sent_at: string | null;
   next_send_at: string | null;
 }
 
@@ -30,7 +38,14 @@ function fmtMoney(n: number | null | undefined) {
 
 async function gatherData(admin: any, sub: Sub) {
   const now = new Date();
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  let rangeDays = sub.date_range_days ?? (sub.frequency === 'daily' ? 1 : sub.frequency === 'monthly' ? 30 : 7);
+  let rangeStart: Date;
+  if (rangeDays === -1) {
+    rangeStart = sub.last_sent_at ? new Date(sub.last_sent_at) : new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  } else {
+    rangeStart = new Date(now.getTime() - rangeDays * 24 * 60 * 60 * 1000);
+  }
+  const weekAgo = rangeStart;
   const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const isoWeekAgo = weekAgo.toISOString();
   const isoNow = now.toISOString();
@@ -41,7 +56,7 @@ async function gatherData(admin: any, sub: Sub) {
   const projectFilter = (q: any, col = 'project_id') =>
     sub.project_ids && sub.project_ids.length ? q.in(col, sub.project_ids) : q;
 
-  const data: any = {};
+  const data: any = { _rangeStart: rangeStart, _rangeEnd: now };
 
   if (sub.sections.includes('projects')) {
     let q = admin.from('projects').select('id,name,status,contract_value,completion_percentage,due_date');
@@ -93,6 +108,44 @@ async function gatherData(admin: any, sub: Sub) {
     data.documents = { changeOrders: changeOrders || [], sends: filteredSends };
   }
 
+  if (sub.sections.includes('expenses')) {
+    let eq = projectFilter(admin.from('expenses').select('id,project_id,vendor,amount,category,date,description').gte('date', dateWeekAgo).lte('date', dateNow));
+    const { data: exps } = await eq;
+    const list = exps || [];
+    const byVendor: Record<string, number> = {};
+    const byCategory: Record<string, number> = {};
+    let total = 0;
+    for (const e of list) {
+      const amt = Number(e.amount || 0);
+      total += amt;
+      byVendor[e.vendor || 'Unknown'] = (byVendor[e.vendor || 'Unknown'] || 0) + amt;
+      byCategory[e.category || 'Uncategorized'] = (byCategory[e.category || 'Uncategorized'] || 0) + amt;
+    }
+    data.expenses = {
+      total, count: list.length,
+      topVendors: Object.entries(byVendor).sort((a, b) => b[1] - a[1]).slice(0, 10),
+      byCategory: Object.entries(byCategory).sort((a, b) => b[1] - a[1]),
+    };
+  }
+
+  if (sub.sections.includes('payment_apps')) {
+    let pq = projectFilter(admin.from('payment_applications').select('id,project_id,application_number,status,total_completed_and_stored_to_date,current_payment_due,created_at,updated_at').gte('updated_at', isoWeekAgo));
+    const { data: apps } = await pq;
+    data.payment_apps = apps || [];
+  }
+
+  if (sub.sections.includes('equipment')) {
+    const { data: equip } = await admin.from('equipment').select('id,name,status,location,insurance_expiry');
+    const { data: alerts } = await admin.from('equipment_alerts').select('id,equipment_id,alert_type,message,severity,due_date,is_acknowledged').eq('is_acknowledged', false);
+    data.equipment = { items: equip || [], alerts: alerts || [] };
+  }
+
+  if (sub.sections.includes('subcontractors')) {
+    const { data: subs } = await admin.from('subcontractors').select('id,name,status,trade').eq('status', 'Active');
+    const { data: invs } = await admin.from('bid_invitation_recipients').select('id,status,sent_at,responded_at,subcontractor_id').gte('sent_at', isoWeekAgo);
+    data.subcontractors = { active: subs || [], recentInvites: invs || [] };
+  }
+
   return data;
 }
 
@@ -101,13 +154,15 @@ function escapeHtml(s: string) {
 }
 
 function buildHtml(sub: Sub, data: any) {
-  const periodEnd = new Date();
-  const periodStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const periodEnd: Date = data._rangeEnd || new Date();
+  const periodStart: Date = data._rangeStart || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const fmtDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   let body = '';
+  const onlyChanges = sub.only_changes;
+  const hasItems = (arr: any) => Array.isArray(arr) ? arr.length > 0 : !!arr;
 
-  if (sub.sections.includes('projects') && data.projects) {
+  if (sub.sections.includes('projects') && data.projects && (!onlyChanges || hasItems(data.projects))) {
     const rows = data.projects.map((p: any) =>
       `<tr><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(p.name)}</td>
         <td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(p.status || '')}</td>
@@ -121,7 +176,7 @@ function buildHtml(sub: Sub, data: any) {
       </thead><tbody>${rows}</tbody></table>`;
   }
 
-  if (sub.sections.includes('financials') && data.financials) {
+  if (sub.sections.includes('financials') && data.financials && (!onlyChanges || hasItems(data.financials))) {
     const rows = data.financials.map((f: any) =>
       `<tr><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(f.name)}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(f.contract)}</td>
@@ -135,7 +190,7 @@ function buildHtml(sub: Sub, data: any) {
       </thead><tbody>${rows}</tbody></table>`;
   }
 
-  if (sub.sections.includes('schedule') && data.schedule) {
+  if (sub.sections.includes('schedule') && data.schedule && (!onlyChanges || (data.schedule.completed.length + data.schedule.upcoming.length + data.schedule.overdue.length) > 0)) {
     const renderTasks = (arr: any[], empty: string) =>
       arr.length
         ? '<ul style="margin:4px 0 12px 20px;padding:0;font-family:Arial;font-size:13px">' +
@@ -151,7 +206,7 @@ function buildHtml(sub: Sub, data: any) {
       ${renderTasks(data.schedule.overdue, 'None.')}`;
   }
 
-  if (sub.sections.includes('documents') && data.documents) {
+  if (sub.sections.includes('documents') && data.documents && (!onlyChanges || (data.documents.changeOrders.length + data.documents.sends.length) > 0)) {
     const co = data.documents.changeOrders;
     const sends = data.documents.sends;
     const coRows = co.map((c: any) =>
@@ -177,16 +232,91 @@ function buildHtml(sub: Sub, data: any) {
       </thead><tbody>${sendRows}</tbody></table>`;
   }
 
+  if (sub.sections.includes('expenses') && data.expenses && (!onlyChanges || data.expenses.count > 0)) {
+    const e = data.expenses;
+    const vendorRows = e.topVendors.map(([v, a]: any) => `<tr><td style="padding:6px;border-bottom:1px solid #eee">${escapeHtml(v)}</td><td style="padding:6px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(a)}</td></tr>`).join('') || `<tr><td colspan="2" style="padding:8px;color:#888">No expenses.</td></tr>`;
+    const catRows = e.byCategory.map(([v, a]: any) => `<tr><td style="padding:6px;border-bottom:1px solid #eee">${escapeHtml(v)}</td><td style="padding:6px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(a)}</td></tr>`).join('') || `<tr><td colspan="2" style="padding:8px;color:#888">—</td></tr>`;
+    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Expenses</h2>
+      <p style="font-family:Arial;font-size:13px;margin:4px 0">Total: <strong>${fmtMoney(e.total)}</strong> across ${e.count} entries.</p>
+      <h3 style="font-family:Arial;font-size:14px;margin:8px 0 4px">Top vendors</h3>
+      <table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:13px"><tbody>${vendorRows}</tbody></table>
+      <h3 style="font-family:Arial;font-size:14px;margin:12px 0 4px">By category</h3>
+      <table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:13px"><tbody>${catRows}</tbody></table>`;
+  }
+
+  if (sub.sections.includes('payment_apps') && data.payment_apps && (!onlyChanges || data.payment_apps.length > 0)) {
+    const rows = data.payment_apps.map((p: any) =>
+      `<tr><td style="padding:8px;border-bottom:1px solid #eee">#${escapeHtml(String(p.application_number || ''))}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(p.status || '')}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(p.total_completed_and_stored_to_date)}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(p.current_payment_due)}</td></tr>`
+    ).join('') || `<tr><td colspan="4" style="padding:12px;color:#888">No pay app activity.</td></tr>`;
+    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Payment Applications</h2>
+      <table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:13px"><thead>
+      <tr style="background:#f4f4f4"><th style="text-align:left;padding:8px">App #</th><th style="text-align:left;padding:8px">Status</th><th style="text-align:right;padding:8px">Completed to date</th><th style="text-align:right;padding:8px">Current due</th></tr>
+      </thead><tbody>${rows}</tbody></table>`;
+  }
+
+  if (sub.sections.includes('equipment') && data.equipment && (!onlyChanges || data.equipment.alerts.length > 0)) {
+    const alertRows = data.equipment.alerts.map((a: any) =>
+      `<tr><td style="padding:6px;border-bottom:1px solid #eee">${escapeHtml(a.alert_type)}</td><td style="padding:6px;border-bottom:1px solid #eee">${escapeHtml(a.message)}</td><td style="padding:6px;border-bottom:1px solid #eee">${escapeHtml(a.severity)}</td><td style="padding:6px;border-bottom:1px solid #eee">${a.due_date || ''}</td></tr>`
+    ).join('') || `<tr><td colspan="4" style="padding:8px;color:#888">No open alerts.</td></tr>`;
+    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Equipment & Maintenance</h2>
+      <p style="font-family:Arial;font-size:13px;margin:4px 0">${data.equipment.items.length} units tracked · ${data.equipment.alerts.length} open alerts</p>
+      <table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:13px"><thead>
+      <tr style="background:#f4f4f4"><th style="text-align:left;padding:6px">Type</th><th style="text-align:left;padding:6px">Message</th><th style="text-align:left;padding:6px">Severity</th><th style="text-align:left;padding:6px">Due</th></tr>
+      </thead><tbody>${alertRows}</tbody></table>`;
+  }
+
+  if (sub.sections.includes('subcontractors') && data.subcontractors && (!onlyChanges || data.subcontractors.recentInvites.length > 0)) {
+    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Subcontractor Activity</h2>
+      <p style="font-family:Arial;font-size:13px;margin:4px 0">${data.subcontractors.active.length} active subcontractors · ${data.subcontractors.recentInvites.length} bid invitations in period</p>`;
+  }
+
   return `<div style="max-width:760px;margin:0 auto;padding:20px;color:#222">
     <div style="border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:8px">
       <h1 style="font-family:Arial;margin:0;font-size:22px">${escapeHtml(sub.name)}</h1>
-      <p style="font-family:Arial;color:#666;margin:4px 0 0;font-size:13px">RBF Construction — Weekly Recap for ${fmtDate(periodStart)} – ${fmtDate(periodEnd)}</p>
+      <p style="font-family:Arial;color:#666;margin:4px 0 0;font-size:13px">RBF Construction — Recap for ${fmtDate(periodStart)} – ${fmtDate(periodEnd)}</p>
     </div>
     ${body}
     <p style="font-family:Arial;color:#888;font-size:11px;margin-top:32px;border-top:1px solid #eee;padding-top:12px">
-      Generated automatically by RBF Construction Portal. Manage your weekly reports in the portal under Weekly Reports.
+      Generated automatically by RBF Construction Portal. Manage your reports in the portal under Weekly Reports.
     </p>
   </div>`;
+}
+
+function buildCsv(sub: Sub, data: any): string {
+  const lines: string[] = [];
+  const esc = (v: any) => {
+    const s = v == null ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const row = (...c: any[]) => lines.push(c.map(esc).join(','));
+  if (data.projects?.length) {
+    lines.push('# Projects');
+    row('Name', 'Status', '% Complete', 'Contract', 'Due');
+    for (const p of data.projects) row(p.name, p.status, p.completion_percentage ?? 0, p.contract_value ?? 0, p.due_date || '');
+    lines.push('');
+  }
+  if (data.financials?.length) {
+    lines.push('# Financials');
+    row('Project', 'Contract', 'Billed', 'Paid', 'Outstanding');
+    for (const f of data.financials) row(f.name, f.contract, f.billed, f.paid, f.outstanding);
+    lines.push('');
+  }
+  if (data.expenses) {
+    lines.push('# Expenses by category');
+    row('Category', 'Amount');
+    for (const [c, a] of data.expenses.byCategory) row(c, a);
+    lines.push('');
+  }
+  if (data.payment_apps?.length) {
+    lines.push('# Payment applications');
+    row('App #', 'Status', 'Completed to date', 'Current due');
+    for (const p of data.payment_apps) row(p.application_number, p.status, p.total_completed_and_stored_to_date, p.current_payment_due);
+    lines.push('');
+  }
+  return lines.join('\n');
 }
 
 async function buildPdf(sub: Sub, data: any): Promise<Uint8Array> {
@@ -212,8 +342,8 @@ async function buildPdf(sub: Sub, data: any): Promise<Uint8Array> {
   const hr = () => { ensureSpace(8); page.drawLine({ start: { x: margin, y }, end: { x: 612 - margin, y }, thickness: 0.5, color: rgb(0.7, 0.7, 0.7) }); y -= 8; };
 
   text(sub.name, { size: 18, bold: true });
-  const periodEnd = new Date();
-  const periodStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const periodEnd: Date = data._rangeEnd || new Date();
+  const periodStart: Date = data._rangeStart || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   text(`RBF Construction — ${periodStart.toLocaleDateString()} to ${periodEnd.toLocaleDateString()}`, { size: 10, color: rgb(0.4, 0.4, 0.4) });
   hr();
 
@@ -249,6 +379,29 @@ async function buildPdf(sub: Sub, data: any): Promise<Uint8Array> {
     for (const c of data.documents.changeOrders) text(`• #${c.number || ''} ${c.description || ''} — ${c.status || ''} — ${fmtMoney(c.amount)}`);
     text(`Documents sent (${data.documents.sends.length})`, { bold: true });
     for (const s of data.documents.sends) text(`• ${new Date(s.sent_at).toLocaleDateString()} — ${s.bulk_invoices?.file_name || ''} → ${s.sent_to}`);
+    hr();
+  }
+  if (sub.sections.includes('expenses') && data.expenses) {
+    text('Expenses', { size: 14, bold: true });
+    text(`Total ${fmtMoney(data.expenses.total)} across ${data.expenses.count} entries`);
+    text('Top vendors:', { bold: true });
+    for (const [v, a] of data.expenses.topVendors) text(`• ${v}: ${fmtMoney(a)}`);
+    hr();
+  }
+  if (sub.sections.includes('payment_apps') && data.payment_apps) {
+    text('Payment Applications', { size: 14, bold: true });
+    for (const p of data.payment_apps) text(`• #${p.application_number || ''} — ${p.status || ''} — Due ${fmtMoney(p.current_payment_due)}`);
+    hr();
+  }
+  if (sub.sections.includes('equipment') && data.equipment) {
+    text('Equipment & Maintenance', { size: 14, bold: true });
+    text(`${data.equipment.items.length} units · ${data.equipment.alerts.length} open alerts`);
+    for (const a of data.equipment.alerts) text(`• [${a.severity}] ${a.message} (due ${a.due_date || 'n/a'})`);
+    hr();
+  }
+  if (sub.sections.includes('subcontractors') && data.subcontractors) {
+    text('Subcontractor Activity', { size: 14, bold: true });
+    text(`${data.subcontractors.active.length} active subs · ${data.subcontractors.recentInvites.length} invites in period`);
   }
 
   return await pdf.save();
@@ -267,7 +420,15 @@ async function sendOne(admin: any, resendKey: string, sub: Sub, isTest: boolean)
     for (let i = 0; i < pdfBytes.length; i++) bin += String.fromCharCode(pdfBytes[i]);
     const pdfB64 = btoa(bin);
     const periodEnd = new Date();
-    const subject = `${sub.name} — Week of ${periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${isTest ? ' (TEST)' : ''}`;
+    const defaultSubject = `${sub.name} — ${periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    const subject = `${(sub.subject_override?.trim() || defaultSubject)}${isTest ? ' (TEST)' : ''}`;
+    const attachments: any[] = [
+      { filename: `report-${periodEnd.toISOString().slice(0, 10)}.pdf`, content: pdfB64 },
+    ];
+    if (sub.attach_csv) {
+      const csv = buildCsv(sub, data);
+      attachments.push({ filename: `report-${periodEnd.toISOString().slice(0, 10)}.csv`, content: btoa(unescape(encodeURIComponent(csv))) });
+    }
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendKey}` },
@@ -276,15 +437,31 @@ async function sendOne(admin: any, resendKey: string, sub: Sub, isTest: boolean)
         to: sub.recipients,
         subject,
         html,
-        attachments: [{ filename: `weekly-recap-${periodEnd.toISOString().slice(0, 10)}.pdf`, content: pdfB64 }],
+        attachments,
       }),
     });
     const respJson = await resp.json();
     if (!resp.ok) throw new Error(respJson?.message || 'Resend error');
     await admin.from('weekly_report_runs').insert({ subscription_id: sub.id, status: 'sent', recipient_count: sub.recipients.length, sections: sub.sections, is_test: isTest });
     if (!isTest) {
-      const { data: next } = await admin.rpc('compute_next_weekly_send', { p_day: sub.day_of_week, p_hour: sub.hour, p_tz: sub.timezone, p_after: new Date().toISOString() });
-      await admin.from('weekly_report_subscriptions').update({ last_sent_at: new Date().toISOString(), next_send_at: next }).eq('id', sub.id);
+      if (sub.frequency === 'one_time') {
+        await admin.from('weekly_report_subscriptions').update({
+          last_sent_at: new Date().toISOString(),
+          next_send_at: null,
+          enabled: false,
+        }).eq('id', sub.id);
+      } else {
+        const { data: next } = await admin.rpc('compute_next_scheduled_send', {
+          p_frequency: sub.frequency,
+          p_day_of_week: sub.day_of_week,
+          p_day_of_month: sub.day_of_month,
+          p_hour: sub.hour,
+          p_tz: sub.timezone,
+          p_run_at: sub.run_at,
+          p_after: new Date().toISOString(),
+        });
+        await admin.from('weekly_report_subscriptions').update({ last_sent_at: new Date().toISOString(), next_send_at: next }).eq('id', sub.id);
+      }
     }
     return { ok: true };
   } catch (e: any) {
