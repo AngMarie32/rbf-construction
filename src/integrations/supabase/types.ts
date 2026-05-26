@@ -2936,49 +2936,70 @@ export type Database = {
       }
       weekly_report_subscriptions: {
         Row: {
+          attach_csv: boolean
           created_at: string
+          date_range_days: number | null
+          day_of_month: number | null
           day_of_week: number
           enabled: boolean
+          frequency: string
           hour: number
           id: string
           last_sent_at: string | null
           name: string
           next_send_at: string | null
+          only_changes: boolean
           project_ids: string[] | null
           recipients: string[]
+          run_at: string | null
           sections: string[]
+          subject_override: string | null
           timezone: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          attach_csv?: boolean
           created_at?: string
+          date_range_days?: number | null
+          day_of_month?: number | null
           day_of_week?: number
           enabled?: boolean
+          frequency?: string
           hour?: number
           id?: string
           last_sent_at?: string | null
           name?: string
           next_send_at?: string | null
+          only_changes?: boolean
           project_ids?: string[] | null
           recipients?: string[]
+          run_at?: string | null
           sections?: string[]
+          subject_override?: string | null
           timezone?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          attach_csv?: boolean
           created_at?: string
+          date_range_days?: number | null
+          day_of_month?: number | null
           day_of_week?: number
           enabled?: boolean
+          frequency?: string
           hour?: number
           id?: string
           last_sent_at?: string | null
           name?: string
           next_send_at?: string | null
+          only_changes?: boolean
           project_ids?: string[] | null
           recipients?: string[]
+          run_at?: string | null
           sections?: string[]
+          subject_override?: string | null
           timezone?: string
           updated_at?: string
           user_id?: string
@@ -2993,6 +3014,18 @@ export type Database = {
       approve_role_change: {
         Args: { admin_notes?: string; request_id: string }
         Returns: undefined
+      }
+      compute_next_scheduled_send: {
+        Args: {
+          p_after: string
+          p_day_of_month: number
+          p_day_of_week: number
+          p_frequency: string
+          p_hour: number
+          p_run_at: string
+          p_tz: string
+        }
+        Returns: string
       }
       compute_next_weekly_send: {
         Args: { p_after: string; p_day: number; p_hour: number; p_tz: string }

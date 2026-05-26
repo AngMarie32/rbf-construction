@@ -18,8 +18,15 @@ interface Sub {
   sections: string[];
   recipients: string[];
   day_of_week: number;
+  day_of_month: number | null;
   hour: number;
   timezone: string;
+  frequency: 'one_time' | 'daily' | 'weekly' | 'monthly';
+  run_at: string | null;
+  subject_override: string | null;
+  date_range_days: number | null;
+  only_changes: boolean;
+  attach_csv: boolean;
   project_ids: string[] | null;
   enabled: boolean;
   last_sent_at: string | null;
@@ -31,8 +38,25 @@ const SECTION_OPTS = [
   { id: 'financials', label: 'Financials' },
   { id: 'schedule', label: 'Schedule & tasks' },
   { id: 'documents', label: 'Documents & change orders' },
+  { id: 'expenses', label: 'Expenses summary' },
+  { id: 'payment_apps', label: 'Payment applications' },
+  { id: 'equipment', label: 'Equipment & maintenance' },
+  { id: 'subcontractors', label: 'Subcontractor activity' },
 ];
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const FREQS: { id: Sub['frequency']; label: string }[] = [
+  { id: 'one_time', label: 'One-time' },
+  { id: 'daily', label: 'Daily' },
+  { id: 'weekly', label: 'Weekly' },
+  { id: 'monthly', label: 'Monthly' },
+];
+const RANGE_OPTS = [
+  { v: 'default', label: 'Default for frequency' },
+  { v: '7', label: 'Last 7 days' },
+  { v: '14', label: 'Last 14 days' },
+  { v: '30', label: 'Last 30 days' },
+  { v: '-1', label: 'Since last send' },
+];
 
 function defaultForm(): Omit<Sub, 'id' | 'last_sent_at' | 'next_send_at'> {
   return {
@@ -40,8 +64,15 @@ function defaultForm(): Omit<Sub, 'id' | 'last_sent_at' | 'next_send_at'> {
     sections: ['projects', 'financials', 'schedule', 'documents'],
     recipients: [],
     day_of_week: 1,
+    day_of_month: 1,
     hour: 7,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
+    frequency: 'weekly',
+    run_at: null,
+    subject_override: null,
+    date_range_days: null,
+    only_changes: false,
+    attach_csv: false,
     project_ids: null,
     enabled: true,
   };
@@ -78,7 +109,9 @@ export default function WeeklyReports() {
     setEditing(s);
     setForm({
       name: s.name, sections: s.sections, recipients: s.recipients,
-      day_of_week: s.day_of_week, hour: s.hour, timezone: s.timezone,
+      day_of_week: s.day_of_week, day_of_month: s.day_of_month ?? 1, hour: s.hour, timezone: s.timezone,
+      frequency: s.frequency || 'weekly', run_at: s.run_at, subject_override: s.subject_override,
+      date_range_days: s.date_range_days, only_changes: !!s.only_changes, attach_csv: !!s.attach_csv,
       project_ids: s.project_ids, enabled: s.enabled,
     });
     setRecipientInput('');
@@ -98,6 +131,7 @@ export default function WeeklyReports() {
     if (!form.name.trim()) { toast.error('Name required'); return; }
     if (form.sections.length === 0) { toast.error('Pick at least one section'); return; }
     if (form.recipients.length === 0) { toast.error('Add at least one recipient'); return; }
+    if (form.frequency === 'one_time' && !form.run_at) { toast.error('Pick a date/time for one-time report'); return; }
     const { data: userData } = await supabase.auth.getUser();
     if (!userData?.user) { toast.error('Sign in required'); return; }
     const payload = { ...form, user_id: userData.user.id };
@@ -135,14 +169,14 @@ export default function WeeklyReports() {
   };
 
   return (
-    <Layout title="Weekly Reports" subtitle="Schedule recurring weekly recap emails">
+    <Layout title="Scheduled Reports" subtitle="Send recap emails one-time or on a recurring schedule">
       <div className="flex justify-end">
-        <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> New Weekly Report</Button>
+        <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> New Report</Button>
       </div>
 
       {showForm && (
         <Card className="p-6 space-y-4">
-          <h2 className="font-display text-lg">{editing ? 'Edit weekly report' : 'New weekly report'}</h2>
+          <h2 className="font-display text-lg">{editing ? 'Edit report' : 'New report'}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>Name</Label>
@@ -152,6 +186,15 @@ export default function WeeklyReports() {
               <Switch checked={form.enabled} onCheckedChange={(v) => setForm({ ...form, enabled: v })} />
               <Label>Enabled</Label>
             </div>
+          </div>
+
+          <div>
+            <Label>Custom subject line (optional)</Label>
+            <Input
+              value={form.subject_override || ''}
+              placeholder="Leave blank for auto subject"
+              onChange={(e) => setForm({ ...form, subject_override: e.target.value || null })}
+            />
           </div>
 
           <div>
@@ -195,31 +238,86 @@ export default function WeeklyReports() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <Label>Day</Label>
-              <Select value={String(form.day_of_week)} onValueChange={(v) => setForm({ ...form, day_of_week: Number(v) })}>
+              <Label>Frequency</Label>
+              <Select value={form.frequency} onValueChange={(v) => setForm({ ...form, frequency: v as Sub['frequency'] })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{DAYS.map((d, i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}</SelectContent>
+                <SelectContent>{FREQS.map((f) => <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Hour</Label>
-              <Select value={String(form.hour)} onValueChange={(v) => setForm({ ...form, hour: Number(v) })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 24 }).map((_, i) => (
-                    <SelectItem key={i} value={String(i)}>
-                      {i === 0 ? '12 AM' : i < 12 ? `${i} AM` : i === 12 ? '12 PM' : `${i - 12} PM`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {form.frequency === 'weekly' && (
+              <div>
+                <Label>Day of week</Label>
+                <Select value={String(form.day_of_week)} onValueChange={(v) => setForm({ ...form, day_of_week: Number(v) })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{DAYS.map((d, i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            )}
+            {form.frequency === 'monthly' && (
+              <div>
+                <Label>Day of month</Label>
+                <Select value={String(form.day_of_month ?? 1)} onValueChange={(v) => setForm({ ...form, day_of_month: Number(v) })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 31 }).map((_, i) => <SelectItem key={i} value={String(i + 1)}>{i + 1}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {form.frequency !== 'one_time' && (
+              <div>
+                <Label>Hour</Label>
+                <Select value={String(form.hour)} onValueChange={(v) => setForm({ ...form, hour: Number(v) })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 24 }).map((_, i) => (
+                      <SelectItem key={i} value={String(i)}>
+                        {i === 0 ? '12 AM' : i < 12 ? `${i} AM` : i === 12 ? '12 PM' : `${i - 12} PM`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {form.frequency === 'one_time' && (
+              <div className="md:col-span-2">
+                <Label>Send date & time</Label>
+                <Input
+                  type="datetime-local"
+                  value={form.run_at ? new Date(form.run_at).toISOString().slice(0, 16) : ''}
+                  onChange={(e) => setForm({ ...form, run_at: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                />
+              </div>
+            )}
             <div>
               <Label>Timezone</Label>
               <Input value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />
             </div>
+            <div>
+              <Label>Date range</Label>
+              <Select
+                value={form.date_range_days == null ? 'default' : String(form.date_range_days)}
+                onValueChange={(v) => setForm({ ...form, date_range_days: v === 'default' ? null : Number(v) })}
+              >
+                <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
+                <SelectContent>
+                  {RANGE_OPTS.map((o) => <SelectItem key={o.v} value={o.v}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className="flex items-center gap-3 text-sm">
+              <Switch checked={form.only_changes} onCheckedChange={(v) => setForm({ ...form, only_changes: v })} />
+              Include only sections with activity in the period
+            </label>
+            <label className="flex items-center gap-3 text-sm">
+              <Switch checked={form.attach_csv} onCheckedChange={(v) => setForm({ ...form, attach_csv: v })} />
+              Attach CSV export alongside PDF
+            </label>
           </div>
 
           <div>
@@ -253,16 +351,24 @@ export default function WeeklyReports() {
 
       <div className="space-y-2">
         {loading ? <p className="text-muted-foreground">Loading...</p> :
-          subs.length === 0 ? <p className="text-muted-foreground">No weekly reports yet.</p> :
+          subs.length === 0 ? <p className="text-muted-foreground">No scheduled reports yet.</p> :
           subs.map((s) => (
             <Card key={s.id} className="p-4 flex items-center justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h3 className="font-display font-semibold">{s.name}</h3>
                   {!s.enabled && <Badge variant="secondary">Paused</Badge>}
+                  <Badge variant="outline">{(s.frequency || 'weekly').replace('_', ' ')}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {DAYS[s.day_of_week]} at {s.hour === 0 ? '12 AM' : s.hour < 12 ? `${s.hour} AM` : s.hour === 12 ? '12 PM' : `${s.hour - 12} PM`} · {s.timezone} · {s.recipients.length} recipient(s) · {s.sections.length} section(s)
+                  {s.frequency === 'one_time' && s.run_at
+                    ? `One-time: ${new Date(s.run_at).toLocaleString()}`
+                    : s.frequency === 'monthly'
+                    ? `Day ${s.day_of_month ?? 1} of each month at ${s.hour}:00`
+                    : s.frequency === 'daily'
+                    ? `Daily at ${s.hour}:00`
+                    : `${DAYS[s.day_of_week]} at ${s.hour === 0 ? '12 AM' : s.hour < 12 ? `${s.hour} AM` : s.hour === 12 ? '12 PM' : `${s.hour - 12} PM`}`}
+                  {' · '}{s.timezone} · {s.recipients.length} recipient(s) · {s.sections.length} section(s)
                 </p>
                 {s.next_send_at && s.enabled && (
                   <p className="text-xs text-muted-foreground">Next send: {new Date(s.next_send_at).toLocaleString()}</p>
