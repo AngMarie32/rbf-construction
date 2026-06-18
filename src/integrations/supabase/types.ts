@@ -452,6 +452,62 @@ export type Database = {
           },
         ]
       }
+      blueprint_analyses: {
+        Row: {
+          created_at: string
+          error: string | null
+          file_name: string
+          file_type: string | null
+          file_url: string
+          id: string
+          notes: string | null
+          project_id: string | null
+          result: Json | null
+          selected_categories: string[]
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          id?: string
+          notes?: string | null
+          project_id?: string | null
+          result?: Json | null
+          selected_categories?: string[]
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          notes?: string | null
+          project_id?: string | null
+          result?: Json | null
+          selected_categories?: string[]
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blueprint_analyses_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budget_alerts: {
         Row: {
           acknowledged_at: string | null
