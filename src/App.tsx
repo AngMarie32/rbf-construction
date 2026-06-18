@@ -49,6 +49,7 @@ import EsignRecipientGroups from '@/pages/esign/EsignRecipientGroups';
 import EsignMySignature from '@/pages/esign/EsignMySignature';
 import InvoiceSender from '@/pages/InvoiceSender';
 import WeeklyReports from '@/pages/WeeklyReports';
+import BlueprintAnalyzer from '@/pages/BlueprintAnalyzer';
 
 const queryClient = new QueryClient();
 
@@ -294,6 +295,7 @@ function App() {
             <Route path="/esign/my-signature" element={<ProtectedRoute><EsignMySignature /></ProtectedRoute>} />
             <Route path="/invoice-sender" element={<ProtectedRoute><InvoiceSender /></ProtectedRoute>} />
             <Route path="/weekly-reports" element={<ProtectedRoute><WeeklyReports /></ProtectedRoute>} />
+            <Route path="/blueprint-analyzer" element={<ProtectedRoute><BlueprintAnalyzer /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />

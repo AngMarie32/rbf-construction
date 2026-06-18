@@ -5,11 +5,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calculator, FileText, Settings } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BidTemplateSelector } from './BidTemplateSelector';
 import { BidCreationView } from './BidCreationView';
 import { BidSettings } from './BidSettings';
+import BlueprintAnalyzer from '@/pages/BlueprintAnalyzer';
 
 interface TabbedBidInterfaceProps {
   projectId: string;
@@ -146,10 +148,14 @@ export function TabbedBidInterface({
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex justify-between items-center">
-          <TabsList className="grid grid-cols-3 w-full max-w-xl">
+          <TabsList className="grid grid-cols-4 w-full max-w-2xl">
             <TabsTrigger value="create" className="flex items-center gap-2">
               <Calculator className="w-4 h-4" />
               Create Bid
+            </TabsTrigger>
+            <TabsTrigger value="blueprint" className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              Blueprint AI
             </TabsTrigger>
             <TabsTrigger value="templates" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
@@ -170,6 +176,10 @@ export function TabbedBidInterface({
             showCreateView={showCreateView}
             onShowCreateViewChange={setShowCreateView}
           />
+        </TabsContent>
+
+        <TabsContent value="blueprint">
+          <BlueprintAnalyzer embeddedProjectId={projectId} />
         </TabsContent>
 
         <TabsContent value="templates">
