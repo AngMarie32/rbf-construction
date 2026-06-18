@@ -45,6 +45,7 @@ const navGroups: NavGroup[] = [
     label: 'Financial',
     items: [
       { name: 'Bid Planner', href: '/bid-planner' },
+      { name: 'Blueprint Analyzer', href: '/blueprint-analyzer' },
       { name: 'Proposals', href: '/proposals' },
       { name: 'Expenses', href: '/expenses' },
       { name: 'Payment Apps', href: '/payment-applications' },
