@@ -1,0 +1,1 @@
+ALTER TABLE public.blueprint_analyses ADD COLUMN IF NOT EXISTS bid_document_urls jsonb NOT NULL DEFAULT '[]'::jsonb;

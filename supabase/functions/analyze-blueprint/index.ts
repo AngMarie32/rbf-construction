@@ -17,7 +17,7 @@ const CATEGORY_DEFINITIONS: Record<string, string> = {
     "MEP & Specialty: mechanical (HVAC tonnage/EA), electrical (panels, fixtures, devices, rough wire LF), plumbing (fixtures EA, supply/waste LF), FRP panels (SF), specialty coatings (SF).",
 };
 
-function buildPrompt(categories: string[], notes: string) {
+function buildPrompt(categories: string[], notes: string, hasBidDocs: boolean) {
   const scopeBlock = categories
     .map((c) => `- ${CATEGORY_DEFINITIONS[c] ?? c}`)
     .join("\n");
@@ -27,7 +27,7 @@ Extract a detailed scope of work and bid line items ONLY for the categories the 
 ${scopeBlock}
 
 ${notes ? `User notes / project context: ${notes}\n` : ""}
-
+${hasBidDocs ? "Supporting bid documents (subcontractor quotes, vendor proposals, prior bids, pricing sheets) are attached. PREFER unit prices and line items from those documents when they cover the same scope. Cite the source briefly in notes (e.g. \"from ABC Plumbing quote\").\n" : ""}
 For every line item, return:
 - category (one of: Sitework, Concrete, Framing, Envelope, Interior, MEP, Specialty)
 - description (specific, e.g. "4\\" Concrete slab on grade with #4 rebar 12\\" OC")
@@ -50,6 +50,42 @@ Return ONLY valid JSON matching this exact shape:
 }`;
 }
 
+async function appendFileToContent(
+  content: any[],
+  url: string,
+  fileType: string,
+  filenameBase: string,
+) {
+  const isPdf = (fileType || "").includes("pdf") || url.toLowerCase().endsWith(".pdf");
+  const isImage =
+    (fileType || "").startsWith("image/") ||
+    /\.(png|jpe?g|webp|gif|bmp)$/i.test(url);
+
+  if (isImage && !isPdf) {
+    content.push({ type: "image_url", image_url: { url } });
+    return;
+  }
+
+  // PDF or other doc: fetch and base64-encode
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch ${filenameBase}: ${res.status}`);
+  const buf = new Uint8Array(await res.arrayBuffer());
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < buf.length; i += chunk) {
+    binary += String.fromCharCode(...buf.subarray(i, i + chunk));
+  }
+  const b64 = btoa(binary);
+  const mime = isPdf ? "application/pdf" : (fileType || "application/pdf");
+  content.push({
+    type: "file",
+    file: {
+      filename: `${filenameBase}.${isPdf ? "pdf" : "bin"}`,
+      file_data: `data:${mime};base64,${b64}`,
+    },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -62,7 +98,13 @@ serve(async (req) => {
       });
     }
 
-    const { fileUrl, fileType, categories = [], notes = "" } = await req.json();
+    const {
+      fileUrl,
+      fileType,
+      categories = [],
+      notes = "",
+      bidDocumentUrls = [],
+    } = await req.json();
     if (!fileUrl) {
       return new Response(JSON.stringify({ error: "fileUrl is required" }), {
         status: 400,
@@ -76,37 +118,24 @@ serve(async (req) => {
       });
     }
 
-    const prompt = buildPrompt(categories, notes);
+    const prompt = buildPrompt(categories, notes, Array.isArray(bidDocumentUrls) && bidDocumentUrls.length > 0);
     const isPdf = (fileType || "").includes("pdf") || fileUrl.toLowerCase().endsWith(".pdf");
 
-    // For PDFs, fetch and base64-encode as a file part; for images, pass URL directly.
-    let userContent: any[];
-    if (isPdf) {
-      const res = await fetch(fileUrl);
-      if (!res.ok) throw new Error(`Failed to fetch blueprint: ${res.status}`);
-      const buf = new Uint8Array(await res.arrayBuffer());
-      // base64 encode
-      let binary = "";
-      const chunk = 0x8000;
-      for (let i = 0; i < buf.length; i += chunk) {
-        binary += String.fromCharCode(...buf.subarray(i, i + chunk));
+    const userContent: any[] = [{ type: "text", text: prompt }];
+    await appendFileToContent(userContent, fileUrl, fileType, "blueprint");
+    if (Array.isArray(bidDocumentUrls)) {
+      for (let i = 0; i < bidDocumentUrls.length; i++) {
+        const d = bidDocumentUrls[i];
+        const url = typeof d === "string" ? d : d?.url;
+        const ft = typeof d === "string" ? "" : d?.fileType || "";
+        const name = typeof d === "string" ? `bid_doc_${i + 1}` : d?.name || `bid_doc_${i + 1}`;
+        if (!url) continue;
+        userContent.push({
+          type: "text",
+          text: `Supporting bid document #${i + 1}: ${name}. Use its line items, unit prices and quotes when assigning costs.`,
+        });
+        await appendFileToContent(userContent, url, ft, `bid_${i + 1}`);
       }
-      const b64 = btoa(binary);
-      userContent = [
-        { type: "text", text: prompt },
-        {
-          type: "file",
-          file: {
-            filename: "blueprint.pdf",
-            file_data: `data:application/pdf;base64,${b64}`,
-          },
-        },
-      ];
-    } else {
-      userContent = [
-        { type: "text", text: prompt },
-        { type: "image_url", image_url: { url: fileUrl } },
-      ];
     }
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
