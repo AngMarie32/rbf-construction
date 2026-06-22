@@ -391,15 +391,24 @@ export default function BlueprintAnalyzer({ embeddedProjectId }: Props) {
         </CardContent>
       </Card>
 
-      {items.length > 0 && (
+      {(hasRun || items.length > 0) && (
         <Card>
           <CardHeader>
             <div className="flex items-start justify-between gap-4">
               <div>
                 <CardTitle>Extracted Scope & Bid Items</CardTitle>
-                {summary && (
+                {analyzing ? (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Analyzing blueprint with AI — this can take 30–90 seconds for detailed plans...
+                  </p>
+                ) : summary ? (
                   <p className="text-sm text-muted-foreground mt-2 max-w-3xl">{summary}</p>
-                )}
+                ) : items.length === 0 ? (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    No line items were extracted. Try a higher-resolution plan or add supporting
+                    bid documents.
+                  </p>
+                ) : null}
               </div>
               <div className="text-right">
                 <div className="text-xs text-muted-foreground">Selected total</div>
@@ -419,6 +428,14 @@ export default function BlueprintAnalyzer({ embeddedProjectId }: Props) {
             )}
           </CardHeader>
           <CardContent>
+            {items.length === 0 && analyzing && (
+              <div className="flex items-center justify-center py-12 text-muted-foreground">
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Running AI takeoff...
+              </div>
+            )}
+            {items.length > 0 && (
+            <>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -517,6 +534,8 @@ export default function BlueprintAnalyzer({ embeddedProjectId }: Props) {
                 Create Selected Bid Items
               </Button>
             </div>
+            </>
+            )}
           </CardContent>
         </Card>
       )}
