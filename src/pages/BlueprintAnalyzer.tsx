@@ -305,6 +305,51 @@ export default function BlueprintAnalyzer({ embeddedProjectId }: Props) {
           </div>
 
           <div>
+            <Label>Supporting bid documents (optional)</Label>
+            <p className="text-xs text-muted-foreground mt-1">
+              Subcontractor quotes, vendor proposals, prior bids, or pricing sheets. The AI will use
+              these to calibrate unit costs.
+            </p>
+            <Input
+              type="file"
+              accept="application/pdf,image/*"
+              multiple
+              className="mt-2"
+              onChange={(e) => {
+                const list = Array.from(e.target.files || []);
+                setBidDocs((prev) => [...prev, ...list]);
+                e.target.value = "";
+              }}
+            />
+            {bidDocs.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {bidDocs.map((d, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-2 text-sm bg-muted/50 rounded px-2 py-1"
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <FileText className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{d.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({(d.size / 1024 / 1024).toFixed(2)} MB)
+                      </span>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      onClick={() => setBidDocs((prev) => prev.filter((_, idx) => idx !== i))}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
             <Label>After analysis</Label>
             <div className="grid grid-cols-2 gap-2 mt-2">
               <button
