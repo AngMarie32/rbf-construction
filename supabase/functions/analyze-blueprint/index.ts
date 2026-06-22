@@ -17,7 +17,7 @@ const CATEGORY_DEFINITIONS: Record<string, string> = {
     "MEP & Specialty: mechanical (HVAC tonnage/EA), electrical (panels, fixtures, devices, rough wire LF), plumbing (fixtures EA, supply/waste LF), FRP panels (SF), specialty coatings (SF).",
 };
 
-function buildPrompt(categories: string[], notes: string) {
+function buildPrompt(categories: string[], notes: string, hasBidDocs: boolean) {
   const scopeBlock = categories
     .map((c) => `- ${CATEGORY_DEFINITIONS[c] ?? c}`)
     .join("\n");
@@ -27,7 +27,7 @@ Extract a detailed scope of work and bid line items ONLY for the categories the 
 ${scopeBlock}
 
 ${notes ? `User notes / project context: ${notes}\n` : ""}
-
+${hasBidDocs ? "Supporting bid documents (subcontractor quotes, vendor proposals, prior bids, pricing sheets) are attached. PREFER unit prices and line items from those documents when they cover the same scope. Cite the source briefly in notes (e.g. \"from ABC Plumbing quote\").\n" : ""}
 For every line item, return:
 - category (one of: Sitework, Concrete, Framing, Envelope, Interior, MEP, Specialty)
 - description (specific, e.g. "4\\" Concrete slab on grade with #4 rebar 12\\" OC")
@@ -48,6 +48,42 @@ Return ONLY valid JSON matching this exact shape:
     { "category": "string", "description": "string", "quantity": 0, "unit": "string", "unit_cost": 0, "notes": "string" }
   ]
 }`;
+}
+
+async function appendFileToContent(
+  content: any[],
+  url: string,
+  fileType: string,
+  filenameBase: string,
+) {
+  const isPdf = (fileType || "").includes("pdf") || url.toLowerCase().endsWith(".pdf");
+  const isImage =
+    (fileType || "").startsWith("image/") ||
+    /\.(png|jpe?g|webp|gif|bmp)$/i.test(url);
+
+  if (isImage && !isPdf) {
+    content.push({ type: "image_url", image_url: { url } });
+    return;
+  }
+
+  // PDF or other doc: fetch and base64-encode
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch ${filenameBase}: ${res.status}`);
+  const buf = new Uint8Array(await res.arrayBuffer());
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < buf.length; i += chunk) {
+    binary += String.fromCharCode(...buf.subarray(i, i + chunk));
+  }
+  const b64 = btoa(binary);
+  const mime = isPdf ? "application/pdf" : (fileType || "application/pdf");
+  content.push({
+    type: "file",
+    file: {
+      filename: `${filenameBase}.${isPdf ? "pdf" : "bin"}`,
+      file_data: `data:${mime};base64,${b64}`,
+    },
+  });
 }
 
 serve(async (req) => {
