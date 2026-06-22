@@ -454,6 +454,7 @@ export type Database = {
       }
       blueprint_analyses: {
         Row: {
+          bid_document_urls: Json
           created_at: string
           error: string | null
           file_name: string
@@ -469,6 +470,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bid_document_urls?: Json
           created_at?: string
           error?: string | null
           file_name: string
@@ -484,6 +486,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bid_document_urls?: Json
           created_at?: string
           error?: string | null
           file_name?: string
