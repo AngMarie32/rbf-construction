@@ -62,7 +62,13 @@ serve(async (req) => {
       });
     }
 
-    const { fileUrl, fileType, categories = [], notes = "" } = await req.json();
+    const {
+      fileUrl,
+      fileType,
+      categories = [],
+      notes = "",
+      bidDocumentUrls = [],
+    } = await req.json();
     if (!fileUrl) {
       return new Response(JSON.stringify({ error: "fileUrl is required" }), {
         status: 400,
@@ -76,37 +82,24 @@ serve(async (req) => {
       });
     }
 
-    const prompt = buildPrompt(categories, notes);
+    const prompt = buildPrompt(categories, notes, Array.isArray(bidDocumentUrls) && bidDocumentUrls.length > 0);
     const isPdf = (fileType || "").includes("pdf") || fileUrl.toLowerCase().endsWith(".pdf");
 
-    // For PDFs, fetch and base64-encode as a file part; for images, pass URL directly.
-    let userContent: any[];
-    if (isPdf) {
-      const res = await fetch(fileUrl);
-      if (!res.ok) throw new Error(`Failed to fetch blueprint: ${res.status}`);
-      const buf = new Uint8Array(await res.arrayBuffer());
-      // base64 encode
-      let binary = "";
-      const chunk = 0x8000;
-      for (let i = 0; i < buf.length; i += chunk) {
-        binary += String.fromCharCode(...buf.subarray(i, i + chunk));
+    const userContent: any[] = [{ type: "text", text: prompt }];
+    await appendFileToContent(userContent, fileUrl, fileType, "blueprint");
+    if (Array.isArray(bidDocumentUrls)) {
+      for (let i = 0; i < bidDocumentUrls.length; i++) {
+        const d = bidDocumentUrls[i];
+        const url = typeof d === "string" ? d : d?.url;
+        const ft = typeof d === "string" ? "" : d?.fileType || "";
+        const name = typeof d === "string" ? `bid_doc_${i + 1}` : d?.name || `bid_doc_${i + 1}`;
+        if (!url) continue;
+        userContent.push({
+          type: "text",
+          text: `Supporting bid document #${i + 1}: ${name}. Use its line items, unit prices and quotes when assigning costs.`,
+        });
+        await appendFileToContent(userContent, url, ft, `bid_${i + 1}`);
       }
-      const b64 = btoa(binary);
-      userContent = [
-        { type: "text", text: prompt },
-        {
-          type: "file",
-          file: {
-            filename: "blueprint.pdf",
-            file_data: `data:application/pdf;base64,${b64}`,
-          },
-        },
-      ];
-    } else {
-      userContent = [
-        { type: "text", text: prompt },
-        { type: "image_url", image_url: { url: fileUrl } },
-      ];
     }
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
