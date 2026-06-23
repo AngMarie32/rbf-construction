@@ -15,6 +15,40 @@ const CATEGORY_DEFINITIONS: Record<string, string> = {
     "Interior Finishes: drywall (SF), paint (SF or GAL), flooring by type (SF), ceilings (SF), trim (LF), millwork.",
   mep_specialty:
     "MEP & Specialty: mechanical (HVAC tonnage/EA), electrical (panels, fixtures, devices, rough wire LF), plumbing (fixtures EA, supply/waste LF), FRP panels (SF), specialty coatings (SF).",
+  demolition:
+    "Demolition: selective demo, full demo, slab saw-cutting (LF), wall demo (SF), debris haul-off (CY or LOAD), dumpsters (EA).",
+  masonry:
+    "Masonry: CMU walls (SF), brick veneer (SF), stone (SF), grout & rebar fill, lintels (EA), tuckpointing (SF).",
+  structural_steel:
+    "Structural Steel & Metals: structural steel (TON), miscellaneous metals (LB or LF), steel decking (SF), stairs/railings (LF), bar joists (EA).",
+  doors_windows_glazing:
+    "Doors, Windows & Glazing: hollow metal doors/frames (EA), wood doors (EA), storefront/curtain wall (SF), glass & glazing (SF), hardware sets (EA).",
+  roofing_waterproofing:
+    "Roofing & Waterproofing: membrane roofing TPO/EPDM/PVC (SF or SQ), built-up roofing (SQ), flashings (LF), gutters & downspouts (LF), waterproofing (SF), sealants (LF).",
+  thermal_moisture:
+    "Thermal & Moisture Protection: insulation batt/rigid/spray (SF or BF), vapor barriers (SF), fireproofing (SF), firestopping (EA or LF).",
+  flooring:
+    "Flooring: carpet (SY or SF), VCT/LVT (SF), tile (SF), polished concrete (SF), epoxy (SF), wood (SF), base (LF).",
+  paint_coatings:
+    "Painting & Coatings: interior paint (SF), exterior paint (SF), staining (SF), industrial/epoxy coatings (SF), intumescent coatings (SF).",
+  specialties:
+    "Specialties: toilet partitions (EA), accessories (EA), lockers (EA), signage (EA), fire extinguishers (EA), corner guards (LF).",
+  equipment_furnishings:
+    "Equipment & Furnishings: appliances (EA), casework/millwork (LF), countertops (SF), window treatments (EA), FF&E.",
+  fire_protection:
+    "Fire Protection: sprinkler heads (EA), sprinkler piping (LF), standpipes (EA), fire pump (LS), monitoring (LS).",
+  electrical:
+    "Electrical: service & gear (LS or EA), panels (EA), branch wiring (LF), devices (EA), light fixtures (EA), low voltage rough (LF), fire alarm (EA).",
+  plumbing:
+    "Plumbing: fixtures (EA), water heaters (EA), supply piping (LF), waste/vent (LF), gas piping (LF), insulation (LF).",
+  hvac:
+    "HVAC: RTUs/AHUs (EA or TON), ductwork (LB or LF), VAVs (EA), grilles/diffusers (EA), controls (LS), test & balance (LS).",
+  earthwork_utilities:
+    "Earthwork & Site Utilities: cut/fill (CY), aggregate base (TON), storm/sanitary piping (LF), manholes/catch basins (EA), water service (LF).",
+  paving_landscape:
+    "Paving & Landscape: asphalt paving (SF or TON), concrete walks (SF), curbs (LF), striping (LF or EA), landscape (SF), irrigation (LF), fencing (LF).",
+  general_conditions:
+    "General Conditions: project management (MO), supervision (MO), temp facilities (MO), dumpsters (EA), final clean (SF or LS), permits (LS), bond & insurance (LS).",
 };
 
 function buildPrompt(categories: string[], notes: string, hasBidDocs: boolean) {
@@ -37,6 +71,8 @@ For every line item, return:
 - notes (assumptions, waste factor, exclusions)
 
 Also return a top-level "scope_summary" (2-4 sentence narrative) and "assumptions" (array of strings).
+
+Be thorough: produce at least 5-10 line items per selected category when the drawing supports it. Do not skip categories the user selected.
 
 If the image is unreadable or not a blueprint, return items: [] and explain in scope_summary.
 
@@ -155,12 +191,29 @@ serve(async (req) => {
           { role: "user", content: userContent },
         ],
         response_format: { type: "json_object" },
+        max_completion_tokens: 8192,
       }),
     });
 
     if (!aiRes.ok) {
       const errText = await aiRes.text();
       console.error("AI gateway error:", aiRes.status, errText);
+      if (aiRes.status === 402) {
+        return new Response(
+          JSON.stringify({
+            error:
+              "AI credits exhausted. Add credits in Lovable Settings → Plans & credits to continue analyzing blueprints.",
+            code: "payment_required",
+          }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      if (aiRes.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "AI rate limit hit. Please wait a moment and try again.", code: "rate_limit" }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
       return new Response(
         JSON.stringify({ error: `AI gateway error ${aiRes.status}`, details: errText }),
         { status: aiRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" } },

@@ -29,9 +29,26 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 const CATEGORY_OPTIONS = [
   { key: "sitework_concrete", label: "Sitework + Concrete/Foundations" },
+  { key: "demolition", label: "Demolition" },
+  { key: "earthwork_utilities", label: "Earthwork + Site Utilities" },
+  { key: "paving_landscape", label: "Paving + Landscape" },
+  { key: "masonry", label: "Masonry" },
+  { key: "structural_steel", label: "Structural Steel + Metals" },
   { key: "framing_envelope", label: "Framing + Envelope" },
+  { key: "thermal_moisture", label: "Thermal + Moisture Protection" },
+  { key: "roofing_waterproofing", label: "Roofing + Waterproofing" },
+  { key: "doors_windows_glazing", label: "Doors, Windows + Glazing" },
   { key: "interior_finishes", label: "Interior Finishes" },
+  { key: "flooring", label: "Flooring" },
+  { key: "paint_coatings", label: "Painting + Coatings" },
+  { key: "specialties", label: "Specialties" },
+  { key: "equipment_furnishings", label: "Equipment + Furnishings" },
+  { key: "fire_protection", label: "Fire Protection" },
+  { key: "electrical", label: "Electrical" },
+  { key: "plumbing", label: "Plumbing" },
+  { key: "hvac", label: "HVAC" },
   { key: "mep_specialty", label: "MEP + Specialty (FRP, coatings)" },
+  { key: "general_conditions", label: "General Conditions" },
 ];
 
 type ExtractedItem = {
@@ -176,7 +193,14 @@ export default function BlueprintAnalyzer({ embeddedProjectId }: Props) {
       }
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || "Analysis failed");
+      const ctx = (err?.context ?? err?.cause ?? {}) as any;
+      const detail = ctx?.error || err?.message || "Analysis failed";
+      const isCredits =
+        ctx?.code === "payment_required" ||
+        /credits|payment_required|402/i.test(String(detail));
+      toast.error(isCredits
+        ? "AI credits exhausted. Add credits in Lovable Settings → Plans & credits."
+        : detail);
       if (analysisId) {
         await supabase
           .from("blueprint_analyses")
