@@ -417,6 +417,36 @@ export default function BlueprintAnalyzer({ embeddedProjectId }: Props) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
+          <div>
+            <Label>Analysis mode</Label>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => setMode("ai")}
+                className={`p-3 rounded-lg border text-left text-sm ${
+                  mode === "ai" ? "border-primary bg-primary/10" : ""
+                }`}
+              >
+                <div className="font-medium">AI takeoff</div>
+                <div className="text-xs text-muted-foreground">
+                  Uses Lovable AI credits to read the blueprint
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("manual")}
+                className={`p-3 rounded-lg border text-left text-sm ${
+                  mode === "manual" ? "border-primary bg-primary/10" : ""
+                }`}
+              >
+                <div className="font-medium">Manual takeoff (no credits)</div>
+                <div className="text-xs text-muted-foreground">
+                  Seed line items from built-in price book — you enter quantities
+                </div>
+              </button>
+            </div>
+          </div>
+
           {!embeddedProjectId && (
             <div>
               <Label>Project</Label>
@@ -436,7 +466,9 @@ export default function BlueprintAnalyzer({ embeddedProjectId }: Props) {
           )}
 
           <div>
-            <Label>Blueprint (PDF or image)</Label>
+            <Label>
+              Blueprint (PDF or image){mode === "manual" ? " — optional" : ""}
+            </Label>
             <Input
               type="file"
               accept="application/pdf,image/*"
@@ -561,7 +593,13 @@ export default function BlueprintAnalyzer({ embeddedProjectId }: Props) {
             size="lg"
           >
             {(uploading || analyzing) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {uploading ? "Uploading..." : analyzing ? "Analyzing blueprint..." : "Analyze Blueprint"}
+            {uploading
+              ? "Uploading..."
+              : analyzing
+                ? "Analyzing blueprint..."
+                : mode === "manual"
+                  ? "Generate Manual Takeoff"
+                  : "Analyze Blueprint"}
           </Button>
         </CardContent>
       </Card>
