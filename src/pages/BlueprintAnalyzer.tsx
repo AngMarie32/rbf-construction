@@ -51,6 +51,122 @@ const CATEGORY_OPTIONS = [
   { key: "general_conditions", label: "General Conditions" },
 ];
 
+// Price book for manual (no-AI) takeoff. Seeds common line items per category
+// with reasonable USD unit costs the user can adjust before saving.
+const PRICE_BOOK: Record<string, { description: string; unit: string; unit_cost: number }[]> = {
+  sitework_concrete: [
+    { description: "Site clearing & grubbing", unit: "SF", unit_cost: 0.75 },
+    { description: "Fine grading", unit: "SF", unit_cost: 0.65 },
+    { description: "Spread footings (concrete + rebar + formwork)", unit: "CY", unit_cost: 650 },
+    { description: "Slab on grade, 4\" w/ WWF", unit: "SF", unit_cost: 8.5 },
+    { description: "Foundation walls, 8\" CIP", unit: "SF", unit_cost: 28 },
+  ],
+  demolition: [
+    { description: "Selective interior demolition", unit: "SF", unit_cost: 3.5 },
+    { description: "Slab sawcut & removal", unit: "LF", unit_cost: 12 },
+    { description: "Disposal / dumpster", unit: "EA", unit_cost: 650 },
+  ],
+  earthwork_utilities: [
+    { description: "Mass excavation", unit: "CY", unit_cost: 18 },
+    { description: "Backfill & compaction", unit: "CY", unit_cost: 22 },
+    { description: "Storm drainage piping", unit: "LF", unit_cost: 65 },
+    { description: "Sanitary sewer lateral", unit: "LF", unit_cost: 85 },
+    { description: "Water service line", unit: "LF", unit_cost: 55 },
+  ],
+  paving_landscape: [
+    { description: "Asphalt paving, 3\" over base", unit: "SF", unit_cost: 5.25 },
+    { description: "Concrete sidewalk, 4\"", unit: "SF", unit_cost: 9 },
+    { description: "Striping & signage", unit: "LS", unit_cost: 2500 },
+    { description: "Landscape & irrigation", unit: "SF", unit_cost: 4 },
+  ],
+  masonry: [
+    { description: "CMU wall, 8\" reinforced", unit: "SF", unit_cost: 18 },
+    { description: "Brick veneer", unit: "SF", unit_cost: 28 },
+  ],
+  structural_steel: [
+    { description: "Structural steel (supply + erect)", unit: "TON", unit_cost: 4200 },
+    { description: "Steel decking", unit: "SF", unit_cost: 6.5 },
+    { description: "Misc metals & railings", unit: "LS", unit_cost: 8500 },
+  ],
+  framing_envelope: [
+    { description: "Wood framing, exterior walls", unit: "SF", unit_cost: 14 },
+    { description: "Metal stud framing, interior", unit: "SF", unit_cost: 9 },
+    { description: "Sheathing & WRB", unit: "SF", unit_cost: 4.25 },
+    { description: "Exterior siding / cladding", unit: "SF", unit_cost: 16 },
+  ],
+  thermal_moisture: [
+    { description: "Batt insulation R-21 walls", unit: "SF", unit_cost: 1.95 },
+    { description: "Spray foam, ceilings", unit: "SF", unit_cost: 3.5 },
+    { description: "Air & vapor barrier", unit: "SF", unit_cost: 1.25 },
+  ],
+  roofing_waterproofing: [
+    { description: "TPO single-ply roofing", unit: "SF", unit_cost: 9.5 },
+    { description: "Roof insulation, R-30", unit: "SF", unit_cost: 4.25 },
+    { description: "Flashings & accessories", unit: "LS", unit_cost: 4500 },
+  ],
+  doors_windows_glazing: [
+    { description: "HM door + frame + hardware", unit: "EA", unit_cost: 1850 },
+    { description: "Aluminum storefront", unit: "SF", unit_cost: 95 },
+    { description: "Vinyl/aluminum windows", unit: "EA", unit_cost: 850 },
+  ],
+  interior_finishes: [
+    { description: "Gypsum board, taped & finished", unit: "SF", unit_cost: 3.25 },
+    { description: "Acoustic ceiling tile (ACT)", unit: "SF", unit_cost: 5.5 },
+    { description: "Wall base, vinyl 4\"", unit: "LF", unit_cost: 2.25 },
+  ],
+  flooring: [
+    { description: "LVT / vinyl plank", unit: "SF", unit_cost: 6.5 },
+    { description: "Carpet tile", unit: "SF", unit_cost: 5 },
+    { description: "Sealed concrete (polish)", unit: "SF", unit_cost: 4 },
+    { description: "Porcelain tile", unit: "SF", unit_cost: 14 },
+  ],
+  paint_coatings: [
+    { description: "Interior paint, 2 coats", unit: "SF", unit_cost: 1.75 },
+    { description: "Exterior paint / coatings", unit: "SF", unit_cost: 2.85 },
+    { description: "FRP wall panels", unit: "SF", unit_cost: 7.5 },
+  ],
+  specialties: [
+    { description: "Toilet partitions & accessories", unit: "EA", unit_cost: 1200 },
+    { description: "Signage package", unit: "LS", unit_cost: 3500 },
+  ],
+  equipment_furnishings: [
+    { description: "Casework / millwork", unit: "LF", unit_cost: 425 },
+    { description: "Appliances allowance", unit: "LS", unit_cost: 6500 },
+  ],
+  fire_protection: [
+    { description: "Wet sprinkler system", unit: "SF", unit_cost: 4.5 },
+    { description: "Fire alarm system", unit: "SF", unit_cost: 2.75 },
+  ],
+  electrical: [
+    { description: "Electrical rough-in & devices", unit: "SF", unit_cost: 11 },
+    { description: "Service & distribution", unit: "LS", unit_cost: 28000 },
+    { description: "Lighting fixtures (allowance)", unit: "SF", unit_cost: 6 },
+  ],
+  plumbing: [
+    { description: "Plumbing rough-in", unit: "SF", unit_cost: 6.5 },
+    { description: "Plumbing fixtures", unit: "EA", unit_cost: 1450 },
+    { description: "Domestic water heater", unit: "EA", unit_cost: 3800 },
+  ],
+  hvac: [
+    { description: "Rooftop unit (RTU), 5-ton", unit: "EA", unit_cost: 12500 },
+    { description: "Ductwork", unit: "SF", unit_cost: 9 },
+    { description: "Controls & balancing", unit: "LS", unit_cost: 6500 },
+  ],
+  mep_specialty: [
+    { description: "FRP panel installation", unit: "SF", unit_cost: 8.5 },
+    { description: "Specialty coating system", unit: "SF", unit_cost: 6.25 },
+  ],
+  general_conditions: [
+    { description: "Project management & supervision", unit: "MO", unit_cost: 14500 },
+    { description: "Temporary facilities & utilities", unit: "MO", unit_cost: 2200 },
+    { description: "Cleanup & final clean", unit: "LS", unit_cost: 3800 },
+    { description: "Permits & fees allowance", unit: "LS", unit_cost: 5000 },
+  ],
+};
+
+const categoryLabel = (key: string) =>
+  CATEGORY_OPTIONS.find((c) => c.key === key)?.label || key;
+
 type ExtractedItem = {
   category: string;
   description: string;
@@ -76,6 +192,7 @@ export default function BlueprintAnalyzer({ embeddedProjectId }: Props) {
   const [categories, setCategories] = useState<string[]>(CATEGORY_OPTIONS.map((c) => c.key));
   const [notes, setNotes] = useState("");
   const [outputMode, setOutputMode] = useState<"review" | "auto">("review");
+  const [mode, setMode] = useState<"ai" | "manual">("ai");
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [summary, setSummary] = useState<string>("");
@@ -107,8 +224,42 @@ export default function BlueprintAnalyzer({ embeddedProjectId }: Props) {
 
   const handleAnalyze = async () => {
     if (!projectId) return toast.error("Select a project first");
-    if (!file) return toast.error("Upload a blueprint file (PDF or image)");
     if (categories.length === 0) return toast.error("Select at least one scope category");
+
+    // Manual takeoff: skip AI entirely, seed items from the built-in price book.
+    if (mode === "manual") {
+      const seeded: ExtractedItem[] = [];
+      categories.forEach((cat) => {
+        const label = categoryLabel(cat);
+        (PRICE_BOOK[cat] || []).forEach((row) => {
+          seeded.push({
+            category: label,
+            description: row.description,
+            quantity: 0,
+            unit: row.unit,
+            unit_cost: row.unit_cost,
+            notes: "Manual takeoff — enter quantity",
+          });
+        });
+      });
+      if (seeded.length === 0) {
+        toast.error("No price-book entries for the selected categories.");
+        return;
+      }
+      setItems(seeded);
+      setSummary(
+        `Manual takeoff seeded with ${seeded.length} line items across ${categories.length} categories. Enter quantities and adjust unit costs as needed.`,
+      );
+      setAssumptions([]);
+      const sel: Record<number, boolean> = {};
+      seeded.forEach((_, i) => (sel[i] = true));
+      setSelected(sel);
+      setHasRun(true);
+      toast.success(`Seeded ${seeded.length} items from price book — no AI credits used.`);
+      return;
+    }
+
+    if (!file) return toast.error("Upload a blueprint file (PDF or image)");
 
     try {
       setUploading(true);
