@@ -205,6 +205,32 @@ export default function WeeklyReports() {
 
           <div>
             <Label className="mb-2 block">Sections to include</Label>
+          </div>
+
+          <div>
+            <Label className="mb-2 block">Companies (leave empty for all you can access)</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 border rounded p-2 max-h-40 overflow-y-auto">
+              {companies.map((c) => {
+                const selected = form.company_ids?.includes(c.id) || false;
+                return (
+                  <label key={c.id} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={selected}
+                      onCheckedChange={(v) => {
+                        const cur = form.company_ids || [];
+                        const next = v ? [...cur, c.id] : cur.filter((x) => x !== c.id);
+                        setForm({ ...form, company_ids: next.length ? next : null });
+                      }}
+                    />
+                    <span className="flex-1 truncate">{c.name}</span>
+                    <span className="text-[10px] uppercase text-muted-foreground">{c.type.replace('_', ' ')}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {SECTION_OPTS.map((opt) => (
                 <label key={opt.id} className="flex items-center gap-2 text-sm">
