@@ -500,6 +500,21 @@ async function buildPdf(sub: Sub, data: any): Promise<Uint8Array> {
     if (!data.financials.length) text('No financial data.', { color: rgb(0.5, 0.5, 0.5) });
     hr();
   }
+  if (sub.sections.includes('money') && data.money) {
+    text('Money', { size: 14, bold: true });
+    text(`Collected: ${fmtMoney(data.money.collected)} | Paid out: ${fmtMoney(data.money.paidOut)} | Net: ${fmtMoney(data.money.net)}`);
+    text(`Still owed to you: ${fmtMoney(data.money.owedToUs)} | You owe: ${fmtMoney(data.money.owedByUs)}`);
+    for (const o of (data.money.overdue || []).slice(0, 20)) {
+      text(`• PAST DUE ${o.counterparty_name} (${o.kind}) due ${o.due_date} — ${fmtMoney(o.balance)}`, { color: rgb(0.7, 0.1, 0.1) });
+    }
+    hr();
+  }
+  if (sub.sections.includes('properties') && data.properties) {
+    text('Properties', { size: 14, bold: true });
+    text(`${data.properties.properties.length} properties | ${data.properties.units.length} units | ${data.properties.occupancy}% occupied`);
+    text(`Rent in place ${fmtMoney(data.properties.rentInPlace)} of ${fmtMoney(data.properties.potentialRent)} potential`);
+    hr();
+  }
   if (sub.sections.includes('schedule') && data.schedule) {
     text('Schedule & Tasks', { size: 14, bold: true });
     text(`Completed last 7 days (${data.schedule.completed.length})`, { bold: true });
