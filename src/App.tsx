@@ -50,6 +50,10 @@ import EsignMySignature from '@/pages/esign/EsignMySignature';
 import InvoiceSender from '@/pages/InvoiceSender';
 import WeeklyReports from '@/pages/WeeklyReports';
 import BlueprintAnalyzer from '@/pages/BlueprintAnalyzer';
+import CompaniesPage from '@/pages/Companies';
+import Properties from '@/pages/Properties';
+import OwnerMoney from '@/pages/OwnerMoney';
+import { CompanyProvider } from '@/contexts/CompanyContext';
 
 const queryClient = new QueryClient();
 
@@ -66,9 +70,34 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <QueryClientProviderWrapper>
+          <CompanyProvider>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route
+              path="/companies"
+              element={
+                <ProtectedRoute>
+                  <CompaniesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/properties"
+              element={
+                <ProtectedRoute>
+                  <Properties />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/owner-money"
+              element={
+                <ProtectedRoute>
+                  <OwnerMoney />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/dashboard"
               element={
@@ -299,6 +328,7 @@ function App() {
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
+          </CompanyProvider>
         </QueryClientProviderWrapper>
       </AuthProvider>
     </BrowserRouter>

@@ -26,6 +26,7 @@ interface Sub {
   only_changes: boolean;
   attach_csv: boolean;
   project_ids: string[] | null;
+  company_ids: string[] | null;
   enabled: boolean;
   last_sent_at: string | null;
   next_send_at: string | null;
@@ -56,17 +57,27 @@ async function gatherData(admin: any, sub: Sub) {
   const projectFilter = (q: any, col = 'project_id') =>
     sub.project_ids && sub.project_ids.length ? q.in(col, sub.project_ids) : q;
 
+  const companyIds = sub.company_ids && sub.company_ids.length ? sub.company_ids : null;
+  const companyFilter = (q: any, col = 'company_id') => (companyIds ? q.in(col, companyIds) : q);
+
   const data: any = { _rangeStart: rangeStart, _rangeEnd: now };
 
+  {
+    let cq = admin.from('companies').select('id,name,type');
+    if (companyIds) cq = cq.in('id', companyIds);
+    const { data: comps } = await cq;
+    data._companies = comps || [];
+  }
+
   if (sub.sections.includes('projects')) {
-    let q = admin.from('projects').select('id,name,status,contract_value,completion_percentage,due_date');
+    let q = companyFilter(admin.from('projects').select('id,name,status,contract_value,completion_percentage,due_date'));
     if (sub.project_ids && sub.project_ids.length) q = q.in('id', sub.project_ids);
     const { data: projects } = await q;
     data.projects = projects || [];
   }
 
   if (sub.sections.includes('financials')) {
-    let pq = admin.from('projects').select('id,name,contract_value');
+    let pq = companyFilter(admin.from('projects').select('id,name,contract_value'));
     if (sub.project_ids?.length) pq = pq.in('id', sub.project_ids);
     const { data: projects } = await pq;
     let bq = projectFilter(admin.from('project_billing').select('project_id,billed_amount,paid_amount,remaining_amount'));
@@ -144,6 +155,80 @@ async function gatherData(admin: any, sub: Sub) {
     const { data: subs } = await admin.from('subcontractors').select('id,name,status,trade').eq('status', 'Active');
     const { data: invs } = await admin.from('bid_invitation_recipients').select('id,status,sent_at,responded_at,subcontractor_id').gte('sent_at', isoWeekAgo);
     data.subcontractors = { active: subs || [], recentInvites: invs || [] };
+  }
+
+  if (sub.sections.includes('properties')) {
+    let prq = admin.from('properties').select('id,name,company_id,city,state');
+    if (companyIds) prq = prq.in('company_id', companyIds);
+    const { data: props } = await prq;
+    const propList = props || [];
+    let units: any[] = [];
+    if (propList.length) {
+      const { data: u } = await admin
+        .from('property_units')
+        .select('id,property_id,unit_number,status,market_rent,tenant_name,lease_end')
+        .in('property_id', propList.map((p: any) => p.id));
+      units = u || [];
+    }
+    const occupied = units.filter((u) => u.status === 'occupied');
+    data.properties = {
+      properties: propList,
+      units,
+      occupiedCount: occupied.length,
+      occupancy: units.length ? Math.round((occupied.length / units.length) * 100) : 0,
+      rentInPlace: occupied.reduce((s, u) => s + Number(u.market_rent || 0), 0),
+      potentialRent: units.reduce((s, u) => s + Number(u.market_rent || 0), 0),
+      expiringLeases: units.filter((u) => u.lease_end && u.lease_end >= dateNow && u.lease_end <= dateWeekFromNow),
+    };
+  }
+
+  if (sub.sections.includes('money')) {
+    let oq = admin.from('company_obligations').select('id,company_id,direction,kind,counterparty_name,amount,due_date,status');
+    if (companyIds) oq = oq.in('company_id', companyIds);
+    const { data: obs } = await oq;
+    const obligations = obs || [];
+    let payments: any[] = [];
+    if (obligations.length) {
+      const { data: p } = await admin
+        .from('obligation_payments')
+        .select('id,obligation_id,amount,paid_on')
+        .in('obligation_id', obligations.map((o: any) => o.id))
+        .gte('paid_on', dateWeekAgo)
+        .lte('paid_on', dateNow);
+      payments = p || [];
+    }
+    let allPayments: any[] = [];
+    if (obligations.length) {
+      const { data: ap } = await admin
+        .from('obligation_payments')
+        .select('obligation_id,amount')
+        .in('obligation_id', obligations.map((o: any) => o.id));
+      allPayments = ap || [];
+    }
+    const paidMap: Record<string, number> = {};
+    allPayments.forEach((p: any) => { paidMap[p.obligation_id] = (paidMap[p.obligation_id] || 0) + Number(p.amount || 0); });
+    const balance = (o: any) => Math.max(Number(o.amount || 0) - (paidMap[o.id] || 0), 0);
+    const obById: Record<string, any> = {};
+    obligations.forEach((o: any) => { obById[o.id] = o; });
+    const collected = payments
+      .filter((p: any) => obById[p.obligation_id]?.direction === 'receivable')
+      .reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+    const paidOut = payments
+      .filter((p: any) => obById[p.obligation_id]?.direction === 'payable')
+      .reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+    const receivables = obligations.filter((o: any) => o.direction === 'receivable');
+    const payables = obligations.filter((o: any) => o.direction === 'payable');
+    data.money = {
+      collected,
+      paidOut,
+      net: collected - paidOut,
+      owedToUs: receivables.reduce((s: number, o: any) => s + balance(o), 0),
+      owedByUs: payables.reduce((s: number, o: any) => s + balance(o), 0),
+      overdue: receivables
+        .filter((o: any) => o.due_date && o.due_date < dateNow && balance(o) > 0)
+        .map((o: any) => ({ ...o, balance: balance(o) })),
+      paymentCount: payments.length,
+    };
   }
 
   return data;
@@ -273,10 +358,39 @@ function buildHtml(sub: Sub, data: any) {
       <p style="font-family:Arial;font-size:13px;margin:4px 0">${data.subcontractors.active.length} active subcontractors · ${data.subcontractors.recentInvites.length} bid invitations in period</p>`;
   }
 
+  if (sub.sections.includes('money') && data.money && (!onlyChanges || data.money.paymentCount > 0)) {
+    const m = data.money;
+    const overdueRows = (m.overdue || []).slice(0, 15).map((o: any) =>
+      `<tr><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(o.counterparty_name)}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(o.kind)}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(o.due_date || '')}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(o.balance)}</td></tr>`).join('');
+    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Money</h2>
+      <p style="font-family:Arial;font-size:13px;margin:4px 0">
+        Collected: <strong>${fmtMoney(m.collected)}</strong> · Paid out: <strong>${fmtMoney(m.paidOut)}</strong> · Net: <strong>${fmtMoney(m.net)}</strong><br/>
+        Still owed to you: <strong>${fmtMoney(m.owedToUs)}</strong> · You owe: <strong>${fmtMoney(m.owedByUs)}</strong>
+      </p>
+      ${overdueRows ? `<table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:13px">
+        <tr><th align="left" style="padding:8px;border-bottom:2px solid #111">Past due from</th>
+        <th align="left" style="padding:8px;border-bottom:2px solid #111">Type</th>
+        <th align="left" style="padding:8px;border-bottom:2px solid #111">Due</th>
+        <th align="right" style="padding:8px;border-bottom:2px solid #111">Balance</th></tr>${overdueRows}</table>` : ''}`;
+  }
+
+  if (sub.sections.includes('properties') && data.properties && (!onlyChanges || data.properties.units.length > 0)) {
+    const p = data.properties;
+    const expiring = (p.expiringLeases || []).length;
+    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Properties</h2>
+      <p style="font-family:Arial;font-size:13px;margin:4px 0">
+        ${p.properties.length} properties · ${p.units.length} units · ${p.occupancy}% occupied<br/>
+        Rent in place: <strong>${fmtMoney(p.rentInPlace)}</strong> of ${fmtMoney(p.potentialRent)} potential${expiring ? ` · ${expiring} lease(s) ending soon` : ''}
+      </p>`;
+  }
+
   return `<div style="max-width:760px;margin:0 auto;padding:20px;color:#222">
     <div style="border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:8px">
       <h1 style="font-family:Arial;margin:0;font-size:22px">${escapeHtml(sub.name)}</h1>
-      <p style="font-family:Arial;color:#666;margin:4px 0 0;font-size:13px">RBF Construction — Recap for ${fmtDate(periodStart)} – ${fmtDate(periodEnd)}</p>
+      <p style="font-family:Arial;color:#666;margin:4px 0 0;font-size:13px">${escapeHtml((data._companies || []).map((c: any) => c.name).join(', ') || 'RBF Construction')} — Recap for ${fmtDate(periodStart)} – ${fmtDate(periodEnd)}</p>
     </div>
     ${body}
     <p style="font-family:Arial;color:#888;font-size:11px;margin-top:32px;border-top:1px solid #eee;padding-top:12px">
@@ -314,6 +428,29 @@ function buildCsv(sub: Sub, data: any): string {
     lines.push('# Payment applications');
     row('App #', 'Status', 'Completed to date', 'Current due');
     for (const p of data.payment_apps) row(p.application_number, p.status, p.total_completed_and_stored_to_date, p.current_payment_due);
+    lines.push('');
+  }
+  if (data.money) {
+    lines.push('# Money');
+    row('Metric', 'Amount');
+    row('Collected in period', data.money.collected);
+    row('Paid out in period', data.money.paidOut);
+    row('Still owed to you', data.money.owedToUs);
+    row('You owe', data.money.owedByUs);
+    lines.push('');
+    if (data.money.overdue?.length) {
+      lines.push('# Past due receivables');
+      row('Counterparty', 'Type', 'Due', 'Balance');
+      for (const o of data.money.overdue) row(o.counterparty_name, o.kind, o.due_date, o.balance);
+      lines.push('');
+    }
+  }
+  if (data.properties) {
+    lines.push('# Properties');
+    row('Property', 'Unit', 'Status', 'Tenant', 'Rent', 'Lease end');
+    const nameById: Record<string, string> = {};
+    for (const p of data.properties.properties) nameById[p.id] = p.name;
+    for (const u of data.properties.units) row(nameById[u.property_id] || '', u.unit_number, u.status, u.tenant_name || '', u.market_rent ?? 0, u.lease_end || '');
     lines.push('');
   }
   return lines.join('\n');
@@ -361,6 +498,21 @@ async function buildPdf(sub: Sub, data: any): Promise<Uint8Array> {
       text(`• ${f.name}: Contract ${fmtMoney(f.contract)} | Billed ${fmtMoney(f.billed)} | Paid ${fmtMoney(f.paid)} | Outstanding ${fmtMoney(f.outstanding)}`);
     }
     if (!data.financials.length) text('No financial data.', { color: rgb(0.5, 0.5, 0.5) });
+    hr();
+  }
+  if (sub.sections.includes('money') && data.money) {
+    text('Money', { size: 14, bold: true });
+    text(`Collected: ${fmtMoney(data.money.collected)} | Paid out: ${fmtMoney(data.money.paidOut)} | Net: ${fmtMoney(data.money.net)}`);
+    text(`Still owed to you: ${fmtMoney(data.money.owedToUs)} | You owe: ${fmtMoney(data.money.owedByUs)}`);
+    for (const o of (data.money.overdue || []).slice(0, 20)) {
+      text(`• PAST DUE ${o.counterparty_name} (${o.kind}) due ${o.due_date} — ${fmtMoney(o.balance)}`, { color: rgb(0.7, 0.1, 0.1) });
+    }
+    hr();
+  }
+  if (sub.sections.includes('properties') && data.properties) {
+    text('Properties', { size: 14, bold: true });
+    text(`${data.properties.properties.length} properties | ${data.properties.units.length} units | ${data.properties.occupancy}% occupied`);
+    text(`Rent in place ${fmtMoney(data.properties.rentInPlace)} of ${fmtMoney(data.properties.potentialRent)} potential`);
     hr();
   }
   if (sub.sections.includes('schedule') && data.schedule) {
