@@ -358,10 +358,39 @@ function buildHtml(sub: Sub, data: any) {
       <p style="font-family:Arial;font-size:13px;margin:4px 0">${data.subcontractors.active.length} active subcontractors · ${data.subcontractors.recentInvites.length} bid invitations in period</p>`;
   }
 
+  if (sub.sections.includes('money') && data.money && (!onlyChanges || data.money.paymentCount > 0)) {
+    const m = data.money;
+    const overdueRows = (m.overdue || []).slice(0, 15).map((o: any) =>
+      `<tr><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(o.counterparty_name)}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(o.kind)}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(o.due_date || '')}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(o.balance)}</td></tr>`).join('');
+    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Money</h2>
+      <p style="font-family:Arial;font-size:13px;margin:4px 0">
+        Collected: <strong>${fmtMoney(m.collected)}</strong> · Paid out: <strong>${fmtMoney(m.paidOut)}</strong> · Net: <strong>${fmtMoney(m.net)}</strong><br/>
+        Still owed to you: <strong>${fmtMoney(m.owedToUs)}</strong> · You owe: <strong>${fmtMoney(m.owedByUs)}</strong>
+      </p>
+      ${overdueRows ? `<table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:13px">
+        <tr><th align="left" style="padding:8px;border-bottom:2px solid #111">Past due from</th>
+        <th align="left" style="padding:8px;border-bottom:2px solid #111">Type</th>
+        <th align="left" style="padding:8px;border-bottom:2px solid #111">Due</th>
+        <th align="right" style="padding:8px;border-bottom:2px solid #111">Balance</th></tr>${overdueRows}</table>` : ''}`;
+  }
+
+  if (sub.sections.includes('properties') && data.properties && (!onlyChanges || data.properties.units.length > 0)) {
+    const p = data.properties;
+    const expiring = (p.expiringLeases || []).length;
+    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Properties</h2>
+      <p style="font-family:Arial;font-size:13px;margin:4px 0">
+        ${p.properties.length} properties · ${p.units.length} units · ${p.occupancy}% occupied<br/>
+        Rent in place: <strong>${fmtMoney(p.rentInPlace)}</strong> of ${fmtMoney(p.potentialRent)} potential${expiring ? ` · ${expiring} lease(s) ending soon` : ''}
+      </p>`;
+  }
+
   return `<div style="max-width:760px;margin:0 auto;padding:20px;color:#222">
     <div style="border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:8px">
       <h1 style="font-family:Arial;margin:0;font-size:22px">${escapeHtml(sub.name)}</h1>
-      <p style="font-family:Arial;color:#666;margin:4px 0 0;font-size:13px">RBF Construction — Recap for ${fmtDate(periodStart)} – ${fmtDate(periodEnd)}</p>
+      <p style="font-family:Arial;color:#666;margin:4px 0 0;font-size:13px">${escapeHtml((data._companies || []).map((c: any) => c.name).join(', ') || 'RBF Construction')} — Recap for ${fmtDate(periodStart)} – ${fmtDate(periodEnd)}</p>
     </div>
     ${body}
     <p style="font-family:Arial;color:#888;font-size:11px;margin-top:32px;border-top:1px solid #eee;padding-top:12px">
@@ -399,6 +428,29 @@ function buildCsv(sub: Sub, data: any): string {
     lines.push('# Payment applications');
     row('App #', 'Status', 'Completed to date', 'Current due');
     for (const p of data.payment_apps) row(p.application_number, p.status, p.total_completed_and_stored_to_date, p.current_payment_due);
+    lines.push('');
+  }
+  if (data.money) {
+    lines.push('# Money');
+    row('Metric', 'Amount');
+    row('Collected in period', data.money.collected);
+    row('Paid out in period', data.money.paidOut);
+    row('Still owed to you', data.money.owedToUs);
+    row('You owe', data.money.owedByUs);
+    lines.push('');
+    if (data.money.overdue?.length) {
+      lines.push('# Past due receivables');
+      row('Counterparty', 'Type', 'Due', 'Balance');
+      for (const o of data.money.overdue) row(o.counterparty_name, o.kind, o.due_date, o.balance);
+      lines.push('');
+    }
+  }
+  if (data.properties) {
+    lines.push('# Properties');
+    row('Property', 'Unit', 'Status', 'Tenant', 'Rent', 'Lease end');
+    const nameById: Record<string, string> = {};
+    for (const p of data.properties.properties) nameById[p.id] = p.name;
+    for (const u of data.properties.units) row(nameById[u.property_id] || '', u.unit_number, u.status, u.tenant_name || '', u.market_rent ?? 0, u.lease_end || '');
     lines.push('');
   }
   return lines.join('\n');
