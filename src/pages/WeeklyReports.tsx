@@ -329,6 +329,7 @@ export default function WeeklyReports() {
           <div>
             <Label className="mb-2 block">Projects (leave empty for all)</Label>
             <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1">
+              {projects.length === 0 && <p className="text-xs text-muted-foreground">No projects</p>}
               {projects.map((p) => {
                 const selected = form.project_ids?.includes(p.id) || false;
                 return (
