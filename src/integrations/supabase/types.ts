@@ -1050,6 +1050,152 @@ export type Database = {
           },
         ]
       }
+      companies: {
+        Row: {
+          address: string | null
+          color: string | null
+          created_at: string
+          email: string | null
+          group_id: string | null
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+          phone: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          color?: string | null
+          created_at?: string
+          email?: string | null
+          group_id?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name: string
+          phone?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          color?: string | null
+          created_at?: string
+          email?: string | null
+          group_id?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          phone?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companies_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "company_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_groups: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      company_obligations: {
+        Row: {
+          amount: number
+          company_id: string
+          counterparty_name: string
+          created_at: string
+          description: string | null
+          direction: string
+          due_date: string | null
+          id: string
+          kind: string
+          notes: string | null
+          project_id: string | null
+          property_unit_id: string | null
+          recurrence: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          company_id: string
+          counterparty_name: string
+          created_at?: string
+          description?: string | null
+          direction?: string
+          due_date?: string | null
+          id?: string
+          kind?: string
+          notes?: string | null
+          project_id?: string | null
+          property_unit_id?: string | null
+          recurrence?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          counterparty_name?: string
+          created_at?: string
+          description?: string | null
+          direction?: string
+          due_date?: string | null
+          id?: string
+          kind?: string
+          notes?: string | null
+          project_id?: string | null
+          property_unit_id?: string | null
+          recurrence?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_obligations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_obligations_property_unit_id_fkey"
+            columns: ["property_unit_id"]
+            isOneToOne: false
+            referencedRelation: "property_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_settings: {
         Row: {
           company_address: string | null
@@ -2070,6 +2216,50 @@ export type Database = {
           },
         ]
       }
+      obligation_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          method: string | null
+          notes: string | null
+          obligation_id: string
+          paid_on: string
+          reference: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          method?: string | null
+          notes?: string | null
+          obligation_id: string
+          paid_on?: string
+          reference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          method?: string | null
+          notes?: string | null
+          obligation_id?: string
+          paid_on?: string
+          reference?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "obligation_payments_obligation_id_fkey"
+            columns: ["obligation_id"]
+            isOneToOne: false
+            referencedRelation: "company_obligations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_app_lien_waivers: {
         Row: {
           amount: number
@@ -2441,6 +2631,7 @@ export type Database = {
           address: string | null
           archived_at: string | null
           client: string | null
+          company_id: string | null
           completion_percentage: number | null
           contingency_type: string | null
           contingency_value: number | null
@@ -2463,6 +2654,7 @@ export type Database = {
           address?: string | null
           archived_at?: string | null
           client?: string | null
+          company_id?: string | null
           completion_percentage?: number | null
           contingency_type?: string | null
           contingency_value?: number | null
@@ -2485,6 +2677,7 @@ export type Database = {
           address?: string | null
           archived_at?: string | null
           client?: string | null
+          company_id?: string | null
           completion_percentage?: number | null
           contingency_type?: string | null
           contingency_value?: number | null
@@ -2503,7 +2696,136 @@ export type Database = {
           type?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      properties: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          property_type: string
+          purchase_date: string | null
+          purchase_price: number | null
+          state: string | null
+          updated_at: string
+          zip: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          property_type?: string
+          purchase_date?: string | null
+          purchase_price?: number | null
+          state?: string | null
+          updated_at?: string
+          zip?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          property_type?: string
+          purchase_date?: string | null
+          purchase_price?: number | null
+          state?: string | null
+          updated_at?: string
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "properties_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_units: {
+        Row: {
+          bathrooms: number | null
+          bedrooms: number | null
+          created_at: string
+          id: string
+          lease_end: string | null
+          lease_start: string | null
+          market_rent: number | null
+          notes: string | null
+          property_id: string
+          square_feet: number | null
+          status: string
+          tenant_email: string | null
+          tenant_name: string | null
+          tenant_phone: string | null
+          unit_number: string
+          updated_at: string
+        }
+        Insert: {
+          bathrooms?: number | null
+          bedrooms?: number | null
+          created_at?: string
+          id?: string
+          lease_end?: string | null
+          lease_start?: string | null
+          market_rent?: number | null
+          notes?: string | null
+          property_id: string
+          square_feet?: number | null
+          status?: string
+          tenant_email?: string | null
+          tenant_name?: string | null
+          tenant_phone?: string | null
+          unit_number: string
+          updated_at?: string
+        }
+        Update: {
+          bathrooms?: number | null
+          bedrooms?: number | null
+          created_at?: string
+          id?: string
+          lease_end?: string | null
+          lease_start?: string | null
+          market_rent?: number | null
+          notes?: string | null
+          property_id?: string
+          square_feet?: number | null
+          status?: string
+          tenant_email?: string | null
+          tenant_name?: string | null
+          tenant_phone?: string | null
+          unit_number?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_units_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       proposals: {
         Row: {
@@ -2925,6 +3247,38 @@ export type Database = {
           },
         ]
       }
+      user_companies: {
+        Row: {
+          access_level: string
+          company_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          access_level?: string
+          company_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          access_level?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_companies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_esign_preferences: {
         Row: {
           created_at: string
@@ -2996,6 +3350,7 @@ export type Database = {
       weekly_report_subscriptions: {
         Row: {
           attach_csv: boolean
+          company_ids: string[] | null
           created_at: string
           date_range_days: number | null
           day_of_month: number | null
@@ -3019,6 +3374,7 @@ export type Database = {
         }
         Insert: {
           attach_csv?: boolean
+          company_ids?: string[] | null
           created_at?: string
           date_range_days?: number | null
           day_of_month?: number | null
@@ -3042,6 +3398,7 @@ export type Database = {
         }
         Update: {
           attach_csv?: boolean
+          company_ids?: string[] | null
           created_at?: string
           date_range_days?: number | null
           day_of_month?: number | null
@@ -3091,6 +3448,8 @@ export type Database = {
         Returns: string
       }
       generate_equipment_alerts: { Args: never; Returns: undefined }
+      has_company_access: { Args: { _company_id: string }; Returns: boolean }
+      is_app_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

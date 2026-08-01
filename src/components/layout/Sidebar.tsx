@@ -25,8 +25,16 @@ const navGroups: NavGroup[] = [
     label: 'Overview',
     items: [
       { name: 'Dashboard', href: '/dashboard' },
+      { name: 'Owner Cockpit', href: '/owner-money' },
       { name: 'Projects', href: '/projects' },
       { name: 'Analytics', href: '/analytics' },
+    ],
+  },
+  {
+    label: 'Portfolio',
+    items: [
+      { name: 'Companies', href: '/companies' },
+      { name: 'Properties', href: '/properties' },
     ],
   },
   {

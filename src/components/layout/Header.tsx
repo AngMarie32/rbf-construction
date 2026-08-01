@@ -6,6 +6,7 @@ import { Bell, Menu, Settings, Moon, Sun } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { useTheme } from 'next-themes';
+import { CompanySwitcher } from '@/components/layout/CompanySwitcher';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,6 +52,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         </div>
 
         <div className="flex items-center space-x-3">
+          <CompanySwitcher />
           {/* Dark Mode Toggle */}
           <Button
             variant="ghost"

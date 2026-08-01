@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { X, Plus, Send, Trash2, Pencil } from 'lucide-react';
+import { useCompanies } from '@/contexts/CompanyContext';
 
 interface Sub {
   id: string;
@@ -28,6 +29,7 @@ interface Sub {
   only_changes: boolean;
   attach_csv: boolean;
   project_ids: string[] | null;
+  company_ids: string[] | null;
   enabled: boolean;
   last_sent_at: string | null;
   next_send_at: string | null;
@@ -42,6 +44,8 @@ const SECTION_OPTS = [
   { id: 'payment_apps', label: 'Payment applications' },
   { id: 'equipment', label: 'Equipment & maintenance' },
   { id: 'subcontractors', label: 'Subcontractor activity' },
+  { id: 'properties', label: 'Properties & occupancy' },
+  { id: 'money', label: 'Money owed & collected' },
 ];
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const FREQS: { id: Sub['frequency']; label: string }[] = [
@@ -74,12 +78,14 @@ function defaultForm(): Omit<Sub, 'id' | 'last_sent_at' | 'next_send_at'> {
     only_changes: false,
     attach_csv: false,
     project_ids: null,
+    company_ids: null,
     enabled: true,
   };
 }
 
 export default function WeeklyReports() {
   const [subs, setSubs] = useState<Sub[]>([]);
+  const { companies } = useCompanies();
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Sub | null>(null);
@@ -112,7 +118,7 @@ export default function WeeklyReports() {
       day_of_week: s.day_of_week, day_of_month: s.day_of_month ?? 1, hour: s.hour, timezone: s.timezone,
       frequency: s.frequency || 'weekly', run_at: s.run_at, subject_override: s.subject_override,
       date_range_days: s.date_range_days, only_changes: !!s.only_changes, attach_csv: !!s.attach_csv,
-      project_ids: s.project_ids, enabled: s.enabled,
+      project_ids: s.project_ids, company_ids: s.company_ids ?? null, enabled: s.enabled,
     });
     setRecipientInput('');
     setShowForm(true);
