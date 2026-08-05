@@ -31,6 +31,8 @@ import {
   YAxis,
 } from 'recharts';
 import { Sparkles, Loader2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FleetCostReport } from '@/components/equipment/FleetCostReport';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Equipment } from '@/types/equipment';
@@ -185,7 +187,7 @@ export default function EquipmentInsights() {
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
       setValuations((prev) => ({ ...prev, [eq.id]: data as Valuation }));
-      toast.success(`AI valuation ready for ${eq.name}`);
+      toast.success(`Valuation ready for ${eq.name}`);
     } catch (e: any) {
       toast.error(e?.message || 'Valuation failed');
     } finally {
@@ -194,8 +196,14 @@ export default function EquipmentInsights() {
   };
 
   return (
-    <Layout title="Equipment Intelligence" subtitle="Repair history, cost trends and AI valuation">
-      <div className="space-y-6">
+    <Layout title="Equipment Intelligence" subtitle="Repair history, cost trends and smart valuation">
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="report">Cost & Value Report</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
         <div className="flex flex-wrap items-center gap-3">
           <Select value={selectedId} onValueChange={setSelectedId}>
             <SelectTrigger className="w-64">
@@ -299,7 +307,7 @@ export default function EquipmentInsights() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Unit economics & AI valuation</CardTitle>
+            <CardTitle className="text-base">Unit economics & smart valuation</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -312,7 +320,7 @@ export default function EquipmentInsights() {
                   <TableHead className="text-right">% of value</TableHead>
                   <TableHead className="text-right">$ / hour</TableHead>
                   <TableHead>Health</TableHead>
-                  <TableHead className="text-right">AI value</TableHead>
+                  <TableHead className="text-right">Est. value</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -414,7 +422,12 @@ export default function EquipmentInsights() {
             </Table>
           </CardContent>
         </Card>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="report">
+          <FleetCostReport equipment={equipment as any} repairs={repairs} />
+        </TabsContent>
+      </Tabs>
     </Layout>
   );
 }
