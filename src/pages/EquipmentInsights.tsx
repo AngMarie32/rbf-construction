@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -334,8 +334,8 @@ export default function EquipmentInsights() {
                 {rows.map(({ eq, events, spend, lifetime, ratio, costPerHour }) => {
                   const v = valuations[eq.id];
                   return (
-                    <>
-                      <TableRow key={eq.id}>
+                    <Fragment key={eq.id}>
+                      <TableRow>
                         <TableCell>
                           <div className="font-medium">{eq.name}</div>
                           <div className="text-xs text-muted-foreground">
@@ -367,7 +367,7 @@ export default function EquipmentInsights() {
                         </TableCell>
                       </TableRow>
                       {v && (
-                        <TableRow key={`${eq.id}-ai`} className="bg-muted/40">
+                        <TableRow className="bg-muted/40">
                           <TableCell colSpan={9}>
                             <div className="flex flex-wrap gap-6 text-sm">
                               <div>
@@ -407,7 +407,7 @@ export default function EquipmentInsights() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </TableBody>
