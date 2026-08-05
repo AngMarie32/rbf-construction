@@ -13,6 +13,7 @@ import Projects from '@/pages/Projects';
 import ProjectDetail from '@/pages/ProjectDetail';
 import ProjectSchedule from '@/pages/ProjectSchedule';
 import Equipment from '@/pages/Equipment';
+import EquipmentInsights from '@/pages/EquipmentInsights';
 import Expenses from '@/pages/Expenses';
 import Subcontractors from '@/pages/Subcontractors';
 import Documents from '@/pages/Documents';
@@ -151,6 +152,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Equipment />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/equipment-insights"
+              element={
+                <ProtectedRoute>
+                  <EquipmentInsights />
                 </ProtectedRoute>
               }
             />

@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { 
@@ -31,6 +32,7 @@ interface EstimatorItem {
 }
 
 export default function Equipment() {
+  const navigate = useNavigate();
   const {
     equipment,
     loading,
@@ -205,6 +207,12 @@ export default function Equipment() {
                   onClick={() => setEstimatorOpen(true)}
                 >
                   Equipment Estimator
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/equipment-insights')}
+                >
+                  Cost Intelligence
                 </Button>
               </div>
               

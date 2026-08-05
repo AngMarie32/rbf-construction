@@ -46,6 +46,7 @@ const navGroups: NavGroup[] = [
       { name: 'Punch List', href: '/punch-list' },
       { name: 'Meetings', href: '/meetings' },
       { name: 'Equipment', href: '/equipment' },
+      { name: 'Equipment Intelligence', href: '/equipment-insights' },
       { name: 'Subcontractors', href: '/subcontractors' },
     ],
   },
