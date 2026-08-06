@@ -17,3 +17,5 @@ verify_jwt = false
 
 [functions.analyze-blueprint]
 verify_jwt = true
+[functions.parse-repair-invoice]
+verify_jwt = true

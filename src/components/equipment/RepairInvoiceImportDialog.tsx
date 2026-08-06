@@ -1,0 +1,393 @@
+import { useRef, useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Upload, Loader2, FileText, Trash2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import type { Equipment } from '@/types/equipment';
+
+const CATEGORIES = [
+  'Preventive Maintenance',
+  'Tires/Tracks',
+  'Hydraulics',
+  'Engine',
+  'Drivetrain',
+  'Electrical',
+  'Brakes/Wear',
+  'Body/Attachment',
+  'Inspection',
+  'Other',
+];
+
+interface DraftLine {
+  key: string;
+  include: boolean;
+  equipment_id: string;
+  equipment_guess: string;
+  date: string;
+  description: string;
+  category: string;
+  cost: string;
+  hours_meter: string;
+  confidence: number;
+}
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  equipment: Equipment[];
+  onImported: () => void;
+}
+
+export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImported }: Props) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [reading, setReading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [meta, setMeta] = useState<{ vendor?: string; invoice_number?: string; invoice_date?: string } | null>(null);
+  const [lines, setLines] = useState<DraftLine[]>([]);
+
+  const reset = () => {
+    setFile(null);
+    setLines([]);
+    setMeta(null);
+  };
+
+  const toBase64 = (f: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+      reader.onerror = reject;
+      reader.readAsDataURL(f);
+    });
+
+  const handleRead = async (selected: File) => {
+    if (selected.size > 15 * 1024 * 1024) {
+      toast.error('File must be under 15MB');
+      return;
+    }
+    setFile(selected);
+    setReading(true);
+    try {
+      const fileBase64 = await toBase64(selected);
+      const { data, error } = await supabase.functions.invoke('parse-repair-invoice', {
+        body: {
+          fileBase64,
+          mimeType: selected.type || 'application/pdf',
+          fileName: selected.name,
+          equipment: equipment.map((e) => ({
+            id: e.id,
+            name: e.name,
+            category: e.category,
+            year: e.year,
+            vin_serial_number: e.vin_serial_number,
+          })),
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+
+      const items = ((data as any)?.line_items || []) as any[];
+      if (!items.length) {
+        toast.error('No repair line items were found on that document');
+      }
+      setMeta({
+        vendor: (data as any)?.vendor || '',
+        invoice_number: (data as any)?.invoice_number || '',
+        invoice_date: (data as any)?.invoice_date || '',
+      });
+      setLines(
+        items.map((it, i) => ({
+          key: `${i}-${Date.now()}`,
+          include: true,
+          equipment_id: equipment.some((e) => e.id === it.equipment_id) ? it.equipment_id : '',
+          equipment_guess: it.equipment_guess || '',
+          date: it.date || (data as any)?.invoice_date || new Date().toISOString().slice(0, 10),
+          description: it.description || '',
+          category: CATEGORIES.includes(it.category) ? it.category : 'Other',
+          cost: Number(it.cost || 0).toFixed(3),
+          hours_meter: it.hours_meter != null ? String(it.hours_meter) : '',
+          confidence: Number(it.confidence ?? 0),
+        }))
+      );
+    } catch (e: any) {
+      toast.error(e.message || 'Could not read that document');
+    } finally {
+      setReading(false);
+    }
+  };
+
+  const update = (key: string, patch: Partial<DraftLine>) =>
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+
+  const selected = lines.filter((l) => l.include);
+  const unmatched = selected.filter((l) => !l.equipment_id).length;
+  const total = selected.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+
+  const handleSave = async () => {
+    if (!selected.length) return;
+    if (unmatched) {
+      toast.error(`${unmatched} line${unmatched > 1 ? 's' : ''} still need a unit assigned`);
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = selected.map((l) => ({
+        equipment_id: l.equipment_id,
+        date: l.date,
+        description: [
+          l.category !== 'Other' ? `[${l.category}]` : '',
+          l.description,
+          l.hours_meter ? `(meter ${l.hours_meter} hrs)` : '',
+          meta?.vendor ? `— ${meta.vendor}` : '',
+          meta?.invoice_number ? `Inv ${meta.invoice_number}` : '',
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .trim(),
+        cost: parseFloat(l.cost) || 0,
+      }));
+      const { error } = await supabase.from('maintenance_logs').insert(payload);
+      if (error) throw error;
+      toast.success(`${payload.length} repair record${payload.length > 1 ? 's' : ''} added`);
+      reset();
+      onOpenChange(false);
+      onImported();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save repair records');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) reset();
+        onOpenChange(o);
+      }}
+    >
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Import Repair Invoice</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="rounded-lg border border-dashed p-6 text-center">
+            {file ? (
+              <div className="flex items-center justify-center gap-3">
+                <FileText className="h-5 w-5 text-muted-foreground" />
+                <span className="text-sm font-medium">{file.name}</span>
+                <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+                  Change
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Upload className="mx-auto h-7 w-7 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Upload a typed or handwritten invoice, work order, or repair ticket
+                </p>
+                <Button variant="outline" onClick={() => fileRef.current?.click()}>
+                  Select File
+                </Button>
+                <p className="text-xs text-muted-foreground">PDF, JPG, PNG or HEIC up to 15MB</p>
+              </div>
+            )}
+            <Input
+              ref={fileRef}
+              type="file"
+              accept="image/*,.pdf"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleRead(f);
+                e.target.value = '';
+              }}
+            />
+          </div>
+
+          {reading && (
+            <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Reading the document…
+            </div>
+          )}
+
+          {!reading && lines.length > 0 && (
+            <>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <Label className="text-xs">Vendor</Label>
+                  <Input
+                    value={meta?.vendor || ''}
+                    onChange={(e) => setMeta((m) => ({ ...m, vendor: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Invoice #</Label>
+                  <Input
+                    value={meta?.invoice_number || ''}
+                    onChange={(e) => setMeta((m) => ({ ...m, invoice_number: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Invoice Date</Label>
+                  <Input
+                    type="date"
+                    value={meta?.invoice_date || ''}
+                    onChange={(e) => setMeta((m) => ({ ...m, invoice_date: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10" />
+                      <TableHead className="min-w-[190px]">Unit</TableHead>
+                      <TableHead className="min-w-[140px]">Date</TableHead>
+                      <TableHead className="min-w-[240px]">Detail</TableHead>
+                      <TableHead className="min-w-[170px]">Type</TableHead>
+                      <TableHead className="min-w-[120px]">Cost</TableHead>
+                      <TableHead className="min-w-[90px]">Meter</TableHead>
+                      <TableHead className="w-10" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lines.map((l) => (
+                      <TableRow key={l.key} className={!l.equipment_id && l.include ? 'bg-destructive/5' : ''}>
+                        <TableCell>
+                          <Checkbox
+                            checked={l.include}
+                            onCheckedChange={(v) => update(l.key, { include: Boolean(v) })}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={l.equipment_id || 'unassigned'}
+                            onValueChange={(v) => update(l.key, { equipment_id: v === 'unassigned' ? '' : v })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select unit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned">Unassigned</SelectItem>
+                              {equipment.map((e) => (
+                                <SelectItem key={e.id} value={e.id}>
+                                  {e.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {l.equipment_guess && (
+                            <p className="mt-1 text-xs text-muted-foreground">Read as: {l.equipment_guess}</p>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Input type="date" value={l.date} onChange={(e) => update(l.key, { date: e.target.value })} />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            value={l.description}
+                            onChange={(e) => update(l.key, { description: e.target.value })}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Select value={l.category} onValueChange={(v) => update(l.key, { category: v })}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CATEGORIES.map((c) => (
+                                <SelectItem key={c} value={c}>
+                                  {c}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="0.001"
+                            value={l.cost}
+                            onChange={(e) => update(l.key, { cost: e.target.value })}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            value={l.hours_meter}
+                            onChange={(e) => update(l.key, { hours_meter: e.target.value })}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col items-end gap-1">
+                            {l.confidence > 0 && l.confidence < 0.7 && (
+                              <Badge variant="secondary" className="text-[10px]">
+                                Verify
+                              </Badge>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setLines((p) => p.filter((x) => x.key !== l.key))}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div className="text-sm text-muted-foreground">
+                  {selected.length} of {lines.length} selected · Total{' '}
+                  <span className="font-medium text-foreground">
+                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(total)}
+                  </span>
+                  {unmatched > 0 && (
+                    <span className="ml-2 text-destructive">{unmatched} need a unit</span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => onOpenChange(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSave} disabled={saving || !selected.length}>
+                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Approve & Add {selected.length ? `(${selected.length})` : ''}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
