@@ -435,6 +435,13 @@ export default function EquipmentInsights() {
           <FleetCostReport equipment={equipment as any} repairs={repairs} />
         </TabsContent>
       </Tabs>
+
+      <RepairInvoiceImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        equipment={equipment}
+        onImported={load}
+      />
     </Layout>
   );
 }
