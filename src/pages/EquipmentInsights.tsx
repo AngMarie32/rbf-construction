@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,9 +30,10 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, Upload } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FleetCostReport } from '@/components/equipment/FleetCostReport';
+import { RepairInvoiceImportDialog } from '@/components/equipment/RepairInvoiceImportDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Equipment } from '@/types/equipment';
@@ -83,22 +84,24 @@ export default function EquipmentInsights() {
   const [selectedId, setSelectedId] = useState<string>('all');
   const [valuations, setValuations] = useState<Record<string, Valuation>>({});
   const [valuingId, setValuingId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [eqRes, mlRes] = await Promise.all([
+      supabase.from('equipment').select('*').order('name'),
+      supabase.from('maintenance_logs').select('*').order('date', { ascending: true }),
+    ]);
+    if (eqRes.error) toast.error('Failed to load equipment');
+    if (mlRes.error) toast.error('Failed to load repair history');
+    setEquipment((eqRes.data || []) as Equipment[]);
+    setRepairs((mlRes.data || []) as RepairLog[]);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const [eqRes, mlRes] = await Promise.all([
-        supabase.from('equipment').select('*').order('name'),
-        supabase.from('maintenance_logs').select('*').order('date', { ascending: true }),
-      ]);
-      if (eqRes.error) toast.error('Failed to load equipment');
-      if (mlRes.error) toast.error('Failed to load repair history');
-      setEquipment((eqRes.data || []) as Equipment[]);
-      setRepairs((mlRes.data || []) as RepairLog[]);
-      setLoading(false);
-    };
     load();
-  }, []);
+  }, [load]);
 
   const cutoff = useMemo(() => {
     const months = Number(range);
@@ -236,6 +239,10 @@ export default function EquipmentInsights() {
             onChange={(e) => setSearch(e.target.value)}
             className="w-64"
           />
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Import Repair Invoice
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
