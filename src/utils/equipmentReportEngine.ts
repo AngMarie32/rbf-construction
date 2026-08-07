@@ -336,9 +336,16 @@ export function analyzeUnit(
   const annualRunRate = (recurringSpend / span) * 12;
 
   // Trend: last half of the scoped window vs first half.
-  const windowMonths = options.months || Math.max(12, span);
-  const mid = new Date();
-  mid.setMonth(mid.getMonth() - windowMonths / 2);
+  let mid: Date;
+  if (options.startDate || options.endDate) {
+    const s = options.startDate ? new Date(options.startDate).getTime() : firstDate.getTime();
+    const e = options.endDate ? new Date(options.endDate).getTime() : now.getTime();
+    mid = new Date((s + e) / 2);
+  } else {
+    const windowMonths = options.months || Math.max(12, span);
+    mid = new Date();
+    mid.setMonth(mid.getMonth() - windowMonths / 2);
+  }
   const recent = logs
     .filter((r) => new Date(r.date) >= mid)
     .reduce((s, r) => s + Number(r.cost || 0), 0);
