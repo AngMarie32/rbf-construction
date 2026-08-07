@@ -26,6 +26,19 @@ import {
 } from '@/components/ui/table';
 import { Printer, Download, RotateCcw } from 'lucide-react';
 import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  ComposedChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import {
   REPAIR_TYPES,
   TYPE_MAP,
   classifyRepair,
@@ -47,12 +60,28 @@ const currency = (n: number) =>
 
 const SECTION_DEFS = [
   { key: 'summary', label: 'Executive summary' },
+  { key: 'charts', label: 'Charts' },
   { key: 'mix', label: 'Repair mix by type' },
   { key: 'units', label: 'Unit scorecard' },
   { key: 'drivers', label: 'Risk drivers & actions' },
   { key: 'ledger', label: 'Repair ledger detail' },
 ] as const;
 type SectionKey = (typeof SECTION_DEFS)[number]['key'];
+
+const KPI_DEFS = [
+  { key: 'periodSpend', label: 'Repair spend (period)' },
+  { key: 'lifetimeSpend', label: 'Lifetime repairs' },
+  { key: 'events', label: 'Repair events' },
+  { key: 'costPerHour', label: 'Cost / hour' },
+  { key: 'runRate', label: 'Annual run-rate' },
+  { key: 'fleetBookValue', label: 'Fleet value (book)' },
+  { key: 'fleetValue', label: 'Fleet value (depreciated)' },
+  { key: 'pctOfFleet', label: 'Repairs % of book value' },
+  { key: 'avgHealth', label: 'Avg health score' },
+  { key: 'replaceWatch', label: 'Replace / watch' },
+  { key: 'unitCount', label: 'Units in scope' },
+] as const;
+type KpiKey = (typeof KPI_DEFS)[number]['key'];
 
 interface Props {
   equipment: EquipmentLike[];
