@@ -128,6 +128,13 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
         invoice_number: (data as any)?.invoice_number || '',
         invoice_date: (data as any)?.invoice_date || '',
       });
+      setTax(String(Number((data as any)?.tax || 0).toFixed(2)));
+      setFees(String(Number((data as any)?.fees || 0).toFixed(2)));
+      setDocTotal(
+        (data as any)?.document_total != null
+          ? String(Number((data as any).document_total).toFixed(2))
+          : ''
+      );
       setLines(
         items.map((it, i) => ({
           key: `${i}-${Date.now()}`,
@@ -154,7 +161,45 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
 
   const selected = lines.filter((l) => l.include);
   const unmatched = selected.filter((l) => !l.equipment_id).length;
-  const total = selected.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+  const lineTotal = selected.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+  const taxNum = taxMode === 'ignore' ? 0 : parseFloat(tax) || 0;
+  const feesNum = taxMode === 'ignore' ? 0 : parseFloat(fees) || 0;
+  const total = round2(lineTotal + taxNum + feesNum);
+  const docTotalNum = docTotal === '' ? null : parseFloat(docTotal) || 0;
+  const variance = docTotalNum == null ? 0 : round2(docTotalNum - total);
+
+  const balanceToTotal = () => {
+    if (docTotalNum == null) return;
+    setTax(String(round2((parseFloat(tax) || 0) + variance).toFixed(2)));
+    if (taxMode === 'ignore') setTaxMode('allocate');
+  };
+
+  const openSplit = (key: string) => {
+    const l = lines.find((x) => x.key === key);
+    setSplitUnits(l?.equipment_id ? [l.equipment_id] : []);
+    setSplitKey(key);
+  };
+
+  const applySplit = () => {
+    const source = lines.find((l) => l.key === splitKey);
+    if (!source || splitUnits.length < 2) return;
+    const cost = parseFloat(source.cost) || 0;
+    const share = round2(cost / splitUnits.length);
+    const parts = splitUnits.map((id, i) => ({
+      ...source,
+      key: `${source.key}-s${i}`,
+      equipment_id: id,
+      equipment_guess: '',
+      cost: (i === splitUnits.length - 1
+        ? round2(cost - share * (splitUnits.length - 1))
+        : share
+      ).toFixed(3),
+      description: `${source.description} (split ${i + 1}/${splitUnits.length})`,
+    }));
+    setLines((prev) => prev.flatMap((l) => (l.key === splitKey ? parts : [l])));
+    setSplitKey(null);
+    setSplitUnits([]);
+  };
 
   const handleSave = async () => {
     if (!selected.length) return;
