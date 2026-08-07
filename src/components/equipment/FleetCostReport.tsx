@@ -247,6 +247,8 @@ export function FleetCostReport({ equipment, repairs }: Props) {
         .kpi span{display:block;font-size:11px;color:#666;}
         .kpi b{font-size:16px;}
         ul{font-size:12px;}
+        svg{max-width:100%;height:auto;}
+        .chart{page-break-inside:avoid;margin-top:12px;}
       </style></head><body>${node.innerHTML}</body></html>`);
     win.document.close();
     win.focus();
@@ -254,6 +256,45 @@ export function FleetCostReport({ equipment, repairs }: Props) {
   };
 
   const t = report.totals;
+
+  const rangeLabel =
+    rangeMode === 'custom'
+      ? `${options.startDate || 'start'} → ${options.endDate || 'today'}`
+      : options.months
+      ? `Last ${options.months} months`
+      : 'All time';
+
+  const kpiValue = (key: KpiKey): string => {
+    switch (key) {
+      case 'periodSpend': return currency(t.periodSpend);
+      case 'lifetimeSpend': return currency(t.lifetimeSpend);
+      case 'events': return String(t.events);
+      case 'costPerHour': return currency(t.costPerHour);
+      case 'runRate': return currency(t.runRate);
+      case 'fleetBookValue': return currency(t.fleetBookValue);
+      case 'fleetValue': return currency(t.fleetValue);
+      case 'pctOfFleet': return `${t.pctOfFleet.toFixed(2)}%`;
+      case 'avgHealth': return t.avgHealth.toFixed(2);
+      case 'replaceWatch': return `${t.replaceCount} / ${t.watchCount}`;
+      case 'unitCount': return String(report.units.length);
+      default: return '';
+    }
+  };
+
+  const monthlyChart = report.monthly.map((m) => ({
+    month: m.month,
+    cost: Number(m.cost.toFixed(2)),
+    events: m.events,
+  }));
+  const typeChart = report.typeTotals.map((row) => ({
+    label: row.label,
+    total: Number(row.total.toFixed(2)),
+  }));
+  const unitChart = report.units.slice(0, 12).map((u) => ({
+    name: u.name,
+    score: Number(u.healthScore.toFixed(2)),
+    spend: Number(u.lifetimeSpend.toFixed(2)),
+  }));
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-6">
