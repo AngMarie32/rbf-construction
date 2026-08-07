@@ -102,10 +102,22 @@ export function FleetCostReport({ equipment, repairs }: Props) {
   const [options, setOptions] = useState<ReportOptions>(DEFAULT_OPTIONS);
   const [sections, setSections] = useState<SectionKey[]>([
     'summary',
+    'charts',
     'mix',
     'units',
     'drivers',
   ]);
+  const [kpis, setKpis] = useState<KpiKey[]>([
+    'periodSpend',
+    'lifetimeSpend',
+    'events',
+    'costPerHour',
+    'runRate',
+    'fleetBookValue',
+    'avgHealth',
+    'replaceWatch',
+  ]);
+  const [rangeMode, setRangeMode] = useState<string>('12');
   const [unitIds, setUnitIds] = useState<string[]>([]);
   const [title, setTitle] = useState('Fleet Cost & Value Report');
   const [ledgerSearch, setLedgerSearch] = useState('');
@@ -163,6 +175,9 @@ export function FleetCostReport({ equipment, repairs }: Props) {
     setSections((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
     );
+
+  const toggleKpi = (key: KpiKey) =>
+    setKpis((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
   const exportCsv = () => {
     const head = [
