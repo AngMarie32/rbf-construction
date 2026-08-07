@@ -267,6 +267,7 @@ export function FleetCostReport({ equipment, repairs }: Props) {
             onClick={() => {
               setOptions(DEFAULT_OPTIONS);
               setUnitIds([]);
+              setRangeMode('12');
             }}
           >
             <RotateCcw className="w-4 h-4" />
@@ -281,8 +282,20 @@ export function FleetCostReport({ equipment, repairs }: Props) {
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">History window</Label>
             <Select
-              value={String(options.months)}
-              onValueChange={(v) => set({ months: Number(v) })}
+              value={rangeMode}
+              onValueChange={(v) => {
+                setRangeMode(v);
+                if (v === 'custom') {
+                  const s = new Date();
+                  s.setMonth(s.getMonth() - 12);
+                  set({
+                    startDate: options.startDate || s.toISOString().slice(0, 10),
+                    endDate: options.endDate || new Date().toISOString().slice(0, 10),
+                  });
+                } else {
+                  set({ months: Number(v), startDate: undefined, endDate: undefined });
+                }
+              }}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -292,8 +305,29 @@ export function FleetCostReport({ equipment, repairs }: Props) {
                 <SelectItem value="24">Last 24 months</SelectItem>
                 <SelectItem value="36">Last 36 months</SelectItem>
                 <SelectItem value="0">All time</SelectItem>
+                <SelectItem value="custom">Custom date range</SelectItem>
               </SelectContent>
             </Select>
+            {rangeMode === 'custom' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-muted-foreground">From</Label>
+                  <Input
+                    type="date"
+                    value={options.startDate || ''}
+                    onChange={(e) => set({ startDate: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-muted-foreground">To</Label>
+                  <Input
+                    type="date"
+                    value={options.endDate || ''}
+                    onChange={(e) => set({ endDate: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <Separator />
@@ -395,6 +429,28 @@ export function FleetCostReport({ equipment, repairs }: Props) {
               </label>
             ))}
           </div>
+
+          {sections.includes('summary') && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Executive summary items ({kpis.length})
+                </Label>
+                <div className="space-y-2 max-h-56 overflow-auto pr-1">
+                  {KPI_DEFS.map((k) => (
+                    <label key={k.key} className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={kpis.includes(k.key)}
+                        onCheckedChange={() => toggleKpi(k.key)}
+                      />
+                      {k.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           <Separator />
 
