@@ -209,7 +209,19 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
     }
     setSaving(true);
     try {
-      const payload = selected.map((l) => ({
+      const addOns = round2(taxNum + feesNum);
+      const base = selected.reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+      const allocFor = (l: DraftLine) =>
+        base > 0 ? round2(((parseFloat(l.cost) || 0) / base) * addOns) : 0;
+
+      // Ensure allocations sum exactly to the add-on amount.
+      const allocations = selected.map(allocFor);
+      if (addOns !== 0 && allocations.length) {
+        const diff = round2(addOns - allocations.reduce((s, v) => s + v, 0));
+        allocations[allocations.length - 1] = round2(allocations[allocations.length - 1] + diff);
+      }
+
+      const payload = selected.map((l, i) => ({
         equipment_id: l.equipment_id,
         date: l.date,
         description: [
@@ -218,12 +230,36 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
           l.hours_meter ? `(meter ${l.hours_meter} hrs)` : '',
           meta?.vendor ? `— ${meta.vendor}` : '',
           meta?.invoice_number ? `Inv ${meta.invoice_number}` : '',
+          taxMode === 'allocate' && allocations[i] ? `+ tax/fees ${allocations[i].toFixed(2)}` : '',
         ]
           .filter(Boolean)
           .join(' ')
           .trim(),
-        cost: parseFloat(l.cost) || 0,
+        cost:
+          taxMode === 'allocate'
+            ? round2((parseFloat(l.cost) || 0) + allocations[i])
+            : parseFloat(l.cost) || 0,
       }));
+
+      if (taxMode === 'line' && addOns !== 0) {
+        selected.forEach((l, i) => {
+          if (!allocations[i]) return;
+          payload.push({
+            equipment_id: l.equipment_id,
+            date: l.date,
+            description: [
+              '[Other] Sales tax & fees',
+              meta?.vendor ? `— ${meta.vendor}` : '',
+              meta?.invoice_number ? `Inv ${meta.invoice_number}` : '',
+            ]
+              .filter(Boolean)
+              .join(' ')
+              .trim(),
+            cost: allocations[i],
+          });
+        });
+      }
+
       const { error } = await supabase.from('maintenance_logs').insert(payload);
       if (error) throw error;
       toast.success(`${payload.length} repair record${payload.length > 1 ? 's' : ''} added`);
