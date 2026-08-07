@@ -20,7 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Upload, Loader2, FileText, Trash2 } from 'lucide-react';
+import { Upload, Loader2, FileText, Trash2, Split } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Equipment } from '@/types/equipment';
@@ -58,18 +58,31 @@ interface Props {
   onImported: () => void;
 }
 
+const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+
 export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImported }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [reading, setReading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [meta, setMeta] = useState<{ vendor?: string; invoice_number?: string; invoice_date?: string } | null>(null);
+  const [tax, setTax] = useState('0');
+  const [fees, setFees] = useState('0');
+  const [docTotal, setDocTotal] = useState('');
+  const [taxMode, setTaxMode] = useState<'allocate' | 'line' | 'ignore'>('allocate');
+  const [splitKey, setSplitKey] = useState<string | null>(null);
+  const [splitUnits, setSplitUnits] = useState<string[]>([]);
   const [lines, setLines] = useState<DraftLine[]>([]);
 
   const reset = () => {
     setFile(null);
     setLines([]);
     setMeta(null);
+    setTax('0');
+    setFees('0');
+    setDocTotal('');
+    setSplitKey(null);
+    setSplitUnits([]);
   };
 
   const toBase64 = (f: File) =>
