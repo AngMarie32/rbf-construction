@@ -432,6 +432,7 @@ export function buildReport(
   const periodSpend = units.reduce((s, u) => s + u.periodSpend, 0);
   const lifetimeSpend = units.reduce((s, u) => s + u.lifetimeSpend, 0);
   const fleetValue = units.reduce((s, u) => s + u.adjustedValue, 0);
+  const fleetBookValue = units.reduce((s, u) => s + u.bookValue, 0);
   const totalHours = units.reduce((s, u) => s + u.effectiveHours, 0);
   const runRate = units.reduce((s, u) => s + u.annualRunRate, 0);
 
@@ -463,9 +464,10 @@ export function buildReport(
       lifetimeSpend,
       events: scoped.length,
       fleetValue,
+      fleetBookValue,
       runRate,
       costPerHour: totalHours > 0 ? lifetimeSpend / totalHours : 0,
-      pctOfFleet: fleetValue > 0 ? (lifetimeSpend / fleetValue) * 100 : 0,
+      pctOfFleet: fleetBookValue > 0 ? (lifetimeSpend / fleetBookValue) * 100 : 0,
       replaceCount: units.filter((u) => u.verdict === 'Replace').length,
       watchCount: units.filter((u) => u.verdict === 'Repair watch').length,
       avgHealth: units.length ? units.reduce((s, u) => s + u.healthScore, 0) / units.length : 0,
