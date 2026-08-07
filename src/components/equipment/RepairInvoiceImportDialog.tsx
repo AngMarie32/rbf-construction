@@ -550,6 +550,43 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
           )}
         </div>
       </DialogContent>
+
+      <Dialog open={!!splitKey} onOpenChange={(o) => !o && setSplitKey(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Split cost across units</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Pick every unit this line covers. The cost is divided evenly, with rounding applied to
+              the last unit so the invoice still balances.
+            </p>
+            <div className="max-h-72 overflow-auto rounded-md border divide-y">
+              {equipment.map((eq) => (
+                <label key={eq.id} className="flex items-center gap-3 p-2 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={splitUnits.includes(eq.id)}
+                    onCheckedChange={() =>
+                      setSplitUnits((prev) =>
+                        prev.includes(eq.id) ? prev.filter((x) => x !== eq.id) : [...prev, eq.id]
+                      )
+                    }
+                  />
+                  <span>{eq.name}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setSplitKey(null)}>
+                Cancel
+              </Button>
+              <Button onClick={applySplit} disabled={splitUnits.length < 2}>
+                Split into {splitUnits.length || 0}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
