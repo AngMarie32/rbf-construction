@@ -26,6 +26,19 @@ import {
 } from '@/components/ui/table';
 import { Printer, Download, RotateCcw } from 'lucide-react';
 import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  ComposedChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import {
   REPAIR_TYPES,
   TYPE_MAP,
   classifyRepair,
@@ -47,12 +60,28 @@ const currency = (n: number) =>
 
 const SECTION_DEFS = [
   { key: 'summary', label: 'Executive summary' },
+  { key: 'charts', label: 'Charts' },
   { key: 'mix', label: 'Repair mix by type' },
   { key: 'units', label: 'Unit scorecard' },
   { key: 'drivers', label: 'Risk drivers & actions' },
   { key: 'ledger', label: 'Repair ledger detail' },
 ] as const;
 type SectionKey = (typeof SECTION_DEFS)[number]['key'];
+
+const KPI_DEFS = [
+  { key: 'periodSpend', label: 'Repair spend (period)' },
+  { key: 'lifetimeSpend', label: 'Lifetime repairs' },
+  { key: 'events', label: 'Repair events' },
+  { key: 'costPerHour', label: 'Cost / hour' },
+  { key: 'runRate', label: 'Annual run-rate' },
+  { key: 'fleetBookValue', label: 'Fleet value (book)' },
+  { key: 'fleetValue', label: 'Fleet value (depreciated)' },
+  { key: 'pctOfFleet', label: 'Repairs % of book value' },
+  { key: 'avgHealth', label: 'Avg health score' },
+  { key: 'replaceWatch', label: 'Replace / watch' },
+  { key: 'unitCount', label: 'Units in scope' },
+] as const;
+type KpiKey = (typeof KPI_DEFS)[number]['key'];
 
 interface Props {
   equipment: EquipmentLike[];
@@ -73,10 +102,22 @@ export function FleetCostReport({ equipment, repairs }: Props) {
   const [options, setOptions] = useState<ReportOptions>(DEFAULT_OPTIONS);
   const [sections, setSections] = useState<SectionKey[]>([
     'summary',
+    'charts',
     'mix',
     'units',
     'drivers',
   ]);
+  const [kpis, setKpis] = useState<KpiKey[]>([
+    'periodSpend',
+    'lifetimeSpend',
+    'events',
+    'costPerHour',
+    'runRate',
+    'fleetBookValue',
+    'avgHealth',
+    'replaceWatch',
+  ]);
+  const [rangeMode, setRangeMode] = useState<string>('12');
   const [unitIds, setUnitIds] = useState<string[]>([]);
   const [title, setTitle] = useState('Fleet Cost & Value Report');
   const [ledgerSearch, setLedgerSearch] = useState('');
@@ -135,6 +176,9 @@ export function FleetCostReport({ equipment, repairs }: Props) {
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
     );
 
+  const toggleKpi = (key: KpiKey) =>
+    setKpis((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+
   const exportCsv = () => {
     const head = [
       'Equipment',
@@ -191,6 +235,7 @@ export function FleetCostReport({ equipment, repairs }: Props) {
     if (!win) return;
     win.document.write(`<!doctype html><html><head><title>${title}</title>
       <style>
+        :root{--border:0 0% 88%;--muted-foreground:0 0% 40%;--primary:217 91% 55%;}
         body{font-family:'DM Sans',system-ui,sans-serif;color:#111;margin:32px;}
         h1{font-size:22px;margin:0 0 4px;} h2{font-size:15px;margin:24px 0 8px;}
         .muted{color:#666;font-size:12px;}
@@ -203,6 +248,8 @@ export function FleetCostReport({ equipment, repairs }: Props) {
         .kpi span{display:block;font-size:11px;color:#666;}
         .kpi b{font-size:16px;}
         ul{font-size:12px;}
+        svg{max-width:100%;height:auto;}
+        .chart{page-break-inside:avoid;margin-top:12px;}
       </style></head><body>${node.innerHTML}</body></html>`);
     win.document.close();
     win.focus();
@@ -210,6 +257,45 @@ export function FleetCostReport({ equipment, repairs }: Props) {
   };
 
   const t = report.totals;
+
+  const rangeLabel =
+    rangeMode === 'custom'
+      ? `${options.startDate || 'start'} → ${options.endDate || 'today'}`
+      : options.months
+      ? `Last ${options.months} months`
+      : 'All time';
+
+  const kpiValue = (key: KpiKey): string => {
+    switch (key) {
+      case 'periodSpend': return currency(t.periodSpend);
+      case 'lifetimeSpend': return currency(t.lifetimeSpend);
+      case 'events': return String(t.events);
+      case 'costPerHour': return currency(t.costPerHour);
+      case 'runRate': return currency(t.runRate);
+      case 'fleetBookValue': return currency(t.fleetBookValue);
+      case 'fleetValue': return currency(t.fleetValue);
+      case 'pctOfFleet': return `${t.pctOfFleet.toFixed(2)}%`;
+      case 'avgHealth': return t.avgHealth.toFixed(2);
+      case 'replaceWatch': return `${t.replaceCount} / ${t.watchCount}`;
+      case 'unitCount': return String(report.units.length);
+      default: return '';
+    }
+  };
+
+  const monthlyChart = report.monthly.map((m) => ({
+    month: m.month,
+    cost: Number(m.cost.toFixed(2)),
+    events: m.events,
+  }));
+  const typeChart = report.typeTotals.map((row) => ({
+    label: row.label,
+    total: Number(row.total.toFixed(2)),
+  }));
+  const unitChart = report.units.slice(0, 12).map((u) => ({
+    name: u.name,
+    score: Number(u.healthScore.toFixed(2)),
+    spend: Number(u.lifetimeSpend.toFixed(2)),
+  }));
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-6">
@@ -223,6 +309,7 @@ export function FleetCostReport({ equipment, repairs }: Props) {
             onClick={() => {
               setOptions(DEFAULT_OPTIONS);
               setUnitIds([]);
+              setRangeMode('12');
             }}
           >
             <RotateCcw className="w-4 h-4" />
@@ -237,8 +324,20 @@ export function FleetCostReport({ equipment, repairs }: Props) {
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">History window</Label>
             <Select
-              value={String(options.months)}
-              onValueChange={(v) => set({ months: Number(v) })}
+              value={rangeMode}
+              onValueChange={(v) => {
+                setRangeMode(v);
+                if (v === 'custom') {
+                  const s = new Date();
+                  s.setMonth(s.getMonth() - 12);
+                  set({
+                    startDate: options.startDate || s.toISOString().slice(0, 10),
+                    endDate: options.endDate || new Date().toISOString().slice(0, 10),
+                  });
+                } else {
+                  set({ months: Number(v), startDate: undefined, endDate: undefined });
+                }
+              }}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -248,8 +347,29 @@ export function FleetCostReport({ equipment, repairs }: Props) {
                 <SelectItem value="24">Last 24 months</SelectItem>
                 <SelectItem value="36">Last 36 months</SelectItem>
                 <SelectItem value="0">All time</SelectItem>
+                <SelectItem value="custom">Custom date range</SelectItem>
               </SelectContent>
             </Select>
+            {rangeMode === 'custom' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-muted-foreground">From</Label>
+                  <Input
+                    type="date"
+                    value={options.startDate || ''}
+                    onChange={(e) => set({ startDate: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-muted-foreground">To</Label>
+                  <Input
+                    type="date"
+                    value={options.endDate || ''}
+                    onChange={(e) => set({ endDate: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <Separator />
@@ -352,6 +472,28 @@ export function FleetCostReport({ equipment, repairs }: Props) {
             ))}
           </div>
 
+          {sections.includes('summary') && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Executive summary items ({kpis.length})
+                </Label>
+                <div className="space-y-2 max-h-56 overflow-auto pr-1">
+                  {KPI_DEFS.map((k) => (
+                    <label key={k.key} className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={kpis.includes(k.key)}
+                        onCheckedChange={() => toggleKpi(k.key)}
+                      />
+                      {k.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
           <Separator />
 
           <div className="space-y-2">
@@ -396,7 +538,7 @@ export function FleetCostReport({ equipment, repairs }: Props) {
             <h1 className="text-xl font-semibold">{title}</h1>
             <p className="muted text-sm text-muted-foreground">
               RBF Construction • {new Date().toLocaleDateString()} •{' '}
-              {options.months ? `Last ${options.months} months` : 'All time'} •{' '}
+              {rangeLabel} •{' '}
               {report.units.length} units •{' '}
               {options.includedTypes.length} of {REPAIR_TYPES.length} repair types •{' '}
               {options.excludedRepairIds.length} excluded entries •{' '}
@@ -411,24 +553,15 @@ export function FleetCostReport({ equipment, repairs }: Props) {
               </CardHeader>
               <CardContent>
                 <div className="kpis grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    ['Repair spend (period)', currency(t.periodSpend)],
-                    ['Lifetime repairs', currency(t.lifetimeSpend)],
-                    ['Repair events', String(t.events)],
-                    ['Cost / hour', currency(t.costPerHour)],
-                    ['Annual run-rate', currency(t.runRate)],
-                    ['Fleet value (adj.)', currency(t.fleetValue)],
-                    ['Avg health score', `${t.avgHealth.toFixed(2)}`],
-                    ['Replace / watch', `${t.replaceCount} / ${t.watchCount}`],
-                  ].map(([label, value]) => (
-                    <div key={label} className="kpi rounded-lg border p-3">
-                      <span className="text-xs text-muted-foreground block">{label}</span>
-                      <b className="text-lg font-semibold">{value}</b>
+                  {KPI_DEFS.filter((k) => kpis.includes(k.key)).map((k) => (
+                    <div key={k.key} className="kpi rounded-lg border p-3">
+                      <span className="text-xs text-muted-foreground block">{k.label}</span>
+                      <b className="text-lg font-semibold">{kpiValue(k.key)}</b>
                     </div>
                   ))}
                 </div>
                 <p className="mt-4 text-sm text-muted-foreground">
-                  Repairs consume {t.pctOfFleet.toFixed(2)}% of adjusted fleet value.{' '}
+                  Repairs consume {t.pctOfFleet.toFixed(2)}% of fleet book value.{' '}
                   {t.replaceCount > 0
                     ? `${t.replaceCount} unit(s) scored below 40 and should be evaluated for replacement.`
                     : 'No unit is currently in replacement territory.'}{' '}
@@ -437,6 +570,69 @@ export function FleetCostReport({ equipment, repairs }: Props) {
                   {options.useSeverityWeighting ? 'counts heavier' : 'counts at face value'} against
                   each unit.
                 </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {sections.includes('charts') && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Charts</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-8">
+                <div className="chart">
+                  <p className="text-sm font-medium mb-2">Repair spend by month</p>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <ComposedChart data={monthlyChart} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                      <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                      <Tooltip formatter={(v: number, n) => (n === 'Spend' ? currency(Number(v)) : v)} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="cost" name="Spend" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                      <Line type="monotone" dataKey="events" name="Events" stroke="hsl(var(--muted-foreground))" strokeWidth={2} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="chart">
+                  <p className="text-sm font-medium mb-2">Spend by repair type</p>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={typeChart} layout="vertical" margin={{ top: 8, right: 16, left: 40, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                      <YAxis type="category" dataKey="label" width={130} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                      <Tooltip formatter={(v: number) => currency(Number(v))} />
+                      <Bar dataKey="total" name="Spend" fill="hsl(var(--primary))" radius={[0, 3, 3, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="chart">
+                  <p className="text-sm font-medium mb-2">Health score by unit (lowest 12)</p>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={unitChart} margin={{ top: 8, right: 8, left: -8, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="name" angle={-35} textAnchor="end" interval={0} height={70} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                      <Tooltip />
+                      <Bar dataKey="score" name="Health score" radius={[3, 3, 0, 0]}>
+                        {unitChart.map((u) => (
+                          <Cell
+                            key={u.name}
+                            fill={
+                              u.score >= 80
+                                ? 'hsl(142 71% 45%)'
+                                : u.score >= 60
+                                ? 'hsl(45 93% 47%)'
+                                : 'hsl(217 91% 60%)'
+                            }
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
           )}

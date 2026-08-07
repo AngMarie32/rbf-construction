@@ -151,6 +151,10 @@ export interface ReportOptions {
   outlierMultiple: number;
   /** Months of history in scope. 0 = all time. */
   months: number;
+  /** Custom range start (YYYY-MM-DD). When set with endDate, overrides `months`. */
+  startDate?: string;
+  /** Custom range end (YYYY-MM-DD). */
+  endDate?: string;
   /** Annual operating hours assumption when a unit has no logged hours. */
   assumedAnnualHours: number;
   /** Replace-watch threshold: lifetime severity-weighted repairs as % of value. */
@@ -165,6 +169,8 @@ export const DEFAULT_OPTIONS: ReportOptions = {
   useSeverityWeighting: true,
   outlierMultiple: 0,
   months: 12,
+  startDate: undefined,
+  endDate: undefined,
   assumedAnnualHours: 1200,
   replaceThreshold: 50,
 };
@@ -224,13 +230,19 @@ export function filterRepairs(
   repairs: RepairRecord[],
   options: ReportOptions
 ): RepairRecord[] {
-  const cutoff = options.months
+  const custom = Boolean(options.startDate || options.endDate);
+  const cutoff = custom
+    ? options.startDate
+      ? new Date(options.startDate)
+      : null
+    : options.months
     ? (() => {
         const d = new Date();
         d.setMonth(d.getMonth() - options.months);
         return d;
       })()
     : null;
+  const endCap = custom && options.endDate ? new Date(`${options.endDate}T23:59:59`) : null;
   const included = new Set(options.includedTypes);
   const excluded = new Set(options.excludedRepairIds);
 
@@ -238,6 +250,7 @@ export function filterRepairs(
     if (excluded.has(r.id)) return false;
     if (!included.has(classifyRepair(r.description))) return false;
     if (cutoff && new Date(r.date) < cutoff) return false;
+    if (endCap && new Date(r.date) > endCap) return false;
     return true;
   });
 
@@ -323,9 +336,16 @@ export function analyzeUnit(
   const annualRunRate = (recurringSpend / span) * 12;
 
   // Trend: last half of the scoped window vs first half.
-  const windowMonths = options.months || Math.max(12, span);
-  const mid = new Date();
-  mid.setMonth(mid.getMonth() - windowMonths / 2);
+  let mid: Date;
+  if (options.startDate || options.endDate) {
+    const s = options.startDate ? new Date(options.startDate).getTime() : firstDate.getTime();
+    const e = options.endDate ? new Date(options.endDate).getTime() : now.getTime();
+    mid = new Date((s + e) / 2);
+  } else {
+    const windowMonths = options.months || Math.max(12, span);
+    mid = new Date();
+    mid.setMonth(mid.getMonth() - windowMonths / 2);
+  }
   const recent = logs
     .filter((r) => new Date(r.date) >= mid)
     .reduce((s, r) => s + Number(r.cost || 0), 0);
@@ -412,6 +432,7 @@ export function buildReport(
   const periodSpend = units.reduce((s, u) => s + u.periodSpend, 0);
   const lifetimeSpend = units.reduce((s, u) => s + u.lifetimeSpend, 0);
   const fleetValue = units.reduce((s, u) => s + u.adjustedValue, 0);
+  const fleetBookValue = units.reduce((s, u) => s + u.bookValue, 0);
   const totalHours = units.reduce((s, u) => s + u.effectiveHours, 0);
   const runRate = units.reduce((s, u) => s + u.annualRunRate, 0);
 
@@ -443,9 +464,10 @@ export function buildReport(
       lifetimeSpend,
       events: scoped.length,
       fleetValue,
+      fleetBookValue,
       runRate,
       costPerHour: totalHours > 0 ? lifetimeSpend / totalHours : 0,
-      pctOfFleet: fleetValue > 0 ? (lifetimeSpend / fleetValue) * 100 : 0,
+      pctOfFleet: fleetBookValue > 0 ? (lifetimeSpend / fleetBookValue) * 100 : 0,
       replaceCount: units.filter((u) => u.verdict === 'Replace').length,
       watchCount: units.filter((u) => u.verdict === 'Repair watch').length,
       avgHealth: units.length ? units.reduce((s, u) => s + u.healthScore, 0) / units.length : 0,
