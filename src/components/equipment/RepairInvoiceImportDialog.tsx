@@ -274,6 +274,7 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
   };
 
   return (
+    <>
     <Dialog
       open={open}
       onOpenChange={(o) => {
@@ -551,6 +552,7 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
         </div>
       </DialogContent>
 
+      </Dialog>
       <Dialog open={!!splitKey} onOpenChange={(o) => !o && setSplitKey(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -587,6 +589,6 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
           </div>
         </DialogContent>
       </Dialog>
-    </Dialog>
+    </>
   );
 }
