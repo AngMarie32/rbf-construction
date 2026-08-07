@@ -230,13 +230,19 @@ export function filterRepairs(
   repairs: RepairRecord[],
   options: ReportOptions
 ): RepairRecord[] {
-  const cutoff = options.months
+  const custom = Boolean(options.startDate || options.endDate);
+  const cutoff = custom
+    ? options.startDate
+      ? new Date(options.startDate)
+      : null
+    : options.months
     ? (() => {
         const d = new Date();
         d.setMonth(d.getMonth() - options.months);
         return d;
       })()
     : null;
+  const endCap = custom && options.endDate ? new Date(`${options.endDate}T23:59:59`) : null;
   const included = new Set(options.includedTypes);
   const excluded = new Set(options.excludedRepairIds);
 
@@ -244,6 +250,7 @@ export function filterRepairs(
     if (excluded.has(r.id)) return false;
     if (!included.has(classifyRepair(r.description))) return false;
     if (cutoff && new Date(r.date) < cutoff) return false;
+    if (endCap && new Date(r.date) > endCap) return false;
     return true;
   });
 
