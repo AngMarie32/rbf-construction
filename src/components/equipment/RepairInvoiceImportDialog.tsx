@@ -354,6 +354,39 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
                 </div>
               </div>
 
+              <div className="grid gap-3 sm:grid-cols-4 rounded-lg border p-3">
+                <div>
+                  <Label className="text-xs">Sales tax</Label>
+                  <Input type="number" step="0.01" value={tax} onChange={(e) => setTax(e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs">Shop supplies / fees</Label>
+                  <Input type="number" step="0.01" value={fees} onChange={(e) => setFees(e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs">Invoice total (from document)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={docTotal}
+                    onChange={(e) => setDocTotal(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Tax & fees handling</Label>
+                  <Select value={taxMode} onValueChange={(v) => setTaxMode(v as typeof taxMode)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="allocate">Roll into each line (pro-rata)</SelectItem>
+                      <SelectItem value="line">Add as separate tax line</SelectItem>
+                      <SelectItem value="ignore">Exclude tax & fees</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
@@ -446,6 +479,14 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
                             <Button
                               variant="ghost"
                               size="icon"
+                              title="Split across units"
+                              onClick={() => openSplit(l.key)}
+                            >
+                              <Split className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => setLines((p) => p.filter((x) => x.key !== l.key))}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -460,10 +501,37 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
 
               <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
                 <div className="text-sm text-muted-foreground">
-                  {selected.length} of {lines.length} selected · Total{' '}
+                  {selected.length} of {lines.length} selected · Lines{' '}
+                  <span className="font-medium text-foreground">
+                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(lineTotal)}
+                  </span>
+                  {taxMode !== 'ignore' && (taxNum || feesNum) ? (
+                    <>
+                      {' '}
+                      + tax/fees{' '}
+                      <span className="font-medium text-foreground">
+                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(taxNum + feesNum)}
+                      </span>
+                    </>
+                  ) : null}{' '}
+                  = Total{' '}
                   <span className="font-medium text-foreground">
                     {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(total)}
                   </span>
+                  {docTotalNum != null && (
+                    variance === 0 ? (
+                      <Badge className="ml-2 border-0 bg-green-500/15 text-green-600">Matches invoice</Badge>
+                    ) : (
+                      <span className="ml-2">
+                        <Badge className="border-0 bg-yellow-500/15 text-yellow-600">
+                          Off by {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(variance)}
+                        </Badge>
+                        <Button variant="link" size="sm" className="h-auto p-0 ml-2" onClick={balanceToTotal}>
+                          Balance to invoice
+                        </Button>
+                      </span>
+                    )
+                  )}
                   {unmatched > 0 && (
                     <span className="ml-2 text-destructive">{unmatched} need a unit</span>
                   )}
