@@ -43,6 +43,8 @@ Rules:
 - date: ISO YYYY-MM-DD. Use the service date if shown, otherwise the invoice date.
 - category: one of Preventive Maintenance, Tires/Tracks, Hydraulics, Engine, Drivetrain, Electrical, Brakes/Wear, Body/Attachment, Inspection, Other.
 - confidence: 0-1, lower it for hard-to-read handwriting.
+- Also capture the document's money summary: subtotal (pre-tax), tax (sales tax / VAT), fees (shop supplies, hazmat, freight, environmental fees) and the grand total. Report tax and fees ONLY as the summary fields — never as line items.
+- The sum of line item costs plus tax plus fees should equal the document total. If the document only shows a grand total, still return it.
 - Never invent line items that are not on the document.`;
 
     const isPdf = String(mimeType).includes("pdf");
@@ -78,6 +80,9 @@ Rules:
                 vendor: { type: ["string", "null"] },
                 invoice_number: { type: ["string", "null"] },
                 invoice_date: { type: ["string", "null"] },
+                subtotal: { type: ["number", "null"] },
+                tax: { type: ["number", "null"] },
+                fees: { type: ["number", "null"] },
                 document_total: { type: ["number", "null"] },
                 notes: { type: ["string", "null"] },
                 line_items: {
@@ -112,6 +117,9 @@ Rules:
                 "vendor",
                 "invoice_number",
                 "invoice_date",
+                "subtotal",
+                "tax",
+                "fees",
                 "document_total",
                 "notes",
                 "line_items",
