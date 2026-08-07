@@ -151,6 +151,10 @@ export interface ReportOptions {
   outlierMultiple: number;
   /** Months of history in scope. 0 = all time. */
   months: number;
+  /** Custom range start (YYYY-MM-DD). When set with endDate, overrides `months`. */
+  startDate?: string;
+  /** Custom range end (YYYY-MM-DD). */
+  endDate?: string;
   /** Annual operating hours assumption when a unit has no logged hours. */
   assumedAnnualHours: number;
   /** Replace-watch threshold: lifetime severity-weighted repairs as % of value. */
@@ -165,6 +169,8 @@ export const DEFAULT_OPTIONS: ReportOptions = {
   useSeverityWeighting: true,
   outlierMultiple: 0,
   months: 12,
+  startDate: undefined,
+  endDate: undefined,
   assumedAnnualHours: 1200,
   replaceThreshold: 50,
 };
