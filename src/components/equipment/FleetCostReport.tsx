@@ -235,6 +235,7 @@ export function FleetCostReport({ equipment, repairs }: Props) {
     if (!win) return;
     win.document.write(`<!doctype html><html><head><title>${title}</title>
       <style>
+        :root{--border:0 0% 88%;--muted-foreground:0 0% 40%;--primary:217 91% 55%;}
         body{font-family:'DM Sans',system-ui,sans-serif;color:#111;margin:32px;}
         h1{font-size:22px;margin:0 0 4px;} h2{font-size:15px;margin:24px 0 8px;}
         .muted{color:#666;font-size:12px;}
