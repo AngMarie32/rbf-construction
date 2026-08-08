@@ -19,3 +19,6 @@ verify_jwt = false
 verify_jwt = true
 [functions.parse-repair-invoice]
 verify_jwt = true
+
+[functions.send-fleet-report]
+verify_jwt = false
