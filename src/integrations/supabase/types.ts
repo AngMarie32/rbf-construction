@@ -2026,6 +2026,66 @@ export type Database = {
           },
         ]
       }
+      fleet_report_subscriptions: {
+        Row: {
+          config: Json
+          created_at: string
+          day_of_month: number | null
+          day_of_week: number
+          enabled: boolean
+          frequency: string
+          hour: number
+          id: string
+          last_sent_at: string | null
+          name: string
+          next_send_at: string | null
+          recipients: string[]
+          run_at: string | null
+          subject_override: string | null
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number
+          enabled?: boolean
+          frequency?: string
+          hour?: number
+          id?: string
+          last_sent_at?: string | null
+          name?: string
+          next_send_at?: string | null
+          recipients?: string[]
+          run_at?: string | null
+          subject_override?: string | null
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number
+          enabled?: boolean
+          frequency?: string
+          hour?: number
+          id?: string
+          last_sent_at?: string | null
+          name?: string
+          next_send_at?: string | null
+          recipients?: string[]
+          run_at?: string | null
+          subject_override?: string | null
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       invoice_items: {
         Row: {
           created_at: string | null
