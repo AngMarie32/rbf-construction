@@ -24,7 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Download, RotateCcw } from 'lucide-react';
+import { Printer, Download, RotateCcw, Mail } from 'lucide-react';
+import { FleetReportScheduleDialog } from './FleetReportScheduleDialog';
 import {
   Bar,
   BarChart,
@@ -83,6 +84,21 @@ const KPI_DEFS = [
 ] as const;
 type KpiKey = (typeof KPI_DEFS)[number]['key'];
 
+const UNIT_COL_DEFS = [
+  { key: 'adjustedValue', label: 'Adj. value' },
+  { key: 'periodSpend', label: 'Period spend' },
+  { key: 'lifetimeSpend', label: 'Lifetime spend' },
+  { key: 'ratio', label: 'Weighted %' },
+  { key: 'costPerHour', label: '$ / hr' },
+  { key: 'annualRunRate', label: 'Run-rate' },
+  { key: 'trendPct', label: 'Trend' },
+  { key: 'majorShare', label: 'Major %' },
+  { key: 'healthScore', label: 'Score' },
+  { key: 'verdict', label: 'Verdict' },
+  { key: 'residualValue', label: 'Residual' },
+] as const;
+type UnitColKey = (typeof UNIT_COL_DEFS)[number]['key'];
+
 interface Props {
   equipment: EquipmentLike[];
   repairs: RepairRecord[];
@@ -121,6 +137,16 @@ export function FleetCostReport({ equipment, repairs }: Props) {
   const [unitIds, setUnitIds] = useState<string[]>([]);
   const [title, setTitle] = useState('Fleet Cost & Value Report');
   const [ledgerSearch, setLedgerSearch] = useState('');
+  const [showEstimatedHours, setShowEstimatedHours] = useState(true);
+  const [unitColumns, setUnitColumns] = useState<UnitColKey[]>([
+    'adjustedValue',
+    'periodSpend',
+    'lifetimeSpend',
+    'costPerHour',
+    'healthScore',
+    'verdict',
+  ]);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   const set = (patch: Partial<ReportOptions>) =>
     setOptions((prev) => ({ ...prev, ...patch }));
@@ -178,6 +204,11 @@ export function FleetCostReport({ equipment, repairs }: Props) {
 
   const toggleKpi = (key: KpiKey) =>
     setKpis((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+
+  const toggleUnitCol = (key: UnitColKey) =>
+    setUnitColumns((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
 
   const exportCsv = () => {
     const head = [
