@@ -114,6 +114,22 @@ const verdictBadge = (v: string) => {
   return <Badge className={`${cls} border-0`}>{v}</Badge>;
 };
 
+const unitCellValue = (u: UnitAnalysis, key: UnitColKey): string => {
+  switch (key) {
+    case 'adjustedValue': return currency(u.adjustedValue);
+    case 'periodSpend': return currency(u.periodSpend);
+    case 'lifetimeSpend': return currency(u.lifetimeSpend);
+    case 'ratio': return `${u.ratio.toFixed(2)}%`;
+    case 'costPerHour': return currency(u.costPerHour);
+    case 'annualRunRate': return currency(u.annualRunRate);
+    case 'trendPct': return `${u.trendPct.toFixed(2)}%`;
+    case 'majorShare': return `${u.majorShare.toFixed(2)}%`;
+    case 'healthScore': return u.healthScore.toFixed(2);
+    case 'residualValue': return currency(u.residualValue);
+    default: return '';
+  }
+};
+
 export function FleetCostReport({ equipment, repairs }: Props) {
   const [options, setOptions] = useState<ReportOptions>(DEFAULT_OPTIONS);
   const [sections, setSections] = useState<SectionKey[]>([
