@@ -764,49 +764,51 @@ export function FleetCostReport({ equipment, repairs }: Props) {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Equipment</TableHead>
-                      <TableHead className="num text-right">Adj. value</TableHead>
-                      <TableHead className="num text-right">Period</TableHead>
-                      <TableHead className="num text-right">Lifetime</TableHead>
-                      <TableHead className="num text-right">Weighted %</TableHead>
-                      <TableHead className="num text-right">$ / hr</TableHead>
-                      <TableHead className="num text-right">Run-rate</TableHead>
-                      <TableHead className="num text-right">Trend</TableHead>
-                      <TableHead className="num text-right">Major %</TableHead>
-                      <TableHead className="num text-right">Score</TableHead>
-                      <TableHead>Verdict</TableHead>
-                      <TableHead className="num text-right">Residual</TableHead>
+                      {UNIT_COL_DEFS.filter((c) => unitColumns.includes(c.key)).map((c) => (
+                        <TableHead
+                          key={c.key}
+                          className={c.key === 'verdict' ? '' : 'num text-right'}
+                        >
+                          {c.label}
+                        </TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {report.units.map((u) => (
+                    {report.units.map((u) => {
+                      const estimated = !(options.useHours && u.hours > 0);
+                      const hoursText = estimated
+                        ? showEstimatedHours
+                          ? ` • ${u.effectiveHours.toFixed(0)} hrs (est.)`
+                          : ''
+                        : ` • ${u.effectiveHours.toFixed(0)} hrs`;
+                      return (
                       <TableRow key={u.id}>
                         <TableCell>
                           <div className="font-medium">{u.name}</div>
                           <div className="text-xs text-muted-foreground">
                             {u.category}
-                            {u.year ? ` • ${u.year}` : ''} • {u.events} events •{' '}
-                            {u.effectiveHours.toFixed(0)} hrs
-                            {options.useHours && u.hours > 0 ? '' : ' (est.)'}
+                            {u.year ? ` • ${u.year}` : ''} • {u.events} events
+                            {hoursText}
                           </div>
                         </TableCell>
-                        <TableCell className="num text-right">{currency(u.adjustedValue)}</TableCell>
-                        <TableCell className="num text-right">{currency(u.periodSpend)}</TableCell>
-                        <TableCell className="num text-right">{currency(u.lifetimeSpend)}</TableCell>
-                        <TableCell className="num text-right">{u.ratio.toFixed(2)}%</TableCell>
-                        <TableCell className="num text-right">{currency(u.costPerHour)}</TableCell>
-                        <TableCell className="num text-right">{currency(u.annualRunRate)}</TableCell>
-                        <TableCell className="num text-right">{u.trendPct.toFixed(2)}%</TableCell>
-                        <TableCell className="num text-right">{u.majorShare.toFixed(2)}%</TableCell>
-                        <TableCell className="num text-right font-medium">
-                          {u.healthScore.toFixed(2)}
-                        </TableCell>
-                        <TableCell>{verdictBadge(u.verdict)}</TableCell>
-                        <TableCell className="num text-right">{currency(u.residualValue)}</TableCell>
+                        {UNIT_COL_DEFS.filter((c) => unitColumns.includes(c.key)).map((c) => (
+                          <TableCell
+                            key={c.key}
+                            className={c.key === 'verdict' ? '' : 'num text-right'}
+                          >
+                            {c.key === 'verdict' ? verdictBadge(u.verdict) : unitCellValue(u, c.key)}
+                          </TableCell>
+                        ))}
                       </TableRow>
-                    ))}
+                      );
+                    })}
                     {report.units.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                        <TableCell
+                          colSpan={unitColumns.length + 1}
+                          className="text-center py-8 text-muted-foreground"
+                        >
                           No units selected.
                         </TableCell>
                       </TableRow>
