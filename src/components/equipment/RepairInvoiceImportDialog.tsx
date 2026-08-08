@@ -94,8 +94,8 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
     });
 
   const handleRead = async (selected: File) => {
-    if (selected.size > 15 * 1024 * 1024) {
-      toast.error('File must be under 15MB');
+    if (selected.size > 6 * 1024 * 1024) {
+      toast.error('File must be under 6MB — try a lower-resolution scan or split the PDF');
       return;
     }
     setFile(selected);
@@ -116,7 +116,19 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
           })),
         },
       });
-      if (error) throw error;
+      if (error) {
+        let detail = error.message;
+        const ctx: any = (error as any).context;
+        try {
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.clone().json();
+            if (body?.error) detail = body.error;
+          }
+        } catch {
+          /* ignore body parse failure */
+        }
+        throw new Error(detail);
+      }
       if ((data as any)?.error) throw new Error((data as any).error);
 
       const items = ((data as any)?.line_items || []) as any[];
