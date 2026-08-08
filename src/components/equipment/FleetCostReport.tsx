@@ -525,6 +525,40 @@ export function FleetCostReport({ equipment, repairs }: Props) {
             </>
           )}
 
+          {sections.includes('units') && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Show estimated hours</Label>
+                  <Switch
+                    checked={showEstimatedHours}
+                    onCheckedChange={setShowEstimatedHours}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">
+                    Unit summary columns ({unitColumns.length})
+                  </Label>
+                  <div className="space-y-2 max-h-56 overflow-auto pr-1">
+                    {UNIT_COL_DEFS.map((c) => (
+                      <label
+                        key={c.key}
+                        className="flex items-center gap-2 text-sm cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={unitColumns.includes(c.key)}
+                          onCheckedChange={() => toggleUnitCol(c.key)}
+                        />
+                        {c.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
           <Separator />
 
           <div className="space-y-2">
@@ -559,6 +593,10 @@ export function FleetCostReport({ equipment, repairs }: Props) {
               <Download className="w-4 h-4" />
             </Button>
           </div>
+          <Button variant="outline" className="w-full" onClick={() => setScheduleOpen(true)}>
+            <Mail className="w-4 h-4 mr-2" />
+            Automated email
+          </Button>
         </CardContent>
       </Card>
 
