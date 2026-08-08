@@ -49,6 +49,7 @@ import {
   type RepairRecord,
   type RepairTypeKey,
   type EquipmentLike,
+  type UnitAnalysis,
 } from '@/utils/equipmentReportEngine';
 
 const currency = (n: number) =>
