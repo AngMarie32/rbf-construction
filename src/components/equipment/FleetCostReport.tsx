@@ -944,6 +944,21 @@ export function FleetCostReport({ equipment, repairs }: Props) {
           )}
         </div>
       </div>
+
+      <FleetReportScheduleDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        defaultName={title}
+        config={{
+          title,
+          options,
+          sections,
+          kpis,
+          unitColumns,
+          showEstimatedHours,
+          unitIds,
+        }}
+      />
     </div>
   );
 }
