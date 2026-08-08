@@ -24,7 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Download, RotateCcw } from 'lucide-react';
+import { Printer, Download, RotateCcw, Mail } from 'lucide-react';
+import { FleetReportScheduleDialog } from './FleetReportScheduleDialog';
 import {
   Bar,
   BarChart,
@@ -48,6 +49,7 @@ import {
   type RepairRecord,
   type RepairTypeKey,
   type EquipmentLike,
+  type UnitAnalysis,
 } from '@/utils/equipmentReportEngine';
 
 const currency = (n: number) =>
@@ -83,6 +85,21 @@ const KPI_DEFS = [
 ] as const;
 type KpiKey = (typeof KPI_DEFS)[number]['key'];
 
+const UNIT_COL_DEFS = [
+  { key: 'adjustedValue', label: 'Adj. value' },
+  { key: 'periodSpend', label: 'Period spend' },
+  { key: 'lifetimeSpend', label: 'Lifetime spend' },
+  { key: 'ratio', label: 'Weighted %' },
+  { key: 'costPerHour', label: '$ / hr' },
+  { key: 'annualRunRate', label: 'Run-rate' },
+  { key: 'trendPct', label: 'Trend' },
+  { key: 'majorShare', label: 'Major %' },
+  { key: 'healthScore', label: 'Score' },
+  { key: 'verdict', label: 'Verdict' },
+  { key: 'residualValue', label: 'Residual' },
+] as const;
+type UnitColKey = (typeof UNIT_COL_DEFS)[number]['key'];
+
 interface Props {
   equipment: EquipmentLike[];
   repairs: RepairRecord[];
@@ -96,6 +113,22 @@ const verdictBadge = (v: string) => {
       ? 'bg-blue-500/15 text-blue-600'
       : 'bg-yellow-500/15 text-yellow-600';
   return <Badge className={`${cls} border-0`}>{v}</Badge>;
+};
+
+const unitCellValue = (u: UnitAnalysis, key: UnitColKey): string => {
+  switch (key) {
+    case 'adjustedValue': return currency(u.adjustedValue);
+    case 'periodSpend': return currency(u.periodSpend);
+    case 'lifetimeSpend': return currency(u.lifetimeSpend);
+    case 'ratio': return `${u.ratio.toFixed(2)}%`;
+    case 'costPerHour': return currency(u.costPerHour);
+    case 'annualRunRate': return currency(u.annualRunRate);
+    case 'trendPct': return `${u.trendPct.toFixed(2)}%`;
+    case 'majorShare': return `${u.majorShare.toFixed(2)}%`;
+    case 'healthScore': return u.healthScore.toFixed(2);
+    case 'residualValue': return currency(u.residualValue);
+    default: return '';
+  }
 };
 
 export function FleetCostReport({ equipment, repairs }: Props) {
@@ -121,6 +154,16 @@ export function FleetCostReport({ equipment, repairs }: Props) {
   const [unitIds, setUnitIds] = useState<string[]>([]);
   const [title, setTitle] = useState('Fleet Cost & Value Report');
   const [ledgerSearch, setLedgerSearch] = useState('');
+  const [showEstimatedHours, setShowEstimatedHours] = useState(true);
+  const [unitColumns, setUnitColumns] = useState<UnitColKey[]>([
+    'adjustedValue',
+    'periodSpend',
+    'lifetimeSpend',
+    'costPerHour',
+    'healthScore',
+    'verdict',
+  ]);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   const set = (patch: Partial<ReportOptions>) =>
     setOptions((prev) => ({ ...prev, ...patch }));
@@ -178,6 +221,11 @@ export function FleetCostReport({ equipment, repairs }: Props) {
 
   const toggleKpi = (key: KpiKey) =>
     setKpis((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+
+  const toggleUnitCol = (key: UnitColKey) =>
+    setUnitColumns((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
 
   const exportCsv = () => {
     const head = [
@@ -494,6 +542,40 @@ export function FleetCostReport({ equipment, repairs }: Props) {
             </>
           )}
 
+          {sections.includes('units') && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Show estimated hours</Label>
+                  <Switch
+                    checked={showEstimatedHours}
+                    onCheckedChange={setShowEstimatedHours}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">
+                    Unit summary columns ({unitColumns.length})
+                  </Label>
+                  <div className="space-y-2 max-h-56 overflow-auto pr-1">
+                    {UNIT_COL_DEFS.map((c) => (
+                      <label
+                        key={c.key}
+                        className="flex items-center gap-2 text-sm cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={unitColumns.includes(c.key)}
+                          onCheckedChange={() => toggleUnitCol(c.key)}
+                        />
+                        {c.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
           <Separator />
 
           <div className="space-y-2">
@@ -528,6 +610,10 @@ export function FleetCostReport({ equipment, repairs }: Props) {
               <Download className="w-4 h-4" />
             </Button>
           </div>
+          <Button variant="outline" className="w-full" onClick={() => setScheduleOpen(true)}>
+            <Mail className="w-4 h-4 mr-2" />
+            Automated email
+          </Button>
         </CardContent>
       </Card>
 
@@ -695,49 +781,51 @@ export function FleetCostReport({ equipment, repairs }: Props) {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Equipment</TableHead>
-                      <TableHead className="num text-right">Adj. value</TableHead>
-                      <TableHead className="num text-right">Period</TableHead>
-                      <TableHead className="num text-right">Lifetime</TableHead>
-                      <TableHead className="num text-right">Weighted %</TableHead>
-                      <TableHead className="num text-right">$ / hr</TableHead>
-                      <TableHead className="num text-right">Run-rate</TableHead>
-                      <TableHead className="num text-right">Trend</TableHead>
-                      <TableHead className="num text-right">Major %</TableHead>
-                      <TableHead className="num text-right">Score</TableHead>
-                      <TableHead>Verdict</TableHead>
-                      <TableHead className="num text-right">Residual</TableHead>
+                      {UNIT_COL_DEFS.filter((c) => unitColumns.includes(c.key)).map((c) => (
+                        <TableHead
+                          key={c.key}
+                          className={c.key === 'verdict' ? '' : 'num text-right'}
+                        >
+                          {c.label}
+                        </TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {report.units.map((u) => (
+                    {report.units.map((u) => {
+                      const estimated = !(options.useHours && u.hours > 0);
+                      const hoursText = estimated
+                        ? showEstimatedHours
+                          ? ` • ${u.effectiveHours.toFixed(0)} hrs (est.)`
+                          : ''
+                        : ` • ${u.effectiveHours.toFixed(0)} hrs`;
+                      return (
                       <TableRow key={u.id}>
                         <TableCell>
                           <div className="font-medium">{u.name}</div>
                           <div className="text-xs text-muted-foreground">
                             {u.category}
-                            {u.year ? ` • ${u.year}` : ''} • {u.events} events •{' '}
-                            {u.effectiveHours.toFixed(0)} hrs
-                            {options.useHours && u.hours > 0 ? '' : ' (est.)'}
+                            {u.year ? ` • ${u.year}` : ''} • {u.events} events
+                            {hoursText}
                           </div>
                         </TableCell>
-                        <TableCell className="num text-right">{currency(u.adjustedValue)}</TableCell>
-                        <TableCell className="num text-right">{currency(u.periodSpend)}</TableCell>
-                        <TableCell className="num text-right">{currency(u.lifetimeSpend)}</TableCell>
-                        <TableCell className="num text-right">{u.ratio.toFixed(2)}%</TableCell>
-                        <TableCell className="num text-right">{currency(u.costPerHour)}</TableCell>
-                        <TableCell className="num text-right">{currency(u.annualRunRate)}</TableCell>
-                        <TableCell className="num text-right">{u.trendPct.toFixed(2)}%</TableCell>
-                        <TableCell className="num text-right">{u.majorShare.toFixed(2)}%</TableCell>
-                        <TableCell className="num text-right font-medium">
-                          {u.healthScore.toFixed(2)}
-                        </TableCell>
-                        <TableCell>{verdictBadge(u.verdict)}</TableCell>
-                        <TableCell className="num text-right">{currency(u.residualValue)}</TableCell>
+                        {UNIT_COL_DEFS.filter((c) => unitColumns.includes(c.key)).map((c) => (
+                          <TableCell
+                            key={c.key}
+                            className={c.key === 'verdict' ? '' : 'num text-right'}
+                          >
+                            {c.key === 'verdict' ? verdictBadge(u.verdict) : unitCellValue(u, c.key)}
+                          </TableCell>
+                        ))}
                       </TableRow>
-                    ))}
+                      );
+                    })}
                     {report.units.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                        <TableCell
+                          colSpan={unitColumns.length + 1}
+                          className="text-center py-8 text-muted-foreground"
+                        >
                           No units selected.
                         </TableCell>
                       </TableRow>
@@ -856,6 +944,21 @@ export function FleetCostReport({ equipment, repairs }: Props) {
           )}
         </div>
       </div>
+
+      <FleetReportScheduleDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        defaultName={title}
+        config={{
+          title,
+          options,
+          sections,
+          kpis,
+          unitColumns,
+          showEstimatedHours,
+          unitIds,
+        }}
+      />
     </div>
   );
 }
