@@ -152,7 +152,7 @@ export function FleetCostReport({ equipment, repairs }: Props) {
   ]);
   const [rangeMode, setRangeMode] = useState<string>('12');
   const [unitIds, setUnitIds] = useState<string[]>([]);
-  const [title, setTitle] = useState('Fleet Cost & Value Report');
+  const [title, setTitle] = useState('Equipment Cost & Value Report');
   const [ledgerSearch, setLedgerSearch] = useState('');
   const [showEstimatedHours, setShowEstimatedHours] = useState(true);
   const [unitColumns, setUnitColumns] = useState<UnitColKey[]>([
