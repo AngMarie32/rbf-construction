@@ -53,7 +53,15 @@ serve(async (req) => {
       });
     }
 
-    const { fileBase64, mimeType, fileName, equipment } = await req.json();
+    const { fileBase64, mimeType, fileName, equipment, listModels } = await req.json();
+    if (listModels && geminiKey) {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiKey}&pageSize=100`);
+      const j = await r.json();
+      return new Response(
+        JSON.stringify((j.models || []).map((m: any) => m.name).filter((n: string) => n.includes("flash"))),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     if (!fileBase64 || !mimeType) {
       return new Response(JSON.stringify({ error: "Missing file" }), {
         status: 400,
