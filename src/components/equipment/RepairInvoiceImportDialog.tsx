@@ -413,6 +413,7 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
               </div>
 
               <div className="grid gap-3 sm:grid-cols-4 rounded-lg border p-3">
+                {null}
                 <div>
                   <Label className="text-xs">Sales tax</Label>
                   <Input type="number" step="0.01" value={tax} onChange={(e) => setTax(e.target.value)} />
