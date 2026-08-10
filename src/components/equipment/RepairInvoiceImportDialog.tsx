@@ -412,8 +412,47 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
                 </div>
               </div>
 
+              {dupChecking && (
+                <p className="text-xs text-muted-foreground">Checking for duplicate invoice…</p>
+              )}
+              {dupes.length > 0 && (
+                <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 text-yellow-600" />
+                    <div className="text-sm">
+                      <p className="font-medium text-yellow-700 dark:text-yellow-500">
+                        Possible duplicate invoice
+                      </p>
+                      <p className="text-muted-foreground">
+                        Invoice #{meta?.invoice_number}
+                        {meta?.vendor ? ` from ${meta.vendor}` : ''} already has {dupes.length} repair
+                        record{dupes.length > 1 ? 's' : ''} in the system.
+                      </p>
+                      <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                        {dupes.slice(0, 4).map((d) => (
+                          <li key={d.id}>
+                            {d.date} ·{' '}
+                            {new Intl.NumberFormat('en-US', {
+                              style: 'currency',
+                              currency: 'USD',
+                            }).format(Number(d.cost) || 0)}{' '}
+                            · {String(d.description || '').slice(0, 70)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Checkbox
+                      checked={allowDuplicate}
+                      onCheckedChange={(v) => setAllowDuplicate(Boolean(v))}
+                    />
+                    Import anyway
+                  </label>
+                </div>
+              )}
+
               <div className="grid gap-3 sm:grid-cols-4 rounded-lg border p-3">
-                {null}
                 <div>
                   <Label className="text-xs">Sales tax</Label>
                   <Input type="number" step="0.01" value={tax} onChange={(e) => setTax(e.target.value)} />
