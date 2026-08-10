@@ -97,7 +97,7 @@ Rules:
     // 1) Free path: user's own Google Gemini API key (Google AI Studio free tier)
     if (geminiKey) {
       const gRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
