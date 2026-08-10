@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Upload, Loader2, FileText, Trash2, Split } from 'lucide-react';
+import { Upload, Loader2, FileText, Trash2, Split, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Equipment } from '@/types/equipment';
@@ -73,6 +73,9 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
   const [splitKey, setSplitKey] = useState<string | null>(null);
   const [splitUnits, setSplitUnits] = useState<string[]>([]);
   const [lines, setLines] = useState<DraftLine[]>([]);
+  const [dupes, setDupes] = useState<{ id: string; date: string; cost: number; description: string }[]>([]);
+  const [dupChecking, setDupChecking] = useState(false);
+  const [allowDuplicate, setAllowDuplicate] = useState(false);
 
   const reset = () => {
     setFile(null);
@@ -83,7 +86,45 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
     setDocTotal('');
     setSplitKey(null);
     setSplitUnits([]);
+    setDupes([]);
+    setAllowDuplicate(false);
   };
+
+  // Flag invoices already imported with the same invoice # from the same vendor.
+  useEffect(() => {
+    const invNo = (meta?.invoice_number || '').trim();
+    const vendor = (meta?.vendor || '').trim();
+    setAllowDuplicate(false);
+    if (!invNo) {
+      setDupes([]);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      setDupChecking(true);
+      try {
+        const { data, error } = await supabase
+          .from('maintenance_logs')
+          .select('id, date, cost, description')
+          .ilike('description', `%Inv ${invNo}%`)
+          .limit(50);
+        if (error) throw error;
+        const v = vendor.toLowerCase();
+        const matches = (data || []).filter((r: any) =>
+          v ? String(r.description || '').toLowerCase().includes(v) : true
+        );
+        if (!cancelled) setDupes(matches as any);
+      } catch {
+        if (!cancelled) setDupes([]);
+      } finally {
+        if (!cancelled) setDupChecking(false);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [meta?.invoice_number, meta?.vendor]);
 
   const toBase64 = (f: File) =>
     new Promise<string>((resolve, reject) => {
@@ -217,6 +258,10 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
     if (!selected.length) return;
     if (unmatched) {
       toast.error(`${unmatched} line${unmatched > 1 ? 's' : ''} still need a unit assigned`);
+      return;
+    }
+    if (dupes.length && !allowDuplicate) {
+      toast.error('This invoice number was already imported for this vendor — confirm to import anyway');
       return;
     }
     setSaving(true);
