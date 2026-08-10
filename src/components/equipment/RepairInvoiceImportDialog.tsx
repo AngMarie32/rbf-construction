@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Upload, Loader2, FileText, Trash2, Split } from 'lucide-react';
+import { Upload, Loader2, FileText, Trash2, Split, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Equipment } from '@/types/equipment';
@@ -73,6 +73,9 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
   const [splitKey, setSplitKey] = useState<string | null>(null);
   const [splitUnits, setSplitUnits] = useState<string[]>([]);
   const [lines, setLines] = useState<DraftLine[]>([]);
+  const [dupes, setDupes] = useState<{ id: string; date: string; cost: number; description: string }[]>([]);
+  const [dupChecking, setDupChecking] = useState(false);
+  const [allowDuplicate, setAllowDuplicate] = useState(false);
 
   const reset = () => {
     setFile(null);
@@ -83,7 +86,45 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
     setDocTotal('');
     setSplitKey(null);
     setSplitUnits([]);
+    setDupes([]);
+    setAllowDuplicate(false);
   };
+
+  // Flag invoices already imported with the same invoice # from the same vendor.
+  useEffect(() => {
+    const invNo = (meta?.invoice_number || '').trim();
+    const vendor = (meta?.vendor || '').trim();
+    setAllowDuplicate(false);
+    if (!invNo) {
+      setDupes([]);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      setDupChecking(true);
+      try {
+        const { data, error } = await supabase
+          .from('maintenance_logs')
+          .select('id, date, cost, description')
+          .ilike('description', `%Inv ${invNo}%`)
+          .limit(50);
+        if (error) throw error;
+        const v = vendor.toLowerCase();
+        const matches = (data || []).filter((r: any) =>
+          v ? String(r.description || '').toLowerCase().includes(v) : true
+        );
+        if (!cancelled) setDupes(matches as any);
+      } catch {
+        if (!cancelled) setDupes([]);
+      } finally {
+        if (!cancelled) setDupChecking(false);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [meta?.invoice_number, meta?.vendor]);
 
   const toBase64 = (f: File) =>
     new Promise<string>((resolve, reject) => {
@@ -217,6 +258,10 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
     if (!selected.length) return;
     if (unmatched) {
       toast.error(`${unmatched} line${unmatched > 1 ? 's' : ''} still need a unit assigned`);
+      return;
+    }
+    if (dupes.length && !allowDuplicate) {
+      toast.error('This invoice number was already imported for this vendor — confirm to import anyway');
       return;
     }
     setSaving(true);
@@ -366,6 +411,46 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
                   />
                 </div>
               </div>
+
+              {dupChecking && (
+                <p className="text-xs text-muted-foreground">Checking for duplicate invoice…</p>
+              )}
+              {dupes.length > 0 && (
+                <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 text-yellow-600" />
+                    <div className="text-sm">
+                      <p className="font-medium text-yellow-700 dark:text-yellow-500">
+                        Possible duplicate invoice
+                      </p>
+                      <p className="text-muted-foreground">
+                        Invoice #{meta?.invoice_number}
+                        {meta?.vendor ? ` from ${meta.vendor}` : ''} already has {dupes.length} repair
+                        record{dupes.length > 1 ? 's' : ''} in the system.
+                      </p>
+                      <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                        {dupes.slice(0, 4).map((d) => (
+                          <li key={d.id}>
+                            {d.date} ·{' '}
+                            {new Intl.NumberFormat('en-US', {
+                              style: 'currency',
+                              currency: 'USD',
+                            }).format(Number(d.cost) || 0)}{' '}
+                            · {String(d.description || '').slice(0, 70)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Checkbox
+                      checked={allowDuplicate}
+                      onCheckedChange={(v) => setAllowDuplicate(Boolean(v))}
+                    />
+                    Import anyway
+                  </label>
+                </div>
+              )}
 
               <div className="grid gap-3 sm:grid-cols-4 rounded-lg border p-3">
                 <div>
@@ -553,7 +638,10 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
                   <Button variant="outline" onClick={() => onOpenChange(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handleSave} disabled={saving || !selected.length}>
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving || !selected.length || (dupes.length > 0 && !allowDuplicate)}
+                  >
                     {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Approve & Add {selected.length ? `(${selected.length})` : ''}
                   </Button>
