@@ -687,6 +687,10 @@ export function FleetCostReport({ equipment, repairs }: Props) {
                     onCheckedChange={setShowEstimatedHours}
                   />
                 </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Show grand totals row</Label>
+                  <Switch checked={showGrandTotals} onCheckedChange={setShowGrandTotals} />
+                </div>
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">
                     Unit summary columns ({unitColumns.length})
