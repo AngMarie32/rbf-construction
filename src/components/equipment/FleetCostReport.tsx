@@ -33,6 +33,11 @@ import {
   Cell,
   Legend,
   Line,
+  LineChart,
+  Area,
+  AreaChart,
+  Pie,
+  PieChart,
   ComposedChart,
   ResponsiveContainer,
   Tooltip,
@@ -222,6 +227,15 @@ export function FleetCostReport({ equipment, repairs }: Props) {
   const [title, setTitle] = useState('Equipment Cost & Value Report');
   const [ledgerSearch, setLedgerSearch] = useState('');
   const [showEstimatedHours, setShowEstimatedHours] = useState(true);
+  const [showGrandTotals, setShowGrandTotals] = useState(true);
+  const [charts, setCharts] = useState<ChartKey[]>(['monthly', 'type', 'health']);
+  const [chartTypes, setChartTypes] = useState<Record<ChartKey, string>>({
+    monthly: 'composed',
+    type: 'horizontal',
+    health: 'bar',
+    unitSpend: 'horizontal',
+  });
+  const [chartUnitLimit, setChartUnitLimit] = useState(12);
   const [unitColumns, setUnitColumns] = useState<UnitColKey[]>([
     'adjustedValue',
     'periodSpend',
@@ -293,6 +307,9 @@ export function FleetCostReport({ equipment, repairs }: Props) {
     setUnitColumns((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
     );
+
+  const toggleChart = (key: ChartKey) =>
+    setCharts((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
   const exportCsv = () => {
     const head = [
