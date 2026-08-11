@@ -800,59 +800,106 @@ export function FleetCostReport({ equipment, repairs }: Props) {
                 <CardTitle className="text-base">Charts</CardTitle>
               </CardHeader>
               <CardContent className="space-y-8">
-                <div className="chart">
-                  <p className="text-sm font-medium mb-2">Repair spend by month</p>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <ComposedChart data={monthlyChart} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                      <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                      <Tooltip formatter={(v: number, n) => (n === 'Spend' ? currency(Number(v)) : v)} />
-                      <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Bar dataKey="cost" name="Spend" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
-                      <Line type="monotone" dataKey="events" name="Events" stroke="hsl(var(--muted-foreground))" strokeWidth={2} />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
+                {charts.includes('monthly') && (
+                  <div className="chart">
+                    <p className="text-sm font-medium mb-2">Repair spend by month</p>
+                    <ResponsiveContainer width="100%" height={240}>
+                      {chartTypes.monthly === 'line' ? (
+                        <LineChart data={monthlyChart} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip formatter={(v: number) => currency(Number(v))} />
+                          <Line type="monotone" dataKey="cost" name="Spend" stroke="hsl(var(--primary))" strokeWidth={2} />
+                        </LineChart>
+                      ) : chartTypes.monthly === 'area' ? (
+                        <AreaChart data={monthlyChart} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip formatter={(v: number) => currency(Number(v))} />
+                          <Area type="monotone" dataKey="cost" name="Spend" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.2)" />
+                        </AreaChart>
+                      ) : chartTypes.monthly === 'bar' ? (
+                        <BarChart data={monthlyChart} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip formatter={(v: number) => currency(Number(v))} />
+                          <Bar dataKey="cost" name="Spend" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                        </BarChart>
+                      ) : (
+                        <ComposedChart data={monthlyChart} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip formatter={(v: number, n) => (n === 'Spend' ? currency(Number(v)) : v)} />
+                          <Legend wrapperStyle={{ fontSize: 12 }} />
+                          <Bar dataKey="cost" name="Spend" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                          <Line type="monotone" dataKey="events" name="Events" stroke="hsl(var(--muted-foreground))" strokeWidth={2} />
+                        </ComposedChart>
+                      )}
+                    </ResponsiveContainer>
+                  </div>
+                )}
 
-                <div className="chart">
-                  <p className="text-sm font-medium mb-2">Spend by repair type</p>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={typeChart} layout="vertical" margin={{ top: 8, right: 16, left: 40, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                      <YAxis type="category" dataKey="label" width={130} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                      <Tooltip formatter={(v: number) => currency(Number(v))} />
-                      <Bar dataKey="total" name="Spend" fill="hsl(var(--primary))" radius={[0, 3, 3, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                {charts.includes('type') && (
+                  <div className="chart">
+                    <p className="text-sm font-medium mb-2">Spend by repair type</p>
+                    {renderCategoryChart(typeChart, chartTypes.type, 260)}
+                  </div>
+                )}
 
-                <div className="chart">
-                  <p className="text-sm font-medium mb-2">Health score by unit (lowest 12)</p>
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={unitChart} margin={{ top: 8, right: 8, left: -8, bottom: 40 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                      <XAxis dataKey="name" angle={-35} textAnchor="end" interval={0} height={70} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                      <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                      <Tooltip />
-                      <Bar dataKey="score" name="Health score" radius={[3, 3, 0, 0]}>
-                        {unitChart.map((u) => (
-                          <Cell
-                            key={u.name}
-                            fill={
-                              u.score >= 80
-                                ? 'hsl(142 71% 45%)'
-                                : u.score >= 60
-                                ? 'hsl(45 93% 47%)'
-                                : 'hsl(217 91% 60%)'
-                            }
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                {charts.includes('health') && (
+                  <div className="chart">
+                    <p className="text-sm font-medium mb-2">
+                      Health score by unit (lowest {chartUnitLimit})
+                    </p>
+                    <ResponsiveContainer width="100%" height={260}>
+                      {chartTypes.health === 'line' ? (
+                        <LineChart data={unitChart} margin={{ top: 8, right: 8, left: -8, bottom: 40 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="name" angle={-35} textAnchor="end" interval={0} height={70} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip />
+                          <Line type="monotone" dataKey="score" name="Health score" stroke="hsl(var(--primary))" strokeWidth={2} />
+                        </LineChart>
+                      ) : (
+                        <BarChart data={unitChart} margin={{ top: 8, right: 8, left: -8, bottom: 40 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="name" angle={-35} textAnchor="end" interval={0} height={70} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip />
+                          <Bar dataKey="score" name="Health score" radius={[3, 3, 0, 0]}>
+                            {unitChart.map((u) => (
+                              <Cell
+                                key={u.name}
+                                fill={
+                                  u.score >= 80
+                                    ? 'hsl(142 71% 45%)'
+                                    : u.score >= 60
+                                    ? 'hsl(45 93% 47%)'
+                                    : 'hsl(217 91% 60%)'
+                                }
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      )}
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {charts.includes('unitSpend') && (
+                  <div className="chart">
+                    <p className="text-sm font-medium mb-2">Lifetime spend by unit</p>
+                    {renderCategoryChart(unitSpendChart, chartTypes.unitSpend, 300)}
+                  </div>
+                )}
+
+                {charts.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No charts selected.</p>
+                )}
               </CardContent>
             </Card>
           )}
