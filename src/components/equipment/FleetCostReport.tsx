@@ -423,11 +423,61 @@ export function FleetCostReport({ equipment, repairs }: Props) {
     label: row.label,
     total: Number(row.total.toFixed(2)),
   }));
-  const unitChart = report.units.slice(0, 12).map((u) => ({
+  const unitChart = report.units.slice(0, chartUnitLimit).map((u) => ({
     name: u.name,
     score: Number(u.healthScore.toFixed(2)),
     spend: Number(u.lifetimeSpend.toFixed(2)),
   }));
+  const unitSpendChart = [...report.units]
+    .sort((a, b) => b.lifetimeSpend - a.lifetimeSpend)
+    .slice(0, chartUnitLimit)
+    .map((u) => ({ label: u.name, total: Number(u.lifetimeSpend.toFixed(2)) }));
+
+  const renderCategoryChart = (
+    data: { label: string; total: number }[],
+    type: string,
+    height = 260
+  ) => {
+    if (type === 'pie') {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <PieChart>
+            <Pie data={data} dataKey="total" nameKey="label" outerRadius={90} label={false}>
+              {data.map((d, i) => (
+                <Cell key={d.label} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(v: number) => currency(Number(v))} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+          </PieChart>
+        </ResponsiveContainer>
+      );
+    }
+    if (type === 'bar') {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <BarChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 50 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+            <XAxis dataKey="label" angle={-35} textAnchor="end" interval={0} height={80} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+            <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+            <Tooltip formatter={(v: number) => currency(Number(v))} />
+            <Bar dataKey="total" name="Spend" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      );
+    }
+    return (
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, left: 40, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+          <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+          <YAxis type="category" dataKey="label" width={140} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+          <Tooltip formatter={(v: number) => currency(Number(v))} />
+          <Bar dataKey="total" name="Spend" fill="hsl(var(--primary))" radius={[0, 3, 3, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  };
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-6">
