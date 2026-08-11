@@ -143,6 +143,10 @@ const verdictBadge = (v: string) => {
 const unitCellValue = (u: UnitAnalysis, key: UnitColKey): string => {
   switch (key) {
     case 'adjustedValue': return currency(u.adjustedValue);
+    case 'bookValue': return currency(u.bookValue);
+    case 'hours': return u.effectiveHours.toFixed(0);
+    case 'events': return String(u.events);
+    case 'weightedSpend': return currency(u.weightedSpend);
     case 'periodSpend': return currency(u.periodSpend);
     case 'lifetimeSpend': return currency(u.lifetimeSpend);
     case 'ratio': return `${u.ratio.toFixed(2)}%`;
@@ -152,6 +156,44 @@ const unitCellValue = (u: UnitAnalysis, key: UnitColKey): string => {
     case 'majorShare': return `${u.majorShare.toFixed(2)}%`;
     case 'healthScore': return u.healthScore.toFixed(2);
     case 'residualValue': return currency(u.residualValue);
+    default: return '';
+  }
+};
+
+const SUMMABLE: UnitColKey[] = [
+  'adjustedValue',
+  'bookValue',
+  'hours',
+  'events',
+  'periodSpend',
+  'lifetimeSpend',
+  'weightedSpend',
+  'annualRunRate',
+  'residualValue',
+];
+
+const grandTotalValue = (units: UnitAnalysis[], key: UnitColKey): string => {
+  if (!units.length) return '';
+  const sum = (fn: (u: UnitAnalysis) => number) => units.reduce((s, u) => s + fn(u), 0);
+  const avg = (fn: (u: UnitAnalysis) => number) => sum(fn) / units.length;
+  switch (key) {
+    case 'adjustedValue': return currency(sum((u) => u.adjustedValue));
+    case 'bookValue': return currency(sum((u) => u.bookValue));
+    case 'hours': return sum((u) => u.effectiveHours).toFixed(0);
+    case 'events': return String(sum((u) => u.events));
+    case 'periodSpend': return currency(sum((u) => u.periodSpend));
+    case 'lifetimeSpend': return currency(sum((u) => u.lifetimeSpend));
+    case 'weightedSpend': return currency(sum((u) => u.weightedSpend));
+    case 'annualRunRate': return currency(sum((u) => u.annualRunRate));
+    case 'residualValue': return currency(sum((u) => u.residualValue));
+    case 'ratio': return `${avg((u) => u.ratio).toFixed(2)}% avg`;
+    case 'costPerHour': {
+      const hrs = sum((u) => u.effectiveHours);
+      return currency(hrs > 0 ? sum((u) => u.lifetimeSpend) / hrs : 0);
+    }
+    case 'trendPct': return `${avg((u) => u.trendPct).toFixed(2)}% avg`;
+    case 'majorShare': return `${avg((u) => u.majorShare).toFixed(2)}% avg`;
+    case 'healthScore': return `${avg((u) => u.healthScore).toFixed(2)} avg`;
     default: return '';
   }
 };
