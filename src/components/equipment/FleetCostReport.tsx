@@ -87,8 +87,12 @@ type KpiKey = (typeof KPI_DEFS)[number]['key'];
 
 const UNIT_COL_DEFS = [
   { key: 'adjustedValue', label: 'Adj. value' },
+  { key: 'bookValue', label: 'Book value' },
+  { key: 'hours', label: 'Hours (est.)' },
   { key: 'periodSpend', label: 'Period spend' },
   { key: 'lifetimeSpend', label: 'Lifetime spend' },
+  { key: 'weightedSpend', label: 'Weighted spend' },
+  { key: 'events', label: 'Events' },
   { key: 'ratio', label: 'Weighted %' },
   { key: 'costPerHour', label: '$ / hr' },
   { key: 'annualRunRate', label: 'Run-rate' },
@@ -99,6 +103,27 @@ const UNIT_COL_DEFS = [
   { key: 'residualValue', label: 'Residual' },
 ] as const;
 type UnitColKey = (typeof UNIT_COL_DEFS)[number]['key'];
+
+const CHART_DEFS = [
+  { key: 'monthly', label: 'Repair spend by month', types: ['bar', 'line', 'area', 'composed'] },
+  { key: 'type', label: 'Spend by repair type', types: ['bar', 'horizontal', 'pie'] },
+  { key: 'health', label: 'Health score by unit', types: ['bar', 'line'] },
+  { key: 'unitSpend', label: 'Lifetime spend by unit', types: ['bar', 'horizontal', 'pie'] },
+] as const;
+type ChartKey = (typeof CHART_DEFS)[number]['key'];
+
+const PIE_COLORS = [
+  'hsl(217 91% 60%)',
+  'hsl(142 71% 45%)',
+  'hsl(45 93% 47%)',
+  'hsl(262 83% 62%)',
+  'hsl(12 76% 61%)',
+  'hsl(199 89% 48%)',
+  'hsl(340 75% 55%)',
+  'hsl(84 60% 45%)',
+  'hsl(28 90% 55%)',
+  'hsl(280 60% 60%)',
+];
 
 interface Props {
   equipment: EquipmentLike[];
