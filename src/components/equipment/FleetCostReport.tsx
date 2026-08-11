@@ -1072,6 +1072,21 @@ export function FleetCostReport({ equipment, repairs }: Props) {
                         </TableCell>
                       </TableRow>
                     )}
+                    {showGrandTotals && report.units.length > 0 && (
+                      <TableRow className="font-semibold bg-muted/40">
+                        <TableCell>Grand total ({report.units.length} units)</TableCell>
+                        {UNIT_COL_DEFS.filter((c) => unitColumns.includes(c.key)).map((c) => (
+                          <TableCell
+                            key={c.key}
+                            className={c.key === 'verdict' ? '' : 'num text-right'}
+                          >
+                            {c.key === 'verdict'
+                              ? `${t.replaceCount} replace / ${t.watchCount} watch`
+                              : grandTotalValue(report.units, c.key)}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
