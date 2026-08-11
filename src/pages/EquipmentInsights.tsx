@@ -243,6 +243,23 @@ export default function EquipmentInsights() {
               ))}
             </SelectContent>
           </Select>
+          {range === 'custom' && (
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="w-40"
+              />
+              <span className="text-muted-foreground text-sm">to</span>
+              <Input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="w-40"
+              />
+            </div>
+          )}
           <Input
             placeholder="Search equipment..."
             value={search}
