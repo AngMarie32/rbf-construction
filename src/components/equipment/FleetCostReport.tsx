@@ -33,6 +33,11 @@ import {
   Cell,
   Legend,
   Line,
+  LineChart,
+  Area,
+  AreaChart,
+  Pie,
+  PieChart,
   ComposedChart,
   ResponsiveContainer,
   Tooltip,
@@ -87,8 +92,12 @@ type KpiKey = (typeof KPI_DEFS)[number]['key'];
 
 const UNIT_COL_DEFS = [
   { key: 'adjustedValue', label: 'Adj. value' },
+  { key: 'bookValue', label: 'Book value' },
+  { key: 'hours', label: 'Hours (est.)' },
   { key: 'periodSpend', label: 'Period spend' },
   { key: 'lifetimeSpend', label: 'Lifetime spend' },
+  { key: 'weightedSpend', label: 'Weighted spend' },
+  { key: 'events', label: 'Events' },
   { key: 'ratio', label: 'Weighted %' },
   { key: 'costPerHour', label: '$ / hr' },
   { key: 'annualRunRate', label: 'Run-rate' },
@@ -99,6 +108,27 @@ const UNIT_COL_DEFS = [
   { key: 'residualValue', label: 'Residual' },
 ] as const;
 type UnitColKey = (typeof UNIT_COL_DEFS)[number]['key'];
+
+const CHART_DEFS = [
+  { key: 'monthly', label: 'Repair spend by month', types: ['bar', 'line', 'area', 'composed'] },
+  { key: 'type', label: 'Spend by repair type', types: ['bar', 'horizontal', 'pie'] },
+  { key: 'health', label: 'Health score by unit', types: ['bar', 'line'] },
+  { key: 'unitSpend', label: 'Lifetime spend by unit', types: ['bar', 'horizontal', 'pie'] },
+] as const;
+type ChartKey = (typeof CHART_DEFS)[number]['key'];
+
+const PIE_COLORS = [
+  'hsl(217 91% 60%)',
+  'hsl(142 71% 45%)',
+  'hsl(45 93% 47%)',
+  'hsl(262 83% 62%)',
+  'hsl(12 76% 61%)',
+  'hsl(199 89% 48%)',
+  'hsl(340 75% 55%)',
+  'hsl(84 60% 45%)',
+  'hsl(28 90% 55%)',
+  'hsl(280 60% 60%)',
+];
 
 interface Props {
   equipment: EquipmentLike[];
@@ -118,6 +148,10 @@ const verdictBadge = (v: string) => {
 const unitCellValue = (u: UnitAnalysis, key: UnitColKey): string => {
   switch (key) {
     case 'adjustedValue': return currency(u.adjustedValue);
+    case 'bookValue': return currency(u.bookValue);
+    case 'hours': return u.effectiveHours.toFixed(0);
+    case 'events': return String(u.events);
+    case 'weightedSpend': return currency(u.weightedSpend);
     case 'periodSpend': return currency(u.periodSpend);
     case 'lifetimeSpend': return currency(u.lifetimeSpend);
     case 'ratio': return `${u.ratio.toFixed(2)}%`;
@@ -127,6 +161,44 @@ const unitCellValue = (u: UnitAnalysis, key: UnitColKey): string => {
     case 'majorShare': return `${u.majorShare.toFixed(2)}%`;
     case 'healthScore': return u.healthScore.toFixed(2);
     case 'residualValue': return currency(u.residualValue);
+    default: return '';
+  }
+};
+
+const SUMMABLE: UnitColKey[] = [
+  'adjustedValue',
+  'bookValue',
+  'hours',
+  'events',
+  'periodSpend',
+  'lifetimeSpend',
+  'weightedSpend',
+  'annualRunRate',
+  'residualValue',
+];
+
+const grandTotalValue = (units: UnitAnalysis[], key: UnitColKey): string => {
+  if (!units.length) return '';
+  const sum = (fn: (u: UnitAnalysis) => number) => units.reduce((s, u) => s + fn(u), 0);
+  const avg = (fn: (u: UnitAnalysis) => number) => sum(fn) / units.length;
+  switch (key) {
+    case 'adjustedValue': return currency(sum((u) => u.adjustedValue));
+    case 'bookValue': return currency(sum((u) => u.bookValue));
+    case 'hours': return sum((u) => u.effectiveHours).toFixed(0);
+    case 'events': return String(sum((u) => u.events));
+    case 'periodSpend': return currency(sum((u) => u.periodSpend));
+    case 'lifetimeSpend': return currency(sum((u) => u.lifetimeSpend));
+    case 'weightedSpend': return currency(sum((u) => u.weightedSpend));
+    case 'annualRunRate': return currency(sum((u) => u.annualRunRate));
+    case 'residualValue': return currency(sum((u) => u.residualValue));
+    case 'ratio': return `${avg((u) => u.ratio).toFixed(2)}% avg`;
+    case 'costPerHour': {
+      const hrs = sum((u) => u.effectiveHours);
+      return currency(hrs > 0 ? sum((u) => u.lifetimeSpend) / hrs : 0);
+    }
+    case 'trendPct': return `${avg((u) => u.trendPct).toFixed(2)}% avg`;
+    case 'majorShare': return `${avg((u) => u.majorShare).toFixed(2)}% avg`;
+    case 'healthScore': return `${avg((u) => u.healthScore).toFixed(2)} avg`;
     default: return '';
   }
 };
@@ -155,6 +227,15 @@ export function FleetCostReport({ equipment, repairs }: Props) {
   const [title, setTitle] = useState('Equipment Cost & Value Report');
   const [ledgerSearch, setLedgerSearch] = useState('');
   const [showEstimatedHours, setShowEstimatedHours] = useState(true);
+  const [showGrandTotals, setShowGrandTotals] = useState(true);
+  const [charts, setCharts] = useState<ChartKey[]>(['monthly', 'type', 'health']);
+  const [chartTypes, setChartTypes] = useState<Record<ChartKey, string>>({
+    monthly: 'composed',
+    type: 'horizontal',
+    health: 'bar',
+    unitSpend: 'horizontal',
+  });
+  const [chartUnitLimit, setChartUnitLimit] = useState(12);
   const [unitColumns, setUnitColumns] = useState<UnitColKey[]>([
     'adjustedValue',
     'periodSpend',
@@ -226,6 +307,9 @@ export function FleetCostReport({ equipment, repairs }: Props) {
     setUnitColumns((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
     );
+
+  const toggleChart = (key: ChartKey) =>
+    setCharts((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
   const exportCsv = () => {
     const head = [
@@ -339,11 +423,61 @@ export function FleetCostReport({ equipment, repairs }: Props) {
     label: row.label,
     total: Number(row.total.toFixed(2)),
   }));
-  const unitChart = report.units.slice(0, 12).map((u) => ({
+  const unitChart = report.units.slice(0, chartUnitLimit).map((u) => ({
     name: u.name,
     score: Number(u.healthScore.toFixed(2)),
     spend: Number(u.lifetimeSpend.toFixed(2)),
   }));
+  const unitSpendChart = [...report.units]
+    .sort((a, b) => b.lifetimeSpend - a.lifetimeSpend)
+    .slice(0, chartUnitLimit)
+    .map((u) => ({ label: u.name, total: Number(u.lifetimeSpend.toFixed(2)) }));
+
+  const renderCategoryChart = (
+    data: { label: string; total: number }[],
+    type: string,
+    height = 260
+  ) => {
+    if (type === 'pie') {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <PieChart>
+            <Pie data={data} dataKey="total" nameKey="label" outerRadius={90} label={false}>
+              {data.map((d, i) => (
+                <Cell key={d.label} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(v: number) => currency(Number(v))} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+          </PieChart>
+        </ResponsiveContainer>
+      );
+    }
+    if (type === 'bar') {
+      return (
+        <ResponsiveContainer width="100%" height={height}>
+          <BarChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 50 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+            <XAxis dataKey="label" angle={-35} textAnchor="end" interval={0} height={80} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+            <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+            <Tooltip formatter={(v: number) => currency(Number(v))} />
+            <Bar dataKey="total" name="Spend" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      );
+    }
+    return (
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, left: 40, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+          <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+          <YAxis type="category" dataKey="label" width={140} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+          <Tooltip formatter={(v: number) => currency(Number(v))} />
+          <Bar dataKey="total" name="Spend" fill="hsl(var(--primary))" radius={[0, 3, 3, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  };
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-6">
@@ -542,6 +676,63 @@ export function FleetCostReport({ equipment, repairs }: Props) {
             </>
           )}
 
+          {sections.includes('charts') && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <Label className="text-xs text-muted-foreground">
+                  Charts ({charts.length})
+                </Label>
+                {CHART_DEFS.map((c) => (
+                  <div key={c.key} className="space-y-1">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={charts.includes(c.key)}
+                        onCheckedChange={() => toggleChart(c.key)}
+                      />
+                      {c.label}
+                    </label>
+                    {charts.includes(c.key) && (
+                      <Select
+                        value={chartTypes[c.key]}
+                        onValueChange={(v) =>
+                          setChartTypes((prev) => ({ ...prev, [c.key]: v }))
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs ml-6 w-[calc(100%-1.5rem)]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {c.types.map((tp) => (
+                            <SelectItem key={tp} value={tp} className="text-xs">
+                              {tp === 'horizontal'
+                                ? 'Horizontal bar'
+                                : tp === 'composed'
+                                ? 'Bar + line'
+                                : tp.charAt(0).toUpperCase() + tp.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                ))}
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    Units shown in unit charts: {chartUnitLimit}
+                  </Label>
+                  <Slider
+                    value={[chartUnitLimit]}
+                    min={3}
+                    max={30}
+                    step={1}
+                    onValueChange={([v]) => setChartUnitLimit(v)}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
           {sections.includes('units') && (
             <>
               <Separator />
@@ -552,6 +743,10 @@ export function FleetCostReport({ equipment, repairs }: Props) {
                     checked={showEstimatedHours}
                     onCheckedChange={setShowEstimatedHours}
                   />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Show grand totals row</Label>
+                  <Switch checked={showGrandTotals} onCheckedChange={setShowGrandTotals} />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">
@@ -666,59 +861,106 @@ export function FleetCostReport({ equipment, repairs }: Props) {
                 <CardTitle className="text-base">Charts</CardTitle>
               </CardHeader>
               <CardContent className="space-y-8">
-                <div className="chart">
-                  <p className="text-sm font-medium mb-2">Repair spend by month</p>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <ComposedChart data={monthlyChart} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                      <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                      <Tooltip formatter={(v: number, n) => (n === 'Spend' ? currency(Number(v)) : v)} />
-                      <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Bar dataKey="cost" name="Spend" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
-                      <Line type="monotone" dataKey="events" name="Events" stroke="hsl(var(--muted-foreground))" strokeWidth={2} />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
+                {charts.includes('monthly') && (
+                  <div className="chart">
+                    <p className="text-sm font-medium mb-2">Repair spend by month</p>
+                    <ResponsiveContainer width="100%" height={240}>
+                      {chartTypes.monthly === 'line' ? (
+                        <LineChart data={monthlyChart} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip formatter={(v: number) => currency(Number(v))} />
+                          <Line type="monotone" dataKey="cost" name="Spend" stroke="hsl(var(--primary))" strokeWidth={2} />
+                        </LineChart>
+                      ) : chartTypes.monthly === 'area' ? (
+                        <AreaChart data={monthlyChart} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip formatter={(v: number) => currency(Number(v))} />
+                          <Area type="monotone" dataKey="cost" name="Spend" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.2)" />
+                        </AreaChart>
+                      ) : chartTypes.monthly === 'bar' ? (
+                        <BarChart data={monthlyChart} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip formatter={(v: number) => currency(Number(v))} />
+                          <Bar dataKey="cost" name="Spend" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                        </BarChart>
+                      ) : (
+                        <ComposedChart data={monthlyChart} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip formatter={(v: number, n) => (n === 'Spend' ? currency(Number(v)) : v)} />
+                          <Legend wrapperStyle={{ fontSize: 12 }} />
+                          <Bar dataKey="cost" name="Spend" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                          <Line type="monotone" dataKey="events" name="Events" stroke="hsl(var(--muted-foreground))" strokeWidth={2} />
+                        </ComposedChart>
+                      )}
+                    </ResponsiveContainer>
+                  </div>
+                )}
 
-                <div className="chart">
-                  <p className="text-sm font-medium mb-2">Spend by repair type</p>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={typeChart} layout="vertical" margin={{ top: 8, right: 16, left: 40, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                      <YAxis type="category" dataKey="label" width={130} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                      <Tooltip formatter={(v: number) => currency(Number(v))} />
-                      <Bar dataKey="total" name="Spend" fill="hsl(var(--primary))" radius={[0, 3, 3, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                {charts.includes('type') && (
+                  <div className="chart">
+                    <p className="text-sm font-medium mb-2">Spend by repair type</p>
+                    {renderCategoryChart(typeChart, chartTypes.type, 260)}
+                  </div>
+                )}
 
-                <div className="chart">
-                  <p className="text-sm font-medium mb-2">Health score by unit (lowest 12)</p>
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={unitChart} margin={{ top: 8, right: 8, left: -8, bottom: 40 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                      <XAxis dataKey="name" angle={-35} textAnchor="end" interval={0} height={70} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                      <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                      <Tooltip />
-                      <Bar dataKey="score" name="Health score" radius={[3, 3, 0, 0]}>
-                        {unitChart.map((u) => (
-                          <Cell
-                            key={u.name}
-                            fill={
-                              u.score >= 80
-                                ? 'hsl(142 71% 45%)'
-                                : u.score >= 60
-                                ? 'hsl(45 93% 47%)'
-                                : 'hsl(217 91% 60%)'
-                            }
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                {charts.includes('health') && (
+                  <div className="chart">
+                    <p className="text-sm font-medium mb-2">
+                      Health score by unit (lowest {chartUnitLimit})
+                    </p>
+                    <ResponsiveContainer width="100%" height={260}>
+                      {chartTypes.health === 'line' ? (
+                        <LineChart data={unitChart} margin={{ top: 8, right: 8, left: -8, bottom: 40 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="name" angle={-35} textAnchor="end" interval={0} height={70} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip />
+                          <Line type="monotone" dataKey="score" name="Health score" stroke="hsl(var(--primary))" strokeWidth={2} />
+                        </LineChart>
+                      ) : (
+                        <BarChart data={unitChart} margin={{ top: 8, right: 8, left: -8, bottom: 40 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="name" angle={-35} textAnchor="end" interval={0} height={70} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip />
+                          <Bar dataKey="score" name="Health score" radius={[3, 3, 0, 0]}>
+                            {unitChart.map((u) => (
+                              <Cell
+                                key={u.name}
+                                fill={
+                                  u.score >= 80
+                                    ? 'hsl(142 71% 45%)'
+                                    : u.score >= 60
+                                    ? 'hsl(45 93% 47%)'
+                                    : 'hsl(217 91% 60%)'
+                                }
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      )}
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {charts.includes('unitSpend') && (
+                  <div className="chart">
+                    <p className="text-sm font-medium mb-2">Lifetime spend by unit</p>
+                    {renderCategoryChart(unitSpendChart, chartTypes.unitSpend, 300)}
+                  </div>
+                )}
+
+                {charts.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No charts selected.</p>
+                )}
               </CardContent>
             </Card>
           )}
@@ -828,6 +1070,21 @@ export function FleetCostReport({ equipment, repairs }: Props) {
                         >
                           No units selected.
                         </TableCell>
+                      </TableRow>
+                    )}
+                    {showGrandTotals && report.units.length > 0 && (
+                      <TableRow className="font-semibold bg-muted/40">
+                        <TableCell>Grand total ({report.units.length} units)</TableCell>
+                        {UNIT_COL_DEFS.filter((c) => unitColumns.includes(c.key)).map((c) => (
+                          <TableCell
+                            key={c.key}
+                            className={c.key === 'verdict' ? '' : 'num text-right'}
+                          >
+                            {c.key === 'verdict'
+                              ? `${t.replaceCount} replace / ${t.watchCount} watch`
+                              : grandTotalValue(report.units, c.key)}
+                          </TableCell>
+                        ))}
                       </TableRow>
                     )}
                   </TableBody>

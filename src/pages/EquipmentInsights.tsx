@@ -73,6 +73,7 @@ const RANGES = [
   { value: '12', label: 'Last 12 months' },
   { value: '24', label: 'Last 24 months' },
   { value: '0', label: 'All time' },
+  { value: 'custom', label: 'Custom date range' },
 ];
 
 export default function EquipmentInsights() {
@@ -80,6 +81,8 @@ export default function EquipmentInsights() {
   const [repairs, setRepairs] = useState<RepairLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState('12');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string>('all');
   const [valuations, setValuations] = useState<Record<string, Valuation>>({});
@@ -104,20 +107,27 @@ export default function EquipmentInsights() {
   }, [load]);
 
   const cutoff = useMemo(() => {
+    if (range === 'custom') return customStart ? new Date(customStart) : null;
     const months = Number(range);
     if (!months) return null;
     const d = new Date();
     d.setMonth(d.getMonth() - months);
     return d;
-  }, [range]);
+  }, [range, customStart]);
+
+  const endCap = useMemo(
+    () => (range === 'custom' && customEnd ? new Date(`${customEnd}T23:59:59`) : null),
+    [range, customEnd]
+  );
 
   const scopedRepairs = useMemo(() => {
     return repairs.filter((r) => {
       if (selectedId !== 'all' && r.equipment_id !== selectedId) return false;
       if (cutoff && new Date(r.date) < cutoff) return false;
+      if (endCap && new Date(r.date) > endCap) return false;
       return true;
     });
-  }, [repairs, selectedId, cutoff]);
+  }, [repairs, selectedId, cutoff, endCap]);
 
   const monthlySeries = useMemo(() => {
     const map = new Map<string, { month: string; cost: number; events: number }>();
@@ -233,6 +243,23 @@ export default function EquipmentInsights() {
               ))}
             </SelectContent>
           </Select>
+          {range === 'custom' && (
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="w-40"
+              />
+              <span className="text-muted-foreground text-sm">to</span>
+              <Input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="w-40"
+              />
+            </div>
+          )}
           <Input
             placeholder="Search equipment..."
             value={search}
