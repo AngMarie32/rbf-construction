@@ -676,6 +676,63 @@ export function FleetCostReport({ equipment, repairs }: Props) {
             </>
           )}
 
+          {sections.includes('charts') && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <Label className="text-xs text-muted-foreground">
+                  Charts ({charts.length})
+                </Label>
+                {CHART_DEFS.map((c) => (
+                  <div key={c.key} className="space-y-1">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={charts.includes(c.key)}
+                        onCheckedChange={() => toggleChart(c.key)}
+                      />
+                      {c.label}
+                    </label>
+                    {charts.includes(c.key) && (
+                      <Select
+                        value={chartTypes[c.key]}
+                        onValueChange={(v) =>
+                          setChartTypes((prev) => ({ ...prev, [c.key]: v }))
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs ml-6 w-[calc(100%-1.5rem)]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {c.types.map((tp) => (
+                            <SelectItem key={tp} value={tp} className="text-xs">
+                              {tp === 'horizontal'
+                                ? 'Horizontal bar'
+                                : tp === 'composed'
+                                ? 'Bar + line'
+                                : tp.charAt(0).toUpperCase() + tp.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                ))}
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    Units shown in unit charts: {chartUnitLimit}
+                  </Label>
+                  <Slider
+                    value={[chartUnitLimit]}
+                    min={3}
+                    max={30}
+                    step={1}
+                    onValueChange={([v]) => setChartUnitLimit(v)}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
           {sections.includes('units') && (
             <>
               <Separator />
