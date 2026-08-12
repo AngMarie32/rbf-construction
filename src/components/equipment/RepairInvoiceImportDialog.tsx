@@ -76,6 +76,8 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
   const [dupes, setDupes] = useState<{ id: string; date: string; cost: number; description: string }[]>([]);
   const [dupChecking, setDupChecking] = useState(false);
   const [allowDuplicate, setAllowDuplicate] = useState(false);
+  // How to handle an invoice number that already exists (e.g. a deposit was posted earlier)
+  const [dupeMode, setDupeMode] = useState<'block' | 'balance' | 'full'>('block');
 
   const reset = () => {
     setFile(null);
@@ -88,6 +90,7 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
     setSplitUnits([]);
     setDupes([]);
     setAllowDuplicate(false);
+    setDupeMode('block');
   };
 
   // Flag invoices already imported with the same invoice # from the same vendor.
@@ -95,6 +98,7 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
     const invNo = (meta?.invoice_number || '').trim();
     const vendor = (meta?.vendor || '').trim();
     setAllowDuplicate(false);
+    setDupeMode('block');
     if (!invNo) {
       setDupes([]);
       return;
