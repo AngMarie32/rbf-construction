@@ -264,8 +264,8 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
       toast.error(`${unmatched} line${unmatched > 1 ? 's' : ''} still need a unit assigned`);
       return;
     }
-    if (dupes.length && !allowDuplicate) {
-      toast.error('This invoice number was already imported for this vendor — confirm to import anyway');
+    if (dupes.length && dupeMode === 'block') {
+      toast.error('This invoice number already exists — choose how to handle it before importing');
       return;
     }
     setSaving(true);
@@ -322,6 +322,13 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
       }
 
       const { error } = await supabase.from('maintenance_logs').insert(payload);
+      if (error) throw error;
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save repair records');
+      setSaving(false);
+      return;
+    }
+    try {
       if (error) throw error;
       toast.success(`${payload.length} repair record${payload.length > 1 ? 's' : ''} added`);
       reset();
