@@ -321,14 +321,26 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
         });
       }
 
+      // Same invoice already partially recorded (e.g. a deposit) — post only the remaining balance.
+      if (dupes.length && dupeMode === 'balance') {
+        const gross = payload.reduce((s, p) => s + (p.cost || 0), 0);
+        const remaining = round2(gross - alreadyRecorded);
+        if (remaining <= 0) {
+          toast.error('This invoice is already fully recorded — nothing left to import');
+          setSaving(false);
+          return;
+        }
+        const factor = remaining / gross;
+        let running = 0;
+        payload.forEach((p, i) => {
+          const v = i === payload.length - 1 ? round2(remaining - running) : round2(p.cost * factor);
+          running = round2(running + v);
+          p.cost = v;
+          p.description = `${p.description} (balance after deposits)`.trim();
+        });
+      }
+
       const { error } = await supabase.from('maintenance_logs').insert(payload);
-      if (error) throw error;
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to save repair records');
-      setSaving(false);
-      return;
-    }
-    try {
       if (error) throw error;
       toast.success(`${payload.length} repair record${payload.length > 1 ? 's' : ''} added`);
       reset();
