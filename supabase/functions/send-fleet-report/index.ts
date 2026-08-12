@@ -9,6 +9,14 @@ const corsHeaders = {
 const money = (n: number) =>
   '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const APP_URL = Deno.env.get('APP_PUBLIC_URL') || 'https://portal.rbfconstruction.com';
+const btn = (href: string, label: string, primary = false) =>
+  `<a href="${href}" style="display:inline-block;padding:9px 14px;margin:4px 6px 4px 0;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;${
+    primary
+      ? 'background:#111;color:#fff;'
+      : 'background:#f4f4f5;color:#111;border:1px solid #e5e5e5;'
+  }">${label}</a>`;
+
 interface Sub {
   id: string;
   user_id: string;
@@ -81,6 +89,15 @@ function buildHtml(sub: Sub, report: any, options: ReportOptions) {
 
   const parts: string[] = [];
 
+  parts.push(`<div style="margin:12px 0 4px">${btn(
+    `${APP_URL}/equipment-insights?tab=report`,
+    'Open full report',
+    true
+  )}${btn(`${APP_URL}/equipment-insights`, 'Fleet overview')}${btn(
+    `${APP_URL}/equipment`,
+    'Equipment list'
+  )}</div>`);
+
   if (sections.includes('summary')) {
     parts.push(`<h2>Executive summary</h2><table role="presentation" style="width:100%;border-collapse:collapse">
       <tr>${kpis
@@ -116,7 +133,7 @@ function buildHtml(sub: Sub, report: any, options: ReportOptions) {
   if (sections.includes('units')) {
     parts.push(`<h2>Unit scorecard</h2><table><thead><tr><th>Equipment</th>${unitCols
       .map((c) => `<th class="num">${UNIT_COLS[c]?.label || c}</th>`)
-      .join('')}</tr></thead><tbody>
+      .join('')}<th></th></tr></thead><tbody>
       ${report.units
         .map((u: any) => {
           const estimated = !(options.useHours && u.hours > 0);
@@ -129,7 +146,10 @@ function buildHtml(sub: Sub, report: any, options: ReportOptions) {
             u.year ? ` &bull; ${u.year}` : ''
           } &bull; ${u.events} events${hoursText}</div></td>${unitCols
             .map((c) => `<td class="num">${UNIT_COLS[c] ? UNIT_COLS[c].get(u) : ''}</td>`)
-            .join('')}</tr>`;
+            .join('')}<td class="num">${btn(
+            `${APP_URL}/equipment-insights?unit=${u.id}`,
+            'View unit'
+          )}</td></tr>`;
         })
         .join('')}
     </tbody></table>`);
@@ -146,7 +166,7 @@ function buildHtml(sub: Sub, report: any, options: ReportOptions) {
                   (u.drivers.length ? u.drivers : ['Cumulative cost pressure'])
                     .map((d: string) => `<li>${d}</li>`)
                     .join('')
-                }</ul></div>`
+                }</ul>${btn(`${APP_URL}/equipment-insights?unit=${u.id}`, 'Review unit')}</div>`
             )
             .join('')
         : '<p style="font-size:12px;color:#555">Every unit in scope scores healthy under the current assumptions.</p>'

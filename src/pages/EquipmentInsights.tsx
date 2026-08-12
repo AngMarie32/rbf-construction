@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -88,6 +89,17 @@ export default function EquipmentInsights() {
   const [valuations, setValuations] = useState<Record<string, Valuation>>({});
   const [valuingId, setValuingId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState<string>('overview');
+
+  useEffect(() => {
+    const unit = searchParams.get('unit');
+    const t = searchParams.get('tab');
+    const r = searchParams.get('range');
+    if (unit) setSelectedId(unit);
+    if (t === 'report' || t === 'overview') setTab(t);
+    if (r) setRange(r);
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -210,7 +222,7 @@ export default function EquipmentInsights() {
 
   return (
     <Layout title="Equipment Intelligence" subtitle="Repair history, cost trends and smart valuation">
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs value={tab} onValueChange={setTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="report">Cost & Value Report</TabsTrigger>
