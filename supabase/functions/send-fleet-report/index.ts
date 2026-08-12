@@ -166,7 +166,7 @@ function buildHtml(sub: Sub, report: any, options: ReportOptions) {
                   (u.drivers.length ? u.drivers : ['Cumulative cost pressure'])
                     .map((d: string) => `<li>${d}</li>`)
                     .join('')
-                }</ul></div>`
+                }</ul>${btn(`${APP_URL}/equipment-insights?unit=${u.id}`, 'Review unit')}</div>`
             )
             .join('')
         : '<p style="font-size:12px;color:#555">Every unit in scope scores healthy under the current assumptions.</p>'
