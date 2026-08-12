@@ -79,6 +79,11 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
   // How to handle an invoice number that already exists (e.g. a deposit was posted earlier)
   const [dupeMode, setDupeMode] = useState<'block' | 'balance' | 'full'>('block');
 
+  const alreadyRecorded = useMemo(
+    () => round2(dupes.reduce((s, d) => s + (Number(d.cost) || 0), 0)),
+    [dupes]
+  );
+
   const reset = () => {
     setFile(null);
     setLines([]);
