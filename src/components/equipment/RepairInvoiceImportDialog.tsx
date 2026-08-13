@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -76,6 +76,13 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
   const [dupes, setDupes] = useState<{ id: string; date: string; cost: number; description: string }[]>([]);
   const [dupChecking, setDupChecking] = useState(false);
   const [allowDuplicate, setAllowDuplicate] = useState(false);
+  // How to handle an invoice number that already exists (e.g. a deposit was posted earlier)
+  const [dupeMode, setDupeMode] = useState<'block' | 'balance' | 'full'>('block');
+
+  const alreadyRecorded = useMemo(
+    () => round2(dupes.reduce((s, d) => s + (Number(d.cost) || 0), 0)),
+    [dupes]
+  );
 
   const reset = () => {
     setFile(null);
@@ -88,6 +95,7 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
     setSplitUnits([]);
     setDupes([]);
     setAllowDuplicate(false);
+    setDupeMode('block');
   };
 
   // Flag invoices already imported with the same invoice # from the same vendor.
@@ -95,6 +103,7 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
     const invNo = (meta?.invoice_number || '').trim();
     const vendor = (meta?.vendor || '').trim();
     setAllowDuplicate(false);
+    setDupeMode('block');
     if (!invNo) {
       setDupes([]);
       return;
@@ -260,8 +269,8 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
       toast.error(`${unmatched} line${unmatched > 1 ? 's' : ''} still need a unit assigned`);
       return;
     }
-    if (dupes.length && !allowDuplicate) {
-      toast.error('This invoice number was already imported for this vendor — confirm to import anyway');
+    if (dupes.length && dupeMode === 'block') {
+      toast.error('This invoice number already exists — choose how to handle it before importing');
       return;
     }
     setSaving(true);
@@ -314,6 +323,25 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
               .trim(),
             cost: allocations[i],
           });
+        });
+      }
+
+      // Same invoice already partially recorded (e.g. a deposit) — post only the remaining balance.
+      if (dupes.length && dupeMode === 'balance') {
+        const gross = payload.reduce((s, p) => s + (p.cost || 0), 0);
+        const remaining = round2(gross - alreadyRecorded);
+        if (remaining <= 0) {
+          toast.error('This invoice is already fully recorded — nothing left to import');
+          setSaving(false);
+          return;
+        }
+        const factor = remaining / gross;
+        let running = 0;
+        payload.forEach((p, i) => {
+          const v = i === payload.length - 1 ? round2(remaining - running) : round2(p.cost * factor);
+          running = round2(running + v);
+          p.cost = v;
+          p.description = `${p.description} (balance after deposits)`.trim();
         });
       }
 
@@ -428,6 +456,16 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
                         {meta?.vendor ? ` from ${meta.vendor}` : ''} already has {dupes.length} repair
                         record{dupes.length > 1 ? 's' : ''} in the system.
                       </p>
+                      <p className="text-muted-foreground">
+                        Already recorded on this invoice:{' '}
+                        <span className="font-medium text-foreground">
+                          {new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD',
+                          }).format(alreadyRecorded)}
+                        </span>{' '}
+                        (deposits or prior partial postings).
+                      </p>
                       <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
                         {dupes.slice(0, 4).map((d) => (
                           <li key={d.id}>
@@ -442,13 +480,38 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
                       </ul>
                     </div>
                   </div>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox
-                      checked={allowDuplicate}
-                      onCheckedChange={(v) => setAllowDuplicate(Boolean(v))}
-                    />
-                    Import anyway
-                  </label>
+                  <div className="space-y-1.5 pt-1">
+                    <label className="flex items-start gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={dupeMode === 'block'}
+                        onCheckedChange={() => setDupeMode('block')}
+                      />
+                      <span>
+                        Don't import — this is the same invoice
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={dupeMode === 'balance'}
+                        onCheckedChange={() => setDupeMode('balance')}
+                      />
+                      <span>
+                        Same invoice — post only the remaining balance (subtracts the{' '}
+                        {new Intl.NumberFormat('en-US', {
+                          style: 'currency',
+                          currency: 'USD',
+                        }).format(alreadyRecorded)}{' '}
+                        already recorded)
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={dupeMode === 'full'}
+                        onCheckedChange={() => setDupeMode('full')}
+                      />
+                      <span>Different invoice — import the full amount anyway</span>
+                    </label>
+                  </div>
                 </div>
               )}
 
