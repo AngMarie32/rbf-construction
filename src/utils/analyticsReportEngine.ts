@@ -205,7 +205,6 @@ export function buildAnalytics(raw: RawData, options: AnalyticsOptions) {
   const leaders = Object.values(leaderMap).sort((a, b) => b.contract - a.contract);
 
   const today = new Date().toISOString().slice(0, 10);
-  const bucket = (days: number) => 0;
   const aging = [
     { label: 'Current', total: 0 },
     { label: '1-30', total: 0 },
