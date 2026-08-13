@@ -456,6 +456,16 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
                         {meta?.vendor ? ` from ${meta.vendor}` : ''} already has {dupes.length} repair
                         record{dupes.length > 1 ? 's' : ''} in the system.
                       </p>
+                      <p className="text-muted-foreground">
+                        Already recorded on this invoice:{' '}
+                        <span className="font-medium text-foreground">
+                          {new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD',
+                          }).format(alreadyRecorded)}
+                        </span>{' '}
+                        (deposits or prior partial postings).
+                      </p>
                       <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
                         {dupes.slice(0, 4).map((d) => (
                           <li key={d.id}>
@@ -470,13 +480,38 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
                       </ul>
                     </div>
                   </div>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox
-                      checked={allowDuplicate}
-                      onCheckedChange={(v) => setAllowDuplicate(Boolean(v))}
-                    />
-                    Import anyway
-                  </label>
+                  <div className="space-y-1.5 pt-1">
+                    <label className="flex items-start gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={dupeMode === 'block'}
+                        onCheckedChange={() => setDupeMode('block')}
+                      />
+                      <span>
+                        Don't import — this is the same invoice
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={dupeMode === 'balance'}
+                        onCheckedChange={() => setDupeMode('balance')}
+                      />
+                      <span>
+                        Same invoice — post only the remaining balance (subtracts the{' '}
+                        {new Intl.NumberFormat('en-US', {
+                          style: 'currency',
+                          currency: 'USD',
+                        }).format(alreadyRecorded)}{' '}
+                        already recorded)
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={dupeMode === 'full'}
+                        onCheckedChange={() => setDupeMode('full')}
+                      />
+                      <span>Different invoice — import the full amount anyway</span>
+                    </label>
+                  </div>
                 </div>
               )}
 
