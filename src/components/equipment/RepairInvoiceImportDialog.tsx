@@ -703,7 +703,7 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
                   </Button>
                   <Button
                     onClick={handleSave}
-                    disabled={saving || !selected.length || (dupes.length > 0 && !allowDuplicate)}
+                    disabled={saving || !selected.length || (dupes.length > 0 && dupeMode === 'block')}
                   >
                     {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Approve & Add {selected.length ? `(${selected.length})` : ''}
