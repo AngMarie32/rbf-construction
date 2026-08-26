@@ -9,6 +9,8 @@ import { ReportFilters } from '@/components/reports/ReportFilters';
 import { ProjectReports } from '@/components/reports/ProjectReports';
 import { FinancialReports } from '@/components/reports/FinancialReports';
 import { CustomReportBuilder } from '@/components/reports/CustomReportBuilder';
+import { AnalyticsReportBuilder } from '@/components/reports/AnalyticsReportBuilder';
+
 import { ProjectReport } from '@/components/reports/ProjectReport';
 import { LaborReport } from '@/components/reports/LaborReport';
 import { exportToExcel, exportToPDF, exportToCSV, ExportData } from '@/utils/reportExports';
@@ -347,11 +349,12 @@ export default function Analytics() {
               <Users className="w-4 h-4" />
               Labor
             </TabsTrigger>
-            <TabsTrigger value="custom" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
+            <TabsTrigger value="builder" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
               <Settings className="w-4 h-4" />
-              Custom Builder
+              Report Builder
             </TabsTrigger>
           </TabsList>
+
 
           <TabsContent value="gallery" className="space-y-6 mt-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -457,9 +460,14 @@ export default function Analytics() {
             {reportData.labor && <LaborReport data={reportData.labor} />}
           </TabsContent>
 
+          <TabsContent value="builder" className="space-y-4">
+            <AnalyticsReportBuilder />
+          </TabsContent>
+
           <TabsContent value="custom" className="space-y-4">
             <CustomReportBuilder />
           </TabsContent>
+
         </Tabs>
       </div>
     </Layout>
