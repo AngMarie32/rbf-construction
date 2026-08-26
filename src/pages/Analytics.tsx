@@ -347,11 +347,12 @@ export default function Analytics() {
               <Users className="w-4 h-4" />
               Labor
             </TabsTrigger>
-            <TabsTrigger value="custom" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
+            <TabsTrigger value="builder" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
               <Settings className="w-4 h-4" />
-              Custom Builder
+              Report Builder
             </TabsTrigger>
           </TabsList>
+
 
           <TabsContent value="gallery" className="space-y-6 mt-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
