@@ -22,3 +22,6 @@ verify_jwt = true
 
 [functions.send-fleet-report]
 verify_jwt = false
+
+[functions.send-analytics-report]
+verify_jwt = false
