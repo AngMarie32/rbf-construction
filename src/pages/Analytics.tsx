@@ -9,6 +9,8 @@ import { ReportFilters } from '@/components/reports/ReportFilters';
 import { ProjectReports } from '@/components/reports/ProjectReports';
 import { FinancialReports } from '@/components/reports/FinancialReports';
 import { CustomReportBuilder } from '@/components/reports/CustomReportBuilder';
+import { AnalyticsReportBuilder } from '@/components/reports/AnalyticsReportBuilder';
+
 import { ProjectReport } from '@/components/reports/ProjectReport';
 import { LaborReport } from '@/components/reports/LaborReport';
 import { exportToExcel, exportToPDF, exportToCSV, ExportData } from '@/utils/reportExports';
