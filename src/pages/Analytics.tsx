@@ -458,9 +458,14 @@ export default function Analytics() {
             {reportData.labor && <LaborReport data={reportData.labor} />}
           </TabsContent>
 
+          <TabsContent value="builder" className="space-y-4">
+            <AnalyticsReportBuilder />
+          </TabsContent>
+
           <TabsContent value="custom" className="space-y-4">
             <CustomReportBuilder />
           </TabsContent>
+
         </Tabs>
       </div>
     </Layout>
