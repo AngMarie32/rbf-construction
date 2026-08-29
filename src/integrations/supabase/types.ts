@@ -2243,6 +2243,133 @@ export type Database = {
           },
         ]
       }
+      loan_payments: {
+        Row: {
+          balance_after: number
+          created_at: string
+          due_date: string
+          id: string
+          interest_amount: number
+          loan_id: string
+          notes: string | null
+          paid_amount: number
+          paid_date: string | null
+          payment_number: number
+          principal_amount: number
+          scheduled_amount: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          balance_after?: number
+          created_at?: string
+          due_date: string
+          id?: string
+          interest_amount?: number
+          loan_id: string
+          notes?: string | null
+          paid_amount?: number
+          paid_date?: string | null
+          payment_number: number
+          principal_amount?: number
+          scheduled_amount?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          balance_after?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          interest_amount?: number
+          loan_id?: string
+          notes?: string | null
+          paid_amount?: number
+          paid_date?: string | null
+          payment_number?: number
+          principal_amount?: number
+          scheduled_amount?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_payments_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loans: {
+        Row: {
+          borrower_address: string | null
+          borrower_email: string | null
+          borrower_name: string
+          borrower_phone: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          interest_rate: number
+          loan_number: string | null
+          notes: string | null
+          payment_day: number
+          principal_amount: number
+          start_date: string
+          status: string
+          term_months: number
+          updated_at: string
+        }
+        Insert: {
+          borrower_address?: string | null
+          borrower_email?: string | null
+          borrower_name: string
+          borrower_phone?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          interest_rate?: number
+          loan_number?: string | null
+          notes?: string | null
+          payment_day?: number
+          principal_amount?: number
+          start_date?: string
+          status?: string
+          term_months?: number
+          updated_at?: string
+        }
+        Update: {
+          borrower_address?: string | null
+          borrower_email?: string | null
+          borrower_name?: string
+          borrower_phone?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          interest_rate?: number
+          loan_number?: string | null
+          notes?: string | null
+          payment_day?: number
+          principal_amount?: number
+          start_date?: string
+          status?: string
+          term_months?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_logs: {
         Row: {
           cost: number | null
