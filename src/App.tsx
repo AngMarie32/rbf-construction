@@ -53,6 +53,7 @@ import WeeklyReports from '@/pages/WeeklyReports';
 import BlueprintAnalyzer from '@/pages/BlueprintAnalyzer';
 import CompaniesPage from '@/pages/Companies';
 import Properties from '@/pages/Properties';
+import Loans from '@/pages/Loans';
 import OwnerMoney from '@/pages/OwnerMoney';
 import { CompanyProvider } from '@/contexts/CompanyContext';
 
@@ -88,6 +89,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Properties />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/loans"
+              element={
+                <ProtectedRoute>
+                  <Loans />
                 </ProtectedRoute>
               }
             />
