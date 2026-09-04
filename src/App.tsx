@@ -54,6 +54,7 @@ import BlueprintAnalyzer from '@/pages/BlueprintAnalyzer';
 import CompaniesPage from '@/pages/Companies';
 import Properties from '@/pages/Properties';
 import Loans from '@/pages/Loans';
+import OperatingCosts from '@/pages/OperatingCosts';
 import OwnerMoney from '@/pages/OwnerMoney';
 import { CompanyProvider } from '@/contexts/CompanyContext';
 
@@ -89,6 +90,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Properties />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/operating-costs"
+              element={
+                <ProtectedRoute>
+                  <OperatingCosts />
                 </ProtectedRoute>
               }
             />
