@@ -56,6 +56,7 @@ import Properties from '@/pages/Properties';
 import Loans from '@/pages/Loans';
 import OperatingCosts from '@/pages/OperatingCosts';
 import OwnerMoney from '@/pages/OwnerMoney';
+import CashFlow from '@/pages/CashFlow';
 import { CompanyProvider } from '@/contexts/CompanyContext';
 
 const queryClient = new QueryClient();
@@ -106,6 +107,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Loans />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cash-flow"
+              element={
+                <ProtectedRoute>
+                  <CashFlow />
                 </ProtectedRoute>
               }
             />
