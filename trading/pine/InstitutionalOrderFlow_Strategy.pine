@@ -1,0 +1,496 @@
+//@version=6
+// =============================================================================
+//  INSTITUTIONAL ORDER FLOW STRATEGY  —  STOCKS
+// =============================================================================
+//  Concept
+//  -------
+//  Trades the footprint that size leaves behind rather than lagging oscillators.
+//  A setup only arms when SIX independent institutional conditions agree:
+//
+//    1. REGIME     Higher-timeframe (default Daily) EMA structure is aligned.
+//    2. STRUCTURE  A confirmed Break of Structure (BOS) off a swing pivot.
+//    3. LOCATION   Price returns into the originating order block / imbalance,
+//                  or holds a session-VWAP standard-deviation band.
+//    4. PARTICIPATION  Relative volume (RVOL) confirms above-average size.
+//    5. FLOW       Cumulative signed-volume delta proxy leans the trade's way.
+//    6. RELATIVE STRENGTH  The name is outperforming its benchmark (SPY).
+//
+//  Risk is defined BEFORE entry: stop under the block, size derived from a
+//  fixed % of equity, scale-out at 1R, breakeven shift, ATR chandelier trail.
+//
+//  Designed for liquid US equities. Works on 5m/15m/1H intraday and Daily.
+//  Intraday defaults assume RTH (09:30-16:00 America/New_York).
+// =============================================================================
+
+strategy(
+     title                   = "Institutional Order Flow Strategy [Stocks]",
+     shorttitle              = "IOF Stocks",
+     overlay                 = true,
+     initial_capital         = 100000,
+     currency                = currency.USD,
+     default_qty_type        = strategy.fixed,
+     default_qty_value       = 1,
+     pyramiding              = 0,
+     commission_type         = strategy.commission.cash_per_contract,
+     commission_value        = 0.005,
+     slippage                = 1,
+     calc_on_every_tick      = false,
+     process_orders_on_close = true,
+     margin_long             = 25,
+     margin_short            = 50,
+     max_bars_back           = 1000,
+     max_labels_count        = 300,
+     max_boxes_count         = 200,
+     max_lines_count         = 200)
+
+// =============================================================================
+//  INPUTS
+// =============================================================================
+var string G_DIR  = "① Direction & Regime"
+var string G_STR  = "② Market Structure"
+var string G_VOL  = "③ Institutional Participation"
+var string G_LOC  = "④ Location / VWAP"
+var string G_SES  = "⑤ Session & Time Filters"
+var string G_RSK  = "⑥ Risk, Sizing & Exits"
+var string G_VIS  = "⑦ Visuals & Dashboard"
+
+// --- Direction & regime -------------------------------------------------------
+tradeLongs      = input.bool(true,  "Trade Longs",                       group = G_DIR)
+tradeShorts     = input.bool(false, "Trade Shorts",                      group = G_DIR, tooltip = "Equities have a long structural drift. Shorts are off by default; enable for high-beta names or bear regimes.")
+htfTf           = input.timeframe("D", "Regime timeframe",               group = G_DIR)
+htfFastLen      = input.int(21,  "Regime fast EMA",  minval = 2,         group = G_DIR)
+htfSlowLen      = input.int(50,  "Regime slow EMA",  minval = 3,         group = G_DIR)
+htfTrendLen     = input.int(200, "Regime trend SMA", minval = 10,        group = G_DIR)
+useRegime       = input.bool(true, "Require regime alignment",           group = G_DIR)
+useRS           = input.bool(true, "Require relative strength vs benchmark", group = G_DIR)
+benchSym        = input.symbol("AMEX:SPY", "Benchmark",                  group = G_DIR)
+rsLen           = input.int(20, "RS lookback (bars)", minval = 2,        group = G_DIR)
+
+// --- Market structure ---------------------------------------------------------
+pivLen          = input.int(5, "Swing pivot strength", minval = 2, maxval = 25, group = G_STR, tooltip = "Bars either side required to confirm a swing high/low. Higher = fewer, cleaner structure points.")
+maxBarsSinceBOS = input.int(12, "Max bars from BOS to entry", minval = 1, group = G_STR)
+entryMode       = input.string("Pullback to Block", "Entry trigger", options = ["Pullback to Block", "Breakout (BOS bar)", "Both"], group = G_STR)
+zoneSearchMax   = input.int(30, "Max bars to search for order block", minval = 3, maxval = 100, group = G_STR)
+invalidateOnClose = input.bool(true, "Invalidate block on close through it", group = G_STR)
+
+// --- Institutional participation ---------------------------------------------
+rvolLen         = input.int(20, "RVOL average length", minval = 5,       group = G_VOL)
+rvolMin         = input.float(1.5, "Minimum RVOL", minval = 0.5, step = 0.1, group = G_VOL, tooltip = "Entry bar volume relative to its own N-bar average. 1.5 = 50% above normal participation.")
+useDelta        = input.bool(true, "Require cumulative delta alignment", group = G_VOL)
+deltaLen        = input.int(14, "Delta lookback", minval = 3,            group = G_VOL)
+useVolZ         = input.bool(true, "Require volume expansion on BOS bar", group = G_VOL)
+volZMin         = input.float(1.0, "Min volume z-score on BOS", step = 0.1, group = G_VOL)
+
+// --- Location / VWAP ----------------------------------------------------------
+useVwapFilter   = input.bool(true, "Require correct side of session VWAP", group = G_LOC)
+vwapDev1        = input.float(1.0, "VWAP band 1 (σ)", minval = 0.1, step = 0.1, group = G_LOC)
+vwapDev2        = input.float(2.0, "VWAP band 2 (σ)", minval = 0.1, step = 0.1, group = G_LOC)
+vwapBandEntry   = input.bool(true, "Allow VWAP-band reclaim as location",  group = G_LOC, tooltip = "In addition to the order block, accept a tag-and-reclaim of the lower (long) / upper (short) 1σ VWAP band.")
+
+// --- Session & time filters ---------------------------------------------------
+sessTime        = input.session("0930-1600", "Trading session",          group = G_SES)
+sessTz          = input.string("America/New_York", "Session timezone",   group = G_SES)
+skipOpenMins    = input.int(15, "Skip first N minutes", minval = 0,      group = G_SES, tooltip = "Opening auction noise. 15-30 min is typical for 5m charts.")
+noEntryAfterMin = input.int(330, "No new entries after N minutes from open", minval = 30, group = G_SES, tooltip = "330 = 15:00 ET on a 09:30 open.")
+flatAtClose     = input.bool(true, "Flatten at session close (intraday)", group = G_SES)
+maxTradesPerDay = input.int(3, "Max entries per day", minval = 1,        group = G_SES)
+
+// --- Risk, sizing & exits -----------------------------------------------------
+riskPct         = input.float(0.5, "Risk per trade (% equity)", minval = 0.01, step = 0.05, group = G_RSK)
+maxPosPct       = input.float(25.0, "Max position size (% equity)", minval = 1, step = 1, group = G_RSK)
+atrLen          = input.int(14, "ATR length", minval = 2,                group = G_RSK)
+stopAtrMult     = input.float(1.0, "Stop buffer (ATR ×)", minval = 0.1, step = 0.1, group = G_RSK)
+minStopAtr      = input.float(0.5, "Minimum stop distance (ATR ×)", minval = 0.1, step = 0.1, group = G_RSK)
+tp1R            = input.float(1.0, "Scale-out target (R)", minval = 0.25, step = 0.25, group = G_RSK)
+tp1Pct          = input.int(50, "Scale-out size (%)", minval = 0, maxval = 90, group = G_RSK)
+tp2R            = input.float(3.0, "Final target (R)", minval = 0.5, step = 0.25, group = G_RSK)
+moveToBE        = input.bool(true, "Move stop to breakeven after scale-out", group = G_RSK)
+beOffsetAtr     = input.float(0.05, "Breakeven offset (ATR ×)", minval = 0, step = 0.05, group = G_RSK)
+useTrail        = input.bool(true, "ATR chandelier trail after scale-out", group = G_RSK)
+trailLen        = input.int(10, "Trail lookback", minval = 2,            group = G_RSK)
+trailAtrMult    = input.float(2.0, "Trail distance (ATR ×)", minval = 0.5, step = 0.1, group = G_RSK)
+maxDailyLossPct = input.float(3.0, "Max intraday loss (% equity)", minval = 0.5, step = 0.5, group = G_RSK)
+
+// --- Visuals ------------------------------------------------------------------
+showZones       = input.bool(true, "Show order blocks",                  group = G_VIS)
+showVwap        = input.bool(true, "Show VWAP + bands",                  group = G_VIS)
+showRegime      = input.bool(true, "Show regime EMAs",                   group = G_VIS)
+showBOS         = input.bool(true, "Show BOS labels",                    group = G_VIS)
+showDash        = input.bool(true, "Show dashboard",                     group = G_VIS)
+dashPos         = input.string("Top Right", "Dashboard position", options = ["Top Right", "Top Left", "Bottom Right", "Bottom Left"], group = G_VIS)
+
+// Portfolio guard rail (must be called unconditionally at top level)
+strategy.risk.max_intraday_loss(maxDailyLossPct, strategy.percent_of_equity)
+
+// =============================================================================
+//  CORE SERIES
+// =============================================================================
+atr        = ta.atr(atrLen)
+isIntraday = timeframe.isintraday
+
+// --- Higher timeframe regime --------------------------------------------------
+[htfFast, htfSlow, htfTrend, htfClose] = request.security(
+     syminfo.tickerid, htfTf,
+     [ta.ema(close, htfFastLen), ta.ema(close, htfSlowLen), ta.sma(close, htfTrendLen), close],
+     lookahead = barmerge.lookahead_off)
+
+bullRegime = not na(htfFast) and not na(htfSlow) and htfFast > htfSlow and htfClose > htfSlow
+bearRegime = not na(htfFast) and not na(htfSlow) and htfFast < htfSlow and htfClose < htfSlow
+
+// --- Relative strength vs benchmark -------------------------------------------
+benchClose = request.security(benchSym, timeframe.period, close, lookahead = barmerge.lookahead_off)
+rsLine     = na(benchClose) or benchClose == 0 ? na : close / benchClose
+rsSlope    = na(rsLine) ? 0.0 : rsLine - nz(rsLine[rsLen], rsLine)
+rsBull     = not useRS or rsSlope > 0
+rsBear     = not useRS or rsSlope < 0
+
+// --- Session handling ---------------------------------------------------------
+newDay       = ta.change(time("D")) != 0
+inSession    = isIntraday ? not na(time(timeframe.period, sessTime, sessTz)) : true
+sessionStart = inSession and not inSession[1]
+
+var int sessOpenMs = na
+if sessionStart
+    sessOpenMs := time
+minsSinceOpen = isIntraday and not na(sessOpenMs) ? (time - sessOpenMs) / 60000.0 : 999.0
+
+timeOk = not isIntraday ? true : (inSession and minsSinceOpen >= skipOpenMins and minsSinceOpen <= noEntryAfterMin)
+
+var int tradesToday = 0
+if newDay
+    tradesToday := 0
+
+// --- Session VWAP + deviation bands ------------------------------------------
+newWeek    = ta.change(time("W")) != 0
+vwapAnchor = isIntraday ? (sessionStart or newDay) : newWeek
+[vwapVal, vwUp1, vwDn1] = ta.vwap(hlc3, vwapAnchor, vwapDev1)
+// Band 2 is the same standard deviation scaled, so a second ta.vwap call is unnecessary.
+devScale = vwapDev1 > 0 ? vwapDev2 / vwapDev1 : 1.0
+vwUp2 = vwapVal + (vwUp1 - vwapVal) * devScale
+vwDn2 = vwapVal - (vwapVal - vwDn1) * devScale
+
+// --- Participation ------------------------------------------------------------
+volAvg   = ta.sma(volume, rvolLen)
+volStdev = ta.stdev(volume, rvolLen)
+rvol     = nz(volAvg) > 0 ? volume / volAvg : 0.0
+volZ     = nz(volStdev) > 0 ? (volume - volAvg) / volStdev : 0.0
+
+// Signed-volume delta proxy: where the bar closed inside its own range.
+barRange   = high - low
+closePos   = barRange > 0 ? (close - low) / barRange : 0.5
+signedVol  = volume * (2.0 * closePos - 1.0)
+cumDelta   = math.sum(signedVol, deltaLen)
+deltaBull  = not useDelta or cumDelta > 0
+deltaBear  = not useDelta or cumDelta < 0
+
+// =============================================================================
+//  MARKET STRUCTURE  (swing pivots -> break of structure)
+// =============================================================================
+ph = ta.pivothigh(high, pivLen, pivLen)
+pl = ta.pivotlow(low,  pivLen, pivLen)
+
+var float swingHigh    = na
+var float swingLow     = na
+var int   swingHighBar = na
+var int   swingLowBar  = na
+
+if not na(ph)
+    swingHigh    := ph
+    swingHighBar := bar_index - pivLen
+if not na(pl)
+    swingLow    := pl
+    swingLowBar := bar_index - pivLen
+
+bullBOS = not na(swingHigh) and close > swingHigh and close[1] <= swingHigh
+bearBOS = not na(swingLow)  and close < swingLow  and close[1] >= swingLow
+
+volExpansionOk = not useVolZ or volZ >= volZMin
+
+// --- Order block extraction ---------------------------------------------------
+// The last opposing candle inside the impulse leg that broke structure is the
+// origin of the move: the price where resting institutional orders were filled.
+f_bullBlock(int maxBack) =>
+    float zTop = na
+    float zBot = na
+    for i = 1 to maxBack
+        if close[i] < open[i]
+            zTop := math.max(open[i], close[i])
+            zBot := low[i]
+            break
+    [zTop, zBot]
+
+f_bearBlock(int maxBack) =>
+    float zTop = na
+    float zBot = na
+    for i = 1 to maxBack
+        if close[i] > open[i]
+            zTop := high[i]
+            zBot := math.min(open[i], close[i])
+            break
+    [zTop, zBot]
+
+var float bullZoneTop = na
+var float bullZoneBot = na
+var int   bullBOSbar  = na
+var bool  bullZoneLive = false
+
+var float bearZoneTop = na
+var float bearZoneBot = na
+var int   bearBOSbar  = na
+var bool  bearZoneLive = false
+
+var box bullBox = na
+var box bearBox = na
+
+lookBackBull = math.min(zoneSearchMax, math.max(2, bar_index - nz(swingLowBar,  bar_index - zoneSearchMax)))
+lookBackBear = math.min(zoneSearchMax, math.max(2, bar_index - nz(swingHighBar, bar_index - zoneSearchMax)))
+
+[bullZT, bullZB] = f_bullBlock(lookBackBull)
+[bearZT, bearZB] = f_bearBlock(lookBackBear)
+
+if bullBOS and volExpansionOk
+    if not na(bullZT) and not na(bullZB) and bullZT > bullZB
+        bullZoneTop  := bullZT
+        bullZoneBot  := bullZB
+        bullBOSbar   := bar_index
+        bullZoneLive := true
+        if showZones
+            bullBox := box.new(bar_index - lookBackBull, bullZT, bar_index + maxBarsSinceBOS, bullZB,
+                 border_color = color.new(color.teal, 40), bgcolor = color.new(color.teal, 82))
+
+if bearBOS and volExpansionOk
+    if not na(bearZT) and not na(bearZB) and bearZT > bearZB
+        bearZoneTop  := bearZT
+        bearZoneBot  := bearZB
+        bearBOSbar   := bar_index
+        bearZoneLive := true
+        if showZones
+            bearBox := box.new(bar_index - lookBackBear, bearZT, bar_index + maxBarsSinceBOS, bearZB,
+                 border_color = color.new(color.maroon, 40), bgcolor = color.new(color.maroon, 82))
+
+// Expire / invalidate zones
+if bullZoneLive
+    if bar_index - nz(bullBOSbar) > maxBarsSinceBOS or (invalidateOnClose and close < bullZoneBot)
+        bullZoneLive := false
+if bearZoneLive
+    if bar_index - nz(bearBOSbar) > maxBarsSinceBOS or (invalidateOnClose and close > bearZoneTop)
+        bearZoneLive := false
+
+// =============================================================================
+//  POSITION STATE
+// =============================================================================
+var float posEntry = na
+var float posStop  = na
+var float posTp1   = na
+var float posTp2   = na
+var float posRisk  = na
+var bool  tp1Hit   = false
+var int   posDir   = 0          // 1 = long, -1 = short, 0 = flat
+
+// =============================================================================
+//  ENTRY LOGIC
+// =============================================================================
+regimeLongOk  = not useRegime or bullRegime
+regimeShortOk = not useRegime or bearRegime
+
+vwapLongOk  = not useVwapFilter or close > vwapVal
+vwapShortOk = not useVwapFilter or close < vwapVal
+
+rvolOk = rvol >= rvolMin
+
+bullCandle = close > open and close > (high + low) / 2
+bearCandle = close < open and close < (high + low) / 2
+
+// Location A — retest of the order block that produced the break
+tapBullBlock = bullZoneLive and low <= bullZoneTop and close > bullZoneBot and bullCandle
+tapBearBlock = bearZoneLive and high >= bearZoneBot and close < bearZoneTop and bearCandle
+
+// Location B — tag and reclaim of the 1σ VWAP band
+tapBullVwap = vwapBandEntry and not na(vwDn1) and low <= vwDn1 and close > vwDn1 and bullCandle
+tapBearVwap = vwapBandEntry and not na(vwUp1) and high >= vwUp1 and close < vwUp1 and bearCandle
+
+pullbackLong  = tapBullBlock or (tapBullVwap and bullZoneLive)
+pullbackShort = tapBearBlock or (tapBearVwap and bearZoneLive)
+
+breakoutLong  = bullBOS and volExpansionOk
+breakoutShort = bearBOS and volExpansionOk
+
+triggerLong  = entryMode == "Pullback to Block" ? pullbackLong  : entryMode == "Breakout (BOS bar)" ? breakoutLong  : (pullbackLong  or breakoutLong)
+triggerShort = entryMode == "Pullback to Block" ? pullbackShort : entryMode == "Breakout (BOS bar)" ? breakoutShort : (pullbackShort or breakoutShort)
+
+capacityOk = tradesToday < maxTradesPerDay and strategy.position_size == 0 and posDir == 0
+
+longSignal  = tradeLongs  and capacityOk and timeOk and triggerLong  and regimeLongOk  and rvolOk and deltaBull and vwapLongOk  and rsBull
+shortSignal = tradeShorts and capacityOk and timeOk and triggerShort and regimeShortOk and rvolOk and deltaBear and vwapShortOk and rsBear
+
+// =============================================================================
+//  RISK MODEL & ORDER MANAGEMENT
+// =============================================================================
+f_size(float entryPx, float stopPx) =>
+    float perShare = math.abs(entryPx - stopPx)
+    float byRisk   = perShare > 0 ? (strategy.equity * riskPct / 100.0) / perShare : 0.0
+    float byCap    = entryPx > 0 ? (strategy.equity * maxPosPct / 100.0) / entryPx : 0.0
+    math.max(1.0, math.floor(math.min(byRisk, byCap)))
+
+if longSignal
+    float rawStop  = bullZoneLive and not na(bullZoneBot) ? math.min(bullZoneBot, low) : low
+    float stopPx   = math.min(rawStop - atr * stopAtrMult, close - atr * minStopAtr)
+    float entryPx  = close
+    float risk     = entryPx - stopPx
+    if risk > 0
+        posEntry := entryPx
+        posStop  := stopPx
+        posRisk  := risk
+        posTp1   := entryPx + risk * tp1R
+        posTp2   := entryPx + risk * tp2R
+        tp1Hit   := false
+        posDir   := 1
+        tradesToday += 1
+        strategy.entry("Long", strategy.long, qty = f_size(entryPx, stopPx), comment = "IOF Long")
+        alert("IOF LONG " + syminfo.ticker + " @ " + str.tostring(entryPx, format.mintick) +
+             " | stop " + str.tostring(stopPx, format.mintick) +
+             " | tp " + str.tostring(posTp2, format.mintick), alert.freq_once_per_bar_close)
+
+if shortSignal
+    float rawStop  = bearZoneLive and not na(bearZoneTop) ? math.max(bearZoneTop, high) : high
+    float stopPx   = math.max(rawStop + atr * stopAtrMult, close + atr * minStopAtr)
+    float entryPx  = close
+    float risk     = stopPx - entryPx
+    if risk > 0
+        posEntry := entryPx
+        posStop  := stopPx
+        posRisk  := risk
+        posTp1   := entryPx - risk * tp1R
+        posTp2   := entryPx - risk * tp2R
+        tp1Hit   := false
+        posDir   := -1
+        tradesToday += 1
+        strategy.entry("Short", strategy.short, qty = f_size(entryPx, stopPx), comment = "IOF Short")
+        alert("IOF SHORT " + syminfo.ticker + " @ " + str.tostring(entryPx, format.mintick) +
+             " | stop " + str.tostring(stopPx, format.mintick) +
+             " | tp " + str.tostring(posTp2, format.mintick), alert.freq_once_per_bar_close)
+
+// --- Manage open long ---------------------------------------------------------
+// Brackets are issued on the signal bar as well, so the position is never carried
+// unprotected: the exit orders simply wait for the entry to fill.
+if posDir == 1 and not na(posStop)
+    if strategy.position_size > 0
+        if not tp1Hit and high >= posTp1
+            tp1Hit := true
+            if moveToBE
+                posStop := math.max(posStop, posEntry + atr * beOffsetAtr)
+        if tp1Hit and useTrail
+            float chand = ta.highest(high, trailLen) - atr * trailAtrMult
+            posStop := math.max(posStop, chand)
+    if tp1Pct > 0
+        strategy.exit("L-Scale", from_entry = "Long", qty_percent = tp1Pct, limit = posTp1, stop = posStop, comment_profit = "L TP1", comment_loss = "L Stop")
+    strategy.exit("L-Runner", from_entry = "Long", limit = posTp2, stop = posStop, comment_profit = "L TP2", comment_loss = "L Stop")
+
+// --- Manage open short --------------------------------------------------------
+if posDir == -1 and not na(posStop)
+    if strategy.position_size < 0
+        if not tp1Hit and low <= posTp1
+            tp1Hit := true
+            if moveToBE
+                posStop := math.min(posStop, posEntry - atr * beOffsetAtr)
+        if tp1Hit and useTrail
+            float chand = ta.lowest(low, trailLen) + atr * trailAtrMult
+            posStop := math.min(posStop, chand)
+    if tp1Pct > 0
+        strategy.exit("S-Scale", from_entry = "Short", qty_percent = tp1Pct, limit = posTp1, stop = posStop, comment_profit = "S TP1", comment_loss = "S Stop")
+    strategy.exit("S-Runner", from_entry = "Short", limit = posTp2, stop = posStop, comment_profit = "S TP2", comment_loss = "S Stop")
+
+// --- Flat at session close ----------------------------------------------------
+if flatAtClose and isIntraday and session.islastbar and strategy.position_size != 0
+    strategy.close_all(comment = "EOD Flat")
+
+// Clear state only once the trade is genuinely closed — never on the signal bar,
+// where the entry order has not been filled yet.
+if strategy.position_size == 0 and not longSignal and not shortSignal and posDir != 0 and strategy.position_size[1] != 0
+    posDir   := 0
+    posEntry := na
+    posStop  := na
+    posTp1   := na
+    posTp2   := na
+    posRisk  := na
+    tp1Hit   := false
+
+// =============================================================================
+//  VISUALS
+// =============================================================================
+plot(showVwap ? vwapVal : na, "Session VWAP", color.new(color.orange, 0), 2)
+p1u = plot(showVwap ? vwUp1 : na, "VWAP +1σ", color.new(color.orange, 65))
+p1d = plot(showVwap ? vwDn1 : na, "VWAP -1σ", color.new(color.orange, 65))
+fill(p1u, p1d, color.new(color.orange, 94), "VWAP 1σ band")
+plot(showVwap ? vwUp2 : na, "VWAP +2σ", color.new(color.orange, 85))
+plot(showVwap ? vwDn2 : na, "VWAP -2σ", color.new(color.orange, 85))
+
+plot(showRegime ? htfFast  : na, "Regime fast EMA",  color.new(color.aqua, 30), 1)
+plot(showRegime ? htfSlow  : na, "Regime slow EMA",  color.new(color.blue, 30), 1)
+plot(showRegime ? htfTrend : na, "Regime trend SMA", color.new(color.gray, 40), 2)
+
+bgcolor(useRegime and bullRegime ? color.new(color.teal, 95) : useRegime and bearRegime ? color.new(color.maroon, 95) : na, title = "Regime tint")
+
+plotshape(showBOS and bullBOS and volExpansionOk, "Bullish BOS", shape.triangleup,   location.belowbar, color.new(color.teal, 0),   size = size.tiny, text = "BOS")
+plotshape(showBOS and bearBOS and volExpansionOk, "Bearish BOS", shape.triangledown, location.abovebar, color.new(color.maroon, 0), size = size.tiny, text = "BOS")
+
+plotshape(longSignal,  "Long entry",  shape.labelup,   location.belowbar, color.new(color.green, 0), text = "L", textcolor = color.white, size = size.small)
+plotshape(shortSignal, "Short entry", shape.labeldown, location.abovebar, color.new(color.red, 0),   text = "S", textcolor = color.white, size = size.small)
+
+plot(posDir != 0 ? posStop : na, "Active stop",  color.new(color.red, 0),   1, plot.style_linebr)
+plot(posDir != 0 ? posTp1  : na, "Scale target", color.new(color.lime, 20), 1, plot.style_linebr)
+plot(posDir != 0 ? posTp2  : na, "Final target", color.new(color.green, 0), 1, plot.style_linebr)
+
+// =============================================================================
+//  DASHBOARD
+// =============================================================================
+f_dashPos() =>
+    switch dashPos
+        "Top Right"    => position.top_right
+        "Top Left"     => position.top_left
+        "Bottom Right" => position.bottom_right
+        => position.bottom_left
+
+f_flag(bool ok) => ok ? "✔" : "✘"
+f_col(bool ok)  => ok ? color.new(color.teal, 0) : color.new(color.maroon, 0)
+
+var table dash = na
+if showDash and barstate.islast
+    if na(dash)
+        dash := table.new(f_dashPos(), 2, 10, border_width = 1, frame_width = 1,
+             frame_color = color.new(color.gray, 60), border_color = color.new(color.gray, 70))
+
+    float openR = posDir != 0 and nz(posRisk) > 0 ?
+         (posDir == 1 ? (close - posEntry) : (posEntry - close)) / posRisk : 0.0
+
+    table.cell(dash, 0, 0, "INSTITUTIONAL ORDER FLOW", text_color = color.white, bgcolor = color.new(color.navy, 10), text_size = size.small)
+    table.cell(dash, 1, 0, syminfo.ticker + " · " + timeframe.period, text_color = color.white, bgcolor = color.new(color.navy, 10), text_size = size.small)
+
+    table.cell(dash, 0, 1, "Regime (" + htfTf + ")", text_size = size.small, text_color = color.gray)
+    table.cell(dash, 1, 1, bullRegime ? "Bullish" : bearRegime ? "Bearish" : "Neutral", text_size = size.small, text_color = bullRegime ? color.teal : bearRegime ? color.maroon : color.gray)
+
+    table.cell(dash, 0, 2, "Structure", text_size = size.small, text_color = color.gray)
+    table.cell(dash, 1, 2, bullZoneLive ? "Bull block live" : bearZoneLive ? "Bear block live" : "No active block", text_size = size.small, text_color = bullZoneLive ? color.teal : bearZoneLive ? color.maroon : color.gray)
+
+    table.cell(dash, 0, 3, "RVOL", text_size = size.small, text_color = color.gray)
+    table.cell(dash, 1, 3, str.tostring(rvol, "#.00") + "×  " + f_flag(rvolOk), text_size = size.small, text_color = f_col(rvolOk))
+
+    table.cell(dash, 0, 4, "Cum. delta (" + str.tostring(deltaLen) + ")", text_size = size.small, text_color = color.gray)
+    table.cell(dash, 1, 4, (cumDelta >= 0 ? "+" : "") + str.tostring(cumDelta / math.max(1.0, nz(volAvg, 1.0)), "#.00") + " avg vol", text_size = size.small, text_color = cumDelta > 0 ? color.teal : color.maroon)
+
+    table.cell(dash, 0, 5, "VWAP", text_size = size.small, text_color = color.gray)
+    table.cell(dash, 1, 5, close > vwapVal ? "Above" : "Below", text_size = size.small, text_color = close > vwapVal ? color.teal : color.maroon)
+
+    table.cell(dash, 0, 6, "RS vs " + str.replace_all(benchSym, "AMEX:", ""), text_size = size.small, text_color = color.gray)
+    table.cell(dash, 1, 6, rsSlope > 0 ? "Outperforming" : "Lagging", text_size = size.small, text_color = rsSlope > 0 ? color.teal : color.maroon)
+
+    table.cell(dash, 0, 7, "Session window", text_size = size.small, text_color = color.gray)
+    table.cell(dash, 1, 7, timeOk ? "Open (" + str.tostring(math.round(minsSinceOpen)) + "m)" : "Closed / filtered", text_size = size.small, text_color = f_col(timeOk))
+
+    table.cell(dash, 0, 8, "Position", text_size = size.small, text_color = color.gray)
+    table.cell(dash, 1, 8, strategy.position_size == 0 ? "Flat  (" + str.tostring(tradesToday) + "/" + str.tostring(maxTradesPerDay) + " today)" :
+         (strategy.position_size > 0 ? "Long " : "Short ") + str.tostring(math.abs(strategy.position_size), "#") + " @ " + str.tostring(posEntry, format.mintick),
+         text_size = size.small, text_color = strategy.position_size > 0 ? color.teal : strategy.position_size < 0 ? color.maroon : color.gray)
+
+    table.cell(dash, 0, 9, "Open R / Net P&L", text_size = size.small, text_color = color.gray)
+    table.cell(dash, 1, 9, str.tostring(openR, "#.00") + "R  ·  " + str.tostring(strategy.netprofit, "#.0") + " " + currency.USD, text_size = size.small, text_color = openR >= 0 ? color.teal : color.maroon)
