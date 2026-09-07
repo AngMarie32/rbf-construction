@@ -57,6 +57,7 @@ import Loans from '@/pages/Loans';
 import OperatingCosts from '@/pages/OperatingCosts';
 import OwnerMoney from '@/pages/OwnerMoney';
 import CashFlow from '@/pages/CashFlow';
+import QuickBooksExport from '@/pages/QuickBooksExport';
 import { CompanyProvider } from '@/contexts/CompanyContext';
 
 const queryClient = new QueryClient();
@@ -107,6 +108,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Loans />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/quickbooks-export"
+              element={
+                <ProtectedRoute>
+                  <QuickBooksExport />
                 </ProtectedRoute>
               }
             />
