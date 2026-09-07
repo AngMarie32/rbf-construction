@@ -223,7 +223,7 @@ export default function QuickBooksExport() {
     .slice(0, 25);
 
   return (
-    <Layout>
+    <Layout title="QuickBooks Desktop Export">
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">QuickBooks Desktop Export</h1>
