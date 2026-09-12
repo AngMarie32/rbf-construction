@@ -28,7 +28,7 @@ export default function PropFirmTaxesLanding() {
       <header className="border-b">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-4">
           <span className="text-sm font-semibold tracking-tight">TraderTaxHQ</span>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button size="sm" variant="ghost" asChild>
               <Link to="/prop-tax-calculator">Calculator</Link>
             </Button>

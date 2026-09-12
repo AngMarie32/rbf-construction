@@ -17,6 +17,8 @@ Two audiences, two tracks, one inquiry form.
 | Payout calculator | `/prop-tax-calculator` | Prop traders | Lead magnet — what do I keep from a payout |
 | Trader landing | `/trader-taxes` | Self-directed | Leads with the capital loss limit |
 | Status + loss check | `/trader-status-check` | Self-directed | Lead magnet — do I qualify, and what happens to my loss |
+| State index | `/trader-taxes/states` | Both | Routes to the state pages |
+| State page | `/trader-taxes/:state` | Both | 15 states where we have something real to say |
 | Inquiry form | `/inquiry` | Both | Captures the lead, pre-filled where possible |
 
 The tracks cross-link in both directions, because plenty of traders do both and arrive at the wrong
@@ -73,9 +75,34 @@ column is how you find out whether the hypothesis is right.
 | "wash sale rule explained" | `/trader-taxes` FAQ, deserves its own page | High volume guess, low intent — useful for reach, weak for conversion |
 | "475 mark to market election" | `/trader-taxes` 475 section | Low volume, very high intent — these people are ready to hire |
 
-**Gap worth closing next:** state-specific pages. Traders in California, New Jersey, and
-Pennsylvania face genuinely different answers, the state register in the app already tracks those
-positions, and nobody is writing about it.
+**Now built:** state pages for 15 states, covering the six with something specific to say (CA, IL,
+MA, NJ, NY, PA) and the nine with no individual income tax.
+
+**Gap worth closing next:** an email sequence. Someone who runs a calculator in November and is not
+ready to engage has no reason to remember you in February, which is exactly when they need you. That
+is the highest-value missing piece, and it needs an email platform rather than more code here.
+
+---
+
+## 3A. How the state pages compound
+
+The state pages are the only asset here that gets better on its own.
+
+Research done for a client goes into `tth_state_positions` as an internal note. That note may
+reference the client's own facts, so it is never published. Instead the preparer writes a separate
+client-safe summary and flips a publish toggle — a database constraint refuses to publish a row
+without one. The public page then serves the shipped structural content plus anything published, and
+the next prospect from that state reads an answer somebody already paid for.
+
+**One rule governs what is publishable: only what is structural.** New Jersey taxing income by
+category is structural. Massachusetts taxing short-term gains on their own schedule is structural.
+A rate, a threshold, or a conformity date is not — those move, and a stale figure on a public page is
+a liability. The pages say so explicitly and list what the firm confirms on the actual return
+instead. There is a test asserting that no published copy contains a dollar figure or a percentage.
+
+Notes flagged `research` in the dataset never reach a public page. A state with nothing researched
+gets no page rather than a thin one, and the index says plainly that we only publish states we have
+actually looked at. That is both more honest and better positioning than fifty generated pages.
 
 ---
 

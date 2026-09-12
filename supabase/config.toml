@@ -37,3 +37,6 @@ verify_jwt = true
 
 [functions.tth-lead-capture]
 verify_jwt = false
+
+[functions.tth-state-content]
+verify_jwt = false

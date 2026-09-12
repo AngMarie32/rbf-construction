@@ -105,7 +105,7 @@ export default function TraderStatusCheck() {
           <Link to="/trader-taxes" className="text-sm font-semibold tracking-tight">
             TraderTaxHQ
           </Link>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button size="sm" variant="ghost" asChild>
               <Link to="/prop-tax-calculator">Funded account?</Link>
             </Button>

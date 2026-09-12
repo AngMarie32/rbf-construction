@@ -761,7 +761,12 @@ export interface TthStatePosition {
   company_id: string | null;
   state_code: string;
   topic: string;
+  /** Internal note. May reference client facts — never published. */
   position: string;
+  /** Client-safe text written specifically for the public state page. */
+  public_summary: string | null;
+  is_published: boolean;
+  published_at: string | null;
   citation: string | null;
   verified_on: string | null;
   verified_by: string | null;

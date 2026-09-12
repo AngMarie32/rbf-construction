@@ -23,12 +23,15 @@ export default function TraderTaxesLanding() {
       <header className="border-b">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-4">
           <span className="text-sm font-semibold tracking-tight">TraderTaxHQ</span>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button size="sm" variant="ghost" asChild>
               <Link to="/prop-firm-taxes">Funded accounts</Link>
             </Button>
             <Button size="sm" variant="ghost" asChild>
               <Link to="/trader-status-check">Status check</Link>
+            </Button>
+            <Button size="sm" variant="ghost" asChild>
+              <Link to="/trader-taxes/states">By state</Link>
             </Button>
             <Button size="sm" asChild>
               <Link to="/inquiry?source=landing">Get a quote</Link>
@@ -132,6 +135,21 @@ export default function TraderTaxesLanding() {
             </Button>
           </div>
         </div>
+      </section>
+
+      {/* --- State ------------------------------------------------------------ */}
+      <section className="mx-auto max-w-5xl px-6 pt-16">
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold tracking-tight">Your state changes the answer</h2>
+          <p className="mt-2 max-w-3xl text-muted-foreground">
+            A trading loss that offsets your wages federally may do nothing at all in New Jersey.
+            Massachusetts taxes short-term gains on their own schedule. California does not simply
+            follow the federal result. We publish what we have actually researched, state by state.
+          </p>
+          <Button className="mt-4" variant="outline" asChild>
+            <Link to="/trader-taxes/states">See your state</Link>
+          </Button>
+        </Card>
       </section>
 
       {/* --- Pricing --------------------------------------------------------- */}

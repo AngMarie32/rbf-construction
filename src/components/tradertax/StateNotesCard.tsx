@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -50,7 +51,14 @@ export function StateNotesCard({ homeState, otherStates, companyId }: StateNotes
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [form, setForm] = useState({ state_code: '', topic: '', position: '', citation: '' });
+  const [form, setForm] = useState({
+    state_code: '',
+    topic: '',
+    position: '',
+    citation: '',
+    public_summary: '',
+    is_published: false,
+  });
 
   const states = useMemo(() => statesInPlay(homeState, otherStates), [homeState, otherStates]);
 
@@ -80,12 +88,22 @@ export function StateNotesCard({ homeState, otherStates, companyId }: StateNotes
       return;
     }
     setBusy(true);
+    if (form.is_published && !form.public_summary.trim()) {
+      toast.error('Write a public summary before publishing', {
+        description: 'The internal note may reference this client. Only the public summary is shown on the site.',
+      });
+      setBusy(false);
+      return;
+    }
     const { error } = await tth.from('tth_state_positions').insert({
       company_id: companyId,
       state_code: form.state_code.trim().toUpperCase(),
       topic: form.topic.trim() || 'general',
       position: form.position.trim(),
       citation: form.citation.trim() || null,
+      public_summary: form.public_summary.trim() || null,
+      is_published: form.is_published,
+      published_at: form.is_published ? new Date().toISOString() : null,
       verified_on: new Date().toISOString().slice(0, 10),
       verified_by: user?.email ?? null,
       created_by: user?.id ?? null,
@@ -95,8 +113,19 @@ export function StateNotesCard({ homeState, otherStates, companyId }: StateNotes
       toast.error('Could not save the position', { description: error.message });
       return;
     }
-    toast.success('Position recorded — the next client in this state inherits it');
-    setForm({ state_code: '', topic: '', position: '', citation: '' });
+    toast.success(
+      form.is_published
+        ? 'Position recorded and published to the state page'
+        : 'Position recorded — the next client in this state inherits it'
+    );
+    setForm({
+      state_code: '',
+      topic: '',
+      position: '',
+      citation: '',
+      public_summary: '',
+      is_published: false,
+    });
     setOpen(false);
     await load();
   };
@@ -166,6 +195,11 @@ export function StateNotesCard({ homeState, otherStates, companyId }: StateNotes
                         verified {shortDate(p.verified_on)}
                         {p.verified_by ? ` by ${p.verified_by}` : ''}
                       </span>
+                      {p.is_published && (
+                        <Badge variant="info" className="text-[10px]">
+                          published
+                        </Badge>
+                      )}
                     </div>
                     <p className="mt-1 text-sm">{p.position}</p>
                     {p.citation && <p className="mt-1 text-xs italic text-muted-foreground">{p.citation}</p>}
@@ -235,6 +269,33 @@ export function StateNotesCard({ homeState, otherStates, companyId }: StateNotes
                 onChange={(e) => setForm({ ...form, citation: e.target.value })}
                 placeholder="Statute, regulation, or published guidance"
               />
+            </div>
+
+            <div className="space-y-3 rounded-lg border p-3 sm:col-span-2">
+              <label className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="text-sm font-medium">Publish to the public state page</span>
+                  <p className="text-xs text-muted-foreground">
+                    Turns this research into a marketing asset. The internal note above is never
+                    published — only the summary you write below.
+                  </p>
+                </div>
+                <Switch
+                  checked={form.is_published}
+                  onCheckedChange={(v) => setForm({ ...form, is_published: v })}
+                />
+              </label>
+              {form.is_published && (
+                <div className="space-y-2">
+                  <Label>Public summary</Label>
+                  <Textarea
+                    rows={3}
+                    value={form.public_summary}
+                    onChange={(e) => setForm({ ...form, public_summary: e.target.value })}
+                    placeholder="The general point, with no client facts and no figures that go stale."
+                  />
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
