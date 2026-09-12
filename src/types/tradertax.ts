@@ -83,6 +83,7 @@ export interface TthEngagement {
   titanfile_channel_url: string | null;
   target_date: string | null;
   consult_at: string | null;
+  retention_until: string | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -225,6 +226,8 @@ export interface TthFiling {
   filed_at: string | null;
   confirmation_number: string | null;
   preparer: string | null;
+  assigned_to: string | null;
+  reminder_days: number;
   notes: string | null;
   sort_order: number;
   created_at: string;
@@ -484,4 +487,213 @@ export interface ConsultationAnalysis {
   consultAgenda: string[];
   clientQuestions: string[];
   disclaimers: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Practice operations — firm calendar, security program, lead pipeline
+// ---------------------------------------------------------------------------
+
+export interface TthFirmProfile {
+  id: string;
+  company_id: string | null;
+  firm_name: string;
+  legal_entity: string | null;
+  ein_last4: string | null;
+  ptin: string | null;
+  efin: string | null;
+  street: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  security_officer_name: string | null;
+  security_officer_title: string | null;
+  security_officer_email: string | null;
+  wisp_adopted_on: string | null;
+  wisp_last_reviewed_on: string | null;
+  wisp_version: string;
+  retention_years: number;
+  breach_counsel: string | null;
+  cyber_insurer: string | null;
+  cyber_policy_number: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type Recurrence = 'none' | 'annual' | 'quarterly' | 'monthly';
+
+export interface TthFirmDeadline {
+  id: string;
+  company_id: string | null;
+  code: string;
+  title: string;
+  category: string;
+  detail: string | null;
+  authority: string | null;
+  due_date: string;
+  recurrence: Recurrence;
+  owner: string | null;
+  status: 'open' | 'done' | 'skipped';
+  completed_at: string | null;
+  reminder_days: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ControlStatus = 'not_started' | 'in_progress' | 'implemented' | 'not_applicable';
+
+export interface TthSecurityControl {
+  id: string;
+  company_id: string | null;
+  code: string;
+  title: string;
+  category: string;
+  requirement: string;
+  authority: string | null;
+  status: ControlStatus;
+  owner: string | null;
+  evidence: string | null;
+  implemented_on: string | null;
+  last_reviewed_on: string | null;
+  review_months: number;
+  applicability: 'required' | 'recommended';
+  notes: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TthSecurityIncident {
+  id: string;
+  company_id: string | null;
+  occurred_at: string;
+  discovered_at: string | null;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  category: string;
+  summary: string;
+  systems_affected: string | null;
+  clients_affected: number;
+  taxpayer_data_involved: boolean;
+  containment: string | null;
+  remediation: string | null;
+  reported_irs_at: string | null;
+  reported_state_at: string | null;
+  reported_clients_at: string | null;
+  reported_ftc_at: string | null;
+  status: 'open' | 'contained' | 'closed';
+  closed_at: string | null;
+  lessons_learned: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TthSecurityTraining {
+  id: string;
+  company_id: string | null;
+  person_name: string;
+  person_email: string | null;
+  role: string | null;
+  topic: string;
+  completed_on: string;
+  next_due_on: string | null;
+  provider: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TthServiceProvider {
+  id: string;
+  company_id: string | null;
+  name: string;
+  purpose: string;
+  data_accessed: string | null;
+  contract_on_file: boolean;
+  security_review_on: string | null;
+  next_review_on: string | null;
+  soc2: boolean;
+  mfa_enforced: boolean;
+  notes: string | null;
+  status: 'active' | 'inactive';
+  created_at: string;
+  updated_at: string;
+}
+
+export type LeadStatus =
+  | 'new'
+  | 'contacted'
+  | 'qualified'
+  | 'quoted'
+  | 'won'
+  | 'lost'
+  | 'disqualified';
+
+export interface TthLead {
+  id: string;
+  company_id: string | null;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  source: string;
+  status: LeadStatus;
+  tax_year: number | null;
+  service_wanted: string | null;
+  screening: IntakeAnswers;
+  triage_score: number | null;
+  triage_tier: string | null;
+  triage_summary: string | null;
+  complexity: Record<string, unknown>;
+  quoted_fee_low: number | null;
+  quoted_fee_high: number | null;
+  quoted_at: string | null;
+  next_action: string | null;
+  next_action_on: string | null;
+  owner: string | null;
+  lost_reason: string | null;
+  converted_client_id: string | null;
+  converted_at: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Unified obligation model for the firm-wide calendar
+// ---------------------------------------------------------------------------
+
+export type ObligationKind =
+  | 'filing'
+  | 'extension'
+  | 'election'
+  | 'consultation'
+  | 'document'
+  | 'position'
+  | 'firm';
+
+export type ObligationBucket = 'overdue' | 'week' | 'month' | 'quarter' | 'later';
+
+export interface Obligation {
+  id: string;
+  kind: ObligationKind;
+  title: string;
+  detail: string | null;
+  authority: string | null;
+  dueDate: string;
+  daysRemaining: number;
+  bucket: ObligationBucket;
+  severity: FindingSeverity;
+  statutory: boolean;
+  clientId: string | null;
+  clientName: string | null;
+  engagementId: string | null;
+  taxYear: number | null;
+  owner: string | null;
+  /** Where clicking this obligation should take the preparer. */
+  href: string | null;
 }

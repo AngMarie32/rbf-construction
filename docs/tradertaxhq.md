@@ -28,12 +28,18 @@ Everything is scoped to an **engagement** — one client, one tax year, one serv
 | Filing matrix | `src/utils/traderTax/filingMatrix.ts` |
 | Orchestrator | `src/utils/traderTax/consultationEngine.ts` |
 | Memo PDF | `src/utils/traderTax/consultationPdf.ts` |
+| Firm deadline engine | `src/utils/traderTax/deadlineEngine.ts` |
+| Firm obligation catalog | `src/utils/traderTax/firmObligations.ts` |
+| Security control catalog | `src/utils/traderTax/securityProgram.ts` |
+| WISP generator | `src/utils/traderTax/wispDocument.ts` |
+| Lead triage and fee quoting | `src/utils/traderTax/leadScoring.ts` |
 | Pages | `src/pages/tradertax/` |
 | Panels | `src/components/tradertax/` |
-| Edge functions | `supabase/functions/tth-intake-public`, `tth-analyze`, `titanfile-sync` |
+| Edge functions | `supabase/functions/tth-intake-public`, `tth-analyze`, `titanfile-sync`, `tth-lead-capture` |
 
-Routes: `/tradertax` (pipeline dashboard), `/tradertax/clients`, `/tradertax/clients/:clientId`, and the
-public `/intake/:token`.
+Routes: `/tradertax` (pipeline dashboard), `/tradertax/leads`, `/tradertax/clients`,
+`/tradertax/clients/:clientId`, `/tradertax/calendar`, `/tradertax/security`, and the public
+`/intake/:token` and `/inquiry`.
 
 ---
 
@@ -55,7 +61,17 @@ through `has_company_access` on the client's company.
 `src/integrations/supabase/tradertax.ts` re-types the shared client from the hand-written domain types,
 so nothing breaks. After regenerating types you can keep or drop that shim.
 
-### 2.3 Edge function secrets
+### 2.3 Migrations, in order
+
+```
+20260912170000_tradertaxhq_consultation_system.sql   clients, engagements, intake, docs, analysis, filings
+20260912190000_tradertaxhq_practice_operations.sql   firm profile, deadlines, security program, leads
+```
+
+The second migration also adds `assigned_to` / `reminder_days` to `tth_filings` and `retention_until`
+to `tth_engagements`.
+
+### 2.4 Edge function secrets
 
 | Secret | Used by | Notes |
 |---|---|---|
@@ -65,19 +81,26 @@ so nothing breaks. After regenerating types you can keep or drop that shim.
 | `TITANFILE_OWNER_EMAIL` | `titanfile-sync` | optional; act on behalf of a user you have delegation rights for |
 | `LOVABLE_API_KEY` | `tth-analyze` | same gateway the other AI functions use |
 
+`tth-lead-capture` needs no secrets — it runs on the service role and only writes lead rows.
+
 ```sh
-supabase functions deploy tth-intake-public tth-analyze titanfile-sync
+supabase functions deploy tth-intake-public tth-analyze titanfile-sync tth-lead-capture
 ```
 
 `tth-intake-public` runs with `verify_jwt = false` (clients have no login); the other two require a
 session and re-check engagement access against RLS before doing anything.
 
-### 2.4 Verify the tax year parameters — do this before quoting numbers
+### 2.5 Verify the tax year parameters — do this before quoting numbers
 
 Every year in `taxYearConfig.ts` ships as `status: 'unverified'`. Check the brackets, standard
 deduction, wage base, and plan limits against the IRS revenue procedure named in `sourceNote`, then
 flip that year's `status` to `'verified'`. Until you do, the analysis screen and the exported memo
 both carry a visible DRAFT warning.
+
+### 2.6 Set your own prices
+
+`FEE_SCHEDULE` in `leadScoring.ts` is a placeholder rate card so the quote calculator runs. Every
+figure in it is invented. Replace them before a quote reaches a prospect.
 
 ---
 
@@ -153,7 +176,85 @@ due date, extended due date, status, and confirmation number, with overdue rows 
 
 ---
 
-## 4. Design decisions worth knowing
+## 4. Practice operations
+
+### 4.1 Deadline calendar — `/tradertax/calendar`
+
+One list of every date the firm owes anyone. Obligations are assembled at read time from five sources
+rather than stored in a table of their own, so nothing goes stale when an intake answer or a filing
+status changes:
+
+| Source | What it contributes |
+|---|---|
+| `tth_filings` | Form due dates. A filed extension moves the live date to the extended one. |
+| Election engine | 475(f) windows computed per engagement from the tax year and intake answers. |
+| `tth_engagements` | Scheduled consultations. |
+| `tth_document_requests` | Outstanding requests carrying a due date. |
+| `tth_positions` | Action plan items with a due date. |
+| `tth_firm_deadlines` | The firm's own compliance dates. |
+
+Closed work drops out automatically — accepted filings, received documents, implemented positions,
+closed engagements, and election windows that lapsed more than a year ago.
+
+Each obligation gets a bucket (overdue / 7 / 30 / 90 / later) and a severity, with statutory dates
+escalating faster than internal ones. **Load firm calendar** seeds 16 practice obligations from
+`firmObligations.ts` — PTIN renewal, CE hours, EFIN check, WISP review, training, access review,
+backup test, vendor review, information returns, the firm's own return, the MeF shutdown, retention
+purge, engagement letter refresh, fee review, capacity planning. Completing a recurring one rolls it
+forward instead of closing it.
+
+The MeF shutdown date moves every year and the seeded date is a placeholder — the entry says so.
+
+**Export**: `.ics` (with a 7-day alarm per event) to subscribe in Google Calendar or Outlook, and CSV.
+Both are snapshots, not live feeds — re-export after changes.
+
+### 4.2 Security program — `/tradertax/security`
+
+A paid preparer is a financial institution under the Gramm-Leach-Bliley Act, which puts the practice
+under the FTC Safeguards Rule (16 CFR part 314); the IRS restates it in Pub. 4557 with a template in
+Pub. 5708. This page is the register and the plan generator.
+
+- **Controls** — 27 controls across governance, access, data protection, infrastructure, people,
+  service providers, and incident response. Each carries the requirement, its citation, a review
+  cadence, and a prompt for what evidence to record. Readiness is scored on required controls only,
+  with partial credit for in-progress work and **half credit removed when a control's review is
+  overdue** — an unreviewed safeguard is a claim, not a control.
+- **Plan** — generates a WISP PDF from the firm profile and the register. Open gaps are printed rather
+  than hidden, because a plan claiming safeguards the firm does not have is worse than no plan. It
+  comes out stamped DRAFT and unsigned.
+- **Service providers** — the 314.4(f) register, with contract and MFA status per provider.
+- **Training** — the 314.4(e) log, with next-due dates.
+- **Incidents** — the log, flagging when taxpayer data was involved and whether the IRS has been
+  notified.
+
+Controls carrying `smallFirmExempt` are the ones 16 CFR 314.6 excuses for a firm holding data on
+fewer than 5,000 consumers — the written risk assessment, penetration testing, the written incident
+response plan, and the annual written report. They stay in the register because they remain good
+practice, and because a growing firm crosses that line without noticing.
+
+This is a tracking tool, not legal advice. Have counsel review the plan.
+
+### 4.3 Lead pipeline — `/tradertax/leads` and public `/inquiry`
+
+The public inquiry form asks about 20 questions — contact, trading activity, instruments, situation —
+and posts to `tth-lead-capture`, which allowlists the fields it accepts, validates the email,
+verifies any `?firm=` id against the companies table, and de-duplicates repeat submissions inside an
+hour. It writes a lead row and nothing else: never a client, never an engagement.
+
+Triage is **not** computed in the edge function. The leads page recomputes it from the stored answers
+using the same TTS factor model the full analysis uses, so there is one implementation and nothing
+depends on a score posted by an untrusted client. Fit weighs trader status at half the total, then
+revenue signals, urgency, and the complexity the firm is specifically equipped for.
+
+Fit is not the same as trader status: a prospect who fails the factors can still be a good client who
+needs to be told no, correctly. The tier drives a suggested next action rather than an accept/reject.
+
+**Convert** creates the client, the engagement, and an intake pre-filled with the screening answers,
+so nobody is asked the same question twice.
+
+---
+
+## 5. Design decisions worth knowing
 
 **The engines are pure and run in the browser.** `runConsultationAnalysis` takes intake answers and
 document status and returns a plain object. No network, no model. That means the analysis is
@@ -173,7 +274,7 @@ needs — never internal notes, analyses, or other clients' data.
 
 ---
 
-## 5. Extending it
+## 6. Extending it
 
 - **New intake question** — add a field to a section in `intakeSchema.ts`. It renders everywhere
   automatically. Mark it `drivesAnalysis` if an engine reads it.
@@ -181,10 +282,15 @@ needs — never internal notes, analyses, or other clients' data.
 - **New finding or position** — add it in `consultationEngine.ts`; the PDF, the analysis screen, and
   the action plan all pick it up.
 - **New form** — add it to `buildFilingRequirements` in `filingMatrix.ts`.
+- **New firm deadline** — add a template to `FIRM_OBLIGATION_CATALOG` in `firmObligations.ts`.
+- **New security control** — add it to `SECURITY_CONTROL_CATALOG`; the register, the readiness score,
+  and the WISP all pick it up.
+- **New inquiry question** — add the field to `INQUIRY_SECTIONS` in `leadScoring.ts` AND to
+  `ALLOWED_KEYS` in the `tth-lead-capture` function, or it is silently dropped.
 
 ---
 
-## 6. Limits — read before delivering anything
+## 7. Limits — read before delivering anything
 
 - Output is **draft preparer work product**, not tax advice. A licensed practitioner reviews it before
   a client sees it.
@@ -197,3 +303,8 @@ needs — never internal notes, analyses, or other clients' data.
   history.
 - Digital assets, forex, and prop firm arrangements are flagged for a written position rather than
   resolved automatically — the treatment turns on facts the intake cannot fully capture.
+- The security register tracks a program; it does not implement one. Marking MFA "implemented" does
+  not turn MFA on.
+- The fee schedule is placeholder pricing until you replace it.
+- The calendar covers what this system knows about. Anything tracked elsewhere is still invisible to
+  it.

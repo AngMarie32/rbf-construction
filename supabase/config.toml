@@ -34,3 +34,6 @@ verify_jwt = true
 
 [functions.titanfile-sync]
 verify_jwt = true
+
+[functions.tth-lead-capture]
+verify_jwt = false

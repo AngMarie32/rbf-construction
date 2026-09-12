@@ -12,6 +12,13 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from './client';
 import type {
   TthActivity,
+  TthFirmDeadline,
+  TthFirmProfile,
+  TthLead,
+  TthSecurityControl,
+  TthSecurityIncident,
+  TthSecurityTraining,
+  TthServiceProvider,
   TthAnalysis,
   TthClient,
   TthConsultation,
@@ -41,6 +48,13 @@ export interface TraderTaxSchema {
       tth_filings: TableShape<TthFiling>;
       tth_consultations: TableShape<TthConsultation>;
       tth_activity: TableShape<TthActivity>;
+      tth_firm_profile: TableShape<TthFirmProfile>;
+      tth_firm_deadlines: TableShape<TthFirmDeadline>;
+      tth_security_controls: TableShape<TthSecurityControl>;
+      tth_security_incidents: TableShape<TthSecurityIncident>;
+      tth_security_training: TableShape<TthSecurityTraining>;
+      tth_service_providers: TableShape<TthServiceProvider>;
+      tth_leads: TableShape<TthLead>;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -60,4 +74,9 @@ export function generateIntakeToken(): string {
 
 export function intakeLinkFor(token: string): string {
   return `${window.location.origin}/intake/${token}`;
+}
+
+export function inquiryLinkFor(companyId: string | null): string {
+  const base = `${window.location.origin}/inquiry`;
+  return companyId ? `${base}?firm=${companyId}` : base;
 }

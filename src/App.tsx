@@ -65,6 +65,10 @@ import TraderTaxDashboard from '@/pages/tradertax/TraderTaxDashboard';
 import TraderTaxClients from '@/pages/tradertax/TraderTaxClients';
 import TraderTaxClientDetail from '@/pages/tradertax/TraderTaxClientDetail';
 import PublicIntake from '@/pages/tradertax/PublicIntake';
+import PublicInquiry from '@/pages/tradertax/PublicInquiry';
+import TraderTaxCalendar from '@/pages/tradertax/TraderTaxCalendar';
+import TraderTaxSecurity from '@/pages/tradertax/TraderTaxSecurity';
+import TraderTaxLeads from '@/pages/tradertax/TraderTaxLeads';
 
 const queryClient = new QueryClient();
 
@@ -377,6 +381,10 @@ function App() {
             <Route path="/weekly-reports" element={<ProtectedRoute><WeeklyReports /></ProtectedRoute>} />
             <Route path="/blueprint-analyzer" element={<ProtectedRoute><BlueprintAnalyzer /></ProtectedRoute>} />
             <Route path="/intake/:token" element={<PublicIntake />} />
+            <Route path="/inquiry" element={<PublicInquiry />} />
+            <Route path="/tradertax/calendar" element={<ProtectedRoute><TraderTaxCalendar /></ProtectedRoute>} />
+            <Route path="/tradertax/leads" element={<ProtectedRoute><TraderTaxLeads /></ProtectedRoute>} />
+            <Route path="/tradertax/security" element={<ProtectedRoute><TraderTaxSecurity /></ProtectedRoute>} />
             <Route path="/tradertax" element={<ProtectedRoute><TraderTaxDashboard /></ProtectedRoute>} />
             <Route path="/tradertax/clients" element={<ProtectedRoute><TraderTaxClients /></ProtectedRoute>} />
             <Route path="/tradertax/clients/:clientId" element={<ProtectedRoute><TraderTaxClientDetail /></ProtectedRoute>} />
