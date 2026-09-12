@@ -39,6 +39,7 @@ Everything is scoped to an **engagement** — one client, one tax year, one serv
 | State treatment notes | `src/utils/traderTax/stateConformity.ts` |
 | Engagement letter | `src/utils/traderTax/engagementLetter.ts` |
 | Payout calculator | `src/utils/traderTax/payoutCalculator.ts` |
+| Capital loss calculator | `src/utils/traderTax/lossCalculator.ts` |
 | Pages | `src/pages/tradertax/` |
 | Public marketing pages | `src/pages/public/` |
 | Panels | `src/components/tradertax/` |
@@ -46,7 +47,8 @@ Everything is scoped to an **engagement** — one client, one tax year, one serv
 
 Routes: `/tradertax` (pipeline dashboard), `/tradertax/leads`, `/tradertax/clients`,
 `/tradertax/clients/:clientId`, `/tradertax/calendar`, `/tradertax/analytics`, `/tradertax/security`,
-and the public `/intake/:token`, `/inquiry`, `/prop-firm-taxes`, and `/prop-tax-calculator`.
+and the public `/intake/:token`, `/inquiry`, `/prop-firm-taxes`, `/prop-tax-calculator`,
+`/trader-taxes`, and `/trader-status-check`.
 
 Acquisition is documented separately in `docs/tradertaxhq-marketing.md`.
 

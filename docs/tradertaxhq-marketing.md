@@ -9,19 +9,25 @@ settle the argument within one season.
 
 ## 1. What is built
 
-| Asset | Route | Job |
-|---|---|---|
-| Landing page | `/prop-firm-taxes` | Converts someone who already suspects they have a problem |
-| Payout tax calculator | `/prop-tax-calculator` | Lead magnet — gives real value before asking for anything |
-| Inquiry form | `/inquiry` | Captures the lead, pre-filled from the calculator |
+Two audiences, two tracks, one inquiry form.
 
-The three are wired together: the calculator's CTA carries payouts, fees, and filing status into the
-inquiry form as query parameters, so a prospect who has already done the work is not asked to do it
-twice. Leads arrive tagged `calculator` or `landing`, and conversion by source shows up in
+| Asset | Route | Audience | Job |
+|---|---|---|---|
+| Funded landing | `/prop-firm-taxes` | Prop traders | Converts someone who suspects they have a problem |
+| Payout calculator | `/prop-tax-calculator` | Prop traders | Lead magnet — what do I keep from a payout |
+| Trader landing | `/trader-taxes` | Self-directed | Leads with the capital loss limit |
+| Status + loss check | `/trader-status-check` | Self-directed | Lead magnet — do I qualify, and what happens to my loss |
+| Inquiry form | `/inquiry` | Both | Captures the lead, pre-filled where possible |
+
+The tracks cross-link in both directions, because plenty of traders do both and arrive at the wrong
+one. Every page carries a line pointing to the other.
+
+Both calculators run the same engines the internal analysis uses — self-employment tax, the trader
+status factor model, and the section 1211(b) loss math. That is deliberate: a marketing calculator
+that disagrees with the firm's own working paper is a liability, not an asset.
+
+Leads arrive tagged `calculator`, `landing`, or `inquiry_form`, and conversion by source shows up in
 `/tradertax/analytics`.
-
-The calculator runs the same self-employment tax engine the internal analysis uses. That is
-deliberate: a marketing calculator that disagrees with the firm's own working paper is a liability.
 
 ---
 
@@ -40,6 +46,10 @@ For this segment the calculator is a better acquisition asset than any article, 
 The set-aside percentage is the piece designed to travel. "Set aside 25% of every payout" is a rule
 someone repeats in a Discord channel; a tax article is not.
 
+The self-directed side has the same shape with a different number. "At $3,000 a year, this loss takes
+20 years to use up" is the line that makes an active trader finally read about the section 475
+election — and it is true, checkable, and nobody else leads with it.
+
 ---
 
 ## 3. Intent hypotheses
@@ -57,11 +67,15 @@ column is how you find out whether the hypothesis is right.
 | "prop firm trader LLC / S-corp" | FAQ 4 | Popular question, usually answered badly online. Being the honest answer is the differentiator |
 | "paid in crypto by prop firm taxes" | FAQ 5 | Narrow, but nobody covers it |
 | "didn't report prop payouts" | FAQ 6 | Low volume, high value, high urgency |
-| "day trader taxes small account" | Needs a small-trader page | The other half of the segment, currently under-served by the site |
+| "day trader taxes small account" | `/trader-taxes` | The other half of the segment |
+| "how much trading loss can I deduct" | Status + loss check | The $3,000 shock — likely the strongest single hook on the self-directed side |
+| "do I qualify as a day trader for taxes" | Status + loss check | High intent, and most existing answers are wrong or vague |
+| "wash sale rule explained" | `/trader-taxes` FAQ, deserves its own page | High volume guess, low intent — useful for reach, weak for conversion |
+| "475 mark to market election" | `/trader-taxes` 475 section | Low volume, very high intent — these people are ready to hire |
 
-**Gap worth closing next:** everything built so far speaks to funded traders. Small-scale
-self-directed traders — the other half of the stated market — have no page. They arrive at
-`/inquiry` cold.
+**Gap worth closing next:** state-specific pages. Traders in California, New Jersey, and
+Pennsylvania face genuinely different answers, the state register in the app already tracks those
+positions, and nobody is writing about it.
 
 ---
 

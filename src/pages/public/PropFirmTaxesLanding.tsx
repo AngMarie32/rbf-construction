@@ -32,6 +32,9 @@ export default function PropFirmTaxesLanding() {
             <Button size="sm" variant="ghost" asChild>
               <Link to="/prop-tax-calculator">Calculator</Link>
             </Button>
+            <Button size="sm" variant="ghost" asChild>
+              <Link to="/trader-taxes">Own account?</Link>
+            </Button>
             <Button size="sm" asChild>
               <Link to="/inquiry?source=landing">Get a quote</Link>
             </Button>
@@ -66,7 +69,12 @@ export default function PropFirmTaxesLanding() {
               </Button>
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
-              The calculator is free and runs in your browser. No email required.
+              The calculator is free and runs in your browser. No email required. Trading your own
+              account instead?{' '}
+              <Link to="/trader-taxes" className="underline">
+                That is taxed differently
+              </Link>
+              .
             </p>
           </div>
         </div>

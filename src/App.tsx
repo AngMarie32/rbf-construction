@@ -74,6 +74,8 @@ import TraderTaxAnalytics from '@/pages/tradertax/TraderTaxAnalytics';
 // Public marketing
 import PropFirmTaxesLanding from '@/pages/public/PropFirmTaxesLanding';
 import PropTaxCalculator from '@/pages/public/PropTaxCalculator';
+import TraderTaxesLanding from '@/pages/public/TraderTaxesLanding';
+import TraderStatusCheck from '@/pages/public/TraderStatusCheck';
 
 const queryClient = new QueryClient();
 
@@ -389,6 +391,8 @@ function App() {
             <Route path="/inquiry" element={<PublicInquiry />} />
             <Route path="/prop-firm-taxes" element={<PropFirmTaxesLanding />} />
             <Route path="/prop-tax-calculator" element={<PropTaxCalculator />} />
+            <Route path="/trader-taxes" element={<TraderTaxesLanding />} />
+            <Route path="/trader-status-check" element={<TraderStatusCheck />} />
             <Route path="/tradertax/calendar" element={<ProtectedRoute><TraderTaxCalendar /></ProtectedRoute>} />
             <Route path="/tradertax/leads" element={<ProtectedRoute><TraderTaxLeads /></ProtectedRoute>} />
             <Route path="/tradertax/security" element={<ProtectedRoute><TraderTaxSecurity /></ProtectedRoute>} />
