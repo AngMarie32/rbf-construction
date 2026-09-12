@@ -29,6 +29,7 @@ import {
   str,
 } from './intakeSchema';
 import { assessTraderTaxStatus, ttsTierLabel } from './ttsAnalysis';
+import { assessPropFirm } from './propFirmAnalysis';
 import { assessElections } from './electionEngine';
 import { assessEntity } from './entityAnalysis';
 import { projectTax } from './projection';
@@ -49,6 +50,15 @@ export function runConsultationAnalysis(input: AnalysisInput): ConsultationAnaly
 
   // --- Engines --------------------------------------------------------------
   const tts = assessTraderTaxStatus(answers, taxYear);
+  const prop = assessPropFirm(answers, taxYear);
+
+  // A funded trader already reports on Schedule C through the prop activity,
+  // so trader tax status is only load-bearing for their OWN account. When
+  // there is no meaningful personal trading, a weak TTS score is not a problem
+  // to solve — it is simply the wrong question for this client.
+  const personalTradingVolume =
+    num(answers, 'total_trades') + Math.abs(num(answers, 'securities_net_gain'));
+  const propOnly = prop.applicable && personalTradingVolume === 0;
   const ttsSupported = tts.tier === 'strong' || tts.tier === 'defensible';
   const elections = assessElections(answers, taxYear);
   const mtmElected = has(answers, 'sec475_elected');
@@ -85,16 +95,29 @@ export function runConsultationAnalysis(input: AnalysisInput): ConsultationAnaly
   const positions: RecommendedPosition[] = [];
 
   // TTS
-  findings.push({
-    id: 'tts_status',
-    area: 'Trader tax status',
-    severity: ttsSupported ? 'info' : 'high',
-    statement: `Trader tax status is ${ttsTierLabel(tts.tier).toLowerCase()} (composite ${tts.score}/100).`,
-    detail: tts.narrative,
-    authority: 'Commissioner v. Groetzinger, 480 U.S. 23 (1987); Endicott v. Commissioner, T.C. Memo. 2013-199',
-  });
+  if (propOnly) {
+    findings.push({
+      id: 'tts_status',
+      area: 'Trader tax status',
+      severity: 'info',
+      statement: 'Trader tax status is not the operative question for this client.',
+      detail:
+        'All of the trading activity runs through a funded account, so the income is already business income on Schedule C and the expenses are already deductible there. Trader tax status would only matter for a personal account traded alongside it. The factor analysis is retained below for reference, not as a conclusion.',
+      authority: 'Commissioner v. Groetzinger, 480 U.S. 23 (1987)',
+    });
+  } else {
+    findings.push({
+      id: 'tts_status',
+      area: 'Trader tax status',
+      severity: ttsSupported ? 'info' : 'high',
+      statement: `Trader tax status is ${ttsTierLabel(tts.tier).toLowerCase()} (composite ${tts.score}/100).`,
+      detail: tts.narrative,
+      authority:
+        'Commissioner v. Groetzinger, 480 U.S. 23 (1987); Endicott v. Commissioner, T.C. Memo. 2013-199',
+    });
+  }
 
-  positions.push({
+  if (!propOnly) positions.push({
     code: 'TTS_CLAIM',
     title: ttsSupported ? 'Claim trader tax status' : 'Do not claim trader tax status this year',
     category: 'tts',
@@ -108,9 +131,13 @@ export function runConsultationAnalysis(input: AnalysisInput): ConsultationAnaly
     dueDate: cal.individualDue,
   });
 
+  // Prop firm activity — findings and positions come from its own engine.
+  findings.push(...prop.findings);
+  positions.push(...prop.positions);
+
   // 475 election
   const openElection = elections.deadlines.find((d) => d.status === 'open' && d.code.startsWith('ELECT_475'));
-  findings.push({
+  if (!propOnly) findings.push({
     id: 'election_475',
     area: 'Section 475(f)',
     severity:
@@ -125,7 +152,7 @@ export function runConsultationAnalysis(input: AnalysisInput): ConsultationAnaly
     estimatedImpact: elections.estimatedImpact,
   });
 
-  if (elections.recommended !== 'do_not_elect') {
+  if (!propOnly && elections.recommended !== 'do_not_elect') {
     positions.push({
       code: `POS_${elections.recommended.toUpperCase()}`,
       title: electionTitle(elections.recommended),
@@ -184,8 +211,9 @@ export function runConsultationAnalysis(input: AnalysisInput): ConsultationAnaly
     });
   }
 
-  // Entity
-  findings.push({
+  // Entity — the self-directed model only applies when there is own-account
+  // trading. The prop engine handles the funded-account case separately.
+  if (!propOnly) findings.push({
     id: 'entity_structure',
     area: 'Entity structure',
     severity: entity.recommended === 'current' ? 'info' : 'medium',
@@ -198,7 +226,7 @@ export function runConsultationAnalysis(input: AnalysisInput): ConsultationAnaly
     estimatedImpact: entity.scenarios.find((s) => s.key === entity.recommended)?.netBenefit ?? null,
   });
 
-  if (entity.recommended !== 'current') {
+  if (!propOnly && entity.recommended !== 'current') {
     const scenario = entity.scenarios.find((s) => s.key === entity.recommended);
     positions.push({
       code: `ENTITY_${entity.recommended.toUpperCase()}`,
@@ -344,6 +372,13 @@ export function runConsultationAnalysis(input: AnalysisInput): ConsultationAnaly
 
   // --- Agenda and open questions -------------------------------------------
   const consultAgenda = buildAgenda(tts.tier, elections, entity, projection, findings);
+  if (prop.applicable) {
+    consultAgenda.unshift(
+      `Funded account income: $${Math.round(prop.grossPayouts).toLocaleString()} of payouts, ${
+        prop.se ? `$${Math.round(prop.se.total).toLocaleString()} of self-employment tax` : 'characterization to confirm'
+      }. This is the headline, not trader status.`
+    );
+  }
   const clientQuestions = buildQuestions(answers, tts, gaps);
 
   return {
@@ -360,6 +395,33 @@ export function runConsultationAnalysis(input: AnalysisInput): ConsultationAnaly
       readyForConsult,
     },
     tts,
+    propFirm: prop.applicable
+      ? {
+          characterization: prop.characterization,
+          characterizationNote: prop.characterizationNote,
+          grossPayouts: prop.grossPayouts,
+          deductibleFees: prop.deductibleFees,
+          netProfit: prop.netProfit,
+          selfEmploymentTax: prop.se?.total ?? 0,
+          qbiEstimate: prop.qbiEstimate,
+          qbiNote: prop.qbiNote,
+          retirementCapacity: prop.retirementCapacity,
+          healthInsuranceDeduction: prop.healthInsuranceDeduction,
+          recommendedStructure: prop.recommendedStructure,
+          hobbyLossRisk: prop.hobbyLossRisk,
+          scenarios: prop.scenarios.map((sc) => ({
+            key: sc.key,
+            label: sc.label,
+            description: sc.description,
+            reasonableComp: sc.reasonableComp,
+            employmentTax: sc.employmentTax,
+            adminCost: sc.adminCost,
+            qbiEstimate: sc.qbiEstimate,
+            netBenefit: sc.netBenefit,
+            notes: sc.notes,
+          })),
+        }
+      : null,
     elections,
     entity,
     projection,

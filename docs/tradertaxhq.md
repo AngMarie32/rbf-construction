@@ -22,6 +22,7 @@ Everything is scoped to an **engagement** — one client, one tax year, one serv
 | Intake questionnaire | `src/utils/traderTax/intakeSchema.ts` |
 | Document catalog | `src/utils/traderTax/documentCatalog.ts` |
 | TTS factor analysis | `src/utils/traderTax/ttsAnalysis.ts` |
+| Prop firm / funded accounts | `src/utils/traderTax/propFirmAnalysis.ts` |
 | Section 475 / elections | `src/utils/traderTax/electionEngine.ts` |
 | Entity & retirement model | `src/utils/traderTax/entityAnalysis.ts` |
 | Federal projection | `src/utils/traderTax/projection.ts` |
@@ -178,6 +179,53 @@ client" list, take notes, and capture action items with owners and dates.
 Schedule D/8949 depending on the 475 posture, 6781, 3115, 8829, 8960/8959, 8995, 1065/1120-S and
 payroll forms, FinCEN 114 and 8938, 8621, state returns, 1040-ES, and the extensions. Each row tracks
 due date, extended due date, status, and confirmation number, with overdue rows flagged.
+
+---
+
+## 3A. The client segment this is built for
+
+**Funded-account traders and small-scale traders.** That choice is baked into the engines, the
+pricing, and the lead routing, and it is worth understanding because a funded trader is not a trader
+for tax purposes in the way a self-directed trader is.
+
+### Why prop traders are a different tax animal
+
+A funded trader is usually being paid by a firm for performance, and the firm usually reports it on a
+Form 1099-NEC. That one fact inverts almost everything:
+
+| | Self-directed trader | Funded (prop) trader |
+|---|---|---|
+| Character of income | Capital gain | Ordinary, on Schedule C |
+| Self-employment tax | None — trading gains are not earned income | **15.3% applies** |
+| Section 475 election | Central question | Largely irrelevant — no own-account securities to mark |
+| Trader tax status | Gates the expense deductions | Much less load-bearing — Schedule C is already available |
+| Solo 401(k) | Needs an S corporation to create earned income | **Works with no entity at all** |
+| Why an S corporation | To *create* W-2 comp for a retirement plan | To *shrink* the SE tax base |
+
+`propFirmAnalysis.ts` implements the right-hand column: characterization from the actual form the
+firm issued, self-employment tax on 92.35% of net profit with the wage-base cap and additional
+Medicare tax, evaluation and reset fee deductibility, section 183 profit-motive risk for traders who
+buy evaluations and never get funded, a QBI estimate with the specified-service-trade caveat, Solo
+401(k) capacity on self-employment earnings, and a sole-proprietor vs S-corporation comparison that
+prices the SE tax saved against payroll cost *and the QBI deduction the wages give up*.
+
+When a client trades only a funded account, the orchestrator suppresses the trader-status, section
+475, and self-directed entity findings rather than reporting them as problems — they are the wrong
+questions for that client — and the filing matrix drops Schedule D, Form 8949, and Form 6781, because
+there are no own-account dispositions to report.
+
+### What that means for pricing and routing
+
+`FEE_SCHEDULE` is shaped for a volume practice: flat-fee products (funded account return, small
+trader return, trader-status return) with small add-ons, rather than one high-touch fee. The numbers
+are still placeholders — the *shape* is the part that matters.
+
+Lead triage branches on the same distinction. A prop trader is scored on payout size, form type, and
+cleanup needs, not on trader tax status — scoring them on TTS would rank the target client as
+unqualified. A small-scale trader with a real return to prepare lands in "qualified" and routes
+straight to a flat-fee quote and the intake link, with no call needed. Only two things route to a
+call instead: prior-year cleanup, and evaluation fees with no payouts ever received, which is the
+section 183 conversation.
 
 ---
 
@@ -373,6 +421,9 @@ needs — never internal notes, analyses, or other clients' data.
   history.
 - Digital assets, forex, and prop firm arrangements are flagged for a written position rather than
   resolved automatically — the treatment turns on facts the intake cannot fully capture.
+- The prop firm characterization follows the form the firm actually issued. Where a client believes
+  the payouts are capital rather than compensation, that is a position to be documented before
+  filing, not a setting to toggle. Reporting against a filed 1099 produces a matching notice.
 - The security register tracks a program; it does not implement one. Marking MFA "implemented" does
   not turn MFA on.
 - The fee schedule is placeholder pricing until you replace it.

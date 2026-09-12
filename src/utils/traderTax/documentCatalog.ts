@@ -105,12 +105,49 @@ export const DOCUMENT_CATALOG: DocumentCatalogEntry[] = [
     appliesIf: (a) => hasInstrument(a, 'crypto'),
   },
   {
-    code: 'PROP_FIRM_DOCS',
-    name: 'Prop firm agreement and payout statements',
-    category: 'Broker',
-    description: 'Funded account agreement plus any 1099-NEC or K-1 issued.',
+    code: 'PROP_1099',
+    name: 'Prop firm tax form (1099-NEC, 1099-MISC, or K-1)',
+    category: 'Prop firm',
+    description:
+      'The actual form from each firm’s portal. This single document determines whether the payouts are self-employment income or something else — we cannot file without seeing it.',
     required: true,
     appliesIf: (a) => has(a, 'prop_firm'),
+  },
+  {
+    code: 'PROP_PAYOUT_HISTORY',
+    name: 'Payout history from each firm’s dashboard',
+    category: 'Prop firm',
+    description:
+      'Every payout with its date and amount. Download it while you still have account access — firms close dashboards, and a closed account takes the records with it.',
+    required: true,
+    appliesIf: (a) => has(a, 'prop_firm'),
+  },
+  {
+    code: 'PROP_FEES',
+    name: 'Evaluation, reset, and platform fee receipts',
+    category: 'Prop firm',
+    description:
+      'Everything paid to the firms during the year, including attempts that failed. These are deductible and commonly missed. Card or bank statements work if the firm does not itemize.',
+    required: true,
+    appliesIf: (a) => has(a, 'prop_firm'),
+  },
+  {
+    code: 'PROP_AGREEMENT',
+    name: 'Funded account agreement',
+    category: 'Prop firm',
+    description:
+      'The contract with each firm. It establishes whether you are trading the firm’s capital for a share of profit or your own money, which drives the characterization.',
+    required: true,
+    appliesIf: (a) => has(a, 'prop_firm'),
+  },
+  {
+    code: 'PROP_CRYPTO_RECEIPTS',
+    name: 'Value of crypto payouts on the date received',
+    category: 'Prop firm',
+    description:
+      'For payouts paid in crypto: the fair market value on the day each one landed. That value is both the income and your basis for the later disposal.',
+    required: true,
+    appliesIf: (a) => has(a, 'prop_firm') && has(a, 'prop_paid_in_crypto'),
   },
   {
     code: 'IRA_STATEMENTS',

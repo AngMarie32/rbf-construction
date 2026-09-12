@@ -279,16 +279,91 @@ export function AnalysisPanel({
         </div>
       </Card>
 
+      {/* --- Funded account (the headline for prop clients) ---------------- */}
+      {live.propFirm && (
+        <Card className="mt-4 border-primary/30 p-5">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <h3 className="font-semibold">Funded account income</h3>
+            <Badge variant="info">{live.propFirm.characterization.replace(/_/g, ' ')}</Badge>
+            {live.propFirm.hobbyLossRisk !== 'none' && (
+              <Badge variant="warning">profit motive: {live.propFirm.hobbyLossRisk}</Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">{live.propFirm.characterizationNote}</p>
+
+          <div className="mt-4 grid gap-x-6 gap-y-1 sm:grid-cols-2">
+            <Metric label="Gross payouts" value={money(live.propFirm.grossPayouts)} />
+            <Metric label="Evaluation and platform fees" value={money(-live.propFirm.deductibleFees)} />
+            <Metric label="Net profit" value={money(live.propFirm.netProfit)} />
+            <Metric label="Self-employment tax" value={money(live.propFirm.selfEmploymentTax)} />
+            <Metric label="QBI deduction" value={money(live.propFirm.qbiEstimate)} />
+            <Metric label="Solo 401(k) capacity" value={money(live.propFirm.retirementCapacity)} />
+          </div>
+
+          {live.propFirm.qbiNote && (
+            <p className="mt-3 text-sm text-muted-foreground">{live.propFirm.qbiNote}</p>
+          )}
+
+          {live.propFirm.scenarios.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-sm font-medium">Structure</p>
+              {live.propFirm.scenarios.map((sc) => (
+                <div
+                  key={sc.key}
+                  className={`rounded-md border p-3 ${
+                    sc.key === live.propFirm!.recommendedStructure
+                      ? 'border-primary/50 bg-primary/5'
+                      : ''
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-medium">{sc.label}</span>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {sc.key === 'sole_prop' ? 'baseline' : `Net ${money(sc.netBenefit)}`}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">{sc.description}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm md:grid-cols-3">
+                    {sc.reasonableComp > 0 && (
+                      <Metric label="Reasonable comp" value={money(sc.reasonableComp)} />
+                    )}
+                    <Metric label="Employment tax" value={money(-sc.employmentTax)} />
+                    {sc.adminCost > 0 && <Metric label="Admin" value={money(-sc.adminCost)} />}
+                  </div>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                    {sc.notes.map((n, i) => (
+                      <li key={i}>{n}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* --- Headline metrics -------------------------------------------- */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="p-4">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Trader tax status</p>
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-2xl font-semibold">{live.tts.score}</span>
-            <Badge variant={ttsTone(live.tts.tier)}>{ttsTierLabel(live.tts.tier)}</Badge>
-          </div>
-          <Progress value={live.tts.score} className="mt-3 h-1.5" />
-        </Card>
+        {live.propFirm && live.projection.selfEmploymentTax > 0 ? (
+          <Card className="p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Self-employment tax</p>
+            <p className="mt-2 text-2xl font-semibold">
+              {money(live.projection.selfEmploymentTax)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              On {money(live.projection.propNetProfit)} of funded-account profit
+            </p>
+          </Card>
+        ) : (
+          <Card className="p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Trader tax status</p>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-2xl font-semibold">{live.tts.score}</span>
+              <Badge variant={ttsTone(live.tts.tier)}>{ttsTierLabel(live.tts.tier)}</Badge>
+            </div>
+            <Progress value={live.tts.score} className="mt-3 h-1.5" />
+          </Card>
+        )}
         <Card className="p-4">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Projected federal tax</p>
           <p className="mt-2 text-2xl font-semibold">{money(live.projection.estimatedFederalTax)}</p>

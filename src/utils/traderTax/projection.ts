@@ -14,6 +14,7 @@
 import { IntakeAnswers, TaxProjection, TtsTier } from '@/types/tradertax';
 import { getTaxYearConfig, marginalRate, taxFromBrackets } from './taxYearConfig';
 import { has, num, str } from './intakeSchema';
+import { assessPropFirm } from './propFirmAnalysis';
 
 export function projectTax(
   answers: IntakeAnswers,
@@ -27,6 +28,14 @@ export function projectTax(
   // --- Income components ----------------------------------------------------
   const w2 = num(answers, 'w2_income') + num(answers, 'spouse_w2_income');
   const se = num(answers, 'self_employment_income');
+
+  // Funded-account payouts are usually self-employment income, and the SE tax
+  // on them is the single biggest surprise in this client segment. Compute it
+  // rather than leaving it out of the projection.
+  const prop = assessPropFirm(answers, taxYear);
+  const propNetProfit = prop.applicable ? prop.netProfit : 0;
+  const selfEmploymentTax = prop.se?.total ?? 0;
+  const seDeduction = prop.se?.deductibleHalf ?? 0;
   const other = num(answers, 'rental_k1_income');
   const portfolio = num(answers, 'interest_dividends');
 
@@ -133,7 +142,8 @@ export function projectTax(
   }
 
   // --- Taxable income -------------------------------------------------------
-  const ordinaryIncome = w2 + se + other + portfolio + tradingOrdinary - businessExpenses;
+  const ordinaryIncome =
+    w2 + se + other + portfolio + tradingOrdinary + propNetProfit - businessExpenses - seDeduction;
   const agi = ordinaryIncome + capitalIncluded;
   const standardDeduction = cfg.standardDeduction[filingStatus as keyof typeof cfg.standardDeduction];
   const deduction = has(answers, 'itemizes') ? standardDeduction : standardDeduction;
@@ -170,7 +180,17 @@ export function projectTax(
     );
   }
 
-  const estimatedFederalTax = ordinaryTax + ltcgTax + niit;
+  const estimatedFederalTax = ordinaryTax + ltcgTax + niit + selfEmploymentTax;
+
+  if (selfEmploymentTax > 0) {
+    assumptions.push(
+      `Self-employment tax of $${Math.round(selfEmploymentTax).toLocaleString()} is included on $${Math.round(
+        propNetProfit
+      ).toLocaleString()} of funded-account net profit, with $${Math.round(
+        seDeduction
+      ).toLocaleString()} of it deducted above the line. Nothing was withheld from those payouts.`
+    );
+  }
 
   // --- Estimated payments and safe harbor ----------------------------------
   const paid = num(answers, 'estimated_payments_made') + num(answers, 'withholding');
@@ -205,6 +225,8 @@ export function projectTax(
     capitalLossCarryforward,
     washSaleAddback: washAddback,
     estimatedTaxableIncome: taxableIncome,
+    propNetProfit,
+    selfEmploymentTax,
     marginalRate: rate,
     estimatedFederalTax,
     niitExposure: niit,

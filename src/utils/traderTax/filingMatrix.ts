@@ -69,6 +69,50 @@ export function buildFilingRequirements(
   // --- Core individual return ----------------------------------------------
   ind('1040', 'U.S. Individual Income Tax Return', 'Base return for the taxpayer.');
 
+  // A funded trader with no personal account has no own-account dispositions,
+  // so Schedule D, Form 8949 and Form 6781 do not belong on their return.
+  const ownAccountActivity =
+    num(answers, 'total_trades') > 0 ||
+    num(answers, 'securities_net_gain') !== 0 ||
+    num(answers, 'sec1256_net_gain') !== 0 ||
+    num(answers, 'crypto_net_gain') !== 0 ||
+    num(answers, 'forex_net_gain') !== 0;
+  const propOnly = has(answers, 'prop_firm') && !ownAccountActivity;
+
+  // --- Funded account activity ---------------------------------------------
+  const propForm = str(answers, 'prop_1099_type', '');
+  const propIsSelfEmployment = has(answers, 'prop_firm') && ['nec', 'misc', 'none_foreign', 'none_unsure'].includes(propForm);
+
+  if (propIsSelfEmployment) {
+    ind(
+      'SCH_C_PROP',
+      'Schedule C — funded account activity',
+      'Prop firm payouts are business income, reported with the evaluation, reset, and platform fees against them.',
+      'Do not combine this with a separate self-directed trading Schedule C — they are different activities with different income.'
+    );
+    ind(
+      'SCH_SE',
+      'Schedule SE — Self-Employment Tax',
+      'Self-employment tax on the net profit from funded account activity.',
+      'Half of the Social Security and Medicare portion is deducted above the line on Schedule 1.'
+    );
+    ind(
+      '1099_RECON',
+      '1099-NEC / 1099-MISC reconciliation',
+      'Gross payouts reported by each firm must tie to the Schedule C gross receipts.',
+      'Underreporting against a filed 1099 produces an automated notice. If the firm’s number is wrong, reconcile it on the return rather than ignoring it.'
+    );
+  }
+
+  if (has(answers, 'prop_firm') && propForm === 'k1') {
+    ind(
+      'K1_PROP',
+      'Schedule K-1 from the prop firm',
+      'The firm treats the arrangement as a partnership interest.',
+      'Read the K-1 codes to establish whether the allocation carries self-employment tax.'
+    );
+  }
+
   if (opts.ttsSupported) {
     ind(
       'SCH_C',
@@ -84,7 +128,7 @@ export function buildFilingRequirements(
       'Form 4797 — Sales of Business Property',
       'Section 475(f) ordinary gain or loss on securities is reported in Part II.'
     );
-  } else {
+  } else if (!propOnly) {
     ind('SCH_D', 'Schedule D — Capital Gains and Losses', 'Capital treatment for trading results.');
     ind('8949', 'Form 8949 — Sales and Other Dispositions of Capital Assets', 'Detail support for Schedule D.');
   }
@@ -94,7 +138,7 @@ export function buildFilingRequirements(
   const mtmCoversCommodities =
     opts.mtmElected && str(answers, 'sec475_scope', 'securities') !== 'securities';
 
-  if (hasSec1256(answers) && !mtmCoversCommodities) {
+  if (hasSec1256(answers) && !mtmCoversCommodities && !propOnly) {
     ind(
       '6781',
       'Form 6781 — Gains and Losses From Section 1256 Contracts and Straddles',
@@ -159,7 +203,7 @@ export function buildFilingRequirements(
   }
 
   // --- QBI ------------------------------------------------------------------
-  if (opts.ttsSupported && opts.mtmElected) {
+  if ((opts.ttsSupported && opts.mtmElected) || propIsSelfEmployment) {
     ind(
       '8995',
       'Form 8995 / 8995-A — Qualified Business Income Deduction',

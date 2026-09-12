@@ -33,6 +33,8 @@ const ALLOWED_KEYS = new Set([
   'home_state', 'other_states', 'entity_exists', 'entity_count',
   'sec475_elected', 'unsure_475', 'result_last_year',
   'prior_returns_open', 'irs_notices', 'foreign_broker', 'questions',
+  // Funded account screening
+  'prop_firm', 'prop_payouts_total', 'prop_1099_type', 'prop_eval_fees', 'prop_prior_treatment',
 ]);
 
 const MAX_STRING = 2000;

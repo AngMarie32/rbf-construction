@@ -458,6 +458,10 @@ export interface TaxProjection {
   capitalLossCarryforward: number;
   washSaleAddback: number;
   estimatedTaxableIncome: number;
+  /** Net profit from funded-account activity, before tax. */
+  propNetProfit: number;
+  /** Self-employment tax on that profit. Zero for a self-directed trader. */
+  selfEmploymentTax: number;
   marginalRate: number;
   estimatedFederalTax: number;
   niitExposure: number;
@@ -466,6 +470,33 @@ export interface TaxProjection {
   safeHarborTarget: number;
   quarterlyRecommendation: number;
   assumptions: string[];
+}
+
+/** Condensed prop-firm result carried inside the analysis snapshot. */
+export interface PropFirmSummary {
+  characterization: string;
+  characterizationNote: string;
+  grossPayouts: number;
+  deductibleFees: number;
+  netProfit: number;
+  selfEmploymentTax: number;
+  qbiEstimate: number;
+  qbiNote: string;
+  retirementCapacity: number;
+  healthInsuranceDeduction: number;
+  recommendedStructure: string;
+  hobbyLossRisk: string;
+  scenarios: {
+    key: string;
+    label: string;
+    description: string;
+    reasonableComp: number;
+    employmentTax: number;
+    adminCost: number;
+    qbiEstimate: number;
+    netBenefit: number;
+    notes: string[];
+  }[];
 }
 
 export interface ConsultationAnalysis {
@@ -482,6 +513,8 @@ export interface ConsultationAnalysis {
     readyForConsult: boolean;
   };
   tts: TtsAssessment;
+  /** Populated only when the client trades a funded account. */
+  propFirm: PropFirmSummary | null;
   elections: ElectionAssessment;
   entity: EntityAssessment;
   projection: TaxProjection;
