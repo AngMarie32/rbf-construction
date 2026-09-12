@@ -60,6 +60,12 @@ import CashFlow from '@/pages/CashFlow';
 import QuickBooksExport from '@/pages/QuickBooksExport';
 import { CompanyProvider } from '@/contexts/CompanyContext';
 
+// TraderTaxHQ
+import TraderTaxDashboard from '@/pages/tradertax/TraderTaxDashboard';
+import TraderTaxClients from '@/pages/tradertax/TraderTaxClients';
+import TraderTaxClientDetail from '@/pages/tradertax/TraderTaxClientDetail';
+import PublicIntake from '@/pages/tradertax/PublicIntake';
+
 const queryClient = new QueryClient();
 
 function QueryClientProviderWrapper({ children }: { children: React.ReactNode }) {
@@ -370,6 +376,10 @@ function App() {
             <Route path="/invoice-sender" element={<ProtectedRoute><InvoiceSender /></ProtectedRoute>} />
             <Route path="/weekly-reports" element={<ProtectedRoute><WeeklyReports /></ProtectedRoute>} />
             <Route path="/blueprint-analyzer" element={<ProtectedRoute><BlueprintAnalyzer /></ProtectedRoute>} />
+            <Route path="/intake/:token" element={<PublicIntake />} />
+            <Route path="/tradertax" element={<ProtectedRoute><TraderTaxDashboard /></ProtectedRoute>} />
+            <Route path="/tradertax/clients" element={<ProtectedRoute><TraderTaxClients /></ProtectedRoute>} />
+            <Route path="/tradertax/clients/:clientId" element={<ProtectedRoute><TraderTaxClientDetail /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
