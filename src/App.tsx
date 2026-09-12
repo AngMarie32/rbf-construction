@@ -71,6 +71,10 @@ import TraderTaxSecurity from '@/pages/tradertax/TraderTaxSecurity';
 import TraderTaxLeads from '@/pages/tradertax/TraderTaxLeads';
 import TraderTaxAnalytics from '@/pages/tradertax/TraderTaxAnalytics';
 
+// Public marketing
+import PropFirmTaxesLanding from '@/pages/public/PropFirmTaxesLanding';
+import PropTaxCalculator from '@/pages/public/PropTaxCalculator';
+
 const queryClient = new QueryClient();
 
 function QueryClientProviderWrapper({ children }: { children: React.ReactNode }) {
@@ -383,6 +387,8 @@ function App() {
             <Route path="/blueprint-analyzer" element={<ProtectedRoute><BlueprintAnalyzer /></ProtectedRoute>} />
             <Route path="/intake/:token" element={<PublicIntake />} />
             <Route path="/inquiry" element={<PublicInquiry />} />
+            <Route path="/prop-firm-taxes" element={<PropFirmTaxesLanding />} />
+            <Route path="/prop-tax-calculator" element={<PropTaxCalculator />} />
             <Route path="/tradertax/calendar" element={<ProtectedRoute><TraderTaxCalendar /></ProtectedRoute>} />
             <Route path="/tradertax/leads" element={<ProtectedRoute><TraderTaxLeads /></ProtectedRoute>} />
             <Route path="/tradertax/security" element={<ProtectedRoute><TraderTaxSecurity /></ProtectedRoute>} />

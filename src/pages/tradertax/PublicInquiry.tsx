@@ -18,7 +18,32 @@ import { isFieldVisible } from '@/utils/traderTax/intakeSchema';
 export default function PublicInquiry() {
   const [params] = useSearchParams();
   const firmId = params.get('firm');
-  const [answers, setAnswers] = useState<IntakeAnswers>({});
+  const source = params.get('source') ?? 'inquiry_form';
+
+  // Someone arriving from the calculator has already told us most of this.
+  // Asking again is the fastest way to lose them.
+  const [answers, setAnswers] = useState<IntakeAnswers>(() => {
+    const seed: IntakeAnswers = {};
+    const numeric = (key: string) => {
+      const raw = params.get(key);
+      const n = raw === null ? NaN : Number(raw);
+      return Number.isFinite(n) && n >= 0 ? n : null;
+    };
+    if (params.get('prop') === '1') {
+      seed.prop_firm = true;
+      seed.service_wanted = 'tax_return';
+    }
+    const payouts = numeric('payouts');
+    if (payouts !== null) seed.prop_payouts_total = payouts;
+    const fees = numeric('fees');
+    if (fees !== null) seed.prop_eval_fees = fees;
+    const filing = params.get('filing');
+    if (filing && ['single', 'mfj', 'mfs', 'hoh', 'qw'].includes(filing)) {
+      seed.filing_status = filing;
+    }
+    return seed;
+  });
+  const prefilled = params.get('prop') === '1';
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -46,7 +71,7 @@ export default function PublicInquiry() {
     setSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke('tth-lead-capture', {
-        body: { answers, company_id: firmId },
+        body: { answers, company_id: firmId, source },
       });
       if (error) throw new Error(error.message);
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
@@ -105,6 +130,15 @@ export default function PublicInquiry() {
             </p>
           </div>
         </Card>
+
+        {prefilled && (
+          <Card className="mb-6 border-emerald-200 bg-emerald-50/60 p-4">
+            <p className="text-sm text-emerald-900">
+              We carried your calculator numbers across. Check them and fill in the rest — it should
+              take a couple of minutes.
+            </p>
+          </Card>
+        )}
 
         <IntakeFormRenderer
           answers={answers}

@@ -111,18 +111,28 @@ export function computeSelfEmploymentTax(
   netProfit: number,
   taxYear: number,
   filingStatus: FilingStatus,
-  otherWages = 0
+  /**
+   * The taxpayer's OWN W-2 wages. Only these consume their Social Security
+   * wage base — a spouse has their own base, so joint filers must not pool
+   * them here.
+   */
+  ownWages = 0,
+  /**
+   * Wages counted toward the additional Medicare tax threshold, which IS
+   * measured on combined income for joint filers. Defaults to own wages.
+   */
+  householdWages = ownWages
 ): SelfEmploymentTax {
   const cfg = getTaxYearConfig(taxYear);
   const netEarnings = Math.max(0, netProfit) * SE_BASE_FACTOR;
 
-  const ssRemaining = Math.max(0, cfg.socialSecurityWageBase - Math.max(0, otherWages));
+  const ssRemaining = Math.max(0, cfg.socialSecurityWageBase - Math.max(0, ownWages));
   const ssBase = Math.min(netEarnings, ssRemaining);
   const socialSecurity = ssBase * cfg.socialSecurityRate;
   const medicare = netEarnings * cfg.medicareRate;
 
   const threshold = cfg.additionalMedicareThreshold[filingStatus] ?? 200000;
-  const combined = netEarnings + Math.max(0, otherWages);
+  const combined = netEarnings + Math.max(0, householdWages);
   const additionalMedicare = Math.max(0, combined - threshold) * cfg.additionalMedicareRate;
 
   const total = socialSecurity + medicare + additionalMedicare;
@@ -234,7 +244,10 @@ export function assessPropFirm(answers: IntakeAnswers, taxYear: number): PropFir
   const positions: RecommendedPosition[] = [];
 
   const seApplies = code === 'schedule_c_se' || code === 'unreported_foreign';
-  const se = seApplies ? computeSelfEmploymentTax(netProfit, taxYear, filingStatus, otherWages) : null;
+  const householdWages = otherWages + num(answers, 'spouse_w2_income');
+  const se = seApplies
+    ? computeSelfEmploymentTax(netProfit, taxYear, filingStatus, otherWages, householdWages)
+    : null;
 
   // --- Characterization ----------------------------------------------------
   findings.push({

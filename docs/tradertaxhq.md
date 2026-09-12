@@ -38,13 +38,17 @@ Everything is scoped to an **engagement** — one client, one tax year, one serv
 | Practice metrics | `src/utils/traderTax/practiceMetrics.ts` |
 | State treatment notes | `src/utils/traderTax/stateConformity.ts` |
 | Engagement letter | `src/utils/traderTax/engagementLetter.ts` |
+| Payout calculator | `src/utils/traderTax/payoutCalculator.ts` |
 | Pages | `src/pages/tradertax/` |
+| Public marketing pages | `src/pages/public/` |
 | Panels | `src/components/tradertax/` |
 | Edge functions | `supabase/functions/tth-intake-public`, `tth-analyze`, `titanfile-sync`, `tth-lead-capture` |
 
 Routes: `/tradertax` (pipeline dashboard), `/tradertax/leads`, `/tradertax/clients`,
 `/tradertax/clients/:clientId`, `/tradertax/calendar`, `/tradertax/analytics`, `/tradertax/security`,
-and the public `/intake/:token` and `/inquiry`.
+and the public `/intake/:token`, `/inquiry`, `/prop-firm-taxes`, and `/prop-tax-calculator`.
+
+Acquisition is documented separately in `docs/tradertaxhq-marketing.md`.
 
 ---
 
@@ -450,7 +454,8 @@ Buy these rather than build them:
 
 Not built, and not bought either:
 
-- **Marketing** — no website, funnel, content pipeline, or email sequence. The inquiry form is the
-  bottom of that funnel, not the funnel.
+- **Marketing** — a landing page, calculator, and inquiry form exist and are wired together. There
+  is still no content pipeline, email sequence, or analytics beyond lead source. See
+  `docs/tradertaxhq-marketing.md`, and note that nothing in it is backed by keyword data yet.
 - **Client billing** — engagement fees are recorded, but invoicing and payment collection are not
   wired up. The app's existing invoicing is modeled around construction projects.

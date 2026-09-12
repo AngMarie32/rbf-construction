@@ -69,6 +69,10 @@ serve(async (req) => {
     const body = await req.json();
     const answers = sanitize(body?.answers ?? {});
 
+    // Attribution, from a fixed set — never free text off the query string.
+    const ALLOWED_SOURCES = ['inquiry_form', 'calculator', 'landing'];
+    const source = ALLOWED_SOURCES.includes(body?.source) ? body.source : 'inquiry_form';
+
     const name = typeof answers.name === 'string' ? answers.name.trim() : '';
     if (!name) return json({ error: 'Please tell us your name' }, 400);
     if (!isEmail(answers.email)) return json({ error: 'Please enter a valid email address' }, 400);
@@ -100,7 +104,7 @@ serve(async (req) => {
       name,
       email: answers.email as string,
       phone: typeof answers.phone === 'string' ? answers.phone : null,
-      source: 'inquiry_form',
+      source,
       status: 'new',
       tax_year: new Date().getFullYear() - 1,
       service_wanted: typeof answers.service_wanted === 'string' ? answers.service_wanted : 'consultation',
