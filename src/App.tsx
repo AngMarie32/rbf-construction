@@ -69,6 +69,7 @@ import PublicInquiry from '@/pages/tradertax/PublicInquiry';
 import TraderTaxCalendar from '@/pages/tradertax/TraderTaxCalendar';
 import TraderTaxSecurity from '@/pages/tradertax/TraderTaxSecurity';
 import TraderTaxLeads from '@/pages/tradertax/TraderTaxLeads';
+import TraderTaxAnalytics from '@/pages/tradertax/TraderTaxAnalytics';
 
 const queryClient = new QueryClient();
 
@@ -385,6 +386,7 @@ function App() {
             <Route path="/tradertax/calendar" element={<ProtectedRoute><TraderTaxCalendar /></ProtectedRoute>} />
             <Route path="/tradertax/leads" element={<ProtectedRoute><TraderTaxLeads /></ProtectedRoute>} />
             <Route path="/tradertax/security" element={<ProtectedRoute><TraderTaxSecurity /></ProtectedRoute>} />
+            <Route path="/tradertax/analytics" element={<ProtectedRoute><TraderTaxAnalytics /></ProtectedRoute>} />
             <Route path="/tradertax" element={<ProtectedRoute><TraderTaxDashboard /></ProtectedRoute>} />
             <Route path="/tradertax/clients" element={<ProtectedRoute><TraderTaxClients /></ProtectedRoute>} />
             <Route path="/tradertax/clients/:clientId" element={<ProtectedRoute><TraderTaxClientDetail /></ProtectedRoute>} />

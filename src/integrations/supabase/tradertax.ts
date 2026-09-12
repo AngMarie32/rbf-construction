@@ -19,6 +19,8 @@ import type {
   TthSecurityIncident,
   TthSecurityTraining,
   TthServiceProvider,
+  TthStatePosition,
+  TthTimeEntry,
   TthAnalysis,
   TthClient,
   TthConsultation,
@@ -55,6 +57,8 @@ export interface TraderTaxSchema {
       tth_security_training: TableShape<TthSecurityTraining>;
       tth_service_providers: TableShape<TthServiceProvider>;
       tth_leads: TableShape<TthLead>;
+      tth_time_entries: TableShape<TthTimeEntry>;
+      tth_state_positions: TableShape<TthStatePosition>;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

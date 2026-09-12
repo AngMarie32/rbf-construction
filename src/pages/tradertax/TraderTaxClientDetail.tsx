@@ -36,6 +36,10 @@ import { AnalysisPanel } from '@/components/tradertax/AnalysisPanel';
 import { ActionPlanPanel } from '@/components/tradertax/ActionPlanPanel';
 import { ConsultationPanel } from '@/components/tradertax/ConsultationPanel';
 import { FilingsPanel } from '@/components/tradertax/FilingsPanel';
+import { EngagementLetterCard } from '@/components/tradertax/EngagementLetterCard';
+import { RolloverDialog } from '@/components/tradertax/RolloverDialog';
+import { TimeLogCard } from '@/components/tradertax/TimeLogCard';
+import { StateNotesCard } from '@/components/tradertax/StateNotesCard';
 import {
   ENGAGEMENT_PIPELINE,
   engagementStatusLabel,
@@ -63,6 +67,7 @@ export default function TraderTaxClientDetail() {
   const [activity, setActivity] = useState<TthActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingEngagement, setCreatingEngagement] = useState(false);
+  const [rolloverOpen, setRolloverOpen] = useState(false);
 
   const engagement = useMemo(
     () => engagements.find((e) => e.id === activeEngagementId) ?? null,
@@ -167,6 +172,11 @@ export default function TraderTaxClientDetail() {
 
   const createEngagement = async () => {
     if (!client) return;
+    // With a prior year on file, rolling forward beats starting blank.
+    if (engagement && intake) {
+      setRolloverOpen(true);
+      return;
+    }
     const used = new Set(engagements.map((e) => e.tax_year));
     const year = SUPPORTED_TAX_YEARS.find((y) => !used.has(y)) ?? DEFAULT_TAX_YEAR;
     setCreatingEngagement(true);
@@ -316,7 +326,13 @@ export default function TraderTaxClientDetail() {
               />
             </TabsContent>
 
-            <TabsContent value="documents" className="mt-4">
+            <TabsContent value="documents" className="mt-4 space-y-4">
+              <EngagementLetterCard
+                client={client}
+                engagement={engagement}
+                filings={filings}
+                onRefresh={refresh}
+              />
               <DocumentsPanel
                 client={client}
                 engagement={engagement}
@@ -326,7 +342,7 @@ export default function TraderTaxClientDetail() {
               />
             </TabsContent>
 
-            <TabsContent value="analysis" className="mt-4">
+            <TabsContent value="analysis" className="mt-4 space-y-4">
               <AnalysisPanel
                 client={client}
                 engagement={engagement}
@@ -335,6 +351,11 @@ export default function TraderTaxClientDetail() {
                 analyses={analyses}
                 positions={positions}
                 onRefresh={refresh}
+              />
+              <StateNotesCard
+                homeState={client.home_state}
+                otherStates={client.other_states ?? []}
+                companyId={client.company_id}
               />
             </TabsContent>
 
@@ -355,7 +376,8 @@ export default function TraderTaxClientDetail() {
               <FilingsPanel engagement={engagement} filings={filings} onRefresh={refresh} />
             </TabsContent>
 
-            <TabsContent value="activity" className="mt-4">
+            <TabsContent value="activity" className="mt-4 space-y-4">
+              <TimeLogCard engagement={engagement} clientId={client.id} />
               <Card className="p-5">
                 <h3 className="mb-3 font-semibold">Activity</h3>
                 {activity.length === 0 ? (
@@ -378,6 +400,22 @@ export default function TraderTaxClientDetail() {
               </Card>
             </TabsContent>
           </Tabs>
+
+          <RolloverDialog
+            open={rolloverOpen}
+            onOpenChange={setRolloverOpen}
+            client={client}
+            priorEngagement={engagement}
+            priorIntake={intake}
+            priorAnalysis={analyses[0] ?? null}
+            priorFilings={filings}
+            priorPositions={positions}
+            existingYears={engagements.map((e) => e.tax_year)}
+            onCreated={(id) => {
+              setActiveEngagementId(id);
+              loadClient();
+            }}
+          />
         </>
       )}
     </Layout>

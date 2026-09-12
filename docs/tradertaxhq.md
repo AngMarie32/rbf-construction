@@ -33,13 +33,17 @@ Everything is scoped to an **engagement** — one client, one tax year, one serv
 | Security control catalog | `src/utils/traderTax/securityProgram.ts` |
 | WISP generator | `src/utils/traderTax/wispDocument.ts` |
 | Lead triage and fee quoting | `src/utils/traderTax/leadScoring.ts` |
+| Prior-year rollover | `src/utils/traderTax/rollover.ts` |
+| Practice metrics | `src/utils/traderTax/practiceMetrics.ts` |
+| State treatment notes | `src/utils/traderTax/stateConformity.ts` |
+| Engagement letter | `src/utils/traderTax/engagementLetter.ts` |
 | Pages | `src/pages/tradertax/` |
 | Panels | `src/components/tradertax/` |
 | Edge functions | `supabase/functions/tth-intake-public`, `tth-analyze`, `titanfile-sync`, `tth-lead-capture` |
 
 Routes: `/tradertax` (pipeline dashboard), `/tradertax/leads`, `/tradertax/clients`,
-`/tradertax/clients/:clientId`, `/tradertax/calendar`, `/tradertax/security`, and the public
-`/intake/:token` and `/inquiry`.
+`/tradertax/clients/:clientId`, `/tradertax/calendar`, `/tradertax/analytics`, `/tradertax/security`,
+and the public `/intake/:token` and `/inquiry`.
 
 ---
 
@@ -66,6 +70,7 @@ so nothing breaks. After regenerating types you can keep or drop that shim.
 ```
 20260912170000_tradertaxhq_consultation_system.sql   clients, engagements, intake, docs, analysis, filings
 20260912190000_tradertaxhq_practice_operations.sql   firm profile, deadlines, security program, leads
+20260912210000_tradertaxhq_rollover_time_states.sql  time entries, state positions, rollover lineage
 ```
 
 The second migration also adds `assigned_to` / `reminder_days` to `tth_filings` and `retention_until`
@@ -252,6 +257,67 @@ needs to be told no, correctly. The tier drives a suggested next action rather t
 **Convert** creates the client, the engagement, and an intake pre-filled with the screening answers,
 so nobody is asked the same question twice.
 
+### 4.4 Engagement letters — Documents tab
+
+Engagement letters ride on the app's existing e-sign module rather than a parallel system. The letter
+is generated as a PDF (scope, exclusions, client responsibilities, fees, and the section 7216 consent),
+uploaded to the `esign-documents` bucket, and wrapped in an envelope tagged
+`source_type = 'tth_engagement'` — so it appears in the e-sign dashboard beside everything else, with
+the same reminders, audit trail, and signing certificate.
+
+Scope defaults to the filing checklist; anything not listed is out of scope, which is what prevents
+the fee argument in April. When the envelope completes, `engagement_letter_signed_at` is set from the
+completion timestamp.
+
+Signature field positions are **measured at draw time**, not hardcoded. The signature block flows with
+the content, so a longer scope list pushes it down a page — the generator returns the anchors it
+actually drew, and the overlay follows them.
+
+### 4.5 Prior-year rollover — "New year" on a client
+
+Splits last year's intake into what carries and what does not:
+
+- **Carries** — anything describing who the client is: profile, filing status, states, entity details,
+  elections in force, instruments traded. Marked as rolled so the client confirms rather than retypes.
+- **Clears** — anything describing a period: trade counts, hours, results, income, expenses,
+  contributions, point-in-time compliance answers, and this year's goals. A stale figure carried
+  forward silently is worse than asking again.
+- **Derives** — last year's closing position becomes this year's opening one: the unused capital loss
+  from the prior projection, and prior-year tax and AGI for the estimated tax safe harbor.
+
+Optionally carries the recurring filing checklist (dropping one-offs like Form 3115 and extensions)
+and any action item still open at year end.
+
+### 4.6 Practice analytics — `/tradertax/analytics`
+
+Revenue, realization, cycle time, and conversion. Every metric returns null rather than zero when the
+inputs are missing — a realization rate of "$0/hr" because nobody logged time is a lie, so the page
+shows "—" and says why.
+
+Time tracking feeds it: a two-field logger on each engagement's Activity tab writes to
+`tth_time_entries`, which is what makes effective rate and utilization computable at all.
+
+Charts use a palette validated with the dataviz validator against both surfaces — light
+`#2f7bf5`/`#0f9488`, dark `#3b82f6`/`#0d9488` — passing the lightness band, chroma floor, CVD
+separation, normal-vision floor, and contrast checks in both modes.
+
+### 4.7 State treatment — Analysis tab
+
+A section 475 election is federal. Whether a state respects the ordinary characterization, whether a
+trading loss can offset wages, and whether short-term gains carry their own rate are separate
+questions per state, and they are where trader returns quietly go wrong.
+
+`stateConformity.ts` ships notes for the states where the answer is structural or well known, each
+tagged with a confidence:
+
+- `high` — structural (a state has no individual income tax)
+- `medium` — a known rule that moves with legislation; verify rate, threshold, and effective date
+- `research` — flagged as an area to research; no position asserted
+
+Anything not covered returns an explicit research prompt rather than silence. Positions the firm
+confirms are written to `tth_state_positions` and displayed above the shipped notes, so the research
+is done once and every future client in that state inherits it.
+
 ---
 
 ## 5. Design decisions worth knowing
@@ -282,6 +348,10 @@ needs — never internal notes, analyses, or other clients' data.
 - **New finding or position** — add it in `consultationEngine.ts`; the PDF, the analysis screen, and
   the action plan all pick it up.
 - **New form** — add it to `buildFilingRequirements` in `filingMatrix.ts`.
+- **New rollover rule** — add the key to `PERIOD_RESULT_KEYS` in `rollover.ts` to clear it; anything
+  not listed carries by default.
+- **New state note** — add a profile to `STATE_PROFILES` in `stateConformity.ts`, or record it in the
+  app so it lands in `tth_state_positions`.
 - **New firm deadline** — add a template to `FIRM_OBLIGATION_CATALOG` in `firmObligations.ts`.
 - **New security control** — add it to `SECURITY_CONTROL_CATALOG`; the register, the readiness score,
   and the WISP all pick it up.
@@ -308,3 +378,28 @@ needs — never internal notes, analyses, or other clients' data.
 - The fee schedule is placeholder pricing until you replace it.
 - The calendar covers what this system knows about. Anything tracked elsewhere is still invisible to
   it.
+- The state dataset covers a minority of states and asserts nothing it has not marked as structural.
+  Treat it as a prompt list, not a reference.
+- Analytics are only as good as the time logged. No time, no realization.
+- The engagement letter is a template. Have counsel review the terms once, then treat that reviewed
+  version as the firm's standard.
+
+---
+
+## 8. Still not in scope
+
+Buy these rather than build them:
+
+- **Return preparation and e-file** — Drake, UltraTax, Lacerte, ProConnect. This system tracks the
+  forms; it does not produce or transmit them. A PTIN and EFIN are separate prerequisites.
+- **Trade accounting** — TradeLog, GainsKeeper. Wash sale computation across accounts, section 475
+  mark-to-market accounting, and Form 8949 generation from raw broker data. The intake asks for the
+  wash sale number off the 1099-B; it does not derive it.
+- **Tax research** — Checkpoint, CCH, Parker. Citations in the engine are not a research library.
+
+Not built, and not bought either:
+
+- **Marketing** — no website, funnel, content pipeline, or email sequence. The inquiry form is the
+  bottom of that funnel, not the funnel.
+- **Client billing** — engagement fees are recorded, but invoicing and payment collection are not
+  wired up. The app's existing invoicing is modeled around construction projects.

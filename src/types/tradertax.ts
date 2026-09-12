@@ -84,6 +84,8 @@ export interface TthEngagement {
   target_date: string | null;
   consult_at: string | null;
   retention_until: string | null;
+  rolled_from_engagement_id: string | null;
+  rolled_at: string | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -107,6 +109,8 @@ export interface TthIntake {
   submitted_at: string | null;
   reviewed_at: string | null;
   reviewer_notes: string | null;
+  rolled_keys: string[];
+  confirmed_keys: string[];
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -696,4 +700,41 @@ export interface Obligation {
   owner: string | null;
   /** Where clicking this obligation should take the preparer. */
   href: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Time tracking and state positions
+// ---------------------------------------------------------------------------
+
+export interface TthTimeEntry {
+  id: string;
+  company_id: string | null;
+  engagement_id: string | null;
+  client_id: string | null;
+  entry_date: string;
+  minutes: number;
+  activity: string;
+  description: string | null;
+  person: string | null;
+  billable: boolean;
+  standard_rate: number | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TthStatePosition {
+  id: string;
+  company_id: string | null;
+  state_code: string;
+  topic: string;
+  position: string;
+  citation: string | null;
+  verified_on: string | null;
+  verified_by: string | null;
+  review_months: number;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
