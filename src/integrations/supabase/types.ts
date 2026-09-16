@@ -1672,6 +1672,56 @@ export type Database = {
           },
         ]
       }
+      employees: {
+        Row: {
+          burden_percent: number
+          company_id: string | null
+          created_at: string
+          hourly_rate: number | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          ot_multiplier: number
+          trade: string | null
+          updated_at: string
+        }
+        Insert: {
+          burden_percent?: number
+          company_id?: string | null
+          created_at?: string
+          hourly_rate?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          ot_multiplier?: number
+          trade?: string | null
+          updated_at?: string
+        }
+        Update: {
+          burden_percent?: number
+          company_id?: string | null
+          created_at?: string
+          hourly_rate?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          ot_multiplier?: number
+          trade?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment: {
         Row: {
           category: string | null
@@ -4219,6 +4269,148 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_entries: {
+        Row: {
+          burden_percent: number
+          cost_code_id: string | null
+          created_at: string
+          created_by: string | null
+          employee_id: string | null
+          employee_name: string
+          external_ref: string | null
+          hourly_rate: number
+          id: string
+          import_batch_id: string | null
+          notes: string | null
+          ot_multiplier: number
+          overtime_hours: number
+          project_id: string
+          regular_hours: number
+          source: string
+          total_cost: number | null
+          trade: string | null
+          updated_at: string
+          work_date: string
+        }
+        Insert: {
+          burden_percent?: number
+          cost_code_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string | null
+          employee_name: string
+          external_ref?: string | null
+          hourly_rate?: number
+          id?: string
+          import_batch_id?: string | null
+          notes?: string | null
+          ot_multiplier?: number
+          overtime_hours?: number
+          project_id: string
+          regular_hours?: number
+          source?: string
+          total_cost?: number | null
+          trade?: string | null
+          updated_at?: string
+          work_date?: string
+        }
+        Update: {
+          burden_percent?: number
+          cost_code_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string | null
+          employee_name?: string
+          external_ref?: string | null
+          hourly_rate?: number
+          id?: string
+          import_batch_id?: string | null
+          notes?: string | null
+          ot_multiplier?: number
+          overtime_hours?: number
+          project_id?: string
+          regular_hours?: number
+          source?: string
+          total_cost?: number | null
+          trade?: string | null
+          updated_at?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "qb_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trade_rates: {
+        Row: {
+          burden_percent: number
+          company_id: string | null
+          created_at: string
+          hourly_rate: number
+          id: string
+          is_active: boolean
+          ot_multiplier: number
+          trade: string
+          updated_at: string
+        }
+        Insert: {
+          burden_percent?: number
+          company_id?: string | null
+          created_at?: string
+          hourly_rate?: number
+          id?: string
+          is_active?: boolean
+          ot_multiplier?: number
+          trade: string
+          updated_at?: string
+        }
+        Update: {
+          burden_percent?: number
+          company_id?: string | null
+          created_at?: string
+          hourly_rate?: number
+          id?: string
+          is_active?: boolean
+          ot_multiplier?: number
+          trade?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trade_rates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
