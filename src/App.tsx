@@ -58,6 +58,7 @@ import OperatingCosts from '@/pages/OperatingCosts';
 import OwnerMoney from '@/pages/OwnerMoney';
 import CashFlow from '@/pages/CashFlow';
 import QuickBooksExport from '@/pages/QuickBooksExport';
+import CostImport from '@/pages/CostImport';
 import { CompanyProvider } from '@/contexts/CompanyContext';
 
 const queryClient = new QueryClient();

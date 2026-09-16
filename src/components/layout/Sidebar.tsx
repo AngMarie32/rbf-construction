@@ -38,6 +38,7 @@ const navGroups: NavGroup[] = [
       { name: 'Loans', href: '/loans' },
       { name: 'Cash Flow', href: '/cash-flow' },
       { name: 'Operating Costs', href: '/operating-costs' },
+      { name: 'Cost Import', href: '/cost-import' },
       { name: 'QuickBooks Export', href: '/quickbooks-export' },
     ],
   },
