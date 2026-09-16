@@ -121,6 +121,14 @@ function App() {
               }
             />
             <Route
+              path="/cost-import"
+              element={
+                <ProtectedRoute>
+                  <CostImport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/cash-flow"
               element={
                 <ProtectedRoute>
