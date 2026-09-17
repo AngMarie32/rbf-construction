@@ -28,6 +28,8 @@ import {
   externalRef,
   confidenceLabel,
   normalize,
+  payrollFields,
+  looksLikePayroll,
 } from '@/utils/qbImport';
 
 interface ReviewRow extends ParsedLine {
@@ -38,6 +40,18 @@ interface ReviewRow extends ParsedLine {
   include: boolean;
   duplicate: boolean;
   externalRef: string;
+  employeeName: string;
+  regularHours: number;
+  overtimeHours: number;
+  rate: number;
+}
+
+interface EmployeeRef {
+  id: string;
+  name: string;
+  hourly_rate: number | null;
+  ot_multiplier: number;
+  burden_percent: number;
 }
 
 interface BatchRow {
