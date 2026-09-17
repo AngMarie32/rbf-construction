@@ -266,6 +266,53 @@ export function externalRef(line: ParsedLine): string {
   ].join('|');
 }
 
+/** Payroll reports carry hours; pull the labor-specific fields out of the same raw row. */
+export interface PayrollFields {
+  employeeName: string;
+  regularHours: number;
+  overtimeHours: number;
+  rate: number;
+}
+
+const PAYROLL_ALIASES = {
+  employee: ['employee', 'employee name', 'name', 'worker', 'payee', 'crew member'],
+  regular: ['hours', 'reg hours', 'regular hours', 'regular', 'straight time', 'st hours', 'qty'],
+  overtime: ['ot hours', 'overtime hours', 'overtime', 'ot'],
+  rate: ['rate', 'hourly rate', 'pay rate', 'sales price', 'price'],
+};
+
+function num(value: any): number {
+  if (typeof value === 'number') return value;
+  const n = parseFloat(String(value ?? '').replace(/[$,\s]/g, ''));
+  return Number.isNaN(n) ? 0 : n;
+}
+
+export function payrollFields(line: ParsedLine): PayrollFields {
+  const raw = line.raw;
+  const get = (keys: string[]) => {
+    for (const key of Object.keys(raw)) {
+      if (keys.includes(normalize(key))) return raw[key];
+    }
+    for (const key of Object.keys(raw)) {
+      if (keys.some((k) => normalize(key).includes(k))) return raw[key];
+    }
+    return '';
+  };
+  return {
+    employeeName: String(get(PAYROLL_ALIASES.employee) || line.vendor || '').trim(),
+    regularHours: num(get(PAYROLL_ALIASES.regular)),
+    overtimeHours: num(get(PAYROLL_ALIASES.overtime)),
+    rate: num(get(PAYROLL_ALIASES.rate)),
+  };
+}
+
+/** True when the file looks like a payroll / time report rather than a bill report. */
+export function looksLikePayroll(lines: ParsedLine[]): boolean {
+  if (!lines.length) return false;
+  const keys = Object.keys(lines[0].raw).map(normalize);
+  return keys.some((k) => k.includes('hour')) || keys.some((k) => k === 'ot' || k.includes('overtime'));
+}
+
 export function confidenceLabel(confidence: number): 'high' | 'medium' | 'low' {
   if (confidence >= 0.8) return 'high';
   if (confidence >= 0.5) return 'medium';
