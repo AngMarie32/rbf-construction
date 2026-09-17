@@ -157,9 +157,13 @@ export default function CostImport() {
         toast.error('No cost rows were found in that file.');
         return;
       }
+      const isPayrollFile = looksLikePayroll(parsed);
+      setPayroll(isPayrollFile);
+
       const refs = parsed.map(externalRef);
+      const table = isPayrollFile ? 'time_entries' : 'expenses';
       const { data: existing } = await supabase
-        .from('expenses')
+        .from(table as 'expenses')
         .select('external_ref')
         .in('external_ref', refs.slice(0, 500));
       const seen = new Set((existing || []).map((e: any) => e.external_ref));
@@ -168,6 +172,8 @@ export default function CostImport() {
         const match = matchLine(line, projects, costCodes, rules);
         const ref = externalRef(line);
         const duplicate = seen.has(ref);
+        const pay = payrollFields(line);
+        const person = employees.find((e) => normalize(e.name) === normalize(pay.employeeName));
         return {
           ...line,
           projectId: match.projectId,
@@ -177,11 +183,19 @@ export default function CostImport() {
           include: !duplicate,
           duplicate,
           externalRef: ref,
+          employeeName: pay.employeeName,
+          regularHours: pay.regularHours,
+          overtimeHours: pay.overtimeHours,
+          rate: pay.rate || Number(person?.hourly_rate ?? 0),
         };
       });
       setRows(reviewed);
       setFileName(file.name);
-      toast.success(`Read ${reviewed.length} rows from ${file.name}.`);
+      toast.success(
+        isPayrollFile
+          ? `Read ${reviewed.length} payroll rows from ${file.name}.`
+          : `Read ${reviewed.length} rows from ${file.name}.`
+      );
     } catch (e: any) {
       toast.error(e.message || 'That file could not be read.');
     } finally {
