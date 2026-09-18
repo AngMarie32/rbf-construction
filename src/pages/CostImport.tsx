@@ -264,26 +264,55 @@ export default function CostImport() {
       if (batchError) throw batchError;
 
       const codeById = new Map(costCodes.map((c) => [c.id, c]));
-      const expensePayload = included.map((r) => ({
-        project_id: r.projectId,
-        category: r.costCodeId ? codeById.get(r.costCodeId)?.name || 'Other' : 'Other',
-        description: r.memo || r.account || r.vendor || 'Imported cost',
-        amount: r.amount,
-        date: r.date || new Date().toISOString().slice(0, 10),
-        vendor: r.vendor || null,
-        receipt_number: r.refNumber || null,
-        status: 'Approved',
-        cost_code_id: r.costCodeId,
-        source: 'quickbooks_import',
-        import_batch_id: batch.id,
-        external_ref: r.externalRef,
-      }));
+      let created: { id: string }[] | null = null;
 
-      const { data: created, error: expenseError } = await supabase
-        .from('expenses')
-        .insert(expensePayload)
-        .select('id');
-      if (expenseError) throw expenseError;
+      if (payroll) {
+        const payrollPayload = included.map((r) => {
+          const person = employees.find((e) => normalize(e.name) === normalize(r.employeeName));
+          const rate =
+            r.rate ||
+            Number(person?.hourly_rate ?? 0) ||
+            (r.regularHours + r.overtimeHours ? r.amount / (r.regularHours + r.overtimeHours) : 0);
+          return {
+            project_id: r.projectId,
+            employee_id: person?.id ?? null,
+            employee_name: r.employeeName || r.vendor || 'Employee',
+            work_date: r.date || new Date().toISOString().slice(0, 10),
+            cost_code_id: r.costCodeId,
+            regular_hours: r.regularHours,
+            overtime_hours: r.overtimeHours,
+            hourly_rate: rate,
+            ot_multiplier: person?.ot_multiplier ?? 1.5,
+            burden_percent: person?.burden_percent ?? 0,
+            notes: r.memo || null,
+            source: 'payroll_import',
+            import_batch_id: batch.id,
+            external_ref: r.externalRef,
+          };
+        });
+        const { data, error: timeError } = await supabase.from('time_entries').insert(payrollPayload).select('id');
+        if (timeError) throw timeError;
+        created = data as { id: string }[];
+      } else {
+        const expensePayload = included.map((r) => ({
+          project_id: r.projectId,
+          category: r.costCodeId ? codeById.get(r.costCodeId)?.name || 'Other' : 'Other',
+          description: r.memo || r.account || r.vendor || 'Imported cost',
+          amount: r.amount,
+          date: r.date || new Date().toISOString().slice(0, 10),
+          vendor: r.vendor || null,
+          receipt_number: r.refNumber || null,
+          status: 'Approved',
+          cost_code_id: r.costCodeId,
+          source: 'quickbooks_import',
+          import_batch_id: batch.id,
+          external_ref: r.externalRef,
+        }));
+
+        const { data, error: expenseError } = await supabase.from('expenses').insert(expensePayload).select('id');
+        if (expenseError) throw expenseError;
+        created = data as { id: string }[];
+      }
 
       await supabase.from('qb_import_lines').insert(
         rows.map((r, i) => ({
