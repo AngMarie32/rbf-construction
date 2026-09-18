@@ -59,6 +59,7 @@ import OwnerMoney from '@/pages/OwnerMoney';
 import CashFlow from '@/pages/CashFlow';
 import QuickBooksExport from '@/pages/QuickBooksExport';
 import CostImport from '@/pages/CostImport';
+import LaborCosts from '@/pages/LaborCosts';
 import { CompanyProvider } from '@/contexts/CompanyContext';
 
 const queryClient = new QueryClient();
@@ -125,6 +126,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <CostImport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/labor-costs"
+              element={
+                <ProtectedRoute>
+                  <LaborCosts />
                 </ProtectedRoute>
               }
             />

@@ -62,6 +62,7 @@ const navGroups: NavGroup[] = [
       { name: 'Blueprint Analyzer', href: '/blueprint-analyzer' },
       { name: 'Proposals', href: '/proposals' },
       { name: 'Expenses', href: '/expenses' },
+      { name: 'Labor Costs', href: '/labor-costs' },
       { name: 'Payment Apps', href: '/payment-applications' },
       { name: 'Billing', href: '/billing' },
       { name: 'Change Orders', href: '/change-orders' },

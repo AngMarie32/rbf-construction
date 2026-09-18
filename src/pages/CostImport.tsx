@@ -80,11 +80,13 @@ export default function CostImport() {
   const [fileName, setFileName] = useState('');
   const [busy, setBusy] = useState(false);
   const [newCode, setNewCode] = useState({ code: '', name: '', division: '' });
+  const [payroll, setPayroll] = useState(false);
+  const [employees, setEmployees] = useState<EmployeeRef[]>([]);
 
   const companyId = selectedIds.length === 1 ? selectedIds[0] : null;
 
   const loadReference = useCallback(async () => {
-    const [projRes, codeRes, ruleRes, batchRes] = await Promise.all([
+    const [projRes, codeRes, ruleRes, batchRes, empRes] = await Promise.all([
       supabase.from('projects').select('id, name, project_code, client, company_id').is('archived_at', null).order('name'),
       supabase.from('cost_codes').select('id, code, name, division, company_id').eq('is_active', true).order('code'),
       supabase.from('qb_mapping_rules').select('match_type, match_value, project_id, cost_code_id, category'),
@@ -93,6 +95,10 @@ export default function CostImport() {
         .select('id, file_name, imported_count, row_count, total_amount, status, created_at, imported_by_name')
         .order('created_at', { ascending: false })
         .limit(50),
+      supabase
+        .from('employees')
+        .select('id, name, hourly_rate, ot_multiplier, burden_percent, company_id')
+        .eq('is_active', true),
     ]);
 
     const scoped = (list: any[] | null) =>
@@ -102,6 +108,7 @@ export default function CostImport() {
     setCostCodes(scoped(codeRes.data) as CostCodeRef[]);
     setRules((ruleRes.data || []) as MatchRule[]);
     setBatches((batchRes.data || []) as BatchRow[]);
+    setEmployees(scoped(empRes.data) as EmployeeRef[]);
   }, [selectedIds]);
 
   useEffect(() => {
@@ -257,26 +264,55 @@ export default function CostImport() {
       if (batchError) throw batchError;
 
       const codeById = new Map(costCodes.map((c) => [c.id, c]));
-      const expensePayload = included.map((r) => ({
-        project_id: r.projectId,
-        category: r.costCodeId ? codeById.get(r.costCodeId)?.name || 'Other' : 'Other',
-        description: r.memo || r.account || r.vendor || 'Imported cost',
-        amount: r.amount,
-        date: r.date || new Date().toISOString().slice(0, 10),
-        vendor: r.vendor || null,
-        receipt_number: r.refNumber || null,
-        status: 'Approved',
-        cost_code_id: r.costCodeId,
-        source: 'quickbooks_import',
-        import_batch_id: batch.id,
-        external_ref: r.externalRef,
-      }));
+      let created: { id: string }[] | null = null;
 
-      const { data: created, error: expenseError } = await supabase
-        .from('expenses')
-        .insert(expensePayload)
-        .select('id');
-      if (expenseError) throw expenseError;
+      if (payroll) {
+        const payrollPayload = included.map((r) => {
+          const person = employees.find((e) => normalize(e.name) === normalize(r.employeeName));
+          const rate =
+            r.rate ||
+            Number(person?.hourly_rate ?? 0) ||
+            (r.regularHours + r.overtimeHours ? r.amount / (r.regularHours + r.overtimeHours) : 0);
+          return {
+            project_id: r.projectId,
+            employee_id: person?.id ?? null,
+            employee_name: r.employeeName || r.vendor || 'Employee',
+            work_date: r.date || new Date().toISOString().slice(0, 10),
+            cost_code_id: r.costCodeId,
+            regular_hours: r.regularHours,
+            overtime_hours: r.overtimeHours,
+            hourly_rate: rate,
+            ot_multiplier: person?.ot_multiplier ?? 1.5,
+            burden_percent: person?.burden_percent ?? 0,
+            notes: r.memo || null,
+            source: 'payroll_import',
+            import_batch_id: batch.id,
+            external_ref: r.externalRef,
+          };
+        });
+        const { data, error: timeError } = await supabase.from('time_entries').insert(payrollPayload).select('id');
+        if (timeError) throw timeError;
+        created = data as { id: string }[];
+      } else {
+        const expensePayload = included.map((r) => ({
+          project_id: r.projectId,
+          category: r.costCodeId ? codeById.get(r.costCodeId)?.name || 'Other' : 'Other',
+          description: r.memo || r.account || r.vendor || 'Imported cost',
+          amount: r.amount,
+          date: r.date || new Date().toISOString().slice(0, 10),
+          vendor: r.vendor || null,
+          receipt_number: r.refNumber || null,
+          status: 'Approved',
+          cost_code_id: r.costCodeId,
+          source: 'quickbooks_import',
+          import_batch_id: batch.id,
+          external_ref: r.externalRef,
+        }));
+
+        const { data, error: expenseError } = await supabase.from('expenses').insert(expensePayload).select('id');
+        if (expenseError) throw expenseError;
+        created = data as { id: string }[];
+      }
 
       await supabase.from('qb_import_lines').insert(
         rows.map((r, i) => ({
@@ -324,9 +360,14 @@ export default function CostImport() {
       const newRules = [...learned.entries()].filter(([k]) => !existingKeys.has(k)).map(([, v]) => v);
       if (newRules.length) await supabase.from('qb_mapping_rules').insert(newRules);
 
-      toast.success(`Imported ${created?.length ?? included.length} costs.`);
+      toast.success(
+        payroll
+          ? `Imported ${created?.length ?? included.length} labor entries.`
+          : `Imported ${created?.length ?? included.length} costs.`
+      );
       setRows([]);
       setFileName('');
+      setPayroll(false);
       if (fileRef.current) fileRef.current.value = '';
       loadReference();
     } catch (e: any) {
@@ -343,6 +384,7 @@ export default function CostImport() {
       setBusy(false);
       return toast.error(error.message);
     }
+    await supabase.from('time_entries').delete().eq('import_batch_id', batchId);
     await supabase.from('qb_import_batches').update({ status: 'undone', imported_count: 0 }).eq('id', batchId);
     setBusy(false);
     toast.success('That import was rolled back.');
@@ -389,9 +431,16 @@ export default function CostImport() {
                     Set up cost code library
                   </Button>
                 )}
+                {rows.length > 0 && (
+                  <label className="ml-auto flex items-center gap-2 text-sm">
+                    <Checkbox checked={payroll} onCheckedChange={(v) => setPayroll(Boolean(v))} />
+                    This is a payroll report (hours become labor costs)
+                  </label>
+                )}
               </div>
               <p className="mt-3 text-xs text-muted-foreground">
-                Excel or CSV. Column names are read automatically — no template required.
+                Excel or CSV. Column names are read automatically — no template required. Payroll reports with hours are
+                recognized on their own and land on the Labor Costs page.
               </p>
             </Card>
 
@@ -411,7 +460,8 @@ export default function CostImport() {
                       <tr>
                         <th className="p-3 text-left">Use</th>
                         <th className="p-3 text-left">Date</th>
-                        <th className="p-3 text-left">Vendor / Memo</th>
+                        <th className="p-3 text-left">{payroll ? 'Person / Memo' : 'Vendor / Memo'}</th>
+                        {payroll && <th className="p-3 text-right">Hours</th>}
                         <th className="p-3 text-right">Amount</th>
                         <th className="p-3 text-left">Job</th>
                         <th className="p-3 text-left">Cost code</th>
@@ -435,11 +485,17 @@ export default function CostImport() {
                             </td>
                             <td className="whitespace-nowrap p-3">{row.date || '—'}</td>
                             <td className="p-3">
-                              <div className="font-medium">{row.vendor || '—'}</div>
+                              <div className="font-medium">{(payroll ? row.employeeName : row.vendor) || '—'}</div>
                               <div className="text-xs text-muted-foreground">
                                 {[row.jobName, row.account, row.memo].filter(Boolean).join(' · ') || '—'}
                               </div>
                             </td>
+                            {payroll && (
+                              <td className="whitespace-nowrap p-3 text-right tabular-nums">
+                                {row.regularHours.toFixed(2)}
+                                {row.overtimeHours ? ` + ${row.overtimeHours.toFixed(2)} OT` : ''}
+                              </td>
+                            )}
                             <td className="whitespace-nowrap p-3 text-right tabular-nums">{currency(row.amount)}</td>
                             <td className="p-3">
                               <Select
