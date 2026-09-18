@@ -431,9 +431,16 @@ export default function CostImport() {
                     Set up cost code library
                   </Button>
                 )}
+                {rows.length > 0 && (
+                  <label className="ml-auto flex items-center gap-2 text-sm">
+                    <Checkbox checked={payroll} onCheckedChange={(v) => setPayroll(Boolean(v))} />
+                    This is a payroll report (hours become labor costs)
+                  </label>
+                )}
               </div>
               <p className="mt-3 text-xs text-muted-foreground">
-                Excel or CSV. Column names are read automatically — no template required.
+                Excel or CSV. Column names are read automatically — no template required. Payroll reports with hours are
+                recognized on their own and land on the Labor Costs page.
               </p>
             </Card>
 
