@@ -86,7 +86,7 @@ export default function CostImport() {
   const companyId = selectedIds.length === 1 ? selectedIds[0] : null;
 
   const loadReference = useCallback(async () => {
-    const [projRes, codeRes, ruleRes, batchRes] = await Promise.all([
+    const [projRes, codeRes, ruleRes, batchRes, empRes] = await Promise.all([
       supabase.from('projects').select('id, name, project_code, client, company_id').is('archived_at', null).order('name'),
       supabase.from('cost_codes').select('id, code, name, division, company_id').eq('is_active', true).order('code'),
       supabase.from('qb_mapping_rules').select('match_type, match_value, project_id, cost_code_id, category'),
@@ -95,6 +95,10 @@ export default function CostImport() {
         .select('id, file_name, imported_count, row_count, total_amount, status, created_at, imported_by_name')
         .order('created_at', { ascending: false })
         .limit(50),
+      supabase
+        .from('employees')
+        .select('id, name, hourly_rate, ot_multiplier, burden_percent, company_id')
+        .eq('is_active', true),
     ]);
 
     const scoped = (list: any[] | null) =>
@@ -104,6 +108,7 @@ export default function CostImport() {
     setCostCodes(scoped(codeRes.data) as CostCodeRef[]);
     setRules((ruleRes.data || []) as MatchRule[]);
     setBatches((batchRes.data || []) as BatchRow[]);
+    setEmployees(scoped(empRes.data) as EmployeeRef[]);
   }, [selectedIds]);
 
   useEffect(() => {
