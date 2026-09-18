@@ -485,11 +485,17 @@ export default function CostImport() {
                             </td>
                             <td className="whitespace-nowrap p-3">{row.date || '—'}</td>
                             <td className="p-3">
-                              <div className="font-medium">{row.vendor || '—'}</div>
+                              <div className="font-medium">{(payroll ? row.employeeName : row.vendor) || '—'}</div>
                               <div className="text-xs text-muted-foreground">
                                 {[row.jobName, row.account, row.memo].filter(Boolean).join(' · ') || '—'}
                               </div>
                             </td>
+                            {payroll && (
+                              <td className="whitespace-nowrap p-3 text-right tabular-nums">
+                                {row.regularHours.toFixed(2)}
+                                {row.overtimeHours ? ` + ${row.overtimeHours.toFixed(2)} OT` : ''}
+                              </td>
+                            )}
                             <td className="whitespace-nowrap p-3 text-right tabular-nums">{currency(row.amount)}</td>
                             <td className="p-3">
                               <Select
