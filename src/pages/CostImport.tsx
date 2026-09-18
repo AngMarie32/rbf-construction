@@ -460,7 +460,8 @@ export default function CostImport() {
                       <tr>
                         <th className="p-3 text-left">Use</th>
                         <th className="p-3 text-left">Date</th>
-                        <th className="p-3 text-left">Vendor / Memo</th>
+                        <th className="p-3 text-left">{payroll ? 'Person / Memo' : 'Vendor / Memo'}</th>
+                        {payroll && <th className="p-3 text-right">Hours</th>}
                         <th className="p-3 text-right">Amount</th>
                         <th className="p-3 text-left">Job</th>
                         <th className="p-3 text-left">Cost code</th>
