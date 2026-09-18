@@ -130,6 +130,14 @@ function App() {
               }
             />
             <Route
+              path="/labor-costs"
+              element={
+                <ProtectedRoute>
+                  <LaborCosts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/cash-flow"
               element={
                 <ProtectedRoute>
