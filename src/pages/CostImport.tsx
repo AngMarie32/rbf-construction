@@ -80,6 +80,8 @@ export default function CostImport() {
   const [fileName, setFileName] = useState('');
   const [busy, setBusy] = useState(false);
   const [newCode, setNewCode] = useState({ code: '', name: '', division: '' });
+  const [payroll, setPayroll] = useState(false);
+  const [employees, setEmployees] = useState<EmployeeRef[]>([]);
 
   const companyId = selectedIds.length === 1 ? selectedIds[0] : null;
 
