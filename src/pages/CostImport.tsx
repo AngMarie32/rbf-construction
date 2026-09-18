@@ -360,9 +360,14 @@ export default function CostImport() {
       const newRules = [...learned.entries()].filter(([k]) => !existingKeys.has(k)).map(([, v]) => v);
       if (newRules.length) await supabase.from('qb_mapping_rules').insert(newRules);
 
-      toast.success(`Imported ${created?.length ?? included.length} costs.`);
+      toast.success(
+        payroll
+          ? `Imported ${created?.length ?? included.length} labor entries.`
+          : `Imported ${created?.length ?? included.length} costs.`
+      );
       setRows([]);
       setFileName('');
+      setPayroll(false);
       if (fileRef.current) fileRef.current.value = '';
       loadReference();
     } catch (e: any) {
@@ -379,6 +384,7 @@ export default function CostImport() {
       setBusy(false);
       return toast.error(error.message);
     }
+    await supabase.from('time_entries').delete().eq('import_batch_id', batchId);
     await supabase.from('qb_import_batches').update({ status: 'undone', imported_count: 0 }).eq('id', batchId);
     setBusy(false);
     toast.success('That import was rolled back.');
