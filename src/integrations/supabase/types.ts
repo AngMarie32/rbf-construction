@@ -2354,6 +2354,306 @@ export type Database = {
         }
         Relationships: []
       }
+      estimate_bids: {
+        Row: {
+          company_name: string
+          created_at: string
+          estimate_id: string
+          exclusions: string | null
+          id: string
+          inclusions: string | null
+          leveling_additions: number
+          leveling_credits: number
+          line_id: string | null
+          notes: string | null
+          raw_amount: number
+          recommended: boolean
+          trade: string
+          updated_at: string
+        }
+        Insert: {
+          company_name: string
+          created_at?: string
+          estimate_id: string
+          exclusions?: string | null
+          id?: string
+          inclusions?: string | null
+          leveling_additions?: number
+          leveling_credits?: number
+          line_id?: string | null
+          notes?: string | null
+          raw_amount?: number
+          recommended?: boolean
+          trade: string
+          updated_at?: string
+        }
+        Update: {
+          company_name?: string
+          created_at?: string
+          estimate_id?: string
+          exclusions?: string | null
+          id?: string
+          inclusions?: string | null
+          leveling_additions?: number
+          leveling_credits?: number
+          line_id?: string | null
+          notes?: string | null
+          raw_amount?: number
+          recommended?: boolean
+          trade?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_bids_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimate_bids_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "estimate_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estimate_flags: {
+        Row: {
+          action: string | null
+          created_at: string
+          estimate_id: string
+          exposure: string | null
+          finding: string | null
+          id: string
+          issue: string
+          resolved: boolean
+          severity: string
+        }
+        Insert: {
+          action?: string | null
+          created_at?: string
+          estimate_id: string
+          exposure?: string | null
+          finding?: string | null
+          id?: string
+          issue: string
+          resolved?: boolean
+          severity?: string
+        }
+        Update: {
+          action?: string | null
+          created_at?: string
+          estimate_id?: string
+          exposure?: string | null
+          finding?: string | null
+          id?: string
+          issue?: string
+          resolved?: boolean
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_flags_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estimate_lines: {
+        Row: {
+          baseline_amount: number
+          basis: string | null
+          confidence: string
+          created_at: string
+          estimate_id: string
+          group_key: string
+          group_name: string
+          id: string
+          name: string
+          override_amount: number | null
+          quantity: number | null
+          section_name: string
+          sort_order: number
+          source: string | null
+          status: string
+          unit: string | null
+          unit_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          baseline_amount?: number
+          basis?: string | null
+          confidence?: string
+          created_at?: string
+          estimate_id: string
+          group_key?: string
+          group_name?: string
+          id?: string
+          name: string
+          override_amount?: number | null
+          quantity?: number | null
+          section_name?: string
+          sort_order?: number
+          source?: string | null
+          status?: string
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          baseline_amount?: number
+          basis?: string | null
+          confidence?: string
+          created_at?: string
+          estimate_id?: string
+          group_key?: string
+          group_name?: string
+          id?: string
+          name?: string
+          override_amount?: number | null
+          quantity?: number | null
+          section_name?: string
+          sort_order?: number
+          source?: string | null
+          status?: string
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_lines_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estimate_subcosts: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          kind: string
+          line_id: string
+          name: string
+          note: string | null
+          sort_order: number
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          line_id: string
+          name: string
+          note?: string | null
+          sort_order?: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          line_id?: string
+          name?: string
+          note?: string | null
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_subcosts_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "estimate_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estimates: {
+        Row: {
+          area_sf: number
+          assumptions: Json
+          bond_pct: number
+          company_id: string | null
+          contingency_pct: number
+          created_at: string
+          created_by: string | null
+          id: string
+          location: string | null
+          name: string
+          notes: string | null
+          overhead_pct: number
+          profit_pct: number
+          project_id: string | null
+          scope_summary: string | null
+          source_files: Json
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          area_sf?: number
+          assumptions?: Json
+          bond_pct?: number
+          company_id?: string | null
+          contingency_pct?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location?: string | null
+          name: string
+          notes?: string | null
+          overhead_pct?: number
+          profit_pct?: number
+          project_id?: string | null
+          scope_summary?: string | null
+          source_files?: Json
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          area_sf?: number
+          assumptions?: Json
+          bond_pct?: number
+          company_id?: string | null
+          contingency_pct?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location?: string | null
+          name?: string
+          notes?: string | null
+          overhead_pct?: number
+          profit_pct?: number
+          project_id?: string | null
+          scope_summary?: string | null
+          source_files?: Json
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_categories: {
         Row: {
           color: string | null
