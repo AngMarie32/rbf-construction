@@ -84,124 +84,226 @@ const GROUPS: Record<string, string> = {
   other: "OTHER PROJECT COSTS",
 };
 
+function normalize(parsed: any, projectName: string, location: string, areaSf: number) {
+  const lines = (Array.isArray(parsed.lines) ? parsed.lines : []).map((l: any, i: number) => {
+    const key = GROUPS[l.group_key] ? l.group_key : "building";
+    const subs = (Array.isArray(l.subcosts) ? l.subcosts : []).map((s: any, j: number) => ({
+      name: String(s.name ?? "Subcost"),
+      amount: Math.max(0, Number(s.amount) || 0),
+      kind: ["included", "additive", "alternate", "excluded", "allowance"].includes(s.kind) ? s.kind : "included",
+      note: s.note ? String(s.note) : null,
+      sort_order: j,
+    }));
+    return {
+      group_key: key,
+      group_name: String(l.group_name || GROUPS[key]),
+      section_name: String(l.section_name || "General"),
+      name: String(l.name || "Cost line"),
+      baseline_amount: Math.max(0, Number(l.amount) || 0),
+      quantity: l.quantity != null ? Number(l.quantity) || 0 : null,
+      unit: l.unit ? String(l.unit) : null,
+      unit_cost: l.unit_cost != null ? Number(l.unit_cost) || 0 : null,
+      confidence: ["A", "B", "C", "D", "REVIEW"].includes(String(l.confidence)) ? String(l.confidence) : "C",
+      status: String(l.status || "Modeled"),
+      basis: l.basis ? String(l.basis) : null,
+      source: l.source ? String(l.source) : null,
+      sort_order: i,
+      subcosts: subs,
+    };
+  });
+
+  const s = parsed.settings || {};
+  return {
+    lines,
+    project: {
+      name: String(parsed?.project?.name || projectName || "Untitled estimate"),
+      location: String(parsed?.project?.location || location || ""),
+      area_sf: Number(parsed?.project?.area_sf) || Number(areaSf) || 0,
+    },
+    scope_summary: String(parsed.scope_summary || ""),
+    assumptions: Array.isArray(parsed.assumptions) ? parsed.assumptions.map(String) : [],
+    settings: {
+      contingency_pct: Number(s.contingency_pct) || 5,
+      overhead_pct: Number(s.overhead_pct) || 4,
+      profit_pct: Number(s.profit_pct) || 6,
+      bond_pct: Number(s.bond_pct) || 1,
+    },
+    flags: (Array.isArray(parsed.flags) ? parsed.flags : []).map((f: any) => ({
+      severity: ["critical", "high", "medium"].includes(f.severity) ? f.severity : "medium",
+      issue: String(f.issue || "Issue"),
+      finding: f.finding ? String(f.finding) : null,
+      exposure: f.exposure ? String(f.exposure) : null,
+      action: f.action ? String(f.action) : null,
+    })),
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+  let payload: any;
   try {
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) return json({ error: "Missing LOVABLE_API_KEY" }, 500);
+    payload = await req.json();
+  } catch {
+    return json({ error: "Invalid request body" }, 400);
+  }
 
-    const { files = [], projectName = "", location = "", areaSf = 0, notes = "" } = await req.json();
-    if (!Array.isArray(files) || files.length === 0) return json({ error: "At least one plan file is required" }, 400);
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) return json({ error: "Missing LOVABLE_API_KEY" }, 500);
 
-    const intro = `Analyze the attached construction documents and produce the independent should-cost baseline estimate.
+  const { files = [], projectName = "", location = "", areaSf = 0, notes = "" } = payload;
+  if (!Array.isArray(files) || files.length === 0) return json({ error: "At least one plan file is required" }, 400);
+
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (event: string, data: unknown) => {
+        try {
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        } catch (_) {
+          /* client went away */
+        }
+      };
+      // Keeps the connection alive while the model reasons over the drawings.
+      const heartbeat = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(": keep-alive\n\n"));
+        } catch (_) {
+          /* ignore */
+        }
+      }, 10000);
+
+      try {
+        send("status", { message: "Reading the plan documents" });
+
+        const intro = `Analyze the attached construction documents and produce the independent should-cost baseline estimate.
 Project name: ${projectName || "(from the drawings)"}
 Location: ${location || "(from the drawings)"}
 Stated building area: ${areaSf || "(determine from the drawings)"} SF
 ${notes ? `Estimator notes / context: ${notes}` : ""}
 Price with current ${new Date().getFullYear()} local/regional commercial construction costs for this location.`;
 
-    const content: any[] = [{ type: "text", text: intro }];
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      const url = typeof f === "string" ? f : f?.url;
-      if (!url) continue;
-      content.push({ type: "text", text: `Document ${i + 1}: ${(typeof f === "string" ? "" : f?.name) || `plan_${i + 1}`}` });
-      await appendFile(content, url, typeof f === "string" ? "" : f?.fileType || "", `plan_${i + 1}`);
-    }
+        const content: any[] = [{ type: "text", text: intro }];
+        for (let i = 0; i < files.length; i++) {
+          const f = files[i];
+          const url = typeof f === "string" ? f : f?.url;
+          if (!url) continue;
+          content.push({
+            type: "text",
+            text: `Document ${i + 1}: ${(typeof f === "string" ? "" : f?.name) || `plan_${i + 1}`}`,
+          });
+          await appendFile(content, url, typeof f === "string" ? "" : f?.fileType || "", `plan_${i + 1}`);
+        }
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content },
-        ],
-        response_format: { type: "json_object" },
-        max_completion_tokens: 32000,
-      }),
-    });
+        send("status", { message: "Performing takeoff and building the baseline" });
 
-    if (!aiRes.ok) {
-      const details = await aiRes.text();
-      console.error("AI gateway error", aiRes.status, details);
-      if (aiRes.status === 402)
-        return json({ error: "AI credits exhausted. Add credits in Settings → Plans & credits.", code: "payment_required" }, 402);
-      if (aiRes.status === 429) return json({ error: "AI rate limit hit. Try again in a moment.", code: "rate_limit" }, 429);
-      return json({ error: `AI gateway error ${aiRes.status}`, details }, aiRes.status);
-    }
+        const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-pro",
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT },
+              { role: "user", content },
+            ],
+            response_format: { type: "json_object" },
+            max_completion_tokens: 32000,
+            stream: true,
+          }),
+        });
 
-    const aiJson = await aiRes.json();
-    const raw = aiJson?.choices?.[0]?.message?.content ?? "{}";
-    let parsed: any;
-    try {
-      parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-    } catch {
-      const m = String(raw).match(/\{[\s\S]*\}/);
-      if (!m) return json({ error: "The model did not return a usable estimate. Try again." }, 502);
-      parsed = JSON.parse(m[0]);
-    }
+        if (!aiRes.ok || !aiRes.body) {
+          const details = await aiRes.text().catch(() => "");
+          console.error("AI gateway error", aiRes.status, details);
+          const message =
+            aiRes.status === 402
+              ? "AI credits are exhausted. Add credits in Settings → Plans & credits."
+              : aiRes.status === 429
+                ? "The AI service is rate limited right now. Try again in a moment."
+                : `AI gateway error ${aiRes.status}`;
+          send("error", { error: message });
+          return;
+        }
 
-    const lines = (Array.isArray(parsed.lines) ? parsed.lines : []).map((l: any, i: number) => {
-      const key = GROUPS[l.group_key] ? l.group_key : "building";
-      const subs = (Array.isArray(l.subcosts) ? l.subcosts : []).map((s: any, j: number) => ({
-        name: String(s.name ?? "Subcost"),
-        amount: Math.max(0, Number(s.amount) || 0),
-        kind: ["included", "additive", "alternate", "excluded", "allowance"].includes(s.kind) ? s.kind : "included",
-        note: s.note ? String(s.note) : null,
-        sort_order: j,
-      }));
-      return {
-        group_key: key,
-        group_name: String(l.group_name || GROUPS[key]),
-        section_name: String(l.section_name || "General"),
-        name: String(l.name || "Cost line"),
-        baseline_amount: Math.max(0, Number(l.amount) || 0),
-        quantity: l.quantity != null ? Number(l.quantity) || 0 : null,
-        unit: l.unit ? String(l.unit) : null,
-        unit_cost: l.unit_cost != null ? Number(l.unit_cost) || 0 : null,
-        confidence: ["A", "B", "C", "D", "REVIEW"].includes(String(l.confidence)) ? String(l.confidence) : "C",
-        status: String(l.status || "Modeled"),
-        basis: l.basis ? String(l.basis) : null,
-        source: l.source ? String(l.source) : null,
-        sort_order: i,
-        subcosts: subs,
-      };
-    });
+        const reader = aiRes.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let text = "";
+        let chars = 0;
 
-    if (!lines.length) return json({ error: "No cost lines could be produced from those documents." }, 422);
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split("\n");
+          buffer = parts.pop() ?? "";
+          for (const part of parts) {
+            const trimmed = part.trim();
+            if (!trimmed.startsWith("data:")) continue;
+            const data = trimmed.slice(5).trim();
+            if (!data || data === "[DONE]") continue;
+            try {
+              const delta = JSON.parse(data)?.choices?.[0]?.delta?.content;
+              if (typeof delta === "string" && delta) {
+                text += delta;
+                if (text.length - chars > 2000) {
+                  chars = text.length;
+                  send("status", { message: "Writing cost lines", characters: chars });
+                }
+              }
+            } catch (_) {
+              /* partial frame */
+            }
+          }
+        }
 
-    const s = parsed.settings || {};
-    return json({
-      project: {
-        name: String(parsed?.project?.name || projectName || "Untitled estimate"),
-        location: String(parsed?.project?.location || location || ""),
-        area_sf: Number(parsed?.project?.area_sf) || Number(areaSf) || 0,
-      },
-      scope_summary: String(parsed.scope_summary || ""),
-      assumptions: Array.isArray(parsed.assumptions) ? parsed.assumptions.map(String) : [],
-      settings: {
-        contingency_pct: Number(s.contingency_pct) || 5,
-        overhead_pct: Number(s.overhead_pct) || 4,
-        profit_pct: Number(s.profit_pct) || 6,
-        bond_pct: Number(s.bond_pct) || 1,
-      },
-      lines,
-      flags: (Array.isArray(parsed.flags) ? parsed.flags : []).map((f: any) => ({
-        severity: ["critical", "high", "medium"].includes(f.severity) ? f.severity : "medium",
-        issue: String(f.issue || "Issue"),
-        finding: f.finding ? String(f.finding) : null,
-        exposure: f.exposure ? String(f.exposure) : null,
-        action: f.action ? String(f.action) : null,
-      })),
-    });
-  } catch (e: any) {
-    console.error("generate-estimate failed", e);
-    return json({ error: e?.message || "Estimate generation failed" }, 500);
-  }
+        let parsed: any;
+        try {
+          parsed = JSON.parse(text);
+        } catch {
+          const m = text.match(/\{[\s\S]*\}/);
+          if (!m) {
+            send("error", { error: "The model did not return a usable estimate. Try again." });
+            return;
+          }
+          try {
+            parsed = JSON.parse(m[0]);
+          } catch {
+            send("error", { error: "The estimate came back incomplete. Try again with fewer sheets." });
+            return;
+          }
+        }
+
+        const result = normalize(parsed, projectName, location, Number(areaSf) || 0);
+        if (!result.lines.length) {
+          send("error", { error: "No cost lines could be produced from those documents." });
+          return;
+        }
+        send("result", result);
+      } catch (e: any) {
+        console.error("generate-estimate failed", e);
+        send("error", { error: e?.message || "Estimate generation failed" });
+      } finally {
+        clearInterval(heartbeat);
+        try {
+          controller.close();
+        } catch (_) {
+          /* already closed */
+        }
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 });
