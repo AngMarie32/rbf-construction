@@ -140,6 +140,23 @@ function App() {
               }
             />
             <Route
+              path="/estimating"
+              element={
+                <ProtectedRoute>
+                  <Estimating />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/estimating/:id"
+              element={
+                <ProtectedRoute>
+                  <EstimateDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
               path="/cash-flow"
               element={
                 <ProtectedRoute>
