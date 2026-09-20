@@ -60,6 +60,8 @@ import CashFlow from '@/pages/CashFlow';
 import QuickBooksExport from '@/pages/QuickBooksExport';
 import CostImport from '@/pages/CostImport';
 import LaborCosts from '@/pages/LaborCosts';
+import Estimating from '@/pages/Estimating';
+import EstimateDashboard from '@/pages/EstimateDashboard';
 import { CompanyProvider } from '@/contexts/CompanyContext';
 
 const queryClient = new QueryClient();

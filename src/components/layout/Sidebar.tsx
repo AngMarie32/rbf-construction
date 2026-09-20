@@ -63,6 +63,7 @@ const navGroups: NavGroup[] = [
       { name: 'Proposals', href: '/proposals' },
       { name: 'Expenses', href: '/expenses' },
       { name: 'Labor Costs', href: '/labor-costs' },
+      { name: 'Bid Estimator', href: '/estimating' },
       { name: 'Payment Apps', href: '/payment-applications' },
       { name: 'Billing', href: '/billing' },
       { name: 'Change Orders', href: '/change-orders' },
