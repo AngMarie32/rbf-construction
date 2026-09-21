@@ -57,7 +57,21 @@ Return ONLY valid JSON, no markdown fences, with this exact shape:
 
 Be thorough: 25-70 cost lines across all five groups for a full plan set, each with a detailed subcost build-up.`;
 
-async function appendFile(content: any[], url: string, fileType: string, base: string) {
+// Per-file and total caps keep the AI request within gateway and memory limits.
+const MAX_FILE_BYTES = 12 * 1024 * 1024;
+const MAX_TOTAL_BYTES = 30 * 1024 * 1024;
+
+function toBase64(buf: Uint8Array): string {
+  // Large chunks keep CPU time low on big plan sets.
+  const parts: string[] = [];
+  const chunk = 0x10000; // 64KB
+  for (let i = 0; i < buf.length; i += chunk) {
+    parts.push(String.fromCharCode.apply(null, buf.subarray(i, i + chunk) as unknown as number[]));
+  }
+  return btoa(parts.join(""));
+}
+
+async function appendFile(content: any[], url: string, fileType: string, base: string, total: { bytes: number }) {
   const isPdf = (fileType || "").includes("pdf") || url.toLowerCase().endsWith(".pdf");
   const isImage = (fileType || "").startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp)$/i.test(url);
   if (isImage && !isPdf) {
@@ -67,12 +81,17 @@ async function appendFile(content: any[], url: string, fileType: string, base: s
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch ${base}: ${res.status}`);
   const buf = new Uint8Array(await res.arrayBuffer());
-  let binary = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < buf.length; i += chunk) binary += String.fromCharCode(...buf.subarray(i, i + chunk));
+  const mb = (buf.length / (1024 * 1024)).toFixed(1);
+  if (buf.length > MAX_FILE_BYTES) {
+    throw new Error(`${base} is ${mb} MB — too large to analyze in one pass. Split that PDF into smaller sections (or export key sheets separately) and upload them as individual files.`);
+  }
+  if (total.bytes + buf.length > MAX_TOTAL_BYTES) {
+    throw new Error(`The plan set is too large in total (over ${Math.round(MAX_TOTAL_BYTES / (1024 * 1024))} MB). Split the set into parts — for example architectural, structural, and MEP — and build the estimate from the key sheets, or upload fewer files at a time.`);
+  }
+  total.bytes += buf.length;
   content.push({
     type: "file",
-    file: { filename: `${base}.pdf`, file_data: `data:${isPdf ? "application/pdf" : fileType || "application/pdf"};base64,${btoa(binary)}` },
+    file: { filename: `${base}.pdf`, file_data: `data:${isPdf ? "application/pdf" : fileType || "application/pdf"};base64,${toBase64(buf)}` },
   });
 }
 
