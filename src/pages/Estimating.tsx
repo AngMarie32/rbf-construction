@@ -101,12 +101,59 @@ export default function Estimating() {
       );
 
       setStage('Reading the drawings and building the baseline… this can take a few minutes.');
-      const { data, error } = await supabase.functions.invoke('generate-estimate', {
-        body: { files: uploaded, projectName: name, location, areaSf: Number(areaSf) || 0, notes },
-      });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      const result = data as any;
+      const { data: session } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-estimate`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string,
+            Authorization: `Bearer ${session?.session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            files: uploaded,
+            projectName: name,
+            location,
+            areaSf: Number(areaSf) || 0,
+            notes,
+          }),
+        }
+      );
+      if (!res.ok || !res.body) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(detail || `The estimating service returned ${res.status}.`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      let result: any = null;
+      let failure: string | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const frames = buf.split('\n\n');
+        buf = frames.pop() ?? '';
+        for (const frame of frames) {
+          const dataLine = frame.split('\n').find((l) => l.startsWith('data:'));
+          if (!dataLine) continue;
+          let payload: any;
+          try {
+            payload = JSON.parse(dataLine.slice(5).trim());
+          } catch {
+            continue;
+          }
+          if (frame.includes('event: result')) result = payload;
+          else if (frame.includes('event: error')) failure = payload?.error || 'Estimate generation failed.';
+          else if (payload?.message) setStage(`${payload.message}…`);
+        }
+      }
+
+      if (failure) throw new Error(failure);
+      if (!result) throw new Error('The estimate did not finish. Try again with a smaller plan set.');
 
       setStage('Saving the estimate…');
       const { data: est, error: estErr } = await supabase
