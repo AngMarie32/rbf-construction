@@ -514,7 +514,7 @@ export function FleetCostReport({ equipment, repairs }: Props) {
                   s.setMonth(s.getMonth() - 12);
                   set({
                     startDate: options.startDate || s.toISOString().slice(0, 10),
-                    endDate: options.endDate || new Date().toISOString().slice(0, 10),
+                    endDate: options.endDate || localDateISO(),
                   });
                 } else {
                   set({ months: Number(v), startDate: undefined, endDate: undefined });
