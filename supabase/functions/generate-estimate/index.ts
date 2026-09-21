@@ -207,15 +207,14 @@ ${notes ? `Estimator notes / context: ${notes}` : ""}
 Price with current ${new Date().getFullYear()} local/regional commercial construction costs for this location.`;
 
         const content: any[] = [{ type: "text", text: intro }];
+        const total = { bytes: 0 };
         for (let i = 0; i < files.length; i++) {
           const f = files[i];
           const url = typeof f === "string" ? f : f?.url;
           if (!url) continue;
-          content.push({
-            type: "text",
-            text: `Document ${i + 1}: ${(typeof f === "string" ? "" : f?.name) || `plan_${i + 1}`}`,
-          });
-          await appendFile(content, url, typeof f === "string" ? "" : f?.fileType || "", `plan_${i + 1}`);
+          const base = (typeof f === "string" ? "" : f?.name) || `plan_${i + 1}`;
+          content.push({ type: "text", text: `Document ${i + 1}: ${base}` });
+          await appendFile(content, url, typeof f === "string" ? "" : f?.fileType || "", base, total);
         }
 
         send("status", { message: "Performing takeoff and building the baseline" });
