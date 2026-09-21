@@ -82,7 +82,7 @@ const hours = (n: number) => Number(n || 0).toFixed(2);
 const emptyEntry = {
   project_id: '',
   employee_id: '',
-  work_date: new Date().toISOString().slice(0, 10),
+  work_date: localDateISO(),
   cost_code_id: '',
   regular_hours: '',
   overtime_hours: '',

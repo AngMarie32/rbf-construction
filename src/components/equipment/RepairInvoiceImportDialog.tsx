@@ -203,7 +203,7 @@ export function RepairInvoiceImportDialog({ open, onOpenChange, equipment, onImp
           include: true,
           equipment_id: equipment.some((e) => e.id === it.equipment_id) ? it.equipment_id : '',
           equipment_guess: it.equipment_guess || '',
-          date: it.date || (data as any)?.invoice_date || new Date().toISOString().slice(0, 10),
+          date: it.date || (data as any)?.invoice_date || localDateISO(),
           description: it.description || '',
           category: CATEGORIES.includes(it.category) ? it.category : 'Other',
           cost: Number(it.cost || 0).toFixed(3),

@@ -51,7 +51,7 @@ const money = (n: number) =>
     maximumFractionDigits: 2,
   });
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDateISO();
 
 function isoDaysAgo(days: number) {
   const d = new Date();
