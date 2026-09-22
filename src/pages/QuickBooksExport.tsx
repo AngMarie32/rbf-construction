@@ -29,7 +29,7 @@ const money = (n: number) =>
     maximumFractionDigits: 2,
   });
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
+const iso = (d: Date) => localDateISO(d);
 
 type Bucket = 'expenses' | 'repairs' | 'invoices' | 'loanPayments';
 

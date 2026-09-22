@@ -513,7 +513,7 @@ export function FleetCostReport({ equipment, repairs }: Props) {
                   const s = new Date();
                   s.setMonth(s.getMonth() - 12);
                   set({
-                    startDate: options.startDate || s.toISOString().slice(0, 10),
+                    startDate: options.startDate || localDateISO(s),
                     endDate: options.endDate || localDateISO(),
                   });
                 } else {

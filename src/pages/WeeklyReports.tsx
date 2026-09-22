@@ -318,7 +318,7 @@ export default function WeeklyReports() {
                 <Label>Send date & time</Label>
                 <Input
                   type="datetime-local"
-                  value={form.run_at ? new Date(form.run_at).toISOString().slice(0, 16) : ''}
+                  value={form.run_at ? localDateTimeInputValue(form.run_at) : ''}
                   onChange={(e) => setForm({ ...form, run_at: e.target.value ? new Date(e.target.value).toISOString() : null })}
                 />
               </div>

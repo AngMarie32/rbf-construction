@@ -56,13 +56,13 @@ const today = () => localDateISO();
 function isoDaysAgo(days: number) {
   const d = new Date();
   d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
+  return localDateISO(d);
 }
 
 function addDays(iso: string, days: number) {
   const d = new Date(`${iso}T00:00:00`);
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return localDateISO(d);
 }
 
 function daysBetween(a: string, b: string) {
