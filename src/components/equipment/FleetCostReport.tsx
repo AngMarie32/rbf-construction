@@ -1,3 +1,4 @@
+import { localDateISO } from '@/utils/dates';
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -513,7 +514,7 @@ export function FleetCostReport({ equipment, repairs }: Props) {
                   const s = new Date();
                   s.setMonth(s.getMonth() - 12);
                   set({
-                    startDate: options.startDate || s.toISOString().slice(0, 10),
+                    startDate: options.startDate || localDateISO(s),
                     endDate: options.endDate || localDateISO(),
                   });
                 } else {

@@ -1,3 +1,4 @@
+import { localDateISO } from '@/utils/dates';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -70,7 +71,7 @@ export function EnhancedExportDialog({
         dateFormat: reportOptions.dateFormat
       });
       
-      doc.save(`${title.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
+      doc.save(`${title.replace(/\s+/g, '_')}_${localDateISO()}.pdf`);
       toast.success('PDF report generated successfully');
       onOpenChange(false);
     } catch (error) {
@@ -97,7 +98,7 @@ export function EnhancedExportDialog({
       });
       
       const XLSX = await import('xlsx');
-      XLSX.writeFile(workbook, `${title.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      XLSX.writeFile(workbook, `${title.replace(/\s+/g, '_')}_${localDateISO()}.xlsx`);
       toast.success('Excel report generated successfully');
       onOpenChange(false);
     } catch (error) {

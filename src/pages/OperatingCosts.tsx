@@ -1,3 +1,4 @@
+import { localDateISO } from '@/utils/dates';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { supabase } from '@/integrations/supabase/client';
@@ -99,7 +100,7 @@ export default function OperatingCosts() {
     setLoading(true);
 
     const days = Number(lookback);
-    const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    const since = localDateISO(new Date(Date.now() - days * 86400000));
 
     const [{ data: overhead }, { data: projects }] = await Promise.all([
       supabase.from('overhead_items').select('*').in('company_id', selectedIds).order('name'),

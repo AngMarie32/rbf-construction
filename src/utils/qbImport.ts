@@ -1,3 +1,4 @@
+import { localDateISO } from '@/utils/dates';
 import * as XLSX from 'xlsx';
 import { CSI_COST_CODES } from '@/data/csiCostCodes';
 
@@ -77,17 +78,17 @@ function parseAmount(value: any): number {
 function parseDate(value: any): string | null {
   if (value == null || value === '') return null;
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toISOString().slice(0, 10);
+    return localDateISO(value);
   }
   if (typeof value === 'number') {
     const parsed = XLSX.SSF?.parse_date_code?.(value);
     if (parsed) {
       const d = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d));
-      return d.toISOString().slice(0, 10);
+      return localDateISO(d);
     }
   }
   const d = new Date(String(value));
-  if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  if (!Number.isNaN(d.getTime())) return localDateISO(d);
   return null;
 }
 
