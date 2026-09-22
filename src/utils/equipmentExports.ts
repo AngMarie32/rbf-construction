@@ -1,3 +1,4 @@
+import { localDateISO } from '@/utils/dates';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
 import type { Equipment } from '@/types/equipment';
