@@ -207,6 +207,10 @@ export default function EstimateDashboard() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => setSovOpen(true)}>
+                <ListChecks className="mr-2 h-4 w-4" />
+                Send to schedule of values
+              </Button>
               <Button variant="outline" size="sm" onClick={() => download(estimateCsv(lines), `${est.name}.csv`, 'text/csv')}>
                 <Download className="mr-2 h-4 w-4" />
                 Export CSV
