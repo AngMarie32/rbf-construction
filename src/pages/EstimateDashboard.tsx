@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Download, RotateCcw, Plus, Trash2 } from 'lucide-react';
+import { Download, RotateCcw, Plus, Trash2, ListChecks } from 'lucide-react';
+import { SendToSovDialog } from '@/components/estimating/SendToSovDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
@@ -88,6 +89,7 @@ export default function EstimateDashboard() {
   const [flags, setFlags] = useState<Flag[]>([]);
   const [bids, setBids] = useState<BidRow[]>([]);
   const [newBid, setNewBid] = useState({ trade: '', company_name: '', raw_amount: '' });
+  const [sovOpen, setSovOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
