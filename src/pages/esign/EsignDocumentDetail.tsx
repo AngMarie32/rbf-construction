@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit, Ban, CalendarClock, BellRing, Users, PenLine, UsersRound, Zap, Workflow } from 'lucide-react';
+import { Send, Plus, Trash2, ArrowLeft, Copy, Download, Save, RefreshCw, FileEdit, Ban, CalendarClock, BellRing, Users, PenLine, UsersRound, Zap, Workflow, Pencil } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -60,6 +60,11 @@ export default function EsignDocumentDetail() {
   const [wfGc, setWfGc] = useState({ name: '', email: '' });
   const [myPrefs, setMyPrefs] = useState<{ full_name: string | null; signature_data: string | null; signature_type: 'drawn' | 'typed' | null } | null>(null);
   const [signingAsMe, setSigningAsMe] = useState<string | null>(null);
+  const [editSigner, setEditSigner] = useState<any | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editResend, setEditResend] = useState(true);
+  const [editSaving, setEditSaving] = useState(false);
 
   // Load saved signature for the current user
   useEffect(() => {
@@ -166,6 +171,34 @@ export default function EsignDocumentDetail() {
   };
 
   // One-click "Sign as me now" using the user's saved signature.
+  const saveSignerEdit = async () => {
+    if (!editSigner) return;
+    const newEmail = editEmail.trim();
+    const newName = editName.trim();
+    if (!newName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) return toast.error('Enter a name and a valid email');
+    const emailChanged = newEmail.toLowerCase() !== editSigner.email.toLowerCase();
+    setEditSaving(true);
+    const patch: any = { name: newName, email: newEmail };
+    // New address gets a fresh link so the old email's link stops working
+    if (emailChanged) patch.access_token = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '');
+    const { error } = await supabase.from('esign_signers').update(patch).eq('id', editSigner.id);
+    if (error) { setEditSaving(false); return toast.error(error.message); }
+    if (emailChanged) {
+      await supabase.from('esign_audit_events').insert({
+        envelope_id: envelope.id, signer_id: editSigner.id, event_type: 'signer_email_changed',
+        actor_email: user?.email ?? null,
+        metadata: { from: editSigner.email, to: newEmail },
+      } as any);
+    }
+    await qc.invalidateQueries();
+    if (editResend) {
+      resend.mutate({ envelopeId: envelope.id, signerId: editSigner.id });
+    }
+    setEditSaving(false);
+    setEditSigner(null);
+    toast.success(emailChanged ? 'Signer email updated — old link no longer works' : 'Signer updated');
+  };
+
   const signAsMeNow = async (signer: any) => {
     if (!myPrefs?.signature_data) {
       toast.error('Save a signature first under My Signature');
@@ -437,6 +470,17 @@ export default function EsignDocumentDetail() {
                             <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyLink(s.access_token)} title="Copy link">
                               <Copy className="h-3 w-3" />
                             </Button>
+                            {s.status !== 'signed' && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => { setEditSigner(s); setEditName(s.name); setEditEmail(s.email); setEditResend(s.status !== 'pending'); }}
+                                title="Change name or email"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                            )}
                             {s.status !== 'signed' && (
                               <Button
                                 size="icon"
@@ -718,6 +762,27 @@ export default function EsignDocumentDetail() {
             >
               {bulkSend.isPending ? 'Sending…' : 'Send to all'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editSigner} onOpenChange={(o) => !o && setEditSigner(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change signer</DialogTitle>
+            <DialogDescription>Changing the email creates a new signing link; the link in the earlier email stops working.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1"><Label>Name</Label><Input value={editName} onChange={(e) => setEditName(e.target.value)} /></div>
+            <div className="space-y-1"><Label>Email</Label><Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} /></div>
+            <div className="flex items-center justify-between">
+              <Label>Send the invitation to this address now</Label>
+              <Switch checked={editResend} onCheckedChange={setEditResend} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditSigner(null)}>Cancel</Button>
+            <Button onClick={saveSignerEdit} disabled={editSaving}>{editSaving ? 'Saving…' : 'Save'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
