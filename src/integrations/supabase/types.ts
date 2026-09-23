@@ -2594,6 +2594,8 @@ export type Database = {
           project_id: string | null
           scope_summary: string | null
           source_files: Json
+          sov_project_id: string | null
+          sov_synced_at: string | null
           status: string
           updated_at: string
         }
@@ -2614,6 +2616,8 @@ export type Database = {
           project_id?: string | null
           scope_summary?: string | null
           source_files?: Json
+          sov_project_id?: string | null
+          sov_synced_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -2634,6 +2638,8 @@ export type Database = {
           project_id?: string | null
           scope_summary?: string | null
           source_files?: Json
+          sov_project_id?: string | null
+          sov_synced_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -2648,6 +2654,13 @@ export type Database = {
           {
             foreignKeyName: "estimates_project_id_fkey"
             columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimates_sov_project_id_fkey"
+            columns: ["sov_project_id"]
             isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
@@ -4282,6 +4295,8 @@ export type Database = {
           project_id: string
           retainage_percentage: number | null
           scheduled_value: number
+          source_estimate_id: string | null
+          source_estimate_line_id: string | null
           subcategory: string | null
           this_period: number | null
           total_completed_and_stored: number | null
@@ -4302,6 +4317,8 @@ export type Database = {
           project_id: string
           retainage_percentage?: number | null
           scheduled_value?: number
+          source_estimate_id?: string | null
+          source_estimate_line_id?: string | null
           subcategory?: string | null
           this_period?: number | null
           total_completed_and_stored?: number | null
@@ -4322,6 +4339,8 @@ export type Database = {
           project_id?: string
           retainage_percentage?: number | null
           scheduled_value?: number
+          source_estimate_id?: string | null
+          source_estimate_line_id?: string | null
           subcategory?: string | null
           this_period?: number | null
           total_completed_and_stored?: number | null
@@ -4334,6 +4353,20 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sov_items_source_estimate_id_fkey"
+            columns: ["source_estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sov_items_source_estimate_line_id_fkey"
+            columns: ["source_estimate_line_id"]
+            isOneToOne: false
+            referencedRelation: "estimate_lines"
             referencedColumns: ["id"]
           },
         ]

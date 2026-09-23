@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Download, RotateCcw, Plus, Trash2 } from 'lucide-react';
+import { Download, RotateCcw, Plus, Trash2, ListChecks } from 'lucide-react';
+import { SendToSovDialog } from '@/components/estimating/SendToSovDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
@@ -28,6 +29,8 @@ import {
 interface EstimateRecord {
   id: string;
   name: string;
+  project_id: string | null;
+  sov_project_id: string | null;
   location: string | null;
   area_sf: number;
   scope_summary: string | null;
@@ -88,6 +91,7 @@ export default function EstimateDashboard() {
   const [flags, setFlags] = useState<Flag[]>([]);
   const [bids, setBids] = useState<BidRow[]>([]);
   const [newBid, setNewBid] = useState({ trade: '', company_name: '', raw_amount: '' });
+  const [sovOpen, setSovOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -207,6 +211,10 @@ export default function EstimateDashboard() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => setSovOpen(true)}>
+                <ListChecks className="mr-2 h-4 w-4" />
+                Send to schedule of values
+              </Button>
               <Button variant="outline" size="sm" onClick={() => download(estimateCsv(lines), `${est.name}.csv`, 'text/csv')}>
                 <Download className="mr-2 h-4 w-4" />
                 Export CSV
@@ -578,6 +586,17 @@ export default function EstimateDashboard() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <SendToSovDialog
+          open={sovOpen}
+          onOpenChange={setSovOpen}
+          estimateId={est.id}
+          estimateName={est.name}
+          lines={lines}
+          settings={settings}
+          areaSf={est.area_sf ?? 0}
+          defaultProjectId={est.project_id ?? est.sov_project_id ?? null}
+        />
       </div>
     </Layout>
   );
