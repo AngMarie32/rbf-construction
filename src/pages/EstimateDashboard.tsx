@@ -29,6 +29,8 @@ import {
 interface EstimateRecord {
   id: string;
   name: string;
+  project_id: string | null;
+  sov_project_id: string | null;
   location: string | null;
   area_sf: number;
   scope_summary: string | null;
@@ -584,6 +586,17 @@ export default function EstimateDashboard() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <SendToSovDialog
+          open={sovOpen}
+          onOpenChange={setSovOpen}
+          estimateId={est.id}
+          estimateName={est.name}
+          lines={lines}
+          settings={settings}
+          areaSf={est.area_sf ?? 0}
+          defaultProjectId={est.project_id ?? est.sov_project_id ?? null}
+        />
       </div>
     </Layout>
   );
