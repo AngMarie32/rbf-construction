@@ -100,11 +100,26 @@ export default function Estimating() {
         })
       );
 
-      setStage('Reading the drawings and building the baseline… this can take a few minutes.');
+      // Split the plan set into parts that each fit comfortably in one analysis pass
+      const PART_LIMIT = 10 * 1024 * 1024;
+      const parts: { file: File; up: typeof uploaded[number] }[][] = [];
+      let cur: { file: File; up: typeof uploaded[number] }[] = [];
+      let curBytes = 0;
+      files.forEach((f, i) => {
+        if (cur.length && curBytes + f.size > PART_LIMIT) { parts.push(cur); cur = []; curBytes = 0; }
+        cur.push({ file: f, up: uploaded[i] });
+        curBytes += f.size;
+      });
+      if (cur.length) parts.push(cur);
+
       const { data: session } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-estimate`,
-        {
+      const runPart = async (part: typeof parts[number], idx: number) => {
+        const label = parts.length > 1 ? `Part ${idx + 1} of ${parts.length}: ` : '';
+        setStage(`${label}Reading the drawings and building the baseline… this can take a few minutes.`);
+        const partNote = parts.length > 1
+          ? `\n\nThis is part ${idx + 1} of ${parts.length} of the plan set (files in this part: ${part.map((p) => p.file.name).join(', ')}; other parts: ${parts.filter((_, j) => j !== idx).flat().map((p) => p.file.name).join(', ')}). Estimate the scope shown in these sheets. Do not duplicate scope that is clearly documented in the other parts; project-wide items (general conditions, contingency settings) belong only to part 1.`
+          : '';
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-estimate`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -112,48 +127,61 @@ export default function Estimating() {
             Authorization: `Bearer ${session?.session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
-            files: uploaded,
+            files: part.map((p) => p.up),
             projectName: name,
             location,
             areaSf: Number(areaSf) || 0,
-            notes,
+            notes: (notes || '') + partNote,
           }),
+        });
+        if (!res.ok || !res.body) {
+          const detail = await res.text().catch(() => '');
+          throw new Error(detail || `The estimating service returned ${res.status}.`);
         }
-      );
-      if (!res.ok || !res.body) {
-        const detail = await res.text().catch(() => '');
-        throw new Error(detail || `The estimating service returned ${res.status}.`);
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
-      let result: any = null;
-      let failure: string | null = null;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const frames = buf.split('\n\n');
-        buf = frames.pop() ?? '';
-        for (const frame of frames) {
-          const dataLine = frame.split('\n').find((l) => l.startsWith('data:'));
-          if (!dataLine) continue;
-          let payload: any;
-          try {
-            payload = JSON.parse(dataLine.slice(5).trim());
-          } catch {
-            continue;
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        let out: any = null;
+        let failure: string | null = null;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const frames = buf.split('\n\n');
+          buf = frames.pop() ?? '';
+          for (const frame of frames) {
+            const dataLine = frame.split('\n').find((l) => l.startsWith('data:'));
+            if (!dataLine) continue;
+            let payload: any;
+            try { payload = JSON.parse(dataLine.slice(5).trim()); } catch { continue; }
+            if (frame.includes('event: result')) out = payload;
+            else if (frame.includes('event: error')) failure = payload?.error || 'Estimate generation failed.';
+            else if (payload?.message) setStage(`${label}${payload.message}…`);
           }
-          if (frame.includes('event: result')) result = payload;
-          else if (frame.includes('event: error')) failure = payload?.error || 'Estimate generation failed.';
-          else if (payload?.message) setStage(`${payload.message}…`);
         }
-      }
+        if (failure) throw new Error(parts.length > 1 ? `${label}${failure}` : failure);
+        if (!out) throw new Error(`${label}The estimate did not finish. Try again with smaller files.`);
+        return out;
+      };
 
-      if (failure) throw new Error(failure);
-      if (!result) throw new Error('The estimate did not finish. Try again with a smaller plan set.');
+      const results: any[] = [];
+      for (let i = 0; i < parts.length; i++) results.push(await runPart(parts[i], i));
+
+      // Merge parts: same cost line in the same group is kept once (larger amount wins, never summed)
+      const merged = new Map<string, any>();
+      results.flatMap((r) => r.lines || []).forEach((l: any) => {
+        const key = `${l.group_key}|${String(l.name).trim().toLowerCase()}`;
+        const prev = merged.get(key);
+        if (!prev || Number(l.baseline_amount) > Number(prev.baseline_amount)) merged.set(key, l);
+      });
+      const result = {
+        project: results[0].project,
+        settings: results[0].settings,
+        scope_summary: results.map((r) => r.scope_summary).filter(Boolean).join('\n\n'),
+        assumptions: Array.from(new Set(results.flatMap((r) => r.assumptions || []))),
+        flags: results.flatMap((r) => r.flags || []),
+        lines: Array.from(merged.values()).map((l, i) => ({ ...l, sort_order: i })),
+      };
 
       setStage('Saving the estimate…');
       const { data: est, error: estErr } = await supabase
