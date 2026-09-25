@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calculator, FileText, Settings } from 'lucide-react';
 import { Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,13 +19,17 @@ interface TabbedBidInterfaceProps {
   bidItems: any[];
   onItemsChange: (items: any[]) => void;
   onExportReport: () => void;
+  projects?: { id: string; name: string }[];
+  onProjectChange?: (projectId: string) => void;
 }
 
 export function TabbedBidInterface({ 
   projectId, 
   bidItems, 
   onItemsChange, 
-  onExportReport 
+  onExportReport,
+  projects = [],
+  onProjectChange
 }: TabbedBidInterfaceProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [showCreateView, setShowCreateView] = useState(false);
@@ -147,7 +152,7 @@ export function TabbedBidInterface({
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center gap-4 flex-wrap">
           <TabsList className="grid grid-cols-4 w-full max-w-2xl">
             <TabsTrigger value="create" className="flex items-center gap-2">
               <Calculator className="w-4 h-4" />
@@ -166,6 +171,18 @@ export function TabbedBidInterface({
               Settings
             </TabsTrigger>
           </TabsList>
+          {onProjectChange && projects.length > 0 && (
+            <Select value={projectId} onValueChange={onProjectChange}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="Change project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         <TabsContent value="create">

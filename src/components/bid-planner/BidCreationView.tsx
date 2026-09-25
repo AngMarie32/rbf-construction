@@ -61,8 +61,14 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     }
   ]);
 
-  // Load existing bid items for this project on component mount
+  // Load existing bid items for this project on component mount or project change
   useEffect(() => {
+    // Cancel any pending auto-save so items from the previous project
+    // are never written to the newly selected project
+    if (autoSaveTimeout) {
+      clearTimeout(autoSaveTimeout);
+      setAutoSaveTimeout(null);
+    }
     if (projectId) {
       loadExistingBidItems();
     }
