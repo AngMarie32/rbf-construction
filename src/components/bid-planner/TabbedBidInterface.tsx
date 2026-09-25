@@ -35,6 +35,41 @@ export function TabbedBidInterface({
   const [showCreateView, setShowCreateView] = useState(false);
   const [activeTab, setActiveTab] = useState('create');
   const navigate = useNavigate();
+  const [copying, setCopying] = useState(false);
+
+  const handleCopyToProject = async (targetId: string) => {
+    if (!targetId || targetId === projectId) return;
+    const target = projects.find((p) => p.id === targetId);
+    setCopying(true);
+    try {
+      const { data: source, error } = await supabase
+        .from('bid_items')
+        .select('category, subcategory, description, division, quantity, unit, unit_cost, template_id')
+        .eq('project_id', projectId);
+      if (error) throw error;
+      if (!source || source.length === 0) {
+        toast.error('This project has no bid items to copy');
+        return;
+      }
+      const { count } = await supabase
+        .from('bid_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('project_id', targetId);
+      if ((count ?? 0) > 0 && !window.confirm(`${target?.name ?? 'That project'} already has ${count} bid items. Add these ${source.length} items to it anyway?`)) {
+        return;
+      }
+      const { error: insErr } = await supabase
+        .from('bid_items')
+        .insert(source.map((s) => ({ ...s, project_id: targetId })));
+      if (insErr) throw insErr;
+      toast.success(`Copied ${source.length} items to ${target?.name ?? 'project'}`);
+      onProjectChange?.(targetId);
+    } catch (e: any) {
+      toast.error(`Copy failed: ${e.message ?? e}`);
+    } finally {
+      setCopying(false);
+    }
+  };
 
   const handleTemplateSelected = async (template: any) => {
     try {
@@ -178,6 +213,18 @@ export function TabbedBidInterface({
               </SelectTrigger>
               <SelectContent>
                 {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {onProjectChange && projects.length > 1 && (
+            <Select value="" onValueChange={handleCopyToProject} disabled={copying}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder={copying ? 'Copying…' : 'Copy this bid to project…'} />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.filter((p) => p.id !== projectId).map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
               </SelectContent>
