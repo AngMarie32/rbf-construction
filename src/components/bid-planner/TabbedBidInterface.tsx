@@ -18,13 +18,17 @@ interface TabbedBidInterfaceProps {
   bidItems: any[];
   onItemsChange: (items: any[]) => void;
   onExportReport: () => void;
+  projects?: { id: string; name: string }[];
+  onProjectChange?: (projectId: string) => void;
 }
 
 export function TabbedBidInterface({ 
   projectId, 
   bidItems, 
   onItemsChange, 
-  onExportReport 
+  onExportReport,
+  projects = [],
+  onProjectChange
 }: TabbedBidInterfaceProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [showCreateView, setShowCreateView] = useState(false);
@@ -147,7 +151,7 @@ export function TabbedBidInterface({
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center gap-4 flex-wrap">
           <TabsList className="grid grid-cols-4 w-full max-w-2xl">
             <TabsTrigger value="create" className="flex items-center gap-2">
               <Calculator className="w-4 h-4" />
