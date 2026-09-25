@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calculator, FileText, Settings } from 'lucide-react';
 import { Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -170,6 +171,18 @@ export function TabbedBidInterface({
               Settings
             </TabsTrigger>
           </TabsList>
+          {onProjectChange && projects.length > 0 && (
+            <Select value={projectId} onValueChange={onProjectChange}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="Change project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         <TabsContent value="create">

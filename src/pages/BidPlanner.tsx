@@ -171,10 +171,13 @@ export default function BidPlanner() {
 
         {selectedProject ? (
           <TabbedBidInterface
+            key={selectedProject}
             projectId={selectedProject}
             bidItems={bidItems}
             onItemsChange={setBidItems}
             onExportReport={handleExportReport}
+            projects={projects}
+            onProjectChange={handleProjectSelect}
           />
         ) : (
           <Card className="border-2 border-dashed border-gray-200">
