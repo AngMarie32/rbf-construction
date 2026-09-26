@@ -17,7 +17,7 @@ export default function Projects() {
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('open');
   const [fieldLeaderFilter, setFieldLeaderFilter] = useState<string>('all');
   const [showReports, setShowReports] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -126,7 +126,9 @@ export default function Projects() {
       );
     }
 
-    if (statusFilter !== 'all') {
+    if (statusFilter === 'open') {
+      filtered = filtered.filter(project => project.status !== 'Completed' && project.status !== 'Closed');
+    } else if (statusFilter !== 'all') {
       filtered = filtered.filter(project => project.status === statusFilter);
     }
 
@@ -306,6 +308,7 @@ export default function Projects() {
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="open">Open Projects</SelectItem>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Planning">Planning</SelectItem>
                 <SelectItem value="Active">Active</SelectItem>
