@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { Layout } from '@/components/layout/Layout';
 import { useEnvelopes, useDocumentTypes, useResendInvitation, useArchiveEnvelope } from '@/hooks/useEsign';
 import { Card } from '@/components/ui/card';
@@ -56,8 +57,8 @@ export default function EsignDashboard() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('projects').select('id, name').is('archived_at', null).order('name');
-      setProjects(data || []);
+      const { data } = await supabase.from('projects').select('id, name, status').is('archived_at', null).order('name');
+      setProjects(sortProjectsOpenFirst(data || []));
     })();
   }, []);
 

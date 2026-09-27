@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,7 +40,7 @@ export function ProjectSelector({
       
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name')
+        .select('id, name, status')
         .order('name');
 
       if (error) {
@@ -48,7 +49,7 @@ export function ProjectSelector({
       }
       
       console.log('Projects loaded for selector:', data?.length || 0);
-      setProjects(data || []);
+      setProjects(sortProjectsOpenFirst(data || []));
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');

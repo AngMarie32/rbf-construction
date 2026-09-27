@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -71,11 +72,11 @@ export default function PaymentApplications() {
         .order('name');
 
       if (error) throw error;
-      setProjects(data || []);
+      setProjects(sortProjectsOpenFirst(data || []));
       
       // Select first project by default
       if (data && data.length > 0) {
-        setSelectedProject(data[0].id);
+        setSelectedProject(sortProjectsOpenFirst(data)[0].id);
       }
     } catch (error) {
       console.error('Error fetching projects:', error);

@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -57,9 +58,9 @@ export function SendToSovDialog({
     if (!open) return;
     supabase
       .from('projects')
-      .select('id, name')
+      .select('id, name, status')
       .order('name')
-      .then(({ data }) => setProjects(data || []));
+      .then(({ data }) => setProjects(sortProjectsOpenFirst(data || [])));
   }, [open]);
 
   useEffect(() => {

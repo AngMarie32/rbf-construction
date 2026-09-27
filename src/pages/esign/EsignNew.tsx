@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { Layout } from '@/components/layout/Layout';
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -41,8 +42,8 @@ export default function EsignNew() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('projects').select('id, name').is('archived_at', null).order('name');
-      setProjects(data || []);
+      const { data } = await supabase.from('projects').select('id, name, status').is('archived_at', null).order('name');
+      setProjects(sortProjectsOpenFirst(data || []));
     })();
   }, []);
 

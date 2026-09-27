@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -92,11 +93,11 @@ export default function ScheduleOfValues() {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, client')
+        .select('id, name, client, status')
         .order('name');
 
       if (error) throw error;
-      setProjects(data || []);
+      setProjects(sortProjectsOpenFirst(data || []));
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');

@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
@@ -27,11 +28,11 @@ export default function Permits() {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name')
+        .select('id, name, status')
         .order('name');
 
       if (error) throw error;
-      setProjects(data || []);
+      setProjects(sortProjectsOpenFirst(data || []));
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');
