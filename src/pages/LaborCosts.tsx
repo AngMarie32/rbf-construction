@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { localDateISO } from '@/utils/dates';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
@@ -119,10 +120,10 @@ export default function LaborCosts() {
     const [empRes, rateRes, projRes, codeRes] = await Promise.all([
       supabase.from('employees').select('*').eq('is_active', true).order('name'),
       supabase.from('trade_rates').select('*').eq('is_active', true).order('trade'),
-      supabase.from('projects').select('id, name, company_id').is('archived_at', null).order('name'),
+      supabase.from('projects').select('id, name, company_id, status').is('archived_at', null).order('name'),
       supabase.from('cost_codes').select('id, code, name, company_id').eq('is_active', true).order('code'),
     ]);
-    const projectList = scoped(projRes.data) as ProjectRef[];
+    const projectList = sortProjectsOpenFirst(scoped(projRes.data) as ProjectRef[]);
     setEmployees(scoped(empRes.data) as Employee[]);
     setTradeRates(scoped(rateRes.data) as TradeRate[]);
     setProjects(projectList);

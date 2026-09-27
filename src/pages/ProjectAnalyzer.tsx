@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,12 +43,12 @@ export default function ProjectAnalyzer() {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name')
+        .select('id, name, status')
         .is('archived_at', null)
         .order('name');
 
       if (error) throw error;
-      setProjects(data || []);
+      setProjects(sortProjectsOpenFirst(data || []));
     } catch (error) {
       console.error('Error fetching projects:', error);
     }

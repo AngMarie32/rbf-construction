@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -79,11 +80,11 @@ export function EditBillingDialog({ billing, open, onOpenChange, onBillingUpdate
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name')
+        .select('id, name, status')
         .order('name');
 
       if (error) throw error;
-      setProjects(data || []);
+      setProjects(sortProjectsOpenFirst(data || []));
     } catch (error) {
       console.error('Error fetching projects:', error);
     }

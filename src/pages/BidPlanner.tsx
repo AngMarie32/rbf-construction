@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
@@ -55,7 +56,7 @@ export default function BidPlanner() {
       }
       
       console.log('Projects loaded for bid planner:', data?.length || 0);
-      setProjects(data || []);
+      setProjects(sortProjectsOpenFirst(data || []));
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');

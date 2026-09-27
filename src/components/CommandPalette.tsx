@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
@@ -61,9 +62,9 @@ export function CommandPalette() {
     if (!open || projects.length > 0) return;
     supabase
       .from('projects')
-      .select('id, name')
+      .select('id, name, status')
       .order('name')
-      .then(({ data }) => setProjects(data || []));
+      .then(({ data }) => setProjects(sortProjectsOpenFirst(data || [])));
   }, [open, projects.length]);
 
   const run = (fn: () => void) => {

@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { localDateISO } from '@/utils/dates';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
@@ -88,7 +89,7 @@ export default function CostImport() {
 
   const loadReference = useCallback(async () => {
     const [projRes, codeRes, ruleRes, batchRes, empRes] = await Promise.all([
-      supabase.from('projects').select('id, name, project_code, client, company_id').is('archived_at', null).order('name'),
+      supabase.from('projects').select('id, name, project_code, client, company_id, status').is('archived_at', null).order('name'),
       supabase.from('cost_codes').select('id, code, name, division, company_id').eq('is_active', true).order('code'),
       supabase.from('qb_mapping_rules').select('match_type, match_value, project_id, cost_code_id, category'),
       supabase
@@ -105,7 +106,7 @@ export default function CostImport() {
     const scoped = (list: any[] | null) =>
       (list || []).filter((r) => !r.company_id || selectedIds.length === 0 || selectedIds.includes(r.company_id));
 
-    setProjects(scoped(projRes.data) as ProjectRef[]);
+    setProjects(sortProjectsOpenFirst(scoped(projRes.data) as ProjectRef[]));
     setCostCodes(scoped(codeRes.data) as CostCodeRef[]);
     setRules((ruleRes.data || []) as MatchRule[]);
     setBatches((batchRes.data || []) as BatchRow[]);

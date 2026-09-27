@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,12 +91,12 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name')
+        .select('id, name, status')
         .order('name');
 
       if (error) throw error;
       
-      const projectsData = data || [];
+      const projectsData = sortProjectsOpenFirst(data || []);
       setProjects(projectsData);
       
       // Auto-select first project if none selected

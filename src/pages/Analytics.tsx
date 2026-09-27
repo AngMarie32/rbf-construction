@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -75,7 +76,7 @@ export default function Analytics() {
       ]);
 
       // Set projects data and extract field leaders
-      const projectsData = projects || [];
+      const projectsData = sortProjectsOpenFirst(projects || []);
       setProjects(projectsData);
       fetchFieldLeaders(projectsData);
 
