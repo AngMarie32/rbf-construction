@@ -35,11 +35,8 @@ const navGroups: NavGroup[] = [
     items: [
       { name: 'Cash Flow', href: '/cash-flow' },
       { name: 'Companies', href: '/companies' },
-      { name: 'Cost Import', href: '/cost-import' },
-      { name: 'Loans', href: '/loans' },
       { name: 'Operating Costs', href: '/operating-costs' },
       { name: 'Properties', href: '/properties' },
-      { name: 'QuickBooks Export', href: '/quickbooks-export' },
     ],
   },
   {
@@ -54,8 +51,6 @@ const navGroups: NavGroup[] = [
     label: 'Project Management',
     items: [
       { name: 'Documents', href: '/documents' },
-      { name: 'Equipment', href: '/equipment' },
-      { name: 'Equipment Intelligence', href: '/equipment-insights' },
       { name: 'Payment Applications', href: '/payment-applications' },
       { name: 'Permits', href: '/permits' },
       { name: 'Project Schedule', href: '/project-schedule' },
@@ -64,13 +59,23 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'Equipment',
+    items: [
+      { name: 'Equipment', href: '/equipment' },
+      { name: 'Equipment Intelligence', href: '/equipment-insights' },
+    ],
+  },
+  {
     label: 'Financial',
     items: [
       { name: 'Billing', href: '/billing' },
       { name: 'Burn Analysis', href: '/burn-rate-analysis' },
       { name: 'Change Orders', href: '/change-orders' },
+      { name: 'Cost Import', href: '/cost-import' },
       { name: 'Expenses', href: '/expenses' },
       { name: 'Labor Costs', href: '/labor-costs' },
+      { name: 'Loans', href: '/loans' },
+      { name: 'QuickBooks Export', href: '/quickbooks-export' },
     ],
   },
   {
