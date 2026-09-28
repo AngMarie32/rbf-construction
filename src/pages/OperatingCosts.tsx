@@ -467,16 +467,26 @@ export default function OperatingCosts() {
 
         {showForm && (
           <Card className="p-4 space-y-4">
-            <p className="font-semibold">{form.id ? 'Edit cost' : 'New recurring cost'}</p>
+            <p className="font-semibold">
+              {form.allIn ? 'All-in overhead' : form.id ? 'Edit cost' : 'New recurring cost'}
+            </p>
+            {form.allIn && (
+              <p className="text-sm text-muted-foreground">
+                One total number for all your overhead — no itemized breakdown. It saves as a
+                single recurring cost you can edit later.
+              </p>
+            )}
             <div className="grid md:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <Label>Name</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Office rent"
-                />
-              </div>
+              {!form.allIn && (
+                <div className="space-y-1">
+                  <Label>Name</Label>
+                  <Input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Office rent"
+                  />
+                </div>
+              )}
               <div className="space-y-1">
                 <Label>Company</Label>
                 <Select
