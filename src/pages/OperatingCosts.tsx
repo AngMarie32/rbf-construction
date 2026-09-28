@@ -205,6 +205,7 @@ export default function OperatingCosts() {
       frequency: item.frequency,
       is_active: item.is_active,
       notes: item.notes || '',
+      allIn: false,
     });
     setShowForm(true);
   };
@@ -294,10 +295,16 @@ export default function OperatingCosts() {
               </Label>
             </div>
           </div>
-          <Button onClick={openNew}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add cost
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={openAllIn}>
+              <Plus className="w-4 h-4 mr-2" />
+              All-in overhead
+            </Button>
+            <Button onClick={openNew}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add cost
+            </Button>
+          </div>
         </div>
 
         {loading ? (
