@@ -77,6 +77,7 @@ const emptyForm = {
   frequency: 'monthly' as OverheadFrequency,
   is_active: true,
   notes: '',
+  allIn: false,
 };
 
 export default function OperatingCosts() {
