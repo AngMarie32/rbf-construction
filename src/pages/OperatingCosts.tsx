@@ -184,6 +184,17 @@ export default function OperatingCosts() {
     setShowForm(true);
   };
 
+  const openAllIn = () => {
+    setForm({
+      ...emptyForm,
+      company_id: activeCompanies[0]?.id || companies[0]?.id || '',
+      name: 'All-in overhead',
+      category: 'General',
+      allIn: true,
+    });
+    setShowForm(true);
+  };
+
   const openEdit = (item: OverheadItem) => {
     setForm({
       id: item.id,
