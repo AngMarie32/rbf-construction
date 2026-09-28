@@ -526,7 +526,7 @@ export default function OperatingCosts() {
                 </div>
               )}
               <div className="space-y-1">
-                <Label>Amount</Label>
+                <Label>{form.allIn ? 'Total overhead amount' : 'Amount'}</Label>
                 <Input
                   type="number"
                   step="0.001"
