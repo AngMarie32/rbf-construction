@@ -43,17 +43,22 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: 'Project Management',
+    label: 'Bidding',
     items: [
       { name: 'Bid Estimator', href: '/estimating' },
       { name: 'Bid Planner', href: '/bid-planner' },
+      { name: 'Proposals', href: '/proposals' },
+    ],
+  },
+  {
+    label: 'Project Management',
+    items: [
       { name: 'Documents', href: '/documents' },
       { name: 'Equipment', href: '/equipment' },
       { name: 'Equipment Intelligence', href: '/equipment-insights' },
       { name: 'Payment Applications', href: '/payment-applications' },
       { name: 'Permits', href: '/permits' },
       { name: 'Project Schedule', href: '/project-schedule' },
-      { name: 'Proposals', href: '/proposals' },
       { name: 'Punch List', href: '/punch-list' },
       { name: 'Subcontractors', href: '/subcontractors' },
     ],
