@@ -44,7 +44,7 @@ const compact = (n: number) =>
 export default function CashFlow() {
   const { selectedIds, activeCompanies, loading: companiesLoading } = useCompanies();
   const [loading, setLoading] = useState(true);
-  const [historyMonths, setHistoryMonths] = useState(12);
+  const [historyMonths, setHistoryMonths] = useState(6);
   const [projectMonths, setProjectMonths] = useState(6);
   const [startingCash, setStartingCash] = useState(0);
   const [projectRepairs, setProjectRepairs] = useState(true);
@@ -198,7 +198,7 @@ export default function CashFlow() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[3, 6, 12, 24].map((m) => (
+                  {[3, 6, 12, 24, 36, 48].map((m) => (
                     <SelectItem key={m} value={String(m)}>
                       Last {m} months
                     </SelectItem>
