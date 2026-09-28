@@ -505,24 +505,26 @@ export default function OperatingCosts() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label>Category</Label>
-                <Select
-                  value={form.category}
-                  onValueChange={(v) => setForm({ ...form, category: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!form.allIn && (
+                <div className="space-y-1">
+                  <Label>Category</Label>
+                  <Select
+                    value={form.category}
+                    onValueChange={(v) => setForm({ ...form, category: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-1">
                 <Label>Amount</Label>
                 <Input
