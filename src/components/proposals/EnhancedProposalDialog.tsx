@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 interface ProposalItem {
   id: string;
@@ -51,6 +52,15 @@ export function EnhancedProposalDialog({
     notes: ''
   });
 
+  const [projectId, setProjectId] = useState<string>('none');
+  const [projects, setProjects] = useState<any[]>([]);
+
+  useEffect(() => {
+    supabase.from('projects').select('id, name, status').then(({ data }) => {
+      setProjects(sortProjectsOpenFirst((data as any[]) || []));
+    });
+  }, []);
+
   const [proposalItems, setProposalItems] = useState<ProposalItem[]>([
     { id: '1', description: '', quantity: 1, unit: 'each', unitPrice: 0, total: 0 }
   ]);
@@ -82,6 +92,7 @@ export function EnhancedProposalDialog({
         validDays: proposal.validDays || 30,
         notes: proposal.notes || ''
       });
+      setProjectId(proposal.projectId || 'none');
 
       if (proposal.proposalItems && proposal.proposalItems.length > 0) {
         setProposalItems(proposal.proposalItems.map((item: any, index: number) => ({
@@ -152,14 +163,20 @@ export function EnhancedProposalDialog({
         status: formData.status,
         valid_days: formData.validDays,
         notes: formData.notes,
-        proposal_items: proposalItems
+        proposal_items: proposalItems as any,
+        project_id: projectId === 'none' ? null : projectId,
       };
 
-      const { error } = proposal?.id 
-        ? await supabase.from('proposals').update(proposalData).eq('id', proposal.id)
-        : await supabase.from('proposals').insert(proposalData);
+      const { data: saved, error } = proposal?.id
+        ? await supabase.from('proposals').update(proposalData).eq('id', proposal.id).select('id').single()
+        : await supabase.from('proposals').insert(proposalData).select('id').single();
 
       if (error) throw error;
+
+      if (projectId !== 'none' && saved?.id) {
+        const n = await syncProposalToPayApp(saved.id, projectId, proposalItems);
+        if (n > 0) toast.success(`${n} payment application line(s) synced to the project`);
+      }
 
       toast.success(proposal?.id ? 'Proposal updated successfully' : 'Proposal created successfully');
       setIsOpen(false);
@@ -170,6 +187,50 @@ export function EnhancedProposalDialog({
     } finally {
       setLoading(false);
     }
+  };
+
+  const syncProposalToPayApp = async (proposalId: string, pid: string, items: ProposalItem[]) => {
+    const lines = items.filter(i => i.description.trim() || i.total);
+    const { data: existing, error: exErr } = await supabase
+      .from('sov_items')
+      .select('id, item_number, total_completed_and_stored, project_id')
+      .eq('source_proposal_id' as any, proposalId)
+      .order('item_number');
+    if (exErr) throw exErr;
+    const rows = (existing || []) as any[];
+    // If the proposal moved to a different project, remove untouched lines from the old one
+    const sameProject = rows.filter(r => r.project_id === pid);
+    for (const r of rows.filter(r => r.project_id !== pid)) {
+      if (!Number(r.total_completed_and_stored)) await supabase.from('sov_items').delete().eq('id', r.id);
+    }
+    const { count } = await supabase.from('sov_items').select('id', { count: 'exact', head: true }).eq('project_id', pid);
+    let next = (count || 0) + 1;
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      const fields = {
+        category: 'Proposal',
+        subcategory: formData.projectName,
+        description: l.description || `Line ${i + 1}`,
+        scheduled_value: Math.round(Number(l.total || 0) * 100) / 100,
+      };
+      if (sameProject[i]) {
+        const { error: uErr } = await supabase.from('sov_items').update(fields).eq('id', sameProject[i].id);
+        if (uErr) throw uErr;
+      } else {
+        const { error: iErr } = await supabase.from('sov_items').insert({
+          ...fields,
+          project_id: pid,
+          item_number: String(next++).padStart(3, '0'),
+          source_proposal_id: proposalId,
+        } as any);
+        if (iErr) throw iErr;
+      }
+    }
+    for (const r of sameProject.slice(lines.length)) {
+      if (!Number(r.total_completed_and_stored)) await supabase.from('sov_items').delete().eq('id', r.id);
+    }
+    await supabase.from('proposals').update({ sov_synced_at: new Date().toISOString() } as any).eq('id', proposalId);
+    return lines.length;
   };
 
   const defaultTrigger = (
@@ -220,6 +281,19 @@ export function EnhancedProposalDialog({
                     <SelectItem value="Rejected">Rejected</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="md:col-span-2">
+                <Label>Link to project (creates payment application lines)</Label>
+                <Select value={projectId} onValueChange={setProjectId}>
+                  <SelectTrigger><SelectValue placeholder="Not linked" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not linked</SelectItem>
+                    {projects.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}{p.status ? ` (${p.status})` : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Each line item becomes a line on this project's payment applications and stays in sync when you edit the proposal.</p>
               </div>
               <div className="md:col-span-2">
                 <Label htmlFor="projectAddress">Project Address</Label>
