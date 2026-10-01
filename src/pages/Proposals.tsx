@@ -31,6 +31,7 @@ interface Proposal {
   created_at: string;
   status: 'Draft' | 'Sent' | 'Viewed' | 'Approved' | 'Rejected';
   amount: number;
+  raw?: any;
 }
 
 export default function Proposals() {
@@ -63,7 +64,8 @@ export default function Proposals() {
         scope: item.scope,
         created_at: item.created_at,
         status: (item.status as 'Draft' | 'Sent' | 'Viewed' | 'Approved' | 'Rejected') || 'Draft',
-        amount: item.amount
+        amount: item.amount,
+        raw: item,
       }));
       
       setProposals(mappedData);
@@ -317,7 +319,22 @@ export default function Proposals() {
       <EnhancedProposalDialog
         open={newProposalOpen}
         onOpenChange={setNewProposalOpen}
-        proposal={selectedProposal}
+        proposal={selectedProposal ? {
+          id: selectedProposal.id,
+          projectName: selectedProposal.project_name,
+          client: selectedProposal.client,
+          scope: selectedProposal.scope,
+          amount: selectedProposal.amount,
+          status: selectedProposal.status === 'Viewed' ? 'Sent' : selectedProposal.status,
+          clientAddress: selectedProposal.raw?.client_address,
+          clientPhone: selectedProposal.raw?.client_phone,
+          clientEmail: selectedProposal.raw?.client_email,
+          projectAddress: selectedProposal.raw?.project_address,
+          validDays: selectedProposal.raw?.valid_days,
+          notes: selectedProposal.raw?.notes,
+          proposalItems: selectedProposal.raw?.proposal_items,
+          projectId: selectedProposal.raw?.project_id,
+        } : null}
         onProposalCreated={handleProposalCreated}
       />
 

@@ -3823,34 +3823,69 @@ export type Database = {
         Row: {
           amount: number
           client: string
+          client_address: string | null
+          client_email: string | null
+          client_phone: string | null
           created_at: string | null
           id: string
+          notes: string | null
+          project_address: string | null
+          project_id: string | null
           project_name: string
+          proposal_items: Json
           scope: string | null
+          sov_synced_at: string | null
           status: string | null
           updated_at: string | null
+          valid_days: number | null
         }
         Insert: {
           amount?: number
           client: string
+          client_address?: string | null
+          client_email?: string | null
+          client_phone?: string | null
           created_at?: string | null
           id?: string
+          notes?: string | null
+          project_address?: string | null
+          project_id?: string | null
           project_name: string
+          proposal_items?: Json
           scope?: string | null
+          sov_synced_at?: string | null
           status?: string | null
           updated_at?: string | null
+          valid_days?: number | null
         }
         Update: {
           amount?: number
           client?: string
+          client_address?: string | null
+          client_email?: string | null
+          client_phone?: string | null
           created_at?: string | null
           id?: string
+          notes?: string | null
+          project_address?: string | null
+          project_id?: string | null
           project_name?: string
+          proposal_items?: Json
           scope?: string | null
+          sov_synced_at?: string | null
           status?: string | null
           updated_at?: string | null
+          valid_days?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "proposals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       qb_import_batches: {
         Row: {
@@ -4297,6 +4332,7 @@ export type Database = {
           scheduled_value: number
           source_estimate_id: string | null
           source_estimate_line_id: string | null
+          source_proposal_id: string | null
           subcategory: string | null
           this_period: number | null
           total_completed_and_stored: number | null
@@ -4319,6 +4355,7 @@ export type Database = {
           scheduled_value?: number
           source_estimate_id?: string | null
           source_estimate_line_id?: string | null
+          source_proposal_id?: string | null
           subcategory?: string | null
           this_period?: number | null
           total_completed_and_stored?: number | null
@@ -4341,6 +4378,7 @@ export type Database = {
           scheduled_value?: number
           source_estimate_id?: string | null
           source_estimate_line_id?: string | null
+          source_proposal_id?: string | null
           subcategory?: string | null
           this_period?: number | null
           total_completed_and_stored?: number | null
@@ -4367,6 +4405,13 @@ export type Database = {
             columns: ["source_estimate_line_id"]
             isOneToOne: false
             referencedRelation: "estimate_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sov_items_source_proposal_id_fkey"
+            columns: ["source_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
             referencedColumns: ["id"]
           },
         ]
