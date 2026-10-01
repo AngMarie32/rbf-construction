@@ -191,7 +191,7 @@ export function EnhancedProposalDialog({
 
   const syncProposalToPayApp = async (proposalId: string, pid: string, items: ProposalItem[]) => {
     const lines = items.filter(i => i.description.trim() || i.total);
-    const { data: existing, error: exErr } = await supabase
+    const { data: existing, error: exErr } = await (supabase as any)
       .from('sov_items')
       .select('id, item_number, total_completed_and_stored, project_id')
       .eq('source_proposal_id' as any, proposalId)
