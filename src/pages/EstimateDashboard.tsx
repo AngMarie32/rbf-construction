@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Download, RotateCcw, Plus, Trash2, ListChecks } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Download, RotateCcw, Plus, Trash2, ListChecks, ExternalLink, Link2 } from 'lucide-react';
 import { SendToSovDialog } from '@/components/estimating/SendToSovDialog';
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
@@ -92,6 +94,7 @@ export default function EstimateDashboard() {
   const [bids, setBids] = useState<BidRow[]>([]);
   const [newBid, setNewBid] = useState({ trade: '', company_name: '', raw_amount: '' });
   const [sovOpen, setSovOpen] = useState(false);
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -119,6 +122,22 @@ export default function EstimateDashboard() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    supabase
+      .from('projects')
+      .select('id, name, status')
+      .order('name')
+      .then(({ data }) => setProjects(sortProjectsOpenFirst(data || [])));
+  }, []);
+
+  const linkProject = async (projectId: string) => {
+    if (!est) return;
+    const value = projectId === 'none' ? null : projectId;
+    setEst({ ...est, project_id: value });
+    await supabase.from('estimates').update({ project_id: value }).eq('id', est.id);
+    toast.success(value ? 'Estimate linked to the project.' : 'Project link removed.');
+  };
 
   const settings = est
     ? {
@@ -210,11 +229,43 @@ export default function EstimateDashboard() {
                 {[est.location, est.area_sf ? `${est.area_sf.toLocaleString()} SF` : null].filter(Boolean).join(' · ')}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-muted-foreground" />
+                <Select value={est.project_id ?? 'none'} onValueChange={linkProject}>
+                  <SelectTrigger className="h-8 w-48 text-xs">
+                    <SelectValue placeholder="Link to a project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No project linked</SelectItem>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button size="sm" onClick={() => setSovOpen(true)}>
                 <ListChecks className="mr-2 h-4 w-4" />
                 Send to schedule of values
               </Button>
+              {est.sov_project_id && (
+                <>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to={`/schedule-of-values?project=${est.sov_project_id}`}>
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Open SOV
+                    </Link>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to={`/payment-applications?project=${est.sov_project_id}`}>
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Payment applications
+                    </Link>
+                  </Button>
+                </>
+              )}
               <Button variant="outline" size="sm" onClick={() => download(estimateCsv(lines), `${est.name}.csv`, 'text/csv')}>
                 <Download className="mr-2 h-4 w-4" />
                 Export CSV
@@ -270,13 +321,70 @@ export default function EstimateDashboard() {
           <p className="mt-2 text-xs text-muted-foreground">
             Low / expected / high are scenario analysis, not guaranteed outcomes.
           </p>
+
+          {totals.recommendedBid > 0 && (
+            <div className="mt-4">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Where the bid goes</div>
+              <div className="mt-1 flex h-3 w-full overflow-hidden rounded-full">
+                {(
+                  [
+                    ['Building direct', totals.building, 'bg-primary'],
+                    ['Site / civil direct', totals.site, 'bg-primary/70'],
+                    ['General conditions', totals.totalGc, 'bg-primary/50'],
+                    ['Other project costs', totals.other, 'bg-primary/35'],
+                    ['Contingency', totals.contingency, 'bg-accent'],
+                    ['Overhead', totals.overhead, 'bg-accent/70'],
+                    ['Profit', totals.profit, 'bg-accent/50'],
+                    ['Bond / insurance', totals.bond, 'bg-muted-foreground/40'],
+                  ] as const
+                )
+                  .filter(([, v]) => v > 0)
+                  .map(([label, v, cls]) => (
+                    <div
+                      key={label}
+                      title={`${label}: ${currency(v)} (${((v / totals.recommendedBid) * 100).toFixed(1)}%)`}
+                      className={`${cls} h-full`}
+                      style={{ width: `${(v / totals.recommendedBid) * 100}%` }}
+                    />
+                  ))}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                {(
+                  [
+                    ['Building direct', totals.building, 'bg-primary'],
+                    ['Site / civil', totals.site, 'bg-primary/70'],
+                    ['GC', totals.totalGc, 'bg-primary/50'],
+                    ['Other', totals.other, 'bg-primary/35'],
+                    ['Contingency', totals.contingency, 'bg-accent'],
+                    ['Overhead', totals.overhead, 'bg-accent/70'],
+                    ['Profit', totals.profit, 'bg-accent/50'],
+                    ['Bond', totals.bond, 'bg-muted-foreground/40'],
+                  ] as const
+                )
+                  .filter(([, v]) => v > 0)
+                  .map(([label, v, cls]) => (
+                    <span key={label} className="inline-flex items-center gap-1.5">
+                      <span className={`h-2 w-2 rounded-sm ${cls}`} />
+                      {label} {((v / totals.recommendedBid) * 100).toFixed(0)}%
+                    </span>
+                  ))}
+              </div>
+            </div>
+          )}
         </Card>
 
         <Tabs defaultValue="estimate">
           <TabsList className="flex-wrap">
             <TabsTrigger value="estimate">Estimate</TabsTrigger>
             <TabsTrigger value="buildup">Cost build-up</TabsTrigger>
-            <TabsTrigger value="flags">Critical flags</TabsTrigger>
+            <TabsTrigger value="flags">
+              Critical flags
+              {flags.length > 0 && (
+                <Badge variant={flags.some((f) => f.severity === 'critical') ? 'destructive' : 'secondary'} className="ml-2">
+                  {flags.length}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="sources">Sources</TabsTrigger>
             <TabsTrigger value="bids">Bid audit & leveling</TabsTrigger>
           </TabsList>
@@ -596,6 +704,7 @@ export default function EstimateDashboard() {
           settings={settings}
           areaSf={est.area_sf ?? 0}
           defaultProjectId={est.project_id ?? est.sov_project_id ?? null}
+          onDone={load}
         />
       </div>
     </Layout>
