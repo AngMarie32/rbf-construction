@@ -73,10 +73,12 @@ export default function PaymentApplications() {
 
       if (error) throw error;
       setProjects(sortProjectsOpenFirst(data || []));
-      
-      // Select first project by default
+
+      // Honor ?project= deep links (e.g. from the Bid Estimator), else select first project
       if (data && data.length > 0) {
-        setSelectedProject(sortProjectsOpenFirst(data)[0].id);
+        const param = new URLSearchParams(window.location.search).get('project');
+        const match = param ? data.find((p) => p.id === param) : null;
+        setSelectedProject(match ? match.id : sortProjectsOpenFirst(data)[0].id);
       }
     } catch (error) {
       console.error('Error fetching projects:', error);

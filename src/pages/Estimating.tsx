@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card } from '@/components/ui/card';
@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Loader2, FileText, X, Trash2 } from 'lucide-react';
+import { Upload, Loader2, FileText, X, Trash2, Search, CloudUpload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompanies } from '@/contexts/CompanyContext';
 import { currency, rollup, EstimateLine } from '@/utils/estimateMath';
@@ -26,6 +26,12 @@ interface EstimateRow {
   bond_pct: number;
 }
 
+const FILE_LIMIT = 12 * 1024 * 1024; // edge function per-file cap
+const PART_LIMIT = 10 * 1024 * 1024; // files are grouped into ~10 MB analysis parts
+
+const fmtSize = (bytes: number) =>
+  bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+
 export default function Estimating() {
   const navigate = useNavigate();
   const { selectedIds } = useCompanies();
@@ -41,6 +47,8 @@ export default function Estimating() {
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState('');
+  const [search, setSearch] = useState('');
+  const [dragging, setDragging] = useState(false);
 
   const load = useCallback(async () => {
     let q = supabase.from('estimates').select('*').order('created_at', { ascending: false }).limit(50);
@@ -78,8 +86,39 @@ export default function Estimating() {
 
   const addFiles = (list: FileList | null) => {
     if (!list) return;
-    setFiles((prev) => [...prev, ...Array.from(list)]);
+    const incoming = Array.from(list);
+    const tooBig = incoming.filter((f) => f.size > FILE_LIMIT);
+    const ok = incoming.filter((f) => f.size <= FILE_LIMIT);
+    if (tooBig.length) {
+      toast.error(
+        `${tooBig.map((f) => f.name).join(', ')} ${tooBig.length === 1 ? 'is' : 'are'} over the 12 MB per-file limit. Split or compress ${tooBig.length === 1 ? 'it' : 'them'} first.`
+      );
+    }
+    if (ok.length) setFiles((prev) => [...prev, ...ok]);
   };
+
+  const totalBytes = files.reduce((s, f) => s + f.size, 0);
+  const partCount = useMemo(() => {
+    if (!files.length) return 0;
+    let parts = 1;
+    let cur = 0;
+    for (const f of files) {
+      if (cur && cur + f.size > PART_LIMIT) {
+        parts += 1;
+        cur = 0;
+      }
+      cur += f.size;
+    }
+    return parts;
+  }, [files]);
+
+  const filteredRows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return rows;
+    return rows.filter((r) =>
+      [r.name, r.location].filter(Boolean).some((v) => String(v).toLowerCase().includes(term))
+    );
+  }, [rows, search]);
 
   const run = async () => {
     if (!files.length) return toast.error('Add at least one plan file first.');
@@ -101,7 +140,6 @@ export default function Estimating() {
       );
 
       // Split the plan set into parts that each fit comfortably in one analysis pass
-      const PART_LIMIT = 10 * 1024 * 1024;
       const parts: { file: File; up: typeof uploaded[number] }[][] = [];
       let cur: { file: File; up: typeof uploaded[number] }[] = [];
       let curBytes = 0;
@@ -296,46 +334,96 @@ export default function Estimating() {
             />
           </div>
 
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            accept=".pdf,image/*"
+            className="hidden"
+            onChange={(e) => {
+              addFiles(e.target.files);
+              e.target.value = '';
+            }}
+          />
+
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => fileRef.current?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              addFiles(e.dataTransfer.files);
+            }}
+            className={`mt-4 flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-8 text-center transition-colors ${
+              dragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+            } ${busy ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+          >
+            <CloudUpload className="h-8 w-8 text-muted-foreground" />
+            <span className="mt-2 text-sm font-medium">
+              {dragging ? 'Drop the plan files here' : 'Drag plan files here, or click to browse'}
+            </span>
+            <span className="mt-1 text-xs text-muted-foreground">
+              PDF or images · up to 12 MB per file · large sets are analyzed in parts automatically
+            </span>
+          </button>
+
+          {files.length > 0 && (
+            <div className="mt-3 space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {files.map((f, i) => (
+                  <Badge key={i} variant="secondary" className="gap-2">
+                    <FileText className="h-3 w-3" />
+                    {f.name}
+                    <span className="text-muted-foreground">{fmtSize(f.size)}</span>
+                    <button onClick={() => setFiles(files.filter((_, j) => j !== i))} disabled={busy}>
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {files.length} file{files.length === 1 ? '' : 's'} · {fmtSize(totalBytes)} total
+                {partCount > 1 ? ` · will be analyzed in ${partCount} parts and merged` : ''}
+              </p>
+            </div>
+          )}
+
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <input
-              ref={fileRef}
-              type="file"
-              multiple
-              accept=".pdf,image/*"
-              className="hidden"
-              onChange={(e) => addFiles(e.target.files)}
-            />
-            <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={busy}>
-              <Upload className="mr-2 h-4 w-4" />
-              Add plan files
-            </Button>
             <Button onClick={run} disabled={busy || !files.length}>
-              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
               Build estimate
             </Button>
             {stage && <span className="text-sm text-muted-foreground">{stage}</span>}
           </div>
-
-          {files.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {files.map((f, i) => (
-                <Badge key={i} variant="secondary" className="gap-2">
-                  <FileText className="h-3 w-3" />
-                  {f.name}
-                  <button onClick={() => setFiles(files.filter((_, j) => j !== i))} disabled={busy}>
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
         </Card>
 
         <Card className="p-6">
-          <h2 className="text-lg font-semibold">Estimates</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">Estimates</h2>
+            {rows.length > 0 && (
+              <div className="relative w-full max-w-xs">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-8"
+                  placeholder="Search by name or location…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
           {!rows.length && <p className="mt-2 text-sm text-muted-foreground">Nothing yet — upload a plan set above.</p>}
+          {rows.length > 0 && !filteredRows.length && (
+            <p className="mt-2 text-sm text-muted-foreground">No estimates match “{search}”.</p>
+          )}
           <div className="mt-4 space-y-2">
-            {rows.map((r) => (
+            {filteredRows.map((r) => (
               <div key={r.id} className="flex items-center gap-4 rounded-md border p-3">
                 <button className="flex-1 text-left" onClick={() => navigate(`/estimating/${r.id}`)}>
                   <div className="font-medium">{r.name}</div>

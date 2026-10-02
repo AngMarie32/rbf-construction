@@ -98,6 +98,11 @@ export default function ScheduleOfValues() {
 
       if (error) throw error;
       setProjects(sortProjectsOpenFirst(data || []));
+
+      // Honor ?project= deep links (e.g. from the Bid Estimator)
+      const param = new URLSearchParams(window.location.search).get('project');
+      const match = param ? (data || []).find((p: any) => p.id === param) : null;
+      if (match) setSelectedProject(match.id);
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');
