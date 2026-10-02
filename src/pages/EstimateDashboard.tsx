@@ -123,6 +123,22 @@ export default function EstimateDashboard() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    supabase
+      .from('projects')
+      .select('id, name, status')
+      .order('name')
+      .then(({ data }) => setProjects(sortProjectsOpenFirst(data || [])));
+  }, []);
+
+  const linkProject = async (projectId: string) => {
+    if (!est) return;
+    const value = projectId === 'none' ? null : projectId;
+    setEst({ ...est, project_id: value });
+    await supabase.from('estimates').update({ project_id: value }).eq('id', est.id);
+    toast.success(value ? 'Estimate linked to the project.' : 'Project link removed.');
+  };
+
   const settings = est
     ? {
         contingency_pct: est.contingency_pct,
