@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Download, RotateCcw, Plus, Trash2, ListChecks } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Download, RotateCcw, Plus, Trash2, ListChecks, ExternalLink, Link2 } from 'lucide-react';
 import { SendToSovDialog } from '@/components/estimating/SendToSovDialog';
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
@@ -92,6 +94,7 @@ export default function EstimateDashboard() {
   const [bids, setBids] = useState<BidRow[]>([]);
   const [newBid, setNewBid] = useState({ trade: '', company_name: '', raw_amount: '' });
   const [sovOpen, setSovOpen] = useState(false);
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
 
   const load = useCallback(async () => {
     if (!id) return;
