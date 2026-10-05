@@ -20,6 +20,7 @@ interface BidItem {
   quantity: number;
   unit: string;
   unit_cost: number;
+  markup_pct?: number;
   total: number;
   divisionManuallySet?: boolean;
 }
@@ -466,7 +467,8 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
             quantity: item.quantity || 1,
             unit: item.unit || 'each',
             unit_cost: item.unit_cost || 0,
-            total: (item.unit_cost || 0) * (item.quantity || 1),
+            markup_pct: Number((item as any).markup_pct) || 0,
+            total: (item.unit_cost || 0) * (item.quantity || 1) * (1 + (Number((item as any).markup_pct) || 0) / 100),
             divisionManuallySet: !!item.division
           };
         });
@@ -508,6 +510,7 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
           quantity: item.quantity,
           unit: item.unit,
           unit_cost: item.unit_cost,
+          markup_pct: item.markup_pct || 0,
           division: item.division
         });
 
@@ -560,8 +563,8 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
           updated.divisionManuallySet = true;
         }
         
-        if (field === 'quantity' || field === 'unit_cost') {
-          updated.total = updated.quantity * updated.unit_cost;
+        if (field === 'quantity' || field === 'unit_cost' || field === 'markup_pct') {
+          updated.total = updated.quantity * updated.unit_cost * (1 + (Number(updated.markup_pct) || 0) / 100);
         }
         
         // Save to database immediately
@@ -701,10 +704,11 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
               <div className="col-span-1">Division</div>
               <div className="col-span-2">Category</div>
               <div className="col-span-2">Subcategory</div>
-              <div className="col-span-3">Description</div>
+              <div className="col-span-2">Description</div>
               <div className="col-span-1">Unit</div>
               <div className="col-span-1">Quantity</div>
               <div className="col-span-1">Unit Cost</div>
+              <div className="col-span-1">Markup %</div>
               <div className="col-span-1">Total</div>
             </div>
 
@@ -741,7 +745,7 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
                     />
                   </div>
 
-                  <div className="col-span-3">
+                  <div className="col-span-2">
                     <Input
                       value={item.description}
                       onChange={(e) => updateItem(item.id, 'description', e.target.value)}
@@ -776,6 +780,16 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
                       value={item.unit_cost}
                       onChange={(e) => updateItem(item.id, 'unit_cost', parseFloat(e.target.value) || 0)}
                       min="0"
+                      step="0.001"
+                      className="h-8 text-xs"
+                    />
+                  </div>
+
+                  <div className="col-span-1">
+                    <Input
+                      type="number"
+                      value={item.markup_pct ?? 0}
+                      onChange={(e) => updateItem(item.id, 'markup_pct', parseFloat(e.target.value) || 0)}
                       step="0.001"
                       className="h-8 text-xs"
                     />

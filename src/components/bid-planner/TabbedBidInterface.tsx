@@ -44,7 +44,7 @@ export function TabbedBidInterface({
     try {
       const { data: source, error } = await supabase
         .from('bid_items')
-        .select('category, subcategory, description, division, quantity, unit, unit_cost, template_id')
+        .select('category, subcategory, description, division, quantity, unit, unit_cost, markup_pct, template_id, source_estimate_id, source_estimate_line_id')
         .eq('project_id', projectId);
       if (error) throw error;
       if (!source || source.length === 0) {
@@ -77,7 +77,8 @@ export function TabbedBidInterface({
       const { data: templateItems, error } = await supabase
         .from('bid_template_items')
         .select('*')
-        .eq('template_id', template.id);
+        .eq('template_id', template.id)
+        .order('sort_order');
 
       if (error) throw error;
 
@@ -88,9 +89,11 @@ export function TabbedBidInterface({
           category: item.category,
           subcategory: item.subcategory,
           description: item.description,
-          quantity: 1,
+          quantity: Number(item.quantity) || 1,
           unit: item.unit || 'each',
-          unit_cost: item.unit_cost || 0
+          unit_cost: item.unit_cost || 0,
+          markup_pct: Number(item.markup_pct) || 0,
+          template_id: template.id
         }));
 
         const { error: insertError } = await supabase
@@ -145,7 +148,7 @@ export function TabbedBidInterface({
         item_number: String(index + 1).padStart(3, '0'),
         category: item.category || 'General',
         description: item.description || 'Imported from Bid',
-        scheduled_value: (item.unit_cost || 0) * (item.quantity || 1),
+        scheduled_value: Math.round((item.unit_cost || 0) * (item.quantity || 1) * (1 + (Number(item.markup_pct) || 0) / 100) * 100) / 100,
         previous_applications: 0,
         this_period: 0,
         materials_stored: 0,

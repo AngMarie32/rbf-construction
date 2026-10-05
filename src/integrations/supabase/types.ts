@@ -209,8 +209,11 @@ export type Database = {
           description: string
           division: string | null
           id: string
+          markup_pct: number
           project_id: string
           quantity: number
+          source_estimate_id: string | null
+          source_estimate_line_id: string | null
           subcategory: string | null
           template_id: string | null
           total: number | null
@@ -224,8 +227,11 @@ export type Database = {
           description: string
           division?: string | null
           id?: string
+          markup_pct?: number
           project_id: string
           quantity?: number
+          source_estimate_id?: string | null
+          source_estimate_line_id?: string | null
           subcategory?: string | null
           template_id?: string | null
           total?: number | null
@@ -239,8 +245,11 @@ export type Database = {
           description?: string
           division?: string | null
           id?: string
+          markup_pct?: number
           project_id?: string
           quantity?: number
+          source_estimate_id?: string | null
+          source_estimate_line_id?: string | null
           subcategory?: string | null
           template_id?: string | null
           total?: number | null
@@ -254,6 +263,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bid_items_source_estimate_id_fkey"
+            columns: ["source_estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
             referencedColumns: ["id"]
           },
           {
@@ -402,6 +418,9 @@ export type Database = {
           created_at: string
           description: string
           id: string
+          markup_pct: number
+          quantity: number
+          sort_order: number
           subcategory: string | null
           template_id: string | null
           unit: string | null
@@ -412,6 +431,9 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
+          markup_pct?: number
+          quantity?: number
+          sort_order?: number
           subcategory?: string | null
           template_id?: string | null
           unit?: string | null
@@ -422,6 +444,9 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
+          markup_pct?: number
+          quantity?: number
+          sort_order?: number
           subcategory?: string | null
           template_id?: string | null
           unit?: string | null
