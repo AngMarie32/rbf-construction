@@ -136,17 +136,39 @@ export function parseWorkbook(data: ArrayBuffer): ParsedLine[] {
   const headers = (grid[headerRow] || []).map((h, i) => String(h || `Column ${i + 1}`));
 
   const lines: ParsedLine[] = [];
+  const hasHeader = (idx: number) => String(grid[headerRow]?.[idx] ?? '').trim() !== '';
+  const typeIdx = headers.findIndex((h) => normalize(h) === 'type');
+  const splitIdx = headers.findIndex((h) => normalize(h) === 'split');
+  const accountIdx = headers.findIndex((h) => normalize(h) === 'account');
+  let groupVendor = '';
   for (let i = headerRow + 1; i < grid.length; i++) {
     const cells = grid[i] || [];
     const raw: RawRow = {};
     headers.forEach((h, idx) => {
       raw[h] = cells[idx] ?? '';
     });
-    const amount = parseAmount(pick(raw, HEADER_ALIASES.amount));
-    const vendor = String(pick(raw, HEADER_ALIASES.vendor) || '').trim();
+    // QuickBooks "by vendor" reports put the vendor name on its own row in an unlabeled column.
+    const unlabeled = cells
+      .map((c, idx) => (!hasHeader(idx) && typeof c === 'string' ? c.trim() : ''))
+      .filter(Boolean);
+    const amountRaw = pick(raw, HEADER_ALIASES.amount);
+    if (unlabeled.length && (amountRaw === '' || amountRaw == null)) {
+      const label = unlabeled[0];
+      if (!/^total/i.test(label)) groupVendor = label;
+      continue;
+    }
+    if (unlabeled.some((u) => /^total/i.test(u))) continue;
+    // Skip payments of bills already counted (they would double the cost).
+    const txnType = typeIdx >= 0 ? normalize(cells[typeIdx]) : '';
+    if (/\bpmt\b|payment|deposit|transfer/.test(txnType)) continue;
+    const amount = parseAmount(amountRaw);
+    const vendor = String(pick(raw, HEADER_ALIASES.vendor) || groupVendor || '').trim();
     const jobName = String(pick(raw, HEADER_ALIASES.jobName) || '').trim();
     const memo = String(pick(raw, HEADER_ALIASES.memo) || '').trim();
-    const account = String(pick(raw, HEADER_ALIASES.account) || '').trim();
+    let account = String(pick(raw, HEADER_ALIASES.account) || '').trim();
+    const acctCol = accountIdx >= 0 ? String(cells[accountIdx] ?? '').trim() : '';
+    const splitCol = splitIdx >= 0 ? String(cells[splitIdx] ?? '').trim() : '';
+    if (splitCol && (!acctCol || /payable|checking|savings|credit card|bank/i.test(acctCol))) account = splitCol;
     if (!amount && !vendor && !jobName && !memo) continue; // blank / subtotal spacer
     const label = normalize(`${vendor} ${jobName} ${memo}`);
     if (label.startsWith('total') || label.includes('total for')) continue;
@@ -162,6 +184,9 @@ export function parseWorkbook(data: ArrayBuffer): ParsedLine[] {
       amount,
     });
   }
+  // Vendor/expense reports show costs as negatives; flip so costs are positive and credits reduce cost.
+  const negatives = lines.filter((l) => l.amount < 0).length;
+  if (negatives > lines.length / 2) lines.forEach((l) => (l.amount = -l.amount));
   return lines;
 }
 
