@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Download, RotateCcw, Plus, Trash2, ListChecks, ExternalLink, Link2 } from 'lucide-react';
 import { SendToSovDialog } from '@/components/estimating/SendToSovDialog';
+import { SendToBidPlannerDialog, BidPlannerMode } from '@/components/estimating/SendToBidPlannerDialog';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -94,6 +95,7 @@ export default function EstimateDashboard() {
   const [bids, setBids] = useState<BidRow[]>([]);
   const [newBid, setNewBid] = useState({ trade: '', company_name: '', raw_amount: '' });
   const [sovOpen, setSovOpen] = useState(false);
+  const [bpMode, setBpMode] = useState<BidPlannerMode | null>(null);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
 
   const load = useCallback(async () => {
@@ -246,6 +248,13 @@ export default function EstimateDashboard() {
                   </SelectContent>
                 </Select>
               </div>
+              <Button size="sm" onClick={() => setBpMode('new')}>
+                <Plus className="mr-2 h-4 w-4" />
+                New project from estimate
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setBpMode('existing')}>
+                Send to Bid Planner
+              </Button>
               <Button size="sm" onClick={() => setSovOpen(true)}>
                 <ListChecks className="mr-2 h-4 w-4" />
                 Send to schedule of values
@@ -695,6 +704,19 @@ export default function EstimateDashboard() {
           </TabsContent>
         </Tabs>
 
+        <SendToBidPlannerDialog
+          open={!!bpMode}
+          onOpenChange={(o) => !o && setBpMode(null)}
+          mode={bpMode ?? 'existing'}
+          estimateId={est.id}
+          estimateName={est.name}
+          location={est.location}
+          lines={lines}
+          settings={settings}
+          areaSf={est.area_sf}
+          defaultProjectId={est.project_id}
+          onDone={load}
+        />
         <SendToSovDialog
           open={sovOpen}
           onOpenChange={setSovOpen}

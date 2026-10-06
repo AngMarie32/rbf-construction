@@ -130,23 +130,56 @@ function pick(row: RawRow, keys: string[]): any {
 
 export function parseWorkbook(data: ArrayBuffer): ParsedLine[] {
   const wb = XLSX.read(data, { type: 'array', cellDates: true });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const grid = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, raw: true, defval: '' });
+  // QuickBooks exports often put a "Tips" sheet first — use the sheet that looks most like a transaction table.
+  let grid: any[][] = [];
+  let bestScore = -1;
+  for (const name of wb.SheetNames) {
+    const g = XLSX.utils.sheet_to_json<any[]>(wb.Sheets[name], { header: 1, raw: true, defval: '' });
+    const hr = findHeaderRow(g);
+    const wanted = Object.values(HEADER_ALIASES).flat();
+    const score = (g[hr] || []).map((c) => normalize(c)).filter((c) => wanted.includes(c)).length;
+    if (score > bestScore) {
+      bestScore = score;
+      grid = g;
+    }
+  }
   const headerRow = findHeaderRow(grid);
   const headers = (grid[headerRow] || []).map((h, i) => String(h || `Column ${i + 1}`));
 
   const lines: ParsedLine[] = [];
+  const hasHeader = (idx: number) => String(grid[headerRow]?.[idx] ?? '').trim() !== '';
+  const typeIdx = headers.findIndex((h) => normalize(h) === 'type');
+  const splitIdx = headers.findIndex((h) => normalize(h) === 'split');
+  const accountIdx = headers.findIndex((h) => normalize(h) === 'account');
+  let groupVendor = '';
   for (let i = headerRow + 1; i < grid.length; i++) {
     const cells = grid[i] || [];
     const raw: RawRow = {};
     headers.forEach((h, idx) => {
       raw[h] = cells[idx] ?? '';
     });
-    const amount = parseAmount(pick(raw, HEADER_ALIASES.amount));
-    const vendor = String(pick(raw, HEADER_ALIASES.vendor) || '').trim();
+    // QuickBooks "by vendor" reports put the vendor name on its own row in an unlabeled column.
+    const unlabeled = cells
+      .map((c, idx) => (!hasHeader(idx) && typeof c === 'string' ? c.trim() : ''))
+      .filter(Boolean);
+    const amountRaw = pick(raw, HEADER_ALIASES.amount);
+    if (unlabeled.length && (amountRaw === '' || amountRaw == null)) {
+      const label = unlabeled[0];
+      if (!/^total/i.test(label)) groupVendor = label;
+      continue;
+    }
+    if (unlabeled.some((u) => /^total/i.test(u))) continue;
+    // Skip payments of bills already counted (they would double the cost).
+    const txnType = typeIdx >= 0 ? normalize(cells[typeIdx]) : '';
+    if (/\bpmt\b|payment|deposit|transfer/.test(txnType)) continue;
+    const amount = parseAmount(amountRaw);
+    const vendor = String(pick(raw, HEADER_ALIASES.vendor) || groupVendor || '').trim();
     const jobName = String(pick(raw, HEADER_ALIASES.jobName) || '').trim();
     const memo = String(pick(raw, HEADER_ALIASES.memo) || '').trim();
-    const account = String(pick(raw, HEADER_ALIASES.account) || '').trim();
+    let account = String(pick(raw, HEADER_ALIASES.account) || '').trim();
+    const acctCol = accountIdx >= 0 ? String(cells[accountIdx] ?? '').trim() : '';
+    const splitCol = splitIdx >= 0 ? String(cells[splitIdx] ?? '').trim() : '';
+    if (splitCol && (!acctCol || /payable|checking|savings|credit card|bank/i.test(acctCol))) account = splitCol;
     if (!amount && !vendor && !jobName && !memo) continue; // blank / subtotal spacer
     const label = normalize(`${vendor} ${jobName} ${memo}`);
     if (label.startsWith('total') || label.includes('total for')) continue;
@@ -162,6 +195,9 @@ export function parseWorkbook(data: ArrayBuffer): ParsedLine[] {
       amount,
     });
   }
+  // Vendor/expense reports show costs as negatives; flip so costs are positive and credits reduce cost.
+  const negatives = lines.filter((l) => l.amount < 0).length;
+  if (negatives > lines.length / 2) lines.forEach((l) => (l.amount = -l.amount));
   return lines;
 }
 
