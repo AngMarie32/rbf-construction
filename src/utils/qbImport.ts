@@ -130,14 +130,19 @@ function pick(row: RawRow, keys: string[]): any {
 
 export function parseWorkbook(data: ArrayBuffer): ParsedLine[] {
   const wb = XLSX.read(data, { type: 'array', cellDates: true });
-  // QuickBooks exports often put a "Tips" sheet first — use the first sheet that has data.
-  const sheetName =
-    wb.SheetNames.find((n) => {
-      const ref = wb.Sheets[n]?.['!ref'];
-      return ref && ref !== 'A1' && XLSX.utils.decode_range(ref).e.r > 0;
-    }) ?? wb.SheetNames[0];
-  const sheet = wb.Sheets[sheetName];
-  const grid = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, raw: true, defval: '' });
+  // QuickBooks exports often put a "Tips" sheet first — use the sheet that looks most like a transaction table.
+  let grid: any[][] = [];
+  let bestScore = -1;
+  for (const name of wb.SheetNames) {
+    const g = XLSX.utils.sheet_to_json<any[]>(wb.Sheets[name], { header: 1, raw: true, defval: '' });
+    const hr = findHeaderRow(g);
+    const wanted = Object.values(HEADER_ALIASES).flat();
+    const score = (g[hr] || []).map((c) => normalize(c)).filter((c) => wanted.includes(c)).length;
+    if (score > bestScore) {
+      bestScore = score;
+      grid = g;
+    }
+  }
   const headerRow = findHeaderRow(grid);
   const headers = (grid[headerRow] || []).map((h, i) => String(h || `Column ${i + 1}`));
 
