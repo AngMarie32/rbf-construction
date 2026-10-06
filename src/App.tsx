@@ -18,6 +18,7 @@ import Expenses from '@/pages/Expenses';
 import Subcontractors from '@/pages/Subcontractors';
 import Documents from '@/pages/Documents';
 import BidPlanner from '@/pages/BidPlanner';
+import BidTemplates from '@/pages/BidTemplates';
 import BidPackages from '@/pages/BidPackages';
 import Proposals from '@/pages/Proposals';
 import Invoices from '@/pages/Invoices';
@@ -257,6 +258,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Documents />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/bid-templates"
+              element={
+                <ProtectedRoute>
+                  <BidTemplates />
                 </ProtectedRoute>
               }
             />

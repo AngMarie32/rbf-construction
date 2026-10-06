@@ -44,6 +44,7 @@ const navGroups: NavGroup[] = [
     items: [
       { name: 'Bid Estimator', href: '/estimating' },
       { name: 'Bid Planner', href: '/bid-planner' },
+      { name: 'Bid Templates', href: '/bid-templates' },
       { name: 'Proposals', href: '/proposals' },
     ],
   },

@@ -1,6 +1,7 @@
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,8 @@ import { initializeBidTemplates } from '@/utils/initializeBidTemplates';
 export default function BidPlanner() {
   const [projects, setProjects] = useState<any[]>([]);
   const [bidItems, setBidItems] = useState<any[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [searchParams] = useSearchParams();
+  const [selectedProject, setSelectedProject] = useState<string>(searchParams.get('project') || '');
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 

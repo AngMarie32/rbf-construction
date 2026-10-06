@@ -36,6 +36,7 @@ export function TabbedBidInterface({
   const [activeTab, setActiveTab] = useState('create');
   const navigate = useNavigate();
   const [copying, setCopying] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const handleCopyToProject = async (targetId: string) => {
     if (!targetId || targetId === projectId) return;
@@ -106,6 +107,7 @@ export function TabbedBidInterface({
       }
 
       setSelectedTemplate(template);
+      setReloadKey((k) => k + 1);
       setShowCreateView(true);
       setActiveTab('create');
     } catch (error) {
@@ -237,6 +239,7 @@ export function TabbedBidInterface({
 
         <TabsContent value="create">
           <BidCreationView
+            key={reloadKey}
             projectId={projectId}
             selectedTemplate={selectedTemplate}
             onItemsChange={onItemsChange}
