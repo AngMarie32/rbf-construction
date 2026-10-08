@@ -294,6 +294,16 @@ export function matchLine(
   };
 }
 
+/** Match a free-text job name (e.g. a report column header) to a project. */
+export function matchProjectName(name: string, projects: ProjectRef[]) {
+  return matchProject({ jobName: name, memo: '', raw: {} } as unknown as ParsedLine, projects);
+}
+
+/** Match an account / description to a cost code. */
+export function matchCostCodeText(text: string, account: string, costCodes: CostCodeRef[]) {
+  return matchCostCode({ account, memo: text, vendor: '' } as unknown as ParsedLine, costCodes);
+}
+
 export function externalRef(line: ParsedLine): string {
   return [
     normalize(line.vendor),

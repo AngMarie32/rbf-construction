@@ -77,6 +77,7 @@ const navGroups: NavGroup[] = [
       { name: 'Labor Costs', href: '/labor-costs' },
       { name: 'Loans', href: '/loans' },
       { name: 'QuickBooks Export', href: '/quickbooks-export' },
+      { name: 'Report Import', href: '/report-import' },
     ],
   },
   {
