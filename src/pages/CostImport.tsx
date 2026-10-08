@@ -387,6 +387,9 @@ export default function CostImport() {
       return toast.error(error.message);
     }
     await supabase.from('time_entries').delete().eq('import_batch_id', batchId);
+    // Report imports tag operating costs and billing entries with the batch id in their notes.
+    await supabase.from('overhead_items').delete().like('notes', `%[batch:${batchId}]%`);
+    await supabase.from('project_billing').delete().like('notes', `%[batch:${batchId}]%`);
     await supabase.from('qb_import_batches').update({ status: 'undone', imported_count: 0 }).eq('id', batchId);
     setBusy(false);
     toast.success('That import was rolled back.');
