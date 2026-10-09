@@ -22,9 +22,13 @@ import {
   reportRef,
 } from '@/utils/financialReportImport';
 
+type RefTable = 'expenses' | 'time_entries' | 'overhead_items' | 'project_billing';
+
 interface Row extends ReportLine {
   duplicate: boolean;
   ref: string;
+  existingId: string | null;
+  existingTable: RefTable | null;
 }
 
 const currency = (n: number) =>
@@ -60,19 +64,27 @@ export default function ReportImport() {
     load();
   }, [load]);
 
-  const withRefs = async (lines: ReportLine[], start: string, end: string) => {
-    const mapped = lines.map((l) => ({ ...l, ref: reportRef(l, start, end), duplicate: false }));
+  const withRefs = async (lines: ReportLine[], start: string, end: string): Promise<Row[]> => {
+    const mapped = lines.map((l) => ({ ...l, ref: reportRef(l, start, end), duplicate: false, existingId: null, existingTable: null }));
     const refs = mapped.map((m) => m.ref);
-    const seen = new Set<string>();
+    const seen = new Map<string, { table: RefTable; id: string }>();
     for (let i = 0; i < refs.length; i += 300) {
       const chunk = refs.slice(i, i + 300);
-      const [e, t] = await Promise.all([
-        supabase.from('expenses').select('external_ref').in('external_ref', chunk),
-        supabase.from('time_entries').select('external_ref').in('external_ref', chunk),
+      const [e, t, o, b] = await Promise.all([
+        supabase.from('expenses').select('id, external_ref').in('external_ref', chunk),
+        supabase.from('time_entries').select('id, external_ref').in('external_ref', chunk),
+        supabase.from('overhead_items').select('id, external_ref').in('external_ref', chunk),
+        supabase.from('project_billing').select('id, external_ref').in('external_ref', chunk),
       ]);
-      [...(e.data || []), ...(t.data || [])].forEach((r: any) => seen.add(r.external_ref));
+      (e.data || []).forEach((r: any) => seen.set(r.external_ref, { table: 'expenses', id: r.id }));
+      (t.data || []).forEach((r: any) => seen.set(r.external_ref, { table: 'time_entries', id: r.id }));
+      (o.data || []).forEach((r: any) => seen.set(r.external_ref, { table: 'overhead_items', id: r.id }));
+      (b.data || []).forEach((r: any) => seen.set(r.external_ref, { table: 'project_billing', id: r.id }));
     }
-    return mapped.map((m) => (seen.has(m.ref) ? { ...m, duplicate: true, destination: 'skip' as Destination } : m));
+    return mapped.map((m) => {
+      const hit = seen.get(m.ref);
+      return hit ? { ...m, duplicate: true, existingId: hit.id, existingTable: hit.table } : m;
+    });
   };
 
   const handleFile = async (file: File) => {
