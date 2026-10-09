@@ -187,6 +187,7 @@ export default function ReportImport() {
           is_active: true,
           created_by: u?.user?.id ?? null,
           notes: `${currency(r.amount)} for ${start} to ${end} from ${fileName} ${tag}`,
+          external_ref: r.ref,
         };
       });
       const billing = used.filter((r) => r.destination === 'revenue').map((r) => ({
@@ -198,20 +199,77 @@ export default function ReportImport() {
         paid_amount: 0,
         status: 'Sent',
         notes: `${r.account} from ${fileName} ${tag}`,
+        external_ref: r.ref,
       }));
 
+      // Lines already in the books (same account/job/vendor from an earlier overlapping
+      // report) are updated in place instead of inserted again.
+      const fresh = (r: Row) => !r.duplicate;
+      const updates: any[] = [];
+      used.filter((r) => r.duplicate && r.existingId).forEach((r) => {
+        if (r.existingTable === 'expenses') {
+          updates.push(
+            supabase.from('expenses').update({
+              project_id: r.projectId!,
+              category: codeName(r.costCodeId) || r.account || 'Other',
+              description: label(r) || 'Imported cost',
+              amount: r.amount,
+              date: r.date || end,
+              vendor: r.vendor || null,
+              cost_code_id: r.costCodeId,
+              import_batch_id: batch.id,
+            }).eq('id', r.existingId)
+          );
+        } else if (r.existingTable === 'time_entries') {
+          updates.push(
+            supabase.from('time_entries').update({
+              project_id: r.projectId!,
+              work_date: r.date || end,
+              cost_code_id: r.costCodeId,
+              hourly_rate: r.amount,
+              notes: `Lump-sum labor from ${fileName} (${start} to ${end})`,
+              import_batch_id: batch.id,
+            }).eq('id', r.existingId)
+          );
+        } else if (r.existingTable === 'overhead_items') {
+          const o = overheadForPeriod(r.amount, start, end);
+          updates.push(
+            supabase.from('overhead_items').update({
+              amount: o.amount,
+              frequency: o.frequency,
+              start_date: start,
+              end_date: end,
+              notes: `${currency(r.amount)} for ${start} to ${end} from ${fileName} ${tag}`,
+            }).eq('id', r.existingId)
+          );
+        } else if (r.existingTable === 'project_billing') {
+          updates.push(
+            supabase.from('project_billing').update({
+              project_id: r.projectId!,
+              billing_period_start: start,
+              billing_period_end: end,
+              invoice_date: r.date || end,
+              billed_amount: r.amount,
+              notes: `${r.account} from ${fileName} ${tag}`,
+            } as any).eq('id', r.existingId)
+          );
+        }
+      });
+
       const inserts = [
-        expenses.length && supabase.from('expenses').insert(expenses),
-        labor.length && supabase.from('time_entries').insert(labor),
-        overhead.length && supabase.from('overhead_items').insert(overhead),
-        billing.length && supabase.from('project_billing').insert(billing as any),
+        expenses.some(fresh) && supabase.from('expenses').insert(expenses.filter(fresh)),
+        labor.some(fresh) && supabase.from('time_entries').insert(labor.filter(fresh)),
+        overhead.some(fresh) && supabase.from('overhead_items').insert(overhead.filter(fresh) as any),
+        billing.some(fresh) && supabase.from('project_billing').insert(billing.filter(fresh) as any),
       ].filter(Boolean) as any[];
-      const results = await Promise.all(inserts);
+      const results = await Promise.all([...inserts, ...updates]);
       const failed = results.find((r) => r.error);
       if (failed) throw failed.error;
 
+      const updatedCount = updates.length;
       toast.success(
-        `Imported: ${expenses.length} project costs, ${labor.length} labor, ${overhead.length} operating costs, ${billing.length} billing entries.`
+        `Imported: ${expenses.filter(fresh).length} project costs, ${labor.filter(fresh).length} labor, ${overhead.filter(fresh).length} operating costs, ${billing.filter(fresh).length} billing entries` +
+          (updatedCount ? ` — and updated ${updatedCount} existing ${updatedCount === 1 ? 'line' : 'lines'} from the earlier report.` : '.')
       );
       setRows([]);
       setReport(null);
