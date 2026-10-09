@@ -22,9 +22,13 @@ import {
   reportRef,
 } from '@/utils/financialReportImport';
 
+type RefTable = 'expenses' | 'time_entries' | 'overhead_items' | 'project_billing';
+
 interface Row extends ReportLine {
   duplicate: boolean;
   ref: string;
+  existingId: string | null;
+  existingTable: RefTable | null;
 }
 
 const currency = (n: number) =>
@@ -60,19 +64,27 @@ export default function ReportImport() {
     load();
   }, [load]);
 
-  const withRefs = async (lines: ReportLine[], start: string, end: string) => {
-    const mapped = lines.map((l) => ({ ...l, ref: reportRef(l, start, end), duplicate: false }));
+  const withRefs = async (lines: ReportLine[], start: string, end: string): Promise<Row[]> => {
+    const mapped = lines.map((l) => ({ ...l, ref: reportRef(l, start, end), duplicate: false, existingId: null, existingTable: null }));
     const refs = mapped.map((m) => m.ref);
-    const seen = new Set<string>();
+    const seen = new Map<string, { table: RefTable; id: string }>();
     for (let i = 0; i < refs.length; i += 300) {
       const chunk = refs.slice(i, i + 300);
-      const [e, t] = await Promise.all([
-        supabase.from('expenses').select('external_ref').in('external_ref', chunk),
-        supabase.from('time_entries').select('external_ref').in('external_ref', chunk),
+      const [e, t, o, b] = await Promise.all([
+        supabase.from('expenses').select('id, external_ref').in('external_ref', chunk),
+        supabase.from('time_entries').select('id, external_ref').in('external_ref', chunk),
+        supabase.from('overhead_items').select('id, external_ref').in('external_ref', chunk),
+        supabase.from('project_billing').select('id, external_ref').in('external_ref', chunk),
       ]);
-      [...(e.data || []), ...(t.data || [])].forEach((r: any) => seen.add(r.external_ref));
+      (e.data || []).forEach((r: any) => seen.set(r.external_ref, { table: 'expenses', id: r.id }));
+      (t.data || []).forEach((r: any) => seen.set(r.external_ref, { table: 'time_entries', id: r.id }));
+      (o.data || []).forEach((r: any) => seen.set(r.external_ref, { table: 'overhead_items', id: r.id }));
+      (b.data || []).forEach((r: any) => seen.set(r.external_ref, { table: 'project_billing', id: r.id }));
     }
-    return mapped.map((m) => (seen.has(m.ref) ? { ...m, duplicate: true, destination: 'skip' as Destination } : m));
+    return mapped.map((m) => {
+      const hit = seen.get(m.ref);
+      return hit ? { ...m, duplicate: true, existingId: hit.id, existingTable: hit.table } : m;
+    });
   };
 
   const handleFile = async (file: File) => {
@@ -135,7 +147,7 @@ export default function ReportImport() {
       const codeName = (id: string | null) => costCodes.find((c) => c.id === id)?.name;
       const label = (r: Row) => [r.account, r.vendor, r.memo].filter(Boolean).join(' · ');
 
-      const expenses = used.filter((r) => r.destination === 'project_cost').map((r) => ({
+      const expenses = used.filter((r) => r.destination === 'project_cost' && !r.duplicate).map((r) => ({
         project_id: r.projectId!,
         category: codeName(r.costCodeId) || r.account || 'Other',
         description: label(r) || 'Imported cost',
@@ -148,7 +160,7 @@ export default function ReportImport() {
         import_batch_id: batch.id,
         external_ref: r.ref,
       }));
-      const labor = used.filter((r) => r.destination === 'labor').map((r) => ({
+      const labor = used.filter((r) => r.destination === 'labor' && !r.duplicate).map((r) => ({
         project_id: r.projectId!,
         employee_name: r.vendor || r.account || 'Labor (from report)',
         work_date: r.date || end,
@@ -162,7 +174,7 @@ export default function ReportImport() {
         import_batch_id: batch.id,
         external_ref: r.ref,
       }));
-      const overhead = used.filter((r) => r.destination === 'operating').map((r) => {
+      const overhead = used.filter((r) => r.destination === 'operating' && !r.duplicate).map((r) => {
         const o = overheadForPeriod(r.amount, start, end);
         return {
           company_id: companyId,
@@ -175,9 +187,10 @@ export default function ReportImport() {
           is_active: true,
           created_by: u?.user?.id ?? null,
           notes: `${currency(r.amount)} for ${start} to ${end} from ${fileName} ${tag}`,
+          external_ref: r.ref,
         };
       });
-      const billing = used.filter((r) => r.destination === 'revenue').map((r) => ({
+      const billing = used.filter((r) => r.destination === 'revenue' && !r.duplicate).map((r) => ({
         project_id: r.projectId!,
         billing_period_start: start,
         billing_period_end: end,
@@ -186,20 +199,76 @@ export default function ReportImport() {
         paid_amount: 0,
         status: 'Sent',
         notes: `${r.account} from ${fileName} ${tag}`,
+        external_ref: r.ref,
       }));
+
+      // Lines already in the books (same account/job/vendor from an earlier overlapping
+      // report) are updated in place instead of inserted again.
+      const updates: any[] = [];
+      used.filter((r) => r.duplicate && r.existingId).forEach((r) => {
+        if (r.existingTable === 'expenses') {
+          updates.push(
+            supabase.from('expenses').update({
+              project_id: r.projectId!,
+              category: codeName(r.costCodeId) || r.account || 'Other',
+              description: label(r) || 'Imported cost',
+              amount: r.amount,
+              date: r.date || end,
+              vendor: r.vendor || null,
+              cost_code_id: r.costCodeId,
+              import_batch_id: batch.id,
+            }).eq('id', r.existingId)
+          );
+        } else if (r.existingTable === 'time_entries') {
+          updates.push(
+            supabase.from('time_entries').update({
+              project_id: r.projectId!,
+              work_date: r.date || end,
+              cost_code_id: r.costCodeId,
+              hourly_rate: r.amount,
+              notes: `Lump-sum labor from ${fileName} (${start} to ${end})`,
+              import_batch_id: batch.id,
+            }).eq('id', r.existingId)
+          );
+        } else if (r.existingTable === 'overhead_items') {
+          const o = overheadForPeriod(r.amount, start, end);
+          updates.push(
+            supabase.from('overhead_items').update({
+              amount: o.amount,
+              frequency: o.frequency,
+              start_date: start,
+              end_date: end,
+              notes: `${currency(r.amount)} for ${start} to ${end} from ${fileName} ${tag}`,
+            }).eq('id', r.existingId)
+          );
+        } else if (r.existingTable === 'project_billing') {
+          updates.push(
+            supabase.from('project_billing').update({
+              project_id: r.projectId!,
+              billing_period_start: start,
+              billing_period_end: end,
+              invoice_date: r.date || end,
+              billed_amount: r.amount,
+              notes: `${r.account} from ${fileName} ${tag}`,
+            } as any).eq('id', r.existingId)
+          );
+        }
+      });
 
       const inserts = [
         expenses.length && supabase.from('expenses').insert(expenses),
         labor.length && supabase.from('time_entries').insert(labor),
-        overhead.length && supabase.from('overhead_items').insert(overhead),
+        overhead.length && supabase.from('overhead_items').insert(overhead as any),
         billing.length && supabase.from('project_billing').insert(billing as any),
       ].filter(Boolean) as any[];
-      const results = await Promise.all(inserts);
+      const results = await Promise.all([...inserts, ...updates]);
       const failed = results.find((r) => r.error);
       if (failed) throw failed.error;
 
+      const updatedCount = updates.length;
       toast.success(
-        `Imported: ${expenses.length} project costs, ${labor.length} labor, ${overhead.length} operating costs, ${billing.length} billing entries.`
+        `Imported: ${expenses.length} project costs, ${labor.length} labor, ${overhead.length} operating costs, ${billing.length} billing entries` +
+          (updatedCount ? ` — and updated ${updatedCount} existing ${updatedCount === 1 ? 'line' : 'lines'} from the earlier report.` : '.')
       );
       setRows([]);
       setReport(null);

@@ -332,6 +332,14 @@ export function overheadForPeriod(amount: number, start: string, end: string) {
   return { amount: amount / days, frequency: 'daily' as const };
 }
 
+/**
+ * Stable identity for a report line, independent of the report's period and amount,
+ * so re-uploading an overlapping period (e.g. March then May) matches the same line
+ * and updates it instead of duplicating. Summary lines use the period end as their
+ * date, which changes between reports, so that date is excluded; detail lines keep
+ * their real transaction date.
+ */
 export function reportRef(l: ReportLine, start: string, end: string) {
-  return ['rpt', l.destination, normalize(l.account), normalize(l.job), normalize(l.vendor), l.date || '', start, end, l.amount.toFixed(2)].join('|');
+  const d = l.date && l.date !== end ? l.date : '';
+  return ['rpt', l.destination, normalize(l.account), normalize(l.job), normalize(l.vendor), d].join('|');
 }

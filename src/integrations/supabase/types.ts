@@ -3229,6 +3229,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           end_date: string | null
+          external_ref: string | null
           frequency: string
           id: string
           is_active: boolean
@@ -3244,6 +3245,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           end_date?: string | null
+          external_ref?: string | null
           frequency?: string
           id?: string
           is_active?: boolean
@@ -3259,6 +3261,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           end_date?: string | null
+          external_ref?: string | null
           frequency?: string
           id?: string
           is_active?: boolean
@@ -3537,6 +3540,7 @@ export type Database = {
           billing_period_start: string
           created_at: string
           due_date: string | null
+          external_ref: string | null
           id: string
           invoice_date: string | null
           invoice_number: string | null
@@ -3554,6 +3558,7 @@ export type Database = {
           billing_period_start: string
           created_at?: string
           due_date?: string | null
+          external_ref?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
@@ -3571,6 +3576,7 @@ export type Database = {
           billing_period_start?: string
           created_at?: string
           due_date?: string | null
+          external_ref?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
