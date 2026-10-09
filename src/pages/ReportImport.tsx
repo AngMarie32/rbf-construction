@@ -204,7 +204,6 @@ export default function ReportImport() {
 
       // Lines already in the books (same account/job/vendor from an earlier overlapping
       // report) are updated in place instead of inserted again.
-      const fresh = (r: Row) => !r.duplicate;
       const updates: any[] = [];
       used.filter((r) => r.duplicate && r.existingId).forEach((r) => {
         if (r.existingTable === 'expenses') {
@@ -257,10 +256,10 @@ export default function ReportImport() {
       });
 
       const inserts = [
-        expenses.some(fresh) && supabase.from('expenses').insert(expenses.filter(fresh)),
-        labor.some(fresh) && supabase.from('time_entries').insert(labor.filter(fresh)),
-        overhead.some(fresh) && supabase.from('overhead_items').insert(overhead.filter(fresh) as any),
-        billing.some(fresh) && supabase.from('project_billing').insert(billing.filter(fresh) as any),
+        expenses.length && supabase.from('expenses').insert(expenses),
+        labor.length && supabase.from('time_entries').insert(labor),
+        overhead.length && supabase.from('overhead_items').insert(overhead as any),
+        billing.length && supabase.from('project_billing').insert(billing as any),
       ].filter(Boolean) as any[];
       const results = await Promise.all([...inserts, ...updates]);
       const failed = results.find((r) => r.error);
@@ -268,7 +267,7 @@ export default function ReportImport() {
 
       const updatedCount = updates.length;
       toast.success(
-        `Imported: ${expenses.filter(fresh).length} project costs, ${labor.filter(fresh).length} labor, ${overhead.filter(fresh).length} operating costs, ${billing.filter(fresh).length} billing entries` +
+        `Imported: ${expenses.length} project costs, ${labor.length} labor, ${overhead.length} operating costs, ${billing.length} billing entries` +
           (updatedCount ? ` — and updated ${updatedCount} existing ${updatedCount === 1 ? 'line' : 'lines'} from the earlier report.` : '.')
       );
       setRows([]);
