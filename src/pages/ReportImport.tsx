@@ -147,7 +147,7 @@ export default function ReportImport() {
       const codeName = (id: string | null) => costCodes.find((c) => c.id === id)?.name;
       const label = (r: Row) => [r.account, r.vendor, r.memo].filter(Boolean).join(' · ');
 
-      const expenses = used.filter((r) => r.destination === 'project_cost').map((r) => ({
+      const expenses = used.filter((r) => r.destination === 'project_cost' && !r.duplicate).map((r) => ({
         project_id: r.projectId!,
         category: codeName(r.costCodeId) || r.account || 'Other',
         description: label(r) || 'Imported cost',
@@ -160,7 +160,7 @@ export default function ReportImport() {
         import_batch_id: batch.id,
         external_ref: r.ref,
       }));
-      const labor = used.filter((r) => r.destination === 'labor').map((r) => ({
+      const labor = used.filter((r) => r.destination === 'labor' && !r.duplicate).map((r) => ({
         project_id: r.projectId!,
         employee_name: r.vendor || r.account || 'Labor (from report)',
         work_date: r.date || end,
@@ -174,7 +174,7 @@ export default function ReportImport() {
         import_batch_id: batch.id,
         external_ref: r.ref,
       }));
-      const overhead = used.filter((r) => r.destination === 'operating').map((r) => {
+      const overhead = used.filter((r) => r.destination === 'operating' && !r.duplicate).map((r) => {
         const o = overheadForPeriod(r.amount, start, end);
         return {
           company_id: companyId,
@@ -190,7 +190,7 @@ export default function ReportImport() {
           external_ref: r.ref,
         };
       });
-      const billing = used.filter((r) => r.destination === 'revenue').map((r) => ({
+      const billing = used.filter((r) => r.destination === 'revenue' && !r.duplicate).map((r) => ({
         project_id: r.projectId!,
         billing_period_start: start,
         billing_period_end: end,
