@@ -48,6 +48,40 @@ export default function ReportImport() {
   const [fileName, setFileName] = useState('');
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [lastBatch, setLastBatch] = useState<{ id: string; file_name: string | null; imported_count: number | null } | null>(null);
+
+  const loadLastBatch = useCallback(async () => {
+    const { data } = await supabase
+      .from('qb_import_batches')
+      .select('id, file_name, imported_count')
+      .neq('status', 'undone')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    setLastBatch(data?.[0] ?? null);
+  }, []);
+
+  useEffect(() => {
+    loadLastBatch();
+  }, [loadLastBatch]);
+
+  const reverseLastUpload = async () => {
+    if (!lastBatch) return;
+    if (!window.confirm(`Reverse the last upload${lastBatch.file_name ? ` (${lastBatch.file_name})` : ''}? Lines it added will be deleted. Lines it updated keep their latest values.`)) return;
+    setBusy(true);
+    try {
+      await supabase.from('expenses').delete().eq('import_batch_id', lastBatch.id);
+      await supabase.from('time_entries').delete().eq('import_batch_id', lastBatch.id);
+      await supabase.from('overhead_items').delete().like('notes', `%[batch:${lastBatch.id}]%`);
+      await supabase.from('project_billing').delete().like('notes', `%[batch:${lastBatch.id}]%`);
+      await supabase.from('qb_import_batches').update({ status: 'undone', imported_count: 0 }).eq('id', lastBatch.id);
+      toast.success('Last upload reversed.');
+      setLastBatch(null);
+    } catch (e: any) {
+      toast.error(e.message || 'The upload could not be reversed.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const load = useCallback(async () => {
     const [p, c] = await Promise.all([
@@ -287,8 +321,14 @@ export default function ReportImport() {
           <h1 className="text-2xl font-semibold tracking-tight">Report Import</h1>
           <p className="text-sm text-muted-foreground">
             Upload a QuickBooks Desktop P&L, P&L by Job, Job Profitability, Estimates vs. Actuals or job cost detail. Each
-            line is sent to project costs, labor, operating costs or billing — you review before anything saves.
+            line is sent to project costs, labor, operating costs or billing — you review before anything saves. Excel, CSV
+            and PDF exports all work.
           </p>
+          {lastBatch && (
+            <Button variant="outline" size="sm" className="mt-3" onClick={reverseLastUpload} disabled={busy}>
+              Reverse last upload{lastBatch.file_name ? ` (${lastBatch.file_name})` : ''}
+            </Button>
+          )}
         </div>
 
         <Card
