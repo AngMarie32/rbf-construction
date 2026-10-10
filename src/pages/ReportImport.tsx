@@ -369,7 +369,7 @@ export default function ReportImport() {
                           <div className="text-xs text-muted-foreground">
                             {[r.job && `Job: ${r.job}`, r.vendor, r.memo, r.date].filter(Boolean).join(' · ')}
                           </div>
-                          {r.duplicate && <Badge variant="secondary" className="mt-1">Already imported</Badge>}
+                          {r.duplicate && <Badge variant="secondary" className="mt-1">Already imported — will be updated, not duplicated</Badge>}
                           {r.reason && <div className="text-xs text-muted-foreground">{r.reason}</div>}
                         </td>
                         <td className="whitespace-nowrap p-3 text-right tabular-nums">{currency(r.amount)}</td>
