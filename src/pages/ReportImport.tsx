@@ -140,6 +140,8 @@ export default function ReportImport() {
 
   const update = (i: number, patch: Partial<Row>) => setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
+  const removeRow = (i: number) => setRows((prev) => prev.filter((_, idx) => idx !== i));
+
   const applyToJob = (i: number) => {
     const row = rows[i];
     setRows((prev) => prev.map((r) => (normalize(r.job) === normalize(row.job) ? { ...r, projectId: row.projectId } : r)));
