@@ -90,7 +90,7 @@ export default function ReportImport() {
   const handleFile = async (file: File) => {
     setBusy(true);
     try {
-      const parsed = parseFinancialReport(await file.arrayBuffer(), projects, costCodes);
+      const parsed = await parseReportFile(file, projects, costCodes);
       if (!parsed.lines.length) return toast.error('No amounts were found in that report.');
       setReport(parsed);
       setFileName(file.name);
@@ -308,11 +308,11 @@ export default function ReportImport() {
           <input
             ref={fileRef}
             type="file"
-            accept=".xlsx,.xls,.csv"
+            accept=".xlsx,.xls,.csv,.pdf"
             className="hidden"
             onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
           />
-          <p className="text-sm text-muted-foreground">Drag an Excel or CSV export here, or</p>
+          <p className="text-sm text-muted-foreground">Drag an Excel, CSV or PDF export here, or</p>
           <Button className="mt-3" onClick={() => fileRef.current?.click()} disabled={busy}>
             Choose report
           </Button>
