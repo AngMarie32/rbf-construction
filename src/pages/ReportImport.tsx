@@ -18,7 +18,7 @@ import {
   ParsedReport,
   ReportLine,
   overheadForPeriod,
-  parseFinancialReport,
+  parseReportFile,
   reportRef,
 } from '@/utils/financialReportImport';
 
