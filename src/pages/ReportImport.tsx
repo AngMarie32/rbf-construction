@@ -38,8 +38,9 @@ const DESTS: Destination[] = ['project_cost', 'labor', 'operating', 'revenue', '
 const needsProject = (d: Destination) => d === 'project_cost' || d === 'labor' || d === 'revenue';
 
 export default function ReportImport() {
-  const { selectedIds } = useCompanies();
-  const companyId = selectedIds.length === 1 ? selectedIds[0] : null;
+  const { selectedIds, companies } = useCompanies();
+  const [uploadCompanyId, setUploadCompanyId] = useState<string>('');
+  const companyId = uploadCompanyId || (selectedIds.length === 1 ? selectedIds[0] : null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [projects, setProjects] = useState<ProjectRef[]>([]);
   const [costCodes, setCostCodes] = useState<CostCodeRef[]>([]);
@@ -48,6 +49,7 @@ export default function ReportImport() {
   const [fileName, setFileName] = useState('');
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [override, setOverride] = useState(false);
   const [lastBatch, setLastBatch] = useState<{ id: string; file_name: string | null; imported_count: number | null } | null>(null);
 
   const loadLastBatch = useCallback(async () => {
