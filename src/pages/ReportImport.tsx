@@ -307,6 +307,7 @@ export default function ReportImport() {
       setRows([]);
       setReport(null);
       setFileName('');
+      loadLastBatch();
     } catch (e: any) {
       toast.error(e.message || 'The import could not be completed.');
     } finally {
