@@ -468,6 +468,11 @@ export default function ReportImport() {
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </td>
+                        <td className="p-3">
+                          <Button variant="ghost" size="sm" onClick={() => removeRow(i)} disabled={busy}>
+                            Remove
+                          </Button>
+                        </td>
                       </tr>
                     );
                   })}
