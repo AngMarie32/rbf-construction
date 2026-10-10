@@ -29,6 +29,7 @@ interface BidItem {
   quantity: number;
   unit: string;
   unit_cost: number;
+  markup_pct?: number;
   total: number;
   divisionManuallySet?: boolean;
 }
@@ -61,8 +62,14 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
     }
   ]);
 
-  // Load existing bid items for this project on component mount
+  // Load existing bid items for this project on component mount or project change
   useEffect(() => {
+    // Cancel any pending auto-save so items from the previous project
+    // are never written to the newly selected project
+    if (autoSaveTimeout) {
+      clearTimeout(autoSaveTimeout);
+      setAutoSaveTimeout(null);
+    }
     if (projectId) {
       loadExistingBidItems();
     }
@@ -96,7 +103,8 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
             quantity: item.quantity || 1,
             unit: item.unit || 'each',
             unit_cost: item.unit_cost || 0,
-            total: (item.unit_cost || 0) * (item.quantity || 1),
+            markup_pct: Number(item.markup_pct) || 0,
+            total: (item.unit_cost || 0) * (item.quantity || 1) * (1 + (Number(item.markup_pct) || 0) / 100),
             divisionManuallySet: !!item.division
           };
         });
@@ -285,7 +293,9 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         description: description, // Don't force a description
         quantity: Math.max(Number(item.quantity) || 1, 1),
         unit: (item.unit || 'each').trim(),
-        unit_cost: Number(item.unit_cost) || 0
+        unit_cost: Number(item.unit_cost) || 0,
+        markup_pct: Number(item.markup_pct) || 0,
+        division: item.division || null
       };
     });
 
@@ -482,7 +492,7 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
         category: item.category || 'General',
         subcategory: item.subcategory || null,
         description: item.description || '',
-        scheduled_value: (item.unit_cost || 0) * (item.quantity || 1),
+        scheduled_value: Math.round((item.total || 0) * 100) / 100,
         previous_applications: 0,
         this_period: 0,
         materials_stored: 0,

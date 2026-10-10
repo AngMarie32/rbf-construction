@@ -1,3 +1,4 @@
+import { localDateISO } from '@/utils/dates';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { supabase } from '@/integrations/supabase/client';
@@ -51,18 +52,18 @@ const money = (n: number) =>
     maximumFractionDigits: 2,
   });
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDateISO();
 
 function isoDaysAgo(days: number) {
   const d = new Date();
   d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
+  return localDateISO(d);
 }
 
 function addDays(iso: string, days: number) {
   const d = new Date(`${iso}T00:00:00`);
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return localDateISO(d);
 }
 
 function daysBetween(a: string, b: string) {

@@ -7,6 +7,7 @@ export interface CashFlowMonth {
   equipment: number; // equipment purchases / deposits (outflow)
   repairs: number; // maintenance & repair payments (outflow)
   overhead: number; // operating costs (outflow)
+  jobCosts: number; // project expenses + labor (outflow)
   loanOut: number; // loan principal disbursed (outflow)
   loanIn: number; // loan payments collected (inflow)
   outflow: number;
@@ -22,6 +23,10 @@ export interface CashFlowInputs {
   equipment: { date: string | null; amount: number }[];
   repairs: { date: string | null; amount: number }[];
   overhead: { amount: number; frequency: OverheadFrequency }[];
+  /** Project expenses and labor (including uploaded QuickBooks/payroll costs). */
+  jobCosts?: { date: string | null; amount: number }[];
+  /** Include an averaged job-cost allowance in projected months. */
+  projectJobCosts?: boolean;
   loans: { start_date: string; principal_amount: number }[];
   loanPayments: {
     due_date: string;
@@ -44,6 +49,7 @@ export function monthKey(d: Date) {
 
 function keyFromString(value: string | null): string | null {
   if (!value) return null;
+  if (/^\d{4}-\d{2}/.test(value)) return value.slice(0, 7);
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
   return monthKey(d);
@@ -67,6 +73,7 @@ export function buildCashFlow(input: CashFlowInputs): {
   overheadMonthly: number;
   avgRepairs: number;
   avgEquipment: number;
+  avgJobCosts: number;
   lowestCash: CashFlowMonth | null;
   totals: { inflow: number; outflow: number; net: number };
 } {
@@ -86,6 +93,7 @@ export function buildCashFlow(input: CashFlowInputs): {
     equipment: 0,
     repairs: 0,
     overhead: 0,
+    jobCosts: 0,
     loanOut: 0,
     loanIn: 0,
     outflow: 0,
@@ -104,6 +112,7 @@ export function buildCashFlow(input: CashFlowInputs): {
 
   input.equipment.forEach((e) => add(keyFromString(e.date), 'equipment', e.amount));
   input.repairs.forEach((r) => add(keyFromString(r.date), 'repairs', r.amount));
+  (input.jobCosts ?? []).forEach((j) => add(keyFromString(j.date), 'jobCosts', j.amount));
   input.loans.forEach((l) => add(keyFromString(l.start_date), 'loanOut', l.principal_amount));
 
   input.loanPayments.forEach((p) => {
@@ -121,10 +130,11 @@ export function buildCashFlow(input: CashFlowInputs): {
 
   // Trailing averages from actual history (exclude future months).
   const historical = keys.filter((k) => k <= currentKey);
-  const sumField = (field: 'repairs' | 'equipment') =>
+  const sumField = (field: 'repairs' | 'equipment' | 'jobCosts') =>
     historical.reduce((s, k) => s + (map.get(k)?.[field] ?? 0), 0);
   const avgRepairs = historical.length ? sumField('repairs') / historical.length : 0;
   const avgEquipment = historical.length ? sumField('equipment') / historical.length : 0;
+  const avgJobCosts = historical.length ? sumField('jobCosts') / historical.length : 0;
 
   let cumulative = Number(input.startingCash) || 0;
   const rows = keys.map((k) => {
@@ -133,9 +143,10 @@ export function buildCashFlow(input: CashFlowInputs): {
     if (row.projected) {
       if (input.projectRepairs) row.repairs = avgRepairs;
       if (input.projectEquipment) row.equipment = avgEquipment;
+      if (input.projectJobCosts) row.jobCosts = avgJobCosts;
     }
     const planned = input.planned?.[k] ?? 0;
-    row.outflow = row.equipment + row.repairs + row.overhead + row.loanOut + planned;
+    row.outflow = row.equipment + row.repairs + row.overhead + row.jobCosts + row.loanOut + planned;
     row.inflow = row.loanIn;
     row.net = row.inflow - row.outflow;
     cumulative += row.net;
@@ -158,5 +169,5 @@ export function buildCashFlow(input: CashFlowInputs): {
     { inflow: 0, outflow: 0, net: 0 }
   );
 
-  return { rows, overheadMonthly, avgRepairs, avgEquipment, lowestCash, totals };
+  return { rows, overheadMonthly, avgRepairs, avgEquipment, avgJobCosts, lowestCash, totals };
 }

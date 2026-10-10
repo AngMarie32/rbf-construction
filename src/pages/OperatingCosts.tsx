@@ -1,3 +1,4 @@
+import { localDateISO } from '@/utils/dates';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { supabase } from '@/integrations/supabase/client';
@@ -76,6 +77,7 @@ const emptyForm = {
   frequency: 'monthly' as OverheadFrequency,
   is_active: true,
   notes: '',
+  allIn: false,
 };
 
 export default function OperatingCosts() {
@@ -99,7 +101,7 @@ export default function OperatingCosts() {
     setLoading(true);
 
     const days = Number(lookback);
-    const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    const since = localDateISO(new Date(Date.now() - days * 86400000));
 
     const [{ data: overhead }, { data: projects }] = await Promise.all([
       supabase.from('overhead_items').select('*').in('company_id', selectedIds).order('name'),
@@ -182,6 +184,17 @@ export default function OperatingCosts() {
     setShowForm(true);
   };
 
+  const openAllIn = () => {
+    setForm({
+      ...emptyForm,
+      company_id: activeCompanies[0]?.id || companies[0]?.id || '',
+      name: 'All-in overhead',
+      category: 'General',
+      allIn: true,
+    });
+    setShowForm(true);
+  };
+
   const openEdit = (item: OverheadItem) => {
     setForm({
       id: item.id,
@@ -192,6 +205,7 @@ export default function OperatingCosts() {
       frequency: item.frequency,
       is_active: item.is_active,
       notes: item.notes || '',
+      allIn: false,
     });
     setShowForm(true);
   };
@@ -281,10 +295,16 @@ export default function OperatingCosts() {
               </Label>
             </div>
           </div>
-          <Button onClick={openNew}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add cost
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={openAllIn}>
+              <Plus className="w-4 h-4 mr-2" />
+              All-in overhead
+            </Button>
+            <Button onClick={openNew}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add cost
+            </Button>
+          </div>
         </div>
 
         {loading ? (
@@ -447,16 +467,26 @@ export default function OperatingCosts() {
 
         {showForm && (
           <Card className="p-4 space-y-4">
-            <p className="font-semibold">{form.id ? 'Edit cost' : 'New recurring cost'}</p>
+            <p className="font-semibold">
+              {form.allIn ? 'All-in overhead' : form.id ? 'Edit cost' : 'New recurring cost'}
+            </p>
+            {form.allIn && (
+              <p className="text-sm text-muted-foreground">
+                One total number for all your overhead — no itemized breakdown. It saves as a
+                single recurring cost you can edit later.
+              </p>
+            )}
             <div className="grid md:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <Label>Name</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Office rent"
-                />
-              </div>
+              {!form.allIn && (
+                <div className="space-y-1">
+                  <Label>Name</Label>
+                  <Input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Office rent"
+                  />
+                </div>
+              )}
               <div className="space-y-1">
                 <Label>Company</Label>
                 <Select
@@ -475,26 +505,28 @@ export default function OperatingCosts() {
                   </SelectContent>
                 </Select>
               </div>
+              {!form.allIn && (
+                <div className="space-y-1">
+                  <Label>Category</Label>
+                  <Select
+                    value={form.category}
+                    onValueChange={(v) => setForm({ ...form, category: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-1">
-                <Label>Category</Label>
-                <Select
-                  value={form.category}
-                  onValueChange={(v) => setForm({ ...form, category: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Amount</Label>
+                <Label>{form.allIn ? 'Total overhead amount' : 'Amount'}</Label>
                 <Input
                   type="number"
                   step="0.001"

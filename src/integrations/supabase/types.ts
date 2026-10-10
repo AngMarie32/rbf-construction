@@ -209,8 +209,11 @@ export type Database = {
           description: string
           division: string | null
           id: string
+          markup_pct: number
           project_id: string
           quantity: number
+          source_estimate_id: string | null
+          source_estimate_line_id: string | null
           subcategory: string | null
           template_id: string | null
           total: number | null
@@ -224,8 +227,11 @@ export type Database = {
           description: string
           division?: string | null
           id?: string
+          markup_pct?: number
           project_id: string
           quantity?: number
+          source_estimate_id?: string | null
+          source_estimate_line_id?: string | null
           subcategory?: string | null
           template_id?: string | null
           total?: number | null
@@ -239,8 +245,11 @@ export type Database = {
           description?: string
           division?: string | null
           id?: string
+          markup_pct?: number
           project_id?: string
           quantity?: number
+          source_estimate_id?: string | null
+          source_estimate_line_id?: string | null
           subcategory?: string | null
           template_id?: string | null
           total?: number | null
@@ -254,6 +263,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bid_items_source_estimate_id_fkey"
+            columns: ["source_estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
             referencedColumns: ["id"]
           },
           {
@@ -402,6 +418,9 @@ export type Database = {
           created_at: string
           description: string
           id: string
+          markup_pct: number
+          quantity: number
+          sort_order: number
           subcategory: string | null
           template_id: string | null
           unit: string | null
@@ -412,6 +431,9 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
+          markup_pct?: number
+          quantity?: number
+          sort_order?: number
           subcategory?: string | null
           template_id?: string | null
           unit?: string | null
@@ -422,6 +444,9 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
+          markup_pct?: number
+          quantity?: number
+          sort_order?: number
           subcategory?: string | null
           template_id?: string | null
           unit?: string | null
@@ -1110,6 +1135,120 @@ export type Database = {
           },
         ]
       }
+      commitment_items: {
+        Row: {
+          amount: number
+          commitment_id: string
+          cost_code_id: string | null
+          created_at: string
+          description: string
+          id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          commitment_id: string
+          cost_code_id?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          commitment_id?: string
+          cost_code_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commitment_items_commitment_id_fkey"
+            columns: ["commitment_id"]
+            isOneToOne: false
+            referencedRelation: "commitments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commitment_items_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commitments: {
+        Row: {
+          approved_changes: number
+          commitment_type: string
+          created_at: string
+          executed_date: string | null
+          id: string
+          notes: string | null
+          number: string | null
+          original_amount: number
+          project_id: string
+          status: string
+          subcontractor_id: string | null
+          title: string
+          updated_at: string
+          vendor_name: string | null
+        }
+        Insert: {
+          approved_changes?: number
+          commitment_type?: string
+          created_at?: string
+          executed_date?: string | null
+          id?: string
+          notes?: string | null
+          number?: string | null
+          original_amount?: number
+          project_id: string
+          status?: string
+          subcontractor_id?: string | null
+          title: string
+          updated_at?: string
+          vendor_name?: string | null
+        }
+        Update: {
+          approved_changes?: number
+          commitment_type?: string
+          created_at?: string
+          executed_date?: string | null
+          id?: string
+          notes?: string | null
+          number?: string | null
+          original_amount?: number
+          project_id?: string
+          status?: string
+          subcontractor_id?: string | null
+          title?: string
+          updated_at?: string
+          vendor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commitments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commitments_subcontractor_id_fkey"
+            columns: ["subcontractor_id"]
+            isOneToOne: false
+            referencedRelation: "subcontractors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address: string | null
@@ -1307,6 +1446,192 @@ export type Database = {
         }
         Relationships: []
       }
+      cost_codes: {
+        Row: {
+          code: string
+          company_id: string | null
+          created_at: string
+          division: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          company_id?: string | null
+          created_at?: string
+          division?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          company_id?: string | null
+          created_at?: string
+          division?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_codes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_log_photos: {
+        Row: {
+          caption: string | null
+          cost_code_id: string | null
+          created_at: string
+          daily_log_id: string | null
+          file_path: string
+          id: string
+          project_id: string
+          taken_at: string
+          uploaded_by: string | null
+          uploaded_by_name: string | null
+        }
+        Insert: {
+          caption?: string | null
+          cost_code_id?: string | null
+          created_at?: string
+          daily_log_id?: string | null
+          file_path: string
+          id?: string
+          project_id: string
+          taken_at?: string
+          uploaded_by?: string | null
+          uploaded_by_name?: string | null
+        }
+        Update: {
+          caption?: string | null
+          cost_code_id?: string | null
+          created_at?: string
+          daily_log_id?: string | null
+          file_path?: string
+          id?: string
+          project_id?: string
+          taken_at?: string
+          uploaded_by?: string | null
+          uploaded_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_log_photos_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_log_photos_daily_log_id_fkey"
+            columns: ["daily_log_id"]
+            isOneToOne: false
+            referencedRelation: "daily_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_log_photos_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_logs: {
+        Row: {
+          cost_code_id: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          crew_name: string | null
+          delay_cause: string | null
+          delays: string | null
+          deliveries: string | null
+          headcount: number
+          hours: number
+          id: string
+          log_date: string
+          project_id: string
+          safety_notes: string | null
+          temperature_high: number | null
+          temperature_low: number | null
+          updated_at: string
+          visitors: string | null
+          weather_summary: string | null
+          work_performed: string | null
+        }
+        Insert: {
+          cost_code_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          crew_name?: string | null
+          delay_cause?: string | null
+          delays?: string | null
+          deliveries?: string | null
+          headcount?: number
+          hours?: number
+          id?: string
+          log_date?: string
+          project_id: string
+          safety_notes?: string | null
+          temperature_high?: number | null
+          temperature_low?: number | null
+          updated_at?: string
+          visitors?: string | null
+          weather_summary?: string | null
+          work_performed?: string | null
+        }
+        Update: {
+          cost_code_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          crew_name?: string | null
+          delay_cause?: string | null
+          delays?: string | null
+          deliveries?: string | null
+          headcount?: number
+          hours?: number
+          id?: string
+          log_date?: string
+          project_id?: string
+          safety_notes?: string | null
+          temperature_high?: number | null
+          temperature_low?: number | null
+          updated_at?: string
+          visitors?: string | null
+          weather_summary?: string | null
+          work_performed?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_logs_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           category: string | null
@@ -1368,6 +1693,56 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          burden_percent: number
+          company_id: string | null
+          created_at: string
+          hourly_rate: number | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          ot_multiplier: number
+          trade: string | null
+          updated_at: string
+        }
+        Insert: {
+          burden_percent?: number
+          company_id?: string | null
+          created_at?: string
+          hourly_rate?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          ot_multiplier?: number
+          trade?: string | null
+          updated_at?: string
+        }
+        Update: {
+          burden_percent?: number
+          company_id?: string | null
+          created_at?: string
+          hourly_rate?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          ot_multiplier?: number
+          trade?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -2004,6 +2379,319 @@ export type Database = {
         }
         Relationships: []
       }
+      estimate_bids: {
+        Row: {
+          company_name: string
+          created_at: string
+          estimate_id: string
+          exclusions: string | null
+          id: string
+          inclusions: string | null
+          leveling_additions: number
+          leveling_credits: number
+          line_id: string | null
+          notes: string | null
+          raw_amount: number
+          recommended: boolean
+          trade: string
+          updated_at: string
+        }
+        Insert: {
+          company_name: string
+          created_at?: string
+          estimate_id: string
+          exclusions?: string | null
+          id?: string
+          inclusions?: string | null
+          leveling_additions?: number
+          leveling_credits?: number
+          line_id?: string | null
+          notes?: string | null
+          raw_amount?: number
+          recommended?: boolean
+          trade: string
+          updated_at?: string
+        }
+        Update: {
+          company_name?: string
+          created_at?: string
+          estimate_id?: string
+          exclusions?: string | null
+          id?: string
+          inclusions?: string | null
+          leveling_additions?: number
+          leveling_credits?: number
+          line_id?: string | null
+          notes?: string | null
+          raw_amount?: number
+          recommended?: boolean
+          trade?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_bids_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimate_bids_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "estimate_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estimate_flags: {
+        Row: {
+          action: string | null
+          created_at: string
+          estimate_id: string
+          exposure: string | null
+          finding: string | null
+          id: string
+          issue: string
+          resolved: boolean
+          severity: string
+        }
+        Insert: {
+          action?: string | null
+          created_at?: string
+          estimate_id: string
+          exposure?: string | null
+          finding?: string | null
+          id?: string
+          issue: string
+          resolved?: boolean
+          severity?: string
+        }
+        Update: {
+          action?: string | null
+          created_at?: string
+          estimate_id?: string
+          exposure?: string | null
+          finding?: string | null
+          id?: string
+          issue?: string
+          resolved?: boolean
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_flags_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estimate_lines: {
+        Row: {
+          baseline_amount: number
+          basis: string | null
+          confidence: string
+          created_at: string
+          estimate_id: string
+          group_key: string
+          group_name: string
+          id: string
+          name: string
+          override_amount: number | null
+          quantity: number | null
+          section_name: string
+          sort_order: number
+          source: string | null
+          status: string
+          unit: string | null
+          unit_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          baseline_amount?: number
+          basis?: string | null
+          confidence?: string
+          created_at?: string
+          estimate_id: string
+          group_key?: string
+          group_name?: string
+          id?: string
+          name: string
+          override_amount?: number | null
+          quantity?: number | null
+          section_name?: string
+          sort_order?: number
+          source?: string | null
+          status?: string
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          baseline_amount?: number
+          basis?: string | null
+          confidence?: string
+          created_at?: string
+          estimate_id?: string
+          group_key?: string
+          group_name?: string
+          id?: string
+          name?: string
+          override_amount?: number | null
+          quantity?: number | null
+          section_name?: string
+          sort_order?: number
+          source?: string | null
+          status?: string
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_lines_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estimate_subcosts: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          kind: string
+          line_id: string
+          name: string
+          note: string | null
+          sort_order: number
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          line_id: string
+          name: string
+          note?: string | null
+          sort_order?: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          line_id?: string
+          name?: string
+          note?: string | null
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_subcosts_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "estimate_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estimates: {
+        Row: {
+          area_sf: number
+          assumptions: Json
+          bond_pct: number
+          company_id: string | null
+          contingency_pct: number
+          created_at: string
+          created_by: string | null
+          id: string
+          location: string | null
+          name: string
+          notes: string | null
+          overhead_pct: number
+          profit_pct: number
+          project_id: string | null
+          scope_summary: string | null
+          source_files: Json
+          sov_project_id: string | null
+          sov_synced_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          area_sf?: number
+          assumptions?: Json
+          bond_pct?: number
+          company_id?: string | null
+          contingency_pct?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location?: string | null
+          name: string
+          notes?: string | null
+          overhead_pct?: number
+          profit_pct?: number
+          project_id?: string | null
+          scope_summary?: string | null
+          source_files?: Json
+          sov_project_id?: string | null
+          sov_synced_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          area_sf?: number
+          assumptions?: Json
+          bond_pct?: number
+          company_id?: string | null
+          contingency_pct?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location?: string | null
+          name?: string
+          notes?: string | null
+          overhead_pct?: number
+          profit_pct?: number
+          project_id?: string | null
+          scope_summary?: string | null
+          source_files?: Json
+          sov_project_id?: string | null
+          sov_synced_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimates_sov_project_id_fkey"
+            columns: ["sov_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_categories: {
         Row: {
           color: string | null
@@ -2040,12 +2728,16 @@ export type Database = {
         Row: {
           amount: number
           category: string
+          cost_code_id: string | null
           created_at: string
           date: string
           description: string
+          external_ref: string | null
           id: string
+          import_batch_id: string | null
           project_id: string
           receipt_number: string | null
+          source: string
           status: string
           updated_at: string
           vendor: string | null
@@ -2053,12 +2745,16 @@ export type Database = {
         Insert: {
           amount?: number
           category: string
+          cost_code_id?: string | null
           created_at?: string
           date?: string
           description: string
+          external_ref?: string | null
           id?: string
+          import_batch_id?: string | null
           project_id: string
           receipt_number?: string | null
+          source?: string
           status?: string
           updated_at?: string
           vendor?: string | null
@@ -2066,17 +2762,35 @@ export type Database = {
         Update: {
           amount?: number
           category?: string
+          cost_code_id?: string | null
           created_at?: string
           date?: string
           description?: string
+          external_ref?: string | null
           id?: string
+          import_batch_id?: string | null
           project_id?: string
           receipt_number?: string | null
+          source?: string
           status?: string
           updated_at?: string
           vendor?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "expenses_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "qb_import_batches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "expenses_project_id_fkey"
             columns: ["project_id"]
@@ -2515,6 +3229,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           end_date: string | null
+          external_ref: string | null
           frequency: string
           id: string
           is_active: boolean
@@ -2530,6 +3245,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           end_date?: string | null
+          external_ref?: string | null
           frequency?: string
           id?: string
           is_active?: boolean
@@ -2545,6 +3261,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           end_date?: string | null
+          external_ref?: string | null
           frequency?: string
           id?: string
           is_active?: boolean
@@ -2823,6 +3540,7 @@ export type Database = {
           billing_period_start: string
           created_at: string
           due_date: string | null
+          external_ref: string | null
           id: string
           invoice_date: string | null
           invoice_number: string | null
@@ -2840,6 +3558,7 @@ export type Database = {
           billing_period_start: string
           created_at?: string
           due_date?: string | null
+          external_ref?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
@@ -2857,6 +3576,7 @@ export type Database = {
           billing_period_start?: string
           created_at?: string
           due_date?: string | null
+          external_ref?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
@@ -3134,34 +3854,351 @@ export type Database = {
         Row: {
           amount: number
           client: string
+          client_address: string | null
+          client_email: string | null
+          client_phone: string | null
           created_at: string | null
           id: string
+          notes: string | null
+          project_address: string | null
+          project_id: string | null
           project_name: string
+          proposal_items: Json
           scope: string | null
+          sov_synced_at: string | null
           status: string | null
           updated_at: string | null
+          valid_days: number | null
         }
         Insert: {
           amount?: number
           client: string
+          client_address?: string | null
+          client_email?: string | null
+          client_phone?: string | null
           created_at?: string | null
           id?: string
+          notes?: string | null
+          project_address?: string | null
+          project_id?: string | null
           project_name: string
+          proposal_items?: Json
           scope?: string | null
+          sov_synced_at?: string | null
           status?: string | null
           updated_at?: string | null
+          valid_days?: number | null
         }
         Update: {
           amount?: number
           client?: string
+          client_address?: string | null
+          client_email?: string | null
+          client_phone?: string | null
           created_at?: string | null
           id?: string
+          notes?: string | null
+          project_address?: string | null
+          project_id?: string | null
           project_name?: string
+          proposal_items?: Json
           scope?: string | null
+          sov_synced_at?: string | null
           status?: string | null
           updated_at?: string | null
+          valid_days?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "proposals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      qb_import_batches: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          file_name: string
+          id: string
+          imported_by: string | null
+          imported_by_name: string | null
+          imported_count: number
+          notes: string | null
+          row_count: number
+          source_report: string | null
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          file_name: string
+          id?: string
+          imported_by?: string | null
+          imported_by_name?: string | null
+          imported_count?: number
+          notes?: string | null
+          row_count?: number
+          source_report?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          file_name?: string
+          id?: string
+          imported_by?: string | null
+          imported_by_name?: string | null
+          imported_count?: number
+          notes?: string | null
+          row_count?: number
+          source_report?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qb_import_batches_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      qb_import_lines: {
+        Row: {
+          account: string | null
+          amount: number
+          batch_id: string
+          category: string | null
+          confidence: number
+          created_at: string
+          expense_id: string | null
+          id: string
+          job_name: string | null
+          match_reason: string | null
+          matched_cost_code_id: string | null
+          matched_project_id: string | null
+          memo: string | null
+          raw: Json
+          ref_number: string | null
+          row_index: number
+          status: string
+          txn_date: string | null
+          updated_at: string
+          vendor: string | null
+        }
+        Insert: {
+          account?: string | null
+          amount?: number
+          batch_id: string
+          category?: string | null
+          confidence?: number
+          created_at?: string
+          expense_id?: string | null
+          id?: string
+          job_name?: string | null
+          match_reason?: string | null
+          matched_cost_code_id?: string | null
+          matched_project_id?: string | null
+          memo?: string | null
+          raw?: Json
+          ref_number?: string | null
+          row_index?: number
+          status?: string
+          txn_date?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Update: {
+          account?: string | null
+          amount?: number
+          batch_id?: string
+          category?: string | null
+          confidence?: number
+          created_at?: string
+          expense_id?: string | null
+          id?: string
+          job_name?: string | null
+          match_reason?: string | null
+          matched_cost_code_id?: string | null
+          matched_project_id?: string | null
+          memo?: string | null
+          raw?: Json
+          ref_number?: string | null
+          row_index?: number
+          status?: string
+          txn_date?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qb_import_lines_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "qb_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qb_import_lines_matched_cost_code_id_fkey"
+            columns: ["matched_cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qb_import_lines_matched_project_id_fkey"
+            columns: ["matched_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      qb_mapping_rules: {
+        Row: {
+          category: string | null
+          company_id: string | null
+          cost_code_id: string | null
+          created_at: string
+          hit_count: number
+          id: string
+          match_type: string
+          match_value: string
+          project_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          company_id?: string | null
+          cost_code_id?: string | null
+          created_at?: string
+          hit_count?: number
+          id?: string
+          match_type: string
+          match_value: string
+          project_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          company_id?: string | null
+          cost_code_id?: string | null
+          created_at?: string
+          hit_count?: number
+          id?: string
+          match_type?: string
+          match_value?: string
+          project_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qb_mapping_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qb_mapping_rules_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qb_mapping_rules_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rfis: {
+        Row: {
+          answer: string | null
+          assigned_to: string | null
+          cost_impact: number | null
+          created_at: string
+          date_answered: string | null
+          date_due: string | null
+          date_submitted: string
+          drawing_reference: string | null
+          id: string
+          number: number
+          priority: string
+          project_id: string
+          question: string | null
+          schedule_impact_days: number | null
+          spec_section: string | null
+          status: string
+          subject: string
+          submitted_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          answer?: string | null
+          assigned_to?: string | null
+          cost_impact?: number | null
+          created_at?: string
+          date_answered?: string | null
+          date_due?: string | null
+          date_submitted?: string
+          drawing_reference?: string | null
+          id?: string
+          number?: number
+          priority?: string
+          project_id: string
+          question?: string | null
+          schedule_impact_days?: number | null
+          spec_section?: string | null
+          status?: string
+          subject: string
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          answer?: string | null
+          assigned_to?: string | null
+          cost_impact?: number | null
+          created_at?: string
+          date_answered?: string | null
+          date_due?: string | null
+          date_submitted?: string
+          drawing_reference?: string | null
+          id?: string
+          number?: number
+          priority?: string
+          project_id?: string
+          question?: string | null
+          schedule_impact_days?: number | null
+          spec_section?: string | null
+          status?: string
+          subject?: string
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfis_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       role_change_requests: {
         Row: {
@@ -3324,6 +4361,9 @@ export type Database = {
           project_id: string
           retainage_percentage: number | null
           scheduled_value: number
+          source_estimate_id: string | null
+          source_estimate_line_id: string | null
+          source_proposal_id: string | null
           subcategory: string | null
           this_period: number | null
           total_completed_and_stored: number | null
@@ -3344,6 +4384,9 @@ export type Database = {
           project_id: string
           retainage_percentage?: number | null
           scheduled_value?: number
+          source_estimate_id?: string | null
+          source_estimate_line_id?: string | null
+          source_proposal_id?: string | null
           subcategory?: string | null
           this_period?: number | null
           total_completed_and_stored?: number | null
@@ -3364,6 +4407,9 @@ export type Database = {
           project_id?: string
           retainage_percentage?: number | null
           scheduled_value?: number
+          source_estimate_id?: string | null
+          source_estimate_line_id?: string | null
+          source_proposal_id?: string | null
           subcategory?: string | null
           this_period?: number | null
           total_completed_and_stored?: number | null
@@ -3376,6 +4422,27 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sov_items_source_estimate_id_fkey"
+            columns: ["source_estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sov_items_source_estimate_line_id_fkey"
+            columns: ["source_estimate_line_id"]
+            isOneToOne: false
+            referencedRelation: "estimate_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sov_items_source_proposal_id_fkey"
+            columns: ["source_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
             referencedColumns: ["id"]
           },
         ]
@@ -3503,6 +4570,71 @@ export type Database = {
         }
         Relationships: []
       }
+      submittals: {
+        Row: {
+          ball_in_court: string | null
+          created_at: string
+          date_required: string | null
+          date_returned: string | null
+          date_submitted: string
+          id: string
+          notes: string | null
+          number: number
+          project_id: string
+          responsible_contractor: string | null
+          revision: number
+          spec_section: string | null
+          status: string
+          submittal_type: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ball_in_court?: string | null
+          created_at?: string
+          date_required?: string | null
+          date_returned?: string | null
+          date_submitted?: string
+          id?: string
+          notes?: string | null
+          number?: number
+          project_id: string
+          responsible_contractor?: string | null
+          revision?: number
+          spec_section?: string | null
+          status?: string
+          submittal_type?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          ball_in_court?: string | null
+          created_at?: string
+          date_required?: string | null
+          date_returned?: string | null
+          date_submitted?: string
+          id?: string
+          notes?: string | null
+          number?: number
+          project_id?: string
+          responsible_contractor?: string | null
+          revision?: number
+          spec_section?: string | null
+          status?: string
+          submittal_type?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submittals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           created_at: string | null
@@ -3546,6 +4678,148 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_entries: {
+        Row: {
+          burden_percent: number
+          cost_code_id: string | null
+          created_at: string
+          created_by: string | null
+          employee_id: string | null
+          employee_name: string
+          external_ref: string | null
+          hourly_rate: number
+          id: string
+          import_batch_id: string | null
+          notes: string | null
+          ot_multiplier: number
+          overtime_hours: number
+          project_id: string
+          regular_hours: number
+          source: string
+          total_cost: number | null
+          trade: string | null
+          updated_at: string
+          work_date: string
+        }
+        Insert: {
+          burden_percent?: number
+          cost_code_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string | null
+          employee_name: string
+          external_ref?: string | null
+          hourly_rate?: number
+          id?: string
+          import_batch_id?: string | null
+          notes?: string | null
+          ot_multiplier?: number
+          overtime_hours?: number
+          project_id: string
+          regular_hours?: number
+          source?: string
+          total_cost?: number | null
+          trade?: string | null
+          updated_at?: string
+          work_date?: string
+        }
+        Update: {
+          burden_percent?: number
+          cost_code_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string | null
+          employee_name?: string
+          external_ref?: string | null
+          hourly_rate?: number
+          id?: string
+          import_batch_id?: string | null
+          notes?: string | null
+          ot_multiplier?: number
+          overtime_hours?: number
+          project_id?: string
+          regular_hours?: number
+          source?: string
+          total_cost?: number | null
+          trade?: string | null
+          updated_at?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "qb_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trade_rates: {
+        Row: {
+          burden_percent: number
+          company_id: string | null
+          created_at: string
+          hourly_rate: number
+          id: string
+          is_active: boolean
+          ot_multiplier: number
+          trade: string
+          updated_at: string
+        }
+        Insert: {
+          burden_percent?: number
+          company_id?: string | null
+          created_at?: string
+          hourly_rate?: number
+          id?: string
+          is_active?: boolean
+          ot_multiplier?: number
+          trade: string
+          updated_at?: string
+        }
+        Update: {
+          burden_percent?: number
+          company_id?: string | null
+          created_at?: string
+          hourly_rate?: number
+          id?: string
+          is_active?: boolean
+          ot_multiplier?: number
+          trade?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trade_rates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]

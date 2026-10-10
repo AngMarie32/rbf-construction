@@ -1,3 +1,4 @@
+import { localDateISO } from '@/utils/dates';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,7 +30,7 @@ const money = (n: number) =>
     maximumFractionDigits: 2,
   });
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
+const iso = (d: Date) => localDateISO(d);
 
 type Bucket = 'expenses' | 'repairs' | 'invoices' | 'loanPayments';
 

@@ -17,54 +17,67 @@ const navGroups: NavGroup[] = [
   {
     label: 'Quick Access',
     items: [
-      { name: 'E-Sign', href: '/esign' },
       { name: 'Document Sender', href: '/invoice-sender' },
+      { name: 'E-Sign', href: '/esign' },
     ],
   },
   {
     label: 'Overview',
     items: [
+      { name: 'Analytics', href: '/analytics' },
       { name: 'Dashboard', href: '/dashboard' },
       { name: 'Owner Cockpit', href: '/owner-money' },
       { name: 'Projects', href: '/projects' },
-      { name: 'Analytics', href: '/analytics' },
     ],
   },
   {
     label: 'Portfolio',
     items: [
-      { name: 'Companies', href: '/companies' },
-      { name: 'Properties', href: '/properties' },
-      { name: 'Loans', href: '/loans' },
       { name: 'Cash Flow', href: '/cash-flow' },
+      { name: 'Companies', href: '/companies' },
       { name: 'Operating Costs', href: '/operating-costs' },
-      { name: 'QuickBooks Export', href: '/quickbooks-export' },
+      { name: 'Properties', href: '/properties' },
+    ],
+  },
+  {
+    label: 'Bidding',
+    items: [
+      { name: 'Bid Estimator', href: '/estimating' },
+      { name: 'Bid Planner', href: '/bid-planner' },
+      { name: 'Bid Templates', href: '/bid-templates' },
+      { name: 'Proposals', href: '/proposals' },
     ],
   },
   {
     label: 'Project Management',
     items: [
-      { name: 'Project Schedule', href: '/project-schedule' },
       { name: 'Documents', href: '/documents' },
+      { name: 'Payment Applications', href: '/payment-applications' },
       { name: 'Permits', href: '/permits' },
+      { name: 'Project Schedule', href: '/project-schedule' },
       { name: 'Punch List', href: '/punch-list' },
-      { name: 'Meetings', href: '/meetings' },
+      { name: 'Subcontractors', href: '/subcontractors' },
+    ],
+  },
+  {
+    label: 'Equipment',
+    items: [
       { name: 'Equipment', href: '/equipment' },
       { name: 'Equipment Intelligence', href: '/equipment-insights' },
-      { name: 'Subcontractors', href: '/subcontractors' },
     ],
   },
   {
     label: 'Financial',
     items: [
-      { name: 'Bid Planner', href: '/bid-planner' },
-      { name: 'Blueprint Analyzer', href: '/blueprint-analyzer' },
-      { name: 'Proposals', href: '/proposals' },
-      { name: 'Expenses', href: '/expenses' },
-      { name: 'Payment Apps', href: '/payment-applications' },
       { name: 'Billing', href: '/billing' },
-      { name: 'Change Orders', href: '/change-orders' },
       { name: 'Burn Analysis', href: '/burn-rate-analysis' },
+      { name: 'Change Orders', href: '/change-orders' },
+      { name: 'Cost Import', href: '/cost-import' },
+      { name: 'Expenses', href: '/expenses' },
+      { name: 'Labor Costs', href: '/labor-costs' },
+      { name: 'Loans', href: '/loans' },
+      { name: 'QuickBooks Export', href: '/quickbooks-export' },
+      { name: 'Report Import', href: '/report-import' },
     ],
   },
   {
@@ -81,8 +94,8 @@ const navGroups: NavGroup[] = [
   {
     label: 'Admin',
     items: [
-      { name: 'Weekly Reports', href: '/weekly-reports' },
       { name: 'Settings', href: '/settings' },
+      { name: 'Weekly Reports', href: '/weekly-reports' },
     ],
   },
 ];

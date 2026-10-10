@@ -1,4 +1,5 @@
 
+import { localDateISO } from '@/utils/dates';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 
@@ -28,7 +29,7 @@ export const exportToExcel = (exportData: ExportData) => {
   XLSX.utils.book_append_sheet(workbook, dataWS, 'Data');
   
   // Generate filename with timestamp
-  const timestamp = new Date().toISOString().slice(0, 10);
+  const timestamp = localDateISO();
   const filename = `${exportData.title.replace(/\s+/g, '_')}_${timestamp}.xlsx`;
   
   XLSX.writeFile(workbook, filename);
@@ -88,7 +89,7 @@ export const exportToPDF = async (exportData: ExportData) => {
   }
   
   // Save PDF
-  const timestamp = new Date().toISOString().slice(0, 10);
+  const timestamp = localDateISO();
   const filename = `${exportData.title.replace(/\s+/g, '_')}_${timestamp}.pdf`;
   doc.save(filename);
 };
@@ -112,7 +113,7 @@ export const exportToCSV = (exportData: ExportData) => {
   const url = URL.createObjectURL(blob);
   link.setAttribute('href', url);
   
-  const timestamp = new Date().toISOString().slice(0, 10);
+  const timestamp = localDateISO();
   const filename = `${exportData.title.replace(/\s+/g, '_')}_${timestamp}.csv`;
   link.setAttribute('download', filename);
   

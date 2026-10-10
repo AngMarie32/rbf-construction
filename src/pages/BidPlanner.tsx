@@ -1,5 +1,7 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,7 +24,8 @@ import { initializeBidTemplates } from '@/utils/initializeBidTemplates';
 export default function BidPlanner() {
   const [projects, setProjects] = useState<any[]>([]);
   const [bidItems, setBidItems] = useState<any[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [searchParams] = useSearchParams();
+  const [selectedProject, setSelectedProject] = useState<string>(searchParams.get('project') || '');
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
@@ -55,7 +58,7 @@ export default function BidPlanner() {
       }
       
       console.log('Projects loaded for bid planner:', data?.length || 0);
-      setProjects(data || []);
+      setProjects(sortProjectsOpenFirst(data || []));
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');
@@ -171,10 +174,13 @@ export default function BidPlanner() {
 
         {selectedProject ? (
           <TabbedBidInterface
+            key={selectedProject}
             projectId={selectedProject}
             bidItems={bidItems}
             onItemsChange={setBidItems}
             onExportReport={handleExportReport}
+            projects={projects}
+            onProjectChange={handleProjectSelect}
           />
         ) : (
           <Card className="border-2 border-dashed border-gray-200">

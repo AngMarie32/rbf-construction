@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -71,11 +72,13 @@ export default function PaymentApplications() {
         .order('name');
 
       if (error) throw error;
-      setProjects(data || []);
-      
-      // Select first project by default
+      setProjects(sortProjectsOpenFirst(data || []));
+
+      // Honor ?project= deep links (e.g. from the Bid Estimator), else select first project
       if (data && data.length > 0) {
-        setSelectedProject(data[0].id);
+        const param = new URLSearchParams(window.location.search).get('project');
+        const match = param ? data.find((p) => p.id === param) : null;
+        setSelectedProject(match ? match.id : sortProjectsOpenFirst(data)[0].id);
       }
     } catch (error) {
       console.error('Error fetching projects:', error);

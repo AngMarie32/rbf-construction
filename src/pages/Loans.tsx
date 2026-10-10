@@ -1,3 +1,4 @@
+import { localDateISO } from '@/utils/dates';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { supabase } from '@/integrations/supabase/client';
@@ -64,7 +65,7 @@ const loanTone = (s: string) =>
 const payTone = (p: LoanPayment) =>
   p.status === 'paid' ? 'bg-blue-500/15 text-blue-500'
   : p.status === 'partial' ? 'bg-yellow-500/15 text-yellow-500'
-  : new Date(p.due_date) < new Date(new Date().toISOString().slice(0, 10))
+  : new Date(p.due_date) < new Date(localDateISO())
   ? 'bg-red-500/15 text-red-500'
   : 'bg-green-500/15 text-green-500';
 
@@ -72,7 +73,7 @@ function emptyLoan(companyId: string): Loan {
   return {
     id: '', company_id: companyId, loan_number: '', borrower_name: '', borrower_email: '',
     borrower_phone: '', borrower_address: '', principal_amount: 0, interest_rate: 0,
-    term_months: 12, payment_day: 1, start_date: new Date().toISOString().slice(0, 10),
+    term_months: 12, payment_day: 1, start_date: localDateISO(),
     status: 'active', notes: '',
   };
 }
@@ -129,7 +130,7 @@ export default function Loans() {
       (s, p) => s + (p.status === 'paid' ? Number(p.interest_amount) : 0), 0);
     const outstanding = Math.max(0, Number(loan.principal_amount) - paidPrincipal);
     const pastDue = rows.filter(
-      (p) => p.status !== 'paid' && p.due_date < new Date().toISOString().slice(0, 10));
+      (p) => p.status !== 'paid' && p.due_date < localDateISO());
     const next = rows.find((p) => p.status !== 'paid');
     return { rows, collected, interestPaid, outstanding, pastDue, next };
   };
@@ -221,7 +222,7 @@ export default function Loans() {
       .update({
         status: 'paid',
         paid_amount: Number(p.scheduled_amount),
-        paid_date: new Date().toISOString().slice(0, 10),
+        paid_date: localDateISO(),
       })
       .eq('id', p.id);
     if (error) { toast.error(error.message); return; }
@@ -244,7 +245,7 @@ export default function Loans() {
       .update({
         paid_amount: amount,
         status,
-        paid_date: amount > 0 ? p.paid_date || new Date().toISOString().slice(0, 10) : null,
+        paid_date: amount > 0 ? p.paid_date || localDateISO() : null,
       })
       .eq('id', p.id);
     if (error) { toast.error(error.message); return; }

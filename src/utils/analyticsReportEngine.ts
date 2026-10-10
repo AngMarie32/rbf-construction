@@ -1,3 +1,4 @@
+import { localDateISO } from '@/utils/dates';
 /**
  * Shared analytics report engine.
  * Pure functions only (no imports) so the exact same file can be copied into
@@ -204,7 +205,7 @@ export function buildAnalytics(raw: RawData, options: AnalyticsOptions) {
   });
   const leaders = Object.values(leaderMap).sort((a, b) => b.contract - a.contract);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateISO();
   const aging = [
     { label: 'Current', total: 0 },
     { label: '1-30', total: 0 },

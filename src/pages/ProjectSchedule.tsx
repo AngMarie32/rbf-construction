@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -121,7 +122,7 @@ export default function ProjectSchedule() {
 
       if (error) throw error;
 
-      const projectsWithColors = (data || []).map((project, index) => ({
+      const projectsWithColors = sortProjectsOpenFirst(data || []).map((project, index) => ({
         ...project,
         color: `hsl(${(index * 137.5) % 360}, 70%, 50%)`
       }));

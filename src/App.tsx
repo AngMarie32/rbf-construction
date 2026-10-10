@@ -18,6 +18,7 @@ import Expenses from '@/pages/Expenses';
 import Subcontractors from '@/pages/Subcontractors';
 import Documents from '@/pages/Documents';
 import BidPlanner from '@/pages/BidPlanner';
+import BidTemplates from '@/pages/BidTemplates';
 import BidPackages from '@/pages/BidPackages';
 import Proposals from '@/pages/Proposals';
 import Invoices from '@/pages/Invoices';
@@ -58,6 +59,11 @@ import OperatingCosts from '@/pages/OperatingCosts';
 import OwnerMoney from '@/pages/OwnerMoney';
 import CashFlow from '@/pages/CashFlow';
 import QuickBooksExport from '@/pages/QuickBooksExport';
+import CostImport from '@/pages/CostImport';
+import ReportImport from '@/pages/ReportImport';
+import LaborCosts from '@/pages/LaborCosts';
+import Estimating from '@/pages/Estimating';
+import EstimateDashboard from '@/pages/EstimateDashboard';
 import { CompanyProvider } from '@/contexts/CompanyContext';
 
 // TraderTaxHQ
@@ -137,6 +143,47 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/report-import"
+              element={
+                <ProtectedRoute>
+                  <ReportImport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cost-import"
+              element={
+                <ProtectedRoute>
+                  <CostImport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/labor-costs"
+              element={
+                <ProtectedRoute>
+                  <LaborCosts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/estimating"
+              element={
+                <ProtectedRoute>
+                  <Estimating />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/estimating/:id"
+              element={
+                <ProtectedRoute>
+                  <EstimateDashboard />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/cash-flow"
               element={
@@ -238,6 +285,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Documents />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/bid-templates"
+              element={
+                <ProtectedRoute>
+                  <BidTemplates />
                 </ProtectedRoute>
               }
             />

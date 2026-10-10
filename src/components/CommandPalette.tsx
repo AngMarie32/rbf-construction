@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
@@ -27,13 +28,12 @@ const NAV_ITEMS: { name: string; href: string; group: string }[] = [
   { name: 'Documents', href: '/documents', group: 'Pages' },
   { name: 'Permits', href: '/permits', group: 'Pages' },
   { name: 'Punch List', href: '/punch-list', group: 'Pages' },
-  { name: 'Meetings', href: '/meetings', group: 'Pages' },
   { name: 'Equipment', href: '/equipment', group: 'Pages' },
   { name: 'Subcontractors', href: '/subcontractors', group: 'Pages' },
   { name: 'Bid Planner', href: '/bid-planner', group: 'Pages' },
   { name: 'Proposals', href: '/proposals', group: 'Pages' },
   { name: 'Expenses', href: '/expenses', group: 'Pages' },
-  { name: 'Payment Apps', href: '/payment-applications', group: 'Pages' },
+  { name: 'Payment Applications', href: '/payment-applications', group: 'Pages' },
   { name: 'Billing', href: '/billing', group: 'Pages' },
   { name: 'Change Orders', href: '/change-orders', group: 'Pages' },
   { name: 'Burn Analysis', href: '/burn-rate-analysis', group: 'Pages' },
@@ -62,9 +62,9 @@ export function CommandPalette() {
     if (!open || projects.length > 0) return;
     supabase
       .from('projects')
-      .select('id, name')
+      .select('id, name, status')
       .order('name')
-      .then(({ data }) => setProjects(data || []));
+      .then(({ data }) => setProjects(sortProjectsOpenFirst(data || [])));
   }, [open, projects.length]);
 
   const run = (fn: () => void) => {

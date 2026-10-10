@@ -1,3 +1,4 @@
+import { localDateISO } from '@/utils/dates';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
 import type { Equipment } from '@/types/equipment';
@@ -134,7 +135,7 @@ export const exportEquipmentToPDF = ({ equipment, filters, title = 'Equipment Re
     );
   }
 
-  const timestamp = new Date().toISOString().slice(0, 10);
+  const timestamp = localDateISO();
   doc.save(`Equipment_Report_${timestamp}.pdf`);
 };
 
@@ -203,6 +204,6 @@ export const exportEquipmentToExcel = ({ equipment, filters, title = 'Equipment 
   
   XLSX.utils.book_append_sheet(workbook, equipmentSheet, 'Equipment');
 
-  const timestamp = new Date().toISOString().slice(0, 10);
+  const timestamp = localDateISO();
   XLSX.writeFile(workbook, `Equipment_Report_${timestamp}.xlsx`);
 };

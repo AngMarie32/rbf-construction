@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calculator, FileText, Settings } from 'lucide-react';
 import { Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,18 +19,58 @@ interface TabbedBidInterfaceProps {
   bidItems: any[];
   onItemsChange: (items: any[]) => void;
   onExportReport: () => void;
+  projects?: { id: string; name: string }[];
+  onProjectChange?: (projectId: string) => void;
 }
 
 export function TabbedBidInterface({ 
   projectId, 
   bidItems, 
   onItemsChange, 
-  onExportReport 
+  onExportReport,
+  projects = [],
+  onProjectChange
 }: TabbedBidInterfaceProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [showCreateView, setShowCreateView] = useState(false);
   const [activeTab, setActiveTab] = useState('create');
   const navigate = useNavigate();
+  const [copying, setCopying] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const handleCopyToProject = async (targetId: string) => {
+    if (!targetId || targetId === projectId) return;
+    const target = projects.find((p) => p.id === targetId);
+    setCopying(true);
+    try {
+      const { data: source, error } = await supabase
+        .from('bid_items')
+        .select('category, subcategory, description, division, quantity, unit, unit_cost, markup_pct, template_id, source_estimate_id, source_estimate_line_id')
+        .eq('project_id', projectId);
+      if (error) throw error;
+      if (!source || source.length === 0) {
+        toast.error('This project has no bid items to copy');
+        return;
+      }
+      const { count } = await supabase
+        .from('bid_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('project_id', targetId);
+      if ((count ?? 0) > 0 && !window.confirm(`${target?.name ?? 'That project'} already has ${count} bid items. Add these ${source.length} items to it anyway?`)) {
+        return;
+      }
+      const { error: insErr } = await supabase
+        .from('bid_items')
+        .insert(source.map((s) => ({ ...s, project_id: targetId })));
+      if (insErr) throw insErr;
+      toast.success(`Copied ${source.length} items to ${target?.name ?? 'project'}`);
+      onProjectChange?.(targetId);
+    } catch (e: any) {
+      toast.error(`Copy failed: ${e.message ?? e}`);
+    } finally {
+      setCopying(false);
+    }
+  };
 
   const handleTemplateSelected = async (template: any) => {
     try {
@@ -37,7 +78,8 @@ export function TabbedBidInterface({
       const { data: templateItems, error } = await supabase
         .from('bid_template_items')
         .select('*')
-        .eq('template_id', template.id);
+        .eq('template_id', template.id)
+        .order('sort_order');
 
       if (error) throw error;
 
@@ -48,9 +90,11 @@ export function TabbedBidInterface({
           category: item.category,
           subcategory: item.subcategory,
           description: item.description,
-          quantity: 1,
+          quantity: Number(item.quantity) || 1,
           unit: item.unit || 'each',
-          unit_cost: item.unit_cost || 0
+          unit_cost: item.unit_cost || 0,
+          markup_pct: Number(item.markup_pct) || 0,
+          template_id: template.id
         }));
 
         const { error: insertError } = await supabase
@@ -63,6 +107,7 @@ export function TabbedBidInterface({
       }
 
       setSelectedTemplate(template);
+      setReloadKey((k) => k + 1);
       setShowCreateView(true);
       setActiveTab('create');
     } catch (error) {
@@ -105,7 +150,7 @@ export function TabbedBidInterface({
         item_number: String(index + 1).padStart(3, '0'),
         category: item.category || 'General',
         description: item.description || 'Imported from Bid',
-        scheduled_value: (item.unit_cost || 0) * (item.quantity || 1),
+        scheduled_value: Math.round((item.unit_cost || 0) * (item.quantity || 1) * (1 + (Number(item.markup_pct) || 0) / 100) * 100) / 100,
         previous_applications: 0,
         this_period: 0,
         materials_stored: 0,
@@ -147,7 +192,7 @@ export function TabbedBidInterface({
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center gap-4 flex-wrap">
           <TabsList className="grid grid-cols-4 w-full max-w-2xl">
             <TabsTrigger value="create" className="flex items-center gap-2">
               <Calculator className="w-4 h-4" />
@@ -166,10 +211,35 @@ export function TabbedBidInterface({
               Settings
             </TabsTrigger>
           </TabsList>
+          {onProjectChange && projects.length > 0 && (
+            <Select value={projectId} onValueChange={onProjectChange}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="Change project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {onProjectChange && projects.length > 1 && (
+            <Select value="" onValueChange={handleCopyToProject} disabled={copying}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder={copying ? 'Copying…' : 'Copy this bid to project…'} />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.filter((p) => p.id !== projectId).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         <TabsContent value="create">
           <BidCreationView
+            key={reloadKey}
             projectId={projectId}
             selectedTemplate={selectedTemplate}
             onItemsChange={onItemsChange}

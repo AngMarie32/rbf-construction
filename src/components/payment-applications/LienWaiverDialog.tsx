@@ -1,3 +1,4 @@
+import { localDateISO } from '@/utils/dates';
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,7 @@ interface Props {
 export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
   const [type, setType] = useState<WaiverType>('conditional_progress');
   const [amount, setAmount] = useState<string>(String(paymentApp.current_payment_due ?? 0));
-  const [throughDate, setThroughDate] = useState<string>(paymentApp.period_to?.slice(0, 10) || new Date().toISOString().slice(0, 10));
+  const [throughDate, setThroughDate] = useState<string>(paymentApp.period_to?.slice(0, 10) || localDateISO());
   const [exceptions, setExceptions] = useState('');
   const [checkNumber, setCheckNumber] = useState('');
   const [subs, setSubs] = useState<Sub[]>([]);
@@ -48,7 +49,7 @@ export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
   useEffect(() => {
     if (!open) return;
     setAmount(String(paymentApp.current_payment_due ?? 0));
-    setThroughDate(paymentApp.period_to?.slice(0, 10) || new Date().toISOString().slice(0, 10));
+    setThroughDate(paymentApp.period_to?.slice(0, 10) || localDateISO());
     (async () => {
       const { data } = await supabase
         .from('subcontractors')

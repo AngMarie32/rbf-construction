@@ -44,11 +44,13 @@ const compact = (n: number) =>
 export default function CashFlow() {
   const { selectedIds, activeCompanies, loading: companiesLoading } = useCompanies();
   const [loading, setLoading] = useState(true);
-  const [historyMonths, setHistoryMonths] = useState(12);
+  const [historyMonths, setHistoryMonths] = useState(6);
   const [projectMonths, setProjectMonths] = useState(6);
   const [startingCash, setStartingCash] = useState(0);
   const [projectRepairs, setProjectRepairs] = useState(true);
   const [projectEquipment, setProjectEquipment] = useState(false);
+  const [projectJobCosts, setProjectJobCosts] = useState(true);
+  const [jobCosts, setJobCosts] = useState<{ date: string | null; amount: number }[]>([]);
 
   const [equipment, setEquipment] = useState<{ date: string | null; amount: number }[]>([]);
   const [repairs, setRepairs] = useState<{ date: string | null; amount: number }[]>([]);
@@ -72,6 +74,33 @@ export default function CashFlow() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      const pr = await supabase.from('projects').select('id, company_id');
+      if (pr.error) throw pr.error;
+      const projectIds = (pr.data ?? [])
+        .filter((p: any) => !p.company_id || companyIds.length === 0 || companyIds.includes(p.company_id))
+        .map((p: any) => p.id);
+      const pageAll = async (table: 'expenses' | 'time_entries', cols: string) => {
+        const out: any[] = [];
+        for (let i = 0; i < projectIds.length; i += 200) {
+          const ids = projectIds.slice(i, i + 200);
+          for (let from = 0; ; from += 1000) {
+            const { data, error } = await supabase.from(table as any).select(cols).in('project_id', ids).range(from, from + 999);
+            if (error) throw error;
+            out.push(...(data ?? []));
+            if (!data || data.length < 1000) break;
+          }
+        }
+        return out;
+      };
+      const [exRows, teRows] = await Promise.all([
+        pageAll('expenses', 'date, amount'),
+        pageAll('time_entries', 'work_date, total_cost'),
+      ]);
+      setJobCosts([
+        ...exRows.map((e) => ({ date: e.date, amount: Number(e.amount) || 0 })),
+        ...teRows.map((t) => ({ date: t.work_date, amount: Number(t.total_cost) || 0 })),
+      ]);
+
       const [eq, ml, oh, ln] = await Promise.all([
         supabase.from('equipment').select('purchase_date, value'),
         supabase.from('maintenance_logs').select('date, cost'),
@@ -152,6 +181,8 @@ export default function CashFlow() {
         equipment,
         repairs,
         overhead,
+        jobCosts,
+        projectJobCosts,
         loans,
         loanPayments,
         projectRepairs,
@@ -164,6 +195,8 @@ export default function CashFlow() {
       equipment,
       repairs,
       overhead,
+      jobCosts,
+      projectJobCosts,
       loans,
       loanPayments,
       projectRepairs,
@@ -190,7 +223,7 @@ export default function CashFlow() {
       <div className="space-y-6">
         {/* Controls */}
         <Card className="p-4">
-          <div className="grid gap-4 md:grid-cols-5">
+          <div className="grid gap-4 md:grid-cols-6">
             <div className="space-y-1.5">
               <Label>History</Label>
               <Select value={String(historyMonths)} onValueChange={(v) => setHistoryMonths(Number(v))}>
@@ -198,7 +231,7 @@ export default function CashFlow() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[3, 6, 12, 24].map((m) => (
+                  {[3, 6, 12, 24, 36, 48].map((m) => (
                     <SelectItem key={m} value={String(m)}>
                       Last {m} months
                     </SelectItem>
@@ -235,6 +268,12 @@ export default function CashFlow() {
               <Switch checked={projectRepairs} onCheckedChange={setProjectRepairs} id="pr" />
               <Label htmlFor="pr" className="cursor-pointer">
                 Project repair spend
+              </Label>
+            </div>
+            <div className="flex items-center gap-3 pt-6">
+              <Switch checked={projectJobCosts} onCheckedChange={setProjectJobCosts} id="pj" />
+              <Label htmlFor="pj" className="cursor-pointer">
+                Project job costs
               </Label>
             </div>
             <div className="flex items-center gap-3 pt-6">
@@ -298,6 +337,7 @@ export default function CashFlow() {
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <ReferenceLine y={0} stroke="hsl(var(--border))" />
               <Bar dataKey="equipment" name="Equipment deposits" stackId="out" fill="hsl(var(--muted-foreground))" />
+              <Bar dataKey="jobCosts" name="Job costs" stackId="out" fill="hsl(var(--secondary-foreground))" fillOpacity={0.5} />
               <Bar dataKey="repairs" name="Repairs" stackId="out" fill="hsl(var(--destructive))" />
               <Bar dataKey="overhead" name="Operating costs" stackId="out" fill="hsl(var(--primary))" fillOpacity={0.55} />
               <Bar dataKey="loanOut" name="Loans issued" stackId="out" fill="hsl(var(--accent-foreground))" fillOpacity={0.4} />
@@ -314,6 +354,7 @@ export default function CashFlow() {
               <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="p-3">Month</th>
                 <th className="p-3 text-right">Equipment</th>
+                <th className="p-3 text-right">Job costs</th>
                 <th className="p-3 text-right">Repairs</th>
                 <th className="p-3 text-right">Operating</th>
                 <th className="p-3 text-right">Loans issued</th>
@@ -334,6 +375,7 @@ export default function CashFlow() {
                     )}
                   </td>
                   <td className="p-3 text-right">{money(r.equipment)}</td>
+                  <td className="p-3 text-right">{money(r.jobCosts)}</td>
                   <td className="p-3 text-right">{money(r.repairs)}</td>
                   <td className="p-3 text-right">{money(r.overhead)}</td>
                   <td className="p-3 text-right">{money(r.loanOut)}</td>
@@ -350,7 +392,7 @@ export default function CashFlow() {
             <tfoot>
               <tr className="font-semibold">
                 <td className="p-3">Total</td>
-                <td className="p-3 text-right" colSpan={4}>
+                <td className="p-3 text-right" colSpan={5}>
                   Out {money(totals.outflow)}
                 </td>
                 <td className="p-3 text-right">{money(totals.inflow)}</td>

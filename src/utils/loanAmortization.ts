@@ -1,3 +1,4 @@
+import { localDateISO } from '@/utils/dates';
 /**
  * Loan amortization helpers.
  * Money is computed at full precision and only rounded to 3 decimals on storage.
@@ -36,7 +37,7 @@ function dueDateFor(startDate: string, monthOffset: number, paymentDay: number) 
   const lastDay = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + 1, 0)).getUTCDate();
   const day = Math.min(Math.max(1, Math.floor(paymentDay) || 1), lastDay);
   const d = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), day));
-  return d.toISOString().slice(0, 10);
+  return localDateISO(d);
 }
 
 export function buildAmortization(terms: LoanTerms): AmortizationRow[] {

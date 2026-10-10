@@ -1,3 +1,4 @@
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -208,7 +209,7 @@ export default function BlueprintAnalyzer({ embeddedProjectId }: Props) {
       .from("projects")
       .select("id, name, status")
       .order("name")
-      .then(({ data }) => setProjects(data || []));
+      .then(({ data }) => setProjects(sortProjectsOpenFirst(data || [])));
   }, [embeddedProjectId]);
 
   const toggleCategory = (key: string) =>
