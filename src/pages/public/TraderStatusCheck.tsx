@@ -19,6 +19,8 @@ import { FilingStatus, IntakeAnswers } from '@/types/tradertax';
 import { assessTraderTaxStatus, ttsTierLabel } from '@/utils/traderTax/ttsAnalysis';
 import { calculateLossUsability } from '@/utils/traderTax/lossCalculator';
 import { DEFAULT_TAX_YEAR } from '@/utils/traderTax/taxYearConfig';
+import { useSeo } from '@/hooks/useSeo';
+import { pageMetaFor } from '@/utils/seo/pageMetaFor';
 
 const money = (n: number) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -32,6 +34,7 @@ const money = (n: number) =>
  * Telling someone the truth here costs one engagement and earns the referral.
  */
 export default function TraderStatusCheck() {
+  useSeo(pageMetaFor('/trader-taxes/status-check'));
   const [tradingDays, setTradingDays] = useState('90');
   const [totalTrades, setTotalTrades] = useState('420');
   const [holdingDays, setHoldingDays] = useState('6');

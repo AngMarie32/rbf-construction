@@ -10,6 +10,9 @@ import {
   publishableStates,
   statePageContent,
 } from '@/utils/traderTax/stateContent';
+import { useSeo } from '@/hooks/useSeo';
+import { statePageMeta } from '@/utils/seo/routeMeta';
+import { pageMetaFor } from '@/utils/seo/pageMetaFor';
 
 /**
  * Public state pages. Content comes from two places: the structural notes that
@@ -22,6 +25,19 @@ export default function StateTraderTaxes() {
   const code = (state ?? '').toUpperCase();
   const content = useMemo(() => (code ? statePageContent(code) : null), [code]);
   const [published, setPublished] = useState<PublishedPosition[]>([]);
+
+  // An unknown state code renders a not-found body, so it must not claim to be
+  // an indexable page describing a state we do not cover.
+  useSeo(
+    content
+      ? statePageMeta(content)
+      : {
+          path: `/trader-taxes/${(state ?? '').toLowerCase()}`,
+          title: 'State not found',
+          description: 'We do not have a page for this state yet.',
+          noindex: true,
+        }
+  );
 
   useEffect(() => {
     if (!code) return;
@@ -169,6 +185,7 @@ export default function StateTraderTaxes() {
 }
 
 export function StateIndex() {
+  useSeo(pageMetaFor('/trader-taxes/states'));
   const states = publishableStates();
   const taxing = states.filter((s) => !s.noIncomeTax);
   const noTax = states.filter((s) => s.noIncomeTax);

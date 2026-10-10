@@ -11,10 +11,13 @@ import {
 import { ArrowRight, Check, Scale } from 'lucide-react';
 import { FEE_SCHEDULE } from '@/utils/traderTax/leadScoring';
 import { getTaxYearConfig, DEFAULT_TAX_YEAR } from '@/utils/traderTax/taxYearConfig';
+import { useSeo } from '@/hooks/useSeo';
+import { pageMetaFor } from '@/utils/seo/pageMetaFor';
 
 const money = (n: number) => `$${n.toLocaleString('en-US')}`;
 
 export default function TraderTaxesLanding() {
+  useSeo(pageMetaFor('/trader-taxes'));
   const cfg = getTaxYearConfig(DEFAULT_TAX_YEAR);
   const lossLimit = cfg.capitalLossLimit.single;
 

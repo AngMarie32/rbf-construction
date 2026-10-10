@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/accordion';
 import { ArrowRight, Check, Calculator } from 'lucide-react';
 import { FEE_SCHEDULE } from '@/utils/traderTax/leadScoring';
+import { useSeo } from '@/hooks/useSeo';
+import { pageMetaFor } from '@/utils/seo/pageMetaFor';
 
 const money = (n: number) => `$${n.toLocaleString('en-US')}`;
 
@@ -23,6 +25,7 @@ const COMPARISON: { row: string; self: string; funded: string }[] = [
 ];
 
 export default function PropFirmTaxesLanding() {
+  useSeo(pageMetaFor('/prop-firm-taxes'));
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">

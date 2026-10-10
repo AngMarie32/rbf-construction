@@ -9,6 +9,8 @@ import { IntakeFormRenderer } from '@/components/tradertax/IntakeFormRenderer';
 import { IntakeAnswers } from '@/types/tradertax';
 import { INQUIRY_SECTIONS } from '@/utils/traderTax/leadScoring';
 import { isFieldVisible } from '@/utils/traderTax/intakeSchema';
+import { useSeo } from '@/hooks/useSeo';
+import { pageMetaFor } from '@/utils/seo/pageMetaFor';
 
 /**
  * Public inquiry form. No login, no token — this is the top of the funnel, so
@@ -16,6 +18,7 @@ import { isFieldVisible } from '@/utils/traderTax/intakeSchema';
  * range need; nothing sensitive is asked for at this stage.
  */
 export default function PublicInquiry() {
+  useSeo(pageMetaFor('/inquiry'));
   const [params] = useSearchParams();
   const firmId = params.get('firm');
   const source = params.get('source') ?? 'inquiry_form';

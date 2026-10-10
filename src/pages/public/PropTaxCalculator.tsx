@@ -16,6 +16,8 @@ import { ArrowRight, Calculator, Info } from 'lucide-react';
 import { FilingStatus } from '@/types/tradertax';
 import { estimatePayoutTax, setAsideRule } from '@/utils/traderTax/payoutCalculator';
 import { DEFAULT_TAX_YEAR } from '@/utils/traderTax/taxYearConfig';
+import { useSeo } from '@/hooks/useSeo';
+import { pageMetaFor } from '@/utils/seo/pageMetaFor';
 
 const money = (n: number) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -27,6 +29,7 @@ const money = (n: number) =>
  * agree.
  */
 export default function PropTaxCalculator() {
+  useSeo(pageMetaFor('/prop-firm-taxes/calculator'));
   const [payouts, setPayouts] = useState('45000');
   const [fees, setFees] = useState('2500');
   const [otherExpenses, setOtherExpenses] = useState('0');

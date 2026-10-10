@@ -165,3 +165,72 @@ The segment is young, sceptical, and has been marketed at badly by trading educa
   number appears, not only in the footer.
 - Circular 230 governs how a practitioner advertises. Keep claims verifiable and avoid anything that
   reads as a guaranteed result.
+
+---
+
+## 8. How the public pages get found
+
+The app is a client-rendered SPA with a single `index.html`, which is a problem for acquisition in
+two distinct ways. They have separate fixes, and conflating them wastes effort.
+
+**Google executes JavaScript.** It renders the page and reads the head afterwards, so a title set at
+runtime is seen. That is what `useSeo()` in `src/hooks/useSeo.ts` handles, and it is also what keeps
+the head correct after client-side navigation — without it every route would keep describing
+whichever page the browser loaded first.
+
+**Social scrapers do not.** Twitter, Facebook, LinkedIn and Slack fetch the raw HTML and leave.
+Nothing a React hook does is visible to them. Untreated, every trader-tax link shared anywhere
+would preview as the construction portal.
+
+So `npm run build` runs `scripts/prerender-meta.mjs` after `vite build`. It writes
+`dist/<route>/index.html` for each public route, copying the built shell with that route's title,
+description, canonical, Open Graph tags and JSON-LD already in the markup — and stripping the
+shell's own RBF Construction title, description and author tags so a crawler never sees two. The
+browser still boots the same bundle and renders the same page, so there is one app, not two.
+
+It also emits `sitemap.xml` (indexable pages only) and appends the sitemap line to `robots.txt`.
+
+### Metadata lives in one place
+
+`src/utils/seo/routeMeta.ts` is the source of truth, consumed by both the browser hook and the Node
+build script. That is why it must stay free of React and of `import.meta.env`: the base URL is a
+parameter, so each caller supplies it from wherever it legitimately knows it.
+
+State pages derive their description from the page's own published intro, which keeps the
+publishing-safety rule intact — structural facts only, no rates or dollar figures, because anything
+in a meta description also shows up in a search result.
+
+### Set the site URL
+
+`VITE_PUBLIC_SITE_URL` must be set in the deploy environment. Without it, canonical and sitemap URLs
+fall back to `DEFAULT_SITE_URL` and the build prints a warning. A wrong canonical is worse than a
+missing one — it tells Google the real page lives somewhere else.
+
+### Social share image
+
+`OG_IMAGE_PATH` in `routeMeta.ts` is deliberately `null`. There is no TraderTaxHQ share image yet,
+and pointing at the construction portal's placeholder would be worse than none. While it stays null
+the Twitter card is `summary` rather than claiming `summary_large_image` for an image that does not
+exist. Drop a 1200x630 asset in `public/` and set the path to upgrade every page at once.
+
+### Checks
+
+`npm run check` runs two scripts, neither of which needs a test runner:
+
+- `check:seo` — asserts every unprotected marketing route in the router has registered metadata,
+  that titles and descriptions are within renderable length, that `/inquiry` stays out of the index,
+  and that no state page quotes a figure. A public route added without metadata fails here instead
+  of silently shipping with the construction portal's title.
+- `check:engines` — computes the slice of engine files the marketing pages reach transitively and
+  asserts it stays self-contained. The marketing site is meant to live in its own deploy, which
+  means those files get copied; the copy only builds while none of them imports the Supabase client,
+  a context, or an internal page. It also records a checksum per file in `scripts/engine-manifest.json`,
+  so a second checkout can be compared with `--against ../tradertaxhq`. Re-record with `--write`
+  after deliberately changing an engine.
+
+### What this does not fix
+
+The page *body* is still client-rendered. Google handles that; a crawler that does not run
+JavaScript sees correct metadata and an empty `<div id="root">`. Full prerendering of the body would
+need a headless browser in the build. Worth doing if organic search becomes the main channel, not
+worth it before then.
