@@ -38,8 +38,9 @@ const DESTS: Destination[] = ['project_cost', 'labor', 'operating', 'revenue', '
 const needsProject = (d: Destination) => d === 'project_cost' || d === 'labor' || d === 'revenue';
 
 export default function ReportImport() {
-  const { selectedIds } = useCompanies();
-  const companyId = selectedIds.length === 1 ? selectedIds[0] : null;
+  const { selectedIds, companies } = useCompanies();
+  const [uploadCompanyId, setUploadCompanyId] = useState<string>('');
+  const companyId = uploadCompanyId || (selectedIds.length === 1 ? selectedIds[0] : null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [projects, setProjects] = useState<ProjectRef[]>([]);
   const [costCodes, setCostCodes] = useState<CostCodeRef[]>([]);
@@ -48,6 +49,7 @@ export default function ReportImport() {
   const [fileName, setFileName] = useState('');
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [override, setOverride] = useState(false);
   const [lastBatch, setLastBatch] = useState<{ id: string; file_name: string | null; imported_count: number | null } | null>(null);
 
   const loadLastBatch = useCallback(async () => {
@@ -163,6 +165,20 @@ export default function ReportImport() {
     try {
       const { periodStart: start, periodEnd: end } = report;
       const { data: u } = await supabase.auth.getUser();
+      if (override) {
+        // Replace everything an earlier report import put in for this period.
+        await Promise.all([
+          supabase.from('expenses').delete().eq('source', 'report_import').gte('date', start).lte('date', end),
+          supabase.from('time_entries').delete().eq('source', 'report_import').gte('work_date', start).lte('work_date', end),
+          supabase.from('overhead_items').delete().eq('start_date', start).eq('end_date', end),
+          supabase.from('project_billing').delete().eq('billing_period_start', start).eq('billing_period_end', end),
+        ]);
+        used.forEach((r) => {
+          r.duplicate = false;
+          r.existingId = null;
+          r.existingTable = null;
+        });
+      }
       const { data: batch, error: be } = await supabase
         .from('qb_import_batches')
         .insert({
@@ -389,6 +405,22 @@ export default function ReportImport() {
                 <div className="text-xs uppercase text-muted-foreground">Need a project</div>
                 <div className={`font-semibold ${totals.missing ? 'text-destructive' : ''}`}>{totals.missing}</div>
               </div>
+              <div>
+                <div className="text-xs uppercase text-muted-foreground">Company</div>
+                <Select value={uploadCompanyId || 'auto'} onValueChange={(v) => setUploadCompanyId(v === 'auto' ? '' : v)}>
+                  <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Use selected company</SelectItem>
+                    {companies.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} />
+                Replace anything already imported for this time frame
+              </label>
             </Card>
 
             <Card className="overflow-x-auto">
