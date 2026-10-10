@@ -400,6 +400,7 @@ export default function ReportImport() {
                     <th className="p-3 text-left">Goes to</th>
                     <th className="p-3 text-left">Project</th>
                     <th className="p-3 text-left">Cost code</th>
+                    <th className="p-3" />
                   </tr>
                 </thead>
                 <tbody>
@@ -408,14 +409,26 @@ export default function ReportImport() {
                     return (
                       <tr key={r.key} className={`border-t border-border ${missing ? 'bg-destructive/10' : ''} ${r.destination === 'skip' ? 'opacity-50' : ''}`}>
                         <td className="p-3">
-                          <div className="font-medium">{r.account}</div>
+                          <Input
+                            value={r.account}
+                            onChange={(e) => update(i, { account: e.target.value })}
+                            className="h-8 w-56 font-medium"
+                          />
                           <div className="text-xs text-muted-foreground">
                             {[r.job && `Job: ${r.job}`, r.vendor, r.memo, r.date].filter(Boolean).join(' · ')}
                           </div>
                           {r.duplicate && <Badge variant="secondary" className="mt-1">Already imported — will be updated, not duplicated</Badge>}
                           {r.reason && <div className="text-xs text-muted-foreground">{r.reason}</div>}
                         </td>
-                        <td className="whitespace-nowrap p-3 text-right tabular-nums">{currency(r.amount)}</td>
+                        <td className="whitespace-nowrap p-3 text-right tabular-nums">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={r.amount}
+                            onChange={(e) => update(i, { amount: parseFloat(e.target.value) || 0 })}
+                            className="h-8 w-32 text-right"
+                          />
+                        </td>
                         <td className="p-3">
                           <Select value={r.destination} onValueChange={(v) => update(i, { destination: v as Destination })}>
                             <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
