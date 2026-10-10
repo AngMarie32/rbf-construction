@@ -166,6 +166,105 @@ function isDetailReport(grid: any[][]) {
   return false;
 }
 
+type RawLine = Omit<ReportLine, 'projectId' | 'costCodeId' | 'reason' | 'destination'> & { destination?: Destination };
+
+function enrich(l: RawLine, projects: ProjectRef[], costCodes: CostCodeRef[]): ReportLine {
+  const destination = l.destination ?? guessDestination(l.section, l.account, Boolean(l.job));
+  const proj = l.job ? matchProjectName(l.job, projects) : { id: null, score: 0, reason: '' };
+  const code =
+    destination === 'project_cost' || destination === 'labor'
+      ? matchCostCodeText(`${l.account} ${l.memo} ${l.vendor}`, l.account, costCodes)
+      : { id: null, score: 0, reason: '' };
+  return {
+    ...l,
+    destination,
+    projectId: proj.id,
+    costCodeId: code.id,
+    reason: [proj.id ? proj.reason : l.job ? 'No matching project' : '', code.reason].filter(Boolean).join(' · '),
+  };
+}
+
+/** Parse a PDF export of a QuickBooks report by reading its text rows. */
+export async function parsePdfReport(
+  data: ArrayBuffer,
+  projects: ProjectRef[],
+  costCodes: CostCodeRef[]
+): Promise<ParsedReport> {
+  const pdfjs = await import('pdfjs-dist');
+  const workerSrc = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
+  pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+  const doc = await pdfjs.getDocument({ data }).promise;
+  const rows: string[] = [];
+  for (let p = 1; p <= doc.numPages; p++) {
+    const page = await doc.getPage(p);
+    const tc = await page.getTextContent();
+    const lines = new Map<number, { x: number; t: string }[]>();
+    for (const item of tc.items as any[]) {
+      if (!item.str?.trim()) continue;
+      const y = Math.round(item.transform[5]);
+      const key = [...lines.keys()].find((k) => Math.abs(k - y) <= 2) ?? y;
+      const arr = lines.get(key) ?? [];
+      arr.push({ x: item.transform[4], t: item.str });
+      lines.set(key, arr);
+    }
+    [...lines.entries()]
+      .sort((a, b) => b[0] - a[0])
+      .forEach(([, items]) => {
+        rows.push(items.sort((a, b) => a.x - b.x).map((i) => i.t).join(' ').replace(/\s+/g, ' ').trim());
+      });
+  }
+
+  const title = rows.find((t) => /profit|loss|job|estimate|income/i.test(t)) || rows[0] || 'Financial report';
+  const period = findPeriod(rows.slice(0, 12)) || {
+    start: localDateISO(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
+    end: localDateISO(),
+  };
+
+  const amountRe = /-?\(?\$?[\d,]+\.\d{2}\)?/g;
+  const lines: ReportLine[] = [];
+  let section: Section = 'unknown';
+  rows.forEach((row, i) => {
+    const matches = [...row.matchAll(amountRe)];
+    if (!matches.length) {
+      const s = sectionOf(row);
+      if (s) section = s;
+      return;
+    }
+    const last = matches[matches.length - 1];
+    const amount = toNumber(last[0]);
+    if (!amount) return;
+    const label = row.slice(0, matches[0].index).replace(/[\s.·]+$/, '').trim();
+    if (!label || isTotal(label)) return;
+    const s = sectionOf(label);
+    if (s) {
+      section = s;
+      return;
+    }
+    lines.push(
+      enrich(
+        { key: `p${i}`, account: cleanAccount(label), section, job: '', amount, date: period.end, vendor: '', memo: '' },
+        projects,
+        costCodes
+      )
+    );
+  });
+
+  return { kind: 'pl', title, periodStart: period.start, periodEnd: period.end, lines };
+}
+
+/** Parse an uploaded report file — Excel/CSV workbooks or PDF exports. */
+export async function parseReportFile(
+  file: File,
+  projects: ProjectRef[],
+  costCodes: CostCodeRef[]
+): Promise<ParsedReport> {
+  const data = await file.arrayBuffer();
+  if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
+    return parsePdfReport(data, projects, costCodes);
+  }
+  return parseFinancialReport(data, projects, costCodes);
+}
+
 export function parseFinancialReport(
   data: ArrayBuffer,
   projects: ProjectRef[],
