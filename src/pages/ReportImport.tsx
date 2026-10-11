@@ -29,7 +29,12 @@ interface Row extends ReportLine {
   ref: string;
   existingId: string | null;
   existingTable: RefTable | null;
+  splits?: { projectId: string; pct: number }[];
 }
+
+const allocatedPct = (r: Row) =>
+  r.destination === 'operating' ? Math.min(100, (r.splits || []).filter((s) => s.projectId).reduce((s, x) => s + (x.pct || 0), 0)) : 0;
+const remainderAmount = (r: Row) => r.amount * (1 - allocatedPct(r) / 100);
 
 const currency = (n: number) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -226,8 +231,31 @@ export default function ReportImport() {
         import_batch_id: batch.id,
         external_ref: r.ref,
       }));
-      const overhead = used.filter((r) => r.destination === 'operating' && !r.duplicate).map((r) => {
-        const o = overheadForPeriod(r.amount, start, end);
+      // Overhead allocated to projects becomes a project cost; only the rest stays company overhead.
+      const splitRows = used.filter((r) => r.destination === 'operating' && allocatedPct(r) > 0);
+      for (const r of splitRows) {
+        await supabase.from('expenses').delete().like('external_ref', `${r.ref}|alloc|%`);
+      }
+      splitRows.forEach((r) =>
+        (r.splits || []).filter((s) => s.projectId && s.pct > 0).forEach((s) =>
+          expenses.push({
+            project_id: s.projectId,
+            category: 'Overhead allocation',
+            description: `${r.account} — ${s.pct}% of company overhead (${start} to ${end})`,
+            amount: r.amount * (s.pct / 100),
+            date: r.date || end,
+            vendor: null,
+            status: 'Approved',
+            cost_code_id: null,
+            source: 'report_import',
+            import_batch_id: batch.id,
+            external_ref: `${r.ref}|alloc|${s.projectId}`,
+          })
+        )
+      );
+      const overhead = used.filter((r) => r.destination === 'operating' && !r.duplicate && remainderAmount(r) > 0.004).map((r) => {
+        const rest = remainderAmount(r);
+        const o = overheadForPeriod(rest, start, end);
         return {
           company_id: companyId,
           name: r.account,
@@ -238,7 +266,7 @@ export default function ReportImport() {
           end_date: end,
           is_active: true,
           created_by: u?.user?.id ?? null,
-          notes: `${currency(r.amount)} for ${start} to ${end} from ${fileName} ${tag}`,
+          notes: `${currency(rest)} for ${start} to ${end} from ${fileName}${allocatedPct(r) ? ` (${allocatedPct(r)}% allocated to projects)` : ''} ${tag}`,
           external_ref: r.ref,
         };
       });
@@ -283,14 +311,15 @@ export default function ReportImport() {
             }).eq('id', r.existingId)
           );
         } else if (r.existingTable === 'overhead_items') {
-          const o = overheadForPeriod(r.amount, start, end);
+          const rest = remainderAmount(r);
+          const o = overheadForPeriod(rest, start, end);
           updates.push(
             supabase.from('overhead_items').update({
               amount: o.amount,
               frequency: o.frequency,
               start_date: start,
               end_date: end,
-              notes: `${currency(r.amount)} for ${start} to ${end} from ${fileName} ${tag}`,
+              notes: `${currency(rest)} for ${start} to ${end} from ${fileName}${allocatedPct(r) ? ` (${allocatedPct(r)}% allocated to projects)` : ''} ${tag}`,
             }).eq('id', r.existingId)
           );
         } else if (r.existingTable === 'project_billing') {
@@ -482,6 +511,45 @@ export default function ReportImport() {
                               <button className="text-left text-xs text-muted-foreground underline hover:text-foreground" onClick={() => applyToJob(i)}>
                                 {r.job ? 'Apply to all lines for this job' : 'Apply to all lines without a job'}
                               </button>
+                            </div>
+                          ) : r.destination === 'operating' ? (
+                            <div className="flex flex-col gap-1">
+                              {(r.splits || []).map((s, si) => (
+                                <div key={si} className="flex items-center gap-1">
+                                  <Select
+                                    value={s.projectId || 'none'}
+                                    onValueChange={(v) => update(i, { splits: r.splits!.map((x, xi) => (xi === si ? { ...x, projectId: v === 'none' ? '' : v } : x)) })}
+                                  >
+                                    <SelectTrigger className="w-40"><SelectValue placeholder="Project" /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="none">Pick a project</SelectItem>
+                                      {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                  <Input
+                                    type="number"
+                                    step="0.001"
+                                    className="w-20"
+                                    value={s.pct}
+                                    onChange={(e) => update(i, { splits: r.splits!.map((x, xi) => (xi === si ? { ...x, pct: parseFloat(e.target.value) || 0 } : x)) })}
+                                  />
+                                  <span className="text-xs text-muted-foreground">%</span>
+                                  <button className="text-xs text-muted-foreground underline" onClick={() => update(i, { splits: r.splits!.filter((_, xi) => xi !== si) })}>
+                                    x
+                                  </button>
+                                </div>
+                              ))}
+                              <button
+                                className="text-left text-xs text-muted-foreground underline hover:text-foreground"
+                                onClick={() => update(i, { splits: [...(r.splits || []), { projectId: '', pct: Math.max(0, 100 - allocatedPct(r)) }] })}
+                              >
+                                Allocate to a project
+                              </button>
+                              <span className="text-xs text-muted-foreground">
+                                {allocatedPct(r) > 0
+                                  ? `${currency(r.amount - remainderAmount(r))} to projects · ${currency(remainderAmount(r))} stays overhead`
+                                  : 'Company-wide'}
+                              </span>
                             </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">Company-wide</span>
