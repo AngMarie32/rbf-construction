@@ -51,6 +51,8 @@ export default function CashFlow() {
   const [projectEquipment, setProjectEquipment] = useState(false);
   const [projectJobCosts, setProjectJobCosts] = useState(true);
   const [jobCosts, setJobCosts] = useState<{ date: string | null; amount: number }[]>([]);
+  const [projectCosts, setProjectCosts] = useState<{ projectId: string; date: string | null; amount: number }[]>([]);
+  const [projectNames, setProjectNames] = useState<Record<string, string>>({});
 
   const [equipment, setEquipment] = useState<{ date: string | null; amount: number }[]>([]);
   const [repairs, setRepairs] = useState<{ date: string | null; amount: number }[]>([]);
@@ -74,8 +76,11 @@ export default function CashFlow() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const pr = await supabase.from('projects').select('id, company_id');
+      const pr = await supabase.from('projects').select('id, name, company_id');
       if (pr.error) throw pr.error;
+      const names: Record<string, string> = {};
+      (pr.data ?? []).forEach((p: any) => (names[p.id] = p.name));
+      setProjectNames(names);
       const projectIds = (pr.data ?? [])
         .filter((p: any) => !p.company_id || companyIds.length === 0 || companyIds.includes(p.company_id))
         .map((p: any) => p.id);
@@ -93,12 +98,16 @@ export default function CashFlow() {
         return out;
       };
       const [exRows, teRows] = await Promise.all([
-        pageAll('expenses', 'date, amount'),
-        pageAll('time_entries', 'work_date, total_cost'),
+        pageAll('expenses', 'project_id, date, amount'),
+        pageAll('time_entries', 'project_id, work_date, total_cost'),
       ]);
       setJobCosts([
         ...exRows.map((e) => ({ date: e.date, amount: Number(e.amount) || 0 })),
         ...teRows.map((t) => ({ date: t.work_date, amount: Number(t.total_cost) || 0 })),
+      ]);
+      setProjectCosts([
+        ...exRows.map((e) => ({ projectId: e.project_id, date: e.date, amount: Number(e.amount) || 0 })),
+        ...teRows.map((t) => ({ projectId: t.project_id, date: t.work_date, amount: Number(t.total_cost) || 0 })),
       ]);
 
       const [eq, ml, oh, ln] = await Promise.all([
@@ -171,6 +180,37 @@ export default function CashFlow() {
   useEffect(() => {
     if (!companiesLoading) load();
   }, [companiesLoading, load]);
+
+  const projectSchedule = useMemo(() => {
+    const now = new Date();
+    const months: { key: string; label: string }[] = [];
+    for (let i = historyMonths - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+      });
+    }
+    const valid = new Set(months.map((m) => m.key));
+    const map = new Map<string, { id: string; name: string; byMonth: Record<string, number>; total: number }>();
+    const monthTotals: Record<string, number> = {};
+    let grand = 0;
+    projectCosts.forEach((c) => {
+      const key = c.date ? String(c.date).slice(0, 7) : null;
+      if (!key || !valid.has(key)) return;
+      let p = map.get(c.projectId);
+      if (!p) {
+        p = { id: c.projectId, name: projectNames[c.projectId] ?? 'Unknown project', byMonth: {}, total: 0 };
+        map.set(c.projectId, p);
+      }
+      p.byMonth[key] = (p.byMonth[key] || 0) + c.amount;
+      p.total += c.amount;
+      monthTotals[key] = (monthTotals[key] || 0) + c.amount;
+      grand += c.amount;
+    });
+    const projects = [...map.values()].sort((a, b) => b.total - a.total);
+    return { months, projects, monthTotals, grand };
+  }, [projectCosts, projectNames, historyMonths]);
 
   const result = useMemo(
     () =>
@@ -404,6 +444,53 @@ export default function CashFlow() {
             </tfoot>
           </table>
         </Card>
+
+        {/* Job cost schedule by project */}
+        <div>
+          <h2 className="text-lg font-semibold mb-1">Job cost schedule by project</h2>
+          <p className="text-sm text-muted-foreground mb-3">
+            Each project's expenses and labor in the month they actually happened.
+          </p>
+          <Card className="p-0 overflow-x-auto">
+            {projectSchedule.projects.length === 0 ? (
+              <div className="p-6 text-sm text-muted-foreground">No job costs in this range.</div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="p-3 sticky left-0 bg-card">Project</th>
+                    {projectSchedule.months.map((m) => (
+                      <th key={m.key} className="p-3 text-right whitespace-nowrap">{m.label}</th>
+                    ))}
+                    <th className="p-3 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectSchedule.projects.map((p) => (
+                    <tr key={p.id} className="border-b">
+                      <td className="p-3 font-medium sticky left-0 bg-card whitespace-nowrap">{p.name}</td>
+                      {projectSchedule.months.map((m) => (
+                        <td key={m.key} className="p-3 text-right whitespace-nowrap">
+                          {p.byMonth[m.key] ? money(p.byMonth[m.key]) : <span className="text-muted-foreground">—</span>}
+                        </td>
+                      ))}
+                      <td className="p-3 text-right font-medium whitespace-nowrap">{money(p.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="font-semibold">
+                    <td className="p-3 sticky left-0 bg-card">Total</td>
+                    {projectSchedule.months.map((m) => (
+                      <td key={m.key} className="p-3 text-right whitespace-nowrap">{money(projectSchedule.monthTotals[m.key] || 0)}</td>
+                    ))}
+                    <td className="p-3 text-right whitespace-nowrap">{money(projectSchedule.grand)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            )}
+          </Card>
+        </div>
       </div>
     </Layout>
   );
