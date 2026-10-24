@@ -81,6 +81,17 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'TraderTaxHQ',
+    items: [
+      { name: 'Tax Dashboard', href: '/tradertax' },
+      { name: 'Leads', href: '/tradertax/leads' },
+      { name: 'Tax Clients', href: '/tradertax/clients' },
+      { name: 'Deadlines', href: '/tradertax/calendar' },
+      { name: 'Practice Analytics', href: '/tradertax/analytics' },
+      { name: 'Security Program', href: '/tradertax/security' },
+    ],
+  },
+  {
     label: 'Admin',
     items: [
       { name: 'Settings', href: '/settings' },

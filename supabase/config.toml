@@ -25,3 +25,18 @@ verify_jwt = false
 
 [functions.send-analytics-report]
 verify_jwt = false
+
+[functions.tth-intake-public]
+verify_jwt = false
+
+[functions.tth-analyze]
+verify_jwt = true
+
+[functions.titanfile-sync]
+verify_jwt = true
+
+[functions.tth-lead-capture]
+verify_jwt = false
+
+[functions.tth-state-content]
+verify_jwt = false

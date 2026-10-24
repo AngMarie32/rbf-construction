@@ -66,6 +66,24 @@ import Estimating from '@/pages/Estimating';
 import EstimateDashboard from '@/pages/EstimateDashboard';
 import { CompanyProvider } from '@/contexts/CompanyContext';
 
+// TraderTaxHQ
+import TraderTaxDashboard from '@/pages/tradertax/TraderTaxDashboard';
+import TraderTaxClients from '@/pages/tradertax/TraderTaxClients';
+import TraderTaxClientDetail from '@/pages/tradertax/TraderTaxClientDetail';
+import PublicIntake from '@/pages/tradertax/PublicIntake';
+import PublicInquiry from '@/pages/tradertax/PublicInquiry';
+import TraderTaxCalendar from '@/pages/tradertax/TraderTaxCalendar';
+import TraderTaxSecurity from '@/pages/tradertax/TraderTaxSecurity';
+import TraderTaxLeads from '@/pages/tradertax/TraderTaxLeads';
+import TraderTaxAnalytics from '@/pages/tradertax/TraderTaxAnalytics';
+
+// Public marketing
+import PropFirmTaxesLanding from '@/pages/public/PropFirmTaxesLanding';
+import PropTaxCalculator from '@/pages/public/PropTaxCalculator';
+import TraderTaxesLanding from '@/pages/public/TraderTaxesLanding';
+import TraderStatusCheck from '@/pages/public/TraderStatusCheck';
+import StateTraderTaxes, { StateIndex } from '@/pages/public/StateTraderTaxes';
+
 const queryClient = new QueryClient();
 
 function QueryClientProviderWrapper({ children }: { children: React.ReactNode }) {
@@ -425,6 +443,21 @@ function App() {
             <Route path="/invoice-sender" element={<ProtectedRoute><InvoiceSender /></ProtectedRoute>} />
             <Route path="/weekly-reports" element={<ProtectedRoute><WeeklyReports /></ProtectedRoute>} />
             <Route path="/blueprint-analyzer" element={<ProtectedRoute><BlueprintAnalyzer /></ProtectedRoute>} />
+            <Route path="/intake/:token" element={<PublicIntake />} />
+            <Route path="/inquiry" element={<PublicInquiry />} />
+            <Route path="/prop-firm-taxes" element={<PropFirmTaxesLanding />} />
+            <Route path="/prop-tax-calculator" element={<PropTaxCalculator />} />
+            <Route path="/trader-taxes" element={<TraderTaxesLanding />} />
+            <Route path="/trader-status-check" element={<TraderStatusCheck />} />
+            <Route path="/trader-taxes/states" element={<StateIndex />} />
+            <Route path="/trader-taxes/:state" element={<StateTraderTaxes />} />
+            <Route path="/tradertax/calendar" element={<ProtectedRoute><TraderTaxCalendar /></ProtectedRoute>} />
+            <Route path="/tradertax/leads" element={<ProtectedRoute><TraderTaxLeads /></ProtectedRoute>} />
+            <Route path="/tradertax/security" element={<ProtectedRoute><TraderTaxSecurity /></ProtectedRoute>} />
+            <Route path="/tradertax/analytics" element={<ProtectedRoute><TraderTaxAnalytics /></ProtectedRoute>} />
+            <Route path="/tradertax" element={<ProtectedRoute><TraderTaxDashboard /></ProtectedRoute>} />
+            <Route path="/tradertax/clients" element={<ProtectedRoute><TraderTaxClients /></ProtectedRoute>} />
+            <Route path="/tradertax/clients/:clientId" element={<ProtectedRoute><TraderTaxClientDetail /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
