@@ -151,6 +151,22 @@ export default function Estimating() {
       if (cur.length) parts.push(cur);
 
       const { data: session } = await supabase.auth.getSession();
+      // Company cost database + trade rates: the estimator prices with these first
+      let cq = supabase.from('cost_database' as any).select('category,name,unit,unit_cost,notes').eq('is_active', true);
+      let tq = supabase.from('trade_rates').select('trade,hourly_rate,burden_percent').eq('is_active', true);
+      if (selectedIds.length) {
+        cq = cq.or(`company_id.is.null,company_id.in.(${selectedIds.join(',')})`);
+        tq = tq.or(`company_id.is.null,company_id.in.(${selectedIds.join(',')})`);
+      }
+      const [{ data: costRows }, { data: tradeRows }] = await Promise.all([cq, tq]);
+      const costBook = [
+        ...((costRows as any[]) || []),
+        ...((tradeRows as any[]) || []).map((t) => ({
+          category: 'labor', name: t.trade, unit: 'HR',
+          unit_cost: Number(t.hourly_rate) * (1 + (Number(t.burden_percent) || 0) / 100),
+          notes: `Trade rate incl. ${t.burden_percent || 0}% burden`,
+        })),
+      ];
       const runPart = async (part: typeof parts[number], idx: number) => {
         const label = parts.length > 1 ? `Part ${idx + 1} of ${parts.length}: ` : '';
         setStage(`${label}Reading the drawings and building the baseline… this can take a few minutes.`);
@@ -170,6 +186,7 @@ export default function Estimating() {
             location,
             areaSf: Number(areaSf) || 0,
             notes: (notes || '') + partNote,
+            costBook,
           }),
         });
         if (!res.ok || !res.body) {
