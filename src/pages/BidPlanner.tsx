@@ -19,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { TabbedBidInterface } from '@/components/bid-planner/TabbedBidInterface';
 import { EnhancedBidDialog } from '@/components/bid-planner/EnhancedBidDialog';
+import { ImportTakeoffDialog } from '@/components/bid-planner/ImportTakeoffDialog';
 import { initializeBidTemplates } from '@/utils/initializeBidTemplates';
 
 export default function BidPlanner() {
@@ -28,6 +29,8 @@ export default function BidPlanner() {
   const [selectedProject, setSelectedProject] = useState<string>(searchParams.get('project') || '');
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     fetchProjects();
@@ -168,13 +171,24 @@ export default function BidPlanner() {
                   ))}
                 </SelectContent>
               </Select>
+              {selectedProject && (
+                <Button variant="outline" onClick={() => setImportOpen(true)}>Import CAD / takeoff file</Button>
+              )}
             </div>
+            {selectedProject && (
+              <ImportTakeoffDialog
+                open={importOpen}
+                onOpenChange={setImportOpen}
+                projectId={selectedProject}
+                onDone={() => { fetchBidItems(); setReloadKey((k) => k + 1); }}
+              />
+            )}
           </CardContent>
         </Card>
 
         {selectedProject ? (
           <TabbedBidInterface
-            key={selectedProject}
+            key={`${selectedProject}-${reloadKey}`}
             projectId={selectedProject}
             bidItems={bidItems}
             onItemsChange={setBidItems}
