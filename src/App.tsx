@@ -60,6 +60,7 @@ import OwnerMoney from '@/pages/OwnerMoney';
 import CashFlow from '@/pages/CashFlow';
 import QuickBooksExport from '@/pages/QuickBooksExport';
 import CostImport from '@/pages/CostImport';
+import CostDatabase from '@/pages/CostDatabase';
 import ReportImport from '@/pages/ReportImport';
 import LaborCosts from '@/pages/LaborCosts';
 import Estimating from '@/pages/Estimating';
@@ -130,6 +131,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ReportImport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cost-database"
+              element={
+                <ProtectedRoute>
+                  <CostDatabase />
                 </ProtectedRoute>
               }
             />
