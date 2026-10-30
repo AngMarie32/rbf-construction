@@ -19,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { TabbedBidInterface } from '@/components/bid-planner/TabbedBidInterface';
 import { EnhancedBidDialog } from '@/components/bid-planner/EnhancedBidDialog';
+import { ImportTakeoffDialog } from '@/components/bid-planner/ImportTakeoffDialog';
 import { initializeBidTemplates } from '@/utils/initializeBidTemplates';
 
 export default function BidPlanner() {
@@ -187,7 +188,7 @@ export default function BidPlanner() {
 
         {selectedProject ? (
           <TabbedBidInterface
-            key={selectedProject}
+            key={`${selectedProject}-${reloadKey}`}
             projectId={selectedProject}
             bidItems={bidItems}
             onItemsChange={setBidItems}
