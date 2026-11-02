@@ -1,0 +1,16 @@
+{
+  "files": {
+    "src/types/tradertax.ts": "49d372461d17fa8b13ee49ea94d375c3ea399bf9fd4a08879767f863264259cf",
+    "src/utils/seo/pageMetaFor.ts": "9202c0e7e611484ed379a32f16aefe0862252350cf0c6296f58a9e23e016c0c6",
+    "src/utils/seo/routeMeta.ts": "29508dba25922fbcc9ad2e3124fe26eabdbf2bd26fec8398aeeb0bacef255f17",
+    "src/utils/traderTax/intakeSchema.ts": "b4b4febc6d1e520c9892d61d6d951e8e92dfc907d13ab5ac94292f5aab5676c1",
+    "src/utils/traderTax/leadScoring.ts": "ccd89bb9d7202c937a5bda52a0a0591282e099a755857de572250b9712283c4b",
+    "src/utils/traderTax/lossCalculator.ts": "1c0fcd7c1559c5befeb8d18886f72a2e8c4c905cd1ea53b10fbbeb47a8ec1f1d",
+    "src/utils/traderTax/payoutCalculator.ts": "0a282b5459bd5714bdd3e1a6511d8f995d1662a04f1a5f74092aea201bda2bd3",
+    "src/utils/traderTax/propFirmAnalysis.ts": "9a5e33c83c518d1b5166ff4461ef9a83264fab77c55c73ffd171a33f94cd5ac7",
+    "src/utils/traderTax/stateConformity.ts": "69f287f3d1d962708b60037425db4181ebe11e3e23284b01bae11e979d880186",
+    "src/utils/traderTax/stateContent.ts": "d56791b816e61f7377058ad688da152cb5cfe505a3000c4287b545425aad6a06",
+    "src/utils/traderTax/taxYearConfig.ts": "c85519ee28cf7fb1dedeacf253175a3bb1054f13b04fcd97219e12cb2b8d76c4",
+    "src/utils/traderTax/ttsAnalysis.ts": "58c1a23d25d02588e9d0ef8950176a79f7181304b32b6e621afa23c1893339b6"
+  }
+}
