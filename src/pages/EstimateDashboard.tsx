@@ -469,7 +469,17 @@ export default function EstimateDashboard() {
                           </span>
                         </div>
                         <div className="overflow-x-auto">
-                          <table className="w-full min-w-[900px] text-sm">
+                          <table className="w-full min-w-[900px] text-sm table-fixed">
+                            <colgroup>
+                              <col />
+                              <col className="w-20" />
+                              <col className="w-16" />
+                              <col className="w-28" />
+                              <col className="w-28" />
+                              <col className="w-40" />
+                              <col className="w-16" />
+                              <col className="w-28" />
+                            </colgroup>
                             <thead>
                               <tr className="text-left text-xs text-muted-foreground">
                                 <th className="p-3">Cost line</th>
