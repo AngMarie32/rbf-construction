@@ -17,6 +17,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'Quick Access',
     items: [
+      { name: 'Cost Database', href: '/cost-database' },
       { name: 'Document Sender', href: '/invoice-sender' },
       { name: 'E-Sign', href: '/esign' },
     ],
@@ -72,7 +73,6 @@ const navGroups: NavGroup[] = [
       { name: 'Billing', href: '/billing' },
       { name: 'Burn Analysis', href: '/burn-rate-analysis' },
       { name: 'Change Orders', href: '/change-orders' },
-      { name: 'Cost Database', href: '/cost-database' },
       { name: 'Cost Import', href: '/cost-import' },
       { name: 'Expenses', href: '/expenses' },
       { name: 'Labor Costs', href: '/labor-costs' },
