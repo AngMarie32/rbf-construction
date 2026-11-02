@@ -275,7 +275,14 @@ export default function EstimateDashboard() {
                   </Button>
                 </>
               )}
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/cost-database">
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Cost Database
+                </Link>
+              </Button>
               <Button variant="outline" size="sm" onClick={() => download(estimateCsv(lines), `${est.name}.csv`, 'text/csv')}>
+
                 <Download className="mr-2 h-4 w-4" />
                 Export CSV
               </Button>

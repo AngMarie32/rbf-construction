@@ -320,11 +320,19 @@ export default function Estimating() {
     <Layout title="Bid Estimator">
       <div className="space-y-6">
         <Card className="p-6">
-          <h2 className="text-lg font-semibold">Start from the plans</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Upload the permit or construction set (PDF or images), plus any specifications and schedules. The estimate is
-            built as an independent should-cost baseline before any subcontractor bid is considered.
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold">Start from the plans</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Upload the permit or construction set (PDF or images), plus any specifications and schedules. The estimate is
+                built as an independent should-cost baseline before any subcontractor bid is considered.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate('/cost-database')}>
+              Cost Database
+            </Button>
+          </div>
+
 
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             <div>

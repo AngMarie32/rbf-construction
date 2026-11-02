@@ -1,7 +1,7 @@
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -174,6 +174,10 @@ export default function BidPlanner() {
               {selectedProject && (
                 <Button variant="outline" onClick={() => setImportOpen(true)}>Import CAD / takeoff file</Button>
               )}
+              <Button variant="outline" asChild>
+                <Link to="/cost-database">Cost Database</Link>
+              </Button>
+
             </div>
             {selectedProject && (
               <ImportTakeoffDialog
