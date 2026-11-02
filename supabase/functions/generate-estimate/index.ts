@@ -55,6 +55,16 @@ Return ONLY valid JSON, no markdown fences, with this exact shape:
   "flags": [{ "severity": "critical|high|medium", "issue": "string", "finding": "string", "exposure": "string", "action": "string" }]
 }
 
+ACCURATE QUANTITIES
+- Read dimension strings, grid spacing, scale bars, room/door/window/finish/fixture schedules and general notes before quantifying.
+- Cross-check: wall LF x height vs. drywall/paint SF, footprint vs. slab SF and roof SF, door schedule counts vs. hardware/frames, fixture schedules vs. plumbing/electrical counts. State the cross-check in "basis".
+- Never guess a quantity you can measure. If a sheet is unreadable, say which sheet and carry a REVIEW allowance.
+
+EVERY TRADE COVERED
+Walk every CSI division and either price it or say why it does not apply: 01 General Requirements, 02 Existing Conditions/Demo, 03 Concrete, 04 Masonry, 05 Metals, 06 Wood/Plastics, 07 Thermal & Moisture, 08 Openings, 09 Finishes, 10 Specialties, 11 Equipment, 12 Furnishings, 13 Special Construction, 14 Conveying, 21 Fire Suppression, 22 Plumbing, 23 HVAC, 26 Electrical, 27 Communications, 28 Electronic Safety, 31 Earthwork, 32 Exterior Improvements, 33 Utilities.
+Return "division_coverage": [{ "division": "09 Finishes", "status": "priced|not_applicable|review", "note": "string" }] listing ALL of them.
+A division that the building clearly needs but the drawings do not show must get a REVIEW allowance line, not silence.
+
 Be thorough: 25-70 cost lines across all five groups for a full plan set, each with a detailed subcost build-up.`;
 
 // Per-file and total caps keep the AI request within gateway and memory limits.
@@ -147,7 +157,12 @@ function normalize(parsed: any, projectName: string, location: string, areaSf: n
       profit_pct: Number(s.profit_pct) || 6,
       bond_pct: Number(s.bond_pct) || 1,
     },
-    flags: (Array.isArray(parsed.flags) ? parsed.flags : []).map((f: any) => ({
+    division_coverage: (Array.isArray(parsed.division_coverage) ? parsed.division_coverage : []).map((d: any) => ({
+      division: String(d.division || ""), status: String(d.status || "review"), note: d.note ? String(d.note) : null,
+    })),
+    flags: [...(Array.isArray(parsed.flags) ? parsed.flags : []), ...(Array.isArray(parsed.division_coverage) ? parsed.division_coverage : [])
+      .filter((d: any) => d.status === "review")
+      .map((d: any) => ({ severity: "high", issue: `Scope not confirmed: ${d.division}`, finding: d.note || "Not clearly shown on the drawings.", exposure: "Possible missing scope", action: "Confirm with the design team or price an allowance." }))].map((f: any) => ({
       severity: ["critical", "high", "medium"].includes(f.severity) ? f.severity : "medium",
       issue: String(f.issue || "Issue"),
       finding: f.finding ? String(f.finding) : null,
@@ -206,7 +221,12 @@ Stated building area: ${areaSf || "(determine from the drawings)"} SF
 ${notes ? `Estimator notes / context: ${notes}` : ""}
 Price with current ${new Date().getFullYear()} local/regional commercial construction costs for this location.`;
 
-        const content: any[] = [{ type: "text", text: intro }];
+        const book = Array.isArray(payload.costBook) ? payload.costBook.slice(0, 400) : [];
+        const bookText = book.length
+          ? `\n\nCOMPANY COST DATABASE — use these rates FIRST for labor, equipment and materials when a matching item exists, and cite "Company cost database: <name>" in "source". Only use market benchmarks for items not listed.\n` +
+            book.map((b: any) => `- [${b.category}] ${b.name}: $${Number(b.unit_cost).toFixed(2)}/${b.unit}${b.notes ? ` (${b.notes})` : ""}`).join("\n")
+          : "";
+        const content: any[] = [{ type: "text", text: intro + bookText }];
         const total = { bytes: 0 };
         for (let i = 0; i < files.length; i++) {
           const f = files[i];
