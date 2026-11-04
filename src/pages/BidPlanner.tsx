@@ -1,3 +1,4 @@
+import { WorkflowStepper } from '@/components/workflow/WorkflowStepper';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 import { useState, useEffect } from 'react';
@@ -144,6 +145,7 @@ export default function BidPlanner() {
   return (
     <Layout title="Bid Planner" subtitle="Create and manage construction bids">
       <div className="space-y-8">
+        <WorkflowStepper projectId={selectedProject} />
         {/* Project Selection */}
         <Card className="border-2 border-dashed border-primary/20 bg-primary/5">
           <CardHeader>

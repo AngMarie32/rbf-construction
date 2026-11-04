@@ -1,3 +1,4 @@
+import { WorkflowStepper } from '@/components/workflow/WorkflowStepper';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -304,6 +305,7 @@ export default function PaymentApplications() {
   return (
     <Layout title="Payment Applications" subtitle="Streamline billing with G702/G703 forms">
       <div className="space-y-6">
+        <WorkflowStepper projectId={undefined} />
         {/* Project Selection */}
         <Card className="bg-white border border-green-300">
           <CardHeader>
