@@ -34,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   };
 
   return (
-    <header className="bg-background border-b border-border px-6 py-4">
+    <header className="sticky top-0 z-30 bg-background/60 backdrop-blur-xl border-b border-border/60 px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button
