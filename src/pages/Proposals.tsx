@@ -1,3 +1,4 @@
+import { WorkflowStepper } from '@/components/workflow/WorkflowStepper';
 
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
@@ -159,6 +160,7 @@ export default function Proposals() {
   return (
     <Layout title="Proposals" subtitle="Create and manage project proposals">
       <div className="space-y-6">
+        <WorkflowStepper projectId={undefined} />
         {/* Enhanced Header with Quick Guide */}
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
           <div className="flex flex-col gap-4">

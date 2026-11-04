@@ -1,3 +1,4 @@
+import { WorkflowStepper } from '@/components/workflow/WorkflowStepper';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -46,7 +47,7 @@ export default function PaymentApplications() {
   const navigate = useNavigate();
   const [applications, setApplications] = useState<PaymentApplication[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [selectedProject, setSelectedProject] = useState<string>(new URLSearchParams(window.location.search).get('project') || '');
   const [loading, setLoading] = useState(true);
   const [selectedApplication, setSelectedApplication] = useState<PaymentApplication | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -304,6 +305,7 @@ export default function PaymentApplications() {
   return (
     <Layout title="Payment Applications" subtitle="Streamline billing with G702/G703 forms">
       <div className="space-y-6">
+        <WorkflowStepper projectId={selectedProject} />
         {/* Project Selection */}
         <Card className="bg-white border border-green-300">
           <CardHeader>

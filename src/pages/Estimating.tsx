@@ -1,3 +1,4 @@
+import { WorkflowStepper } from '@/components/workflow/WorkflowStepper';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -319,6 +320,7 @@ export default function Estimating() {
   return (
     <Layout title="Bid Estimator">
       <div className="space-y-6">
+        <WorkflowStepper projectId={undefined} />
         <Card className="p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">

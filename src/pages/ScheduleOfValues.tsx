@@ -1,3 +1,4 @@
+import { WorkflowStepper } from '@/components/workflow/WorkflowStepper';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
@@ -236,6 +237,7 @@ export default function ScheduleOfValues() {
   return (
     <Layout title="Schedule of Values" subtitle="Manage project schedule of values and track completion">
       <div className="space-y-8">
+        <WorkflowStepper projectId={undefined} />
         {/* Project Selection */}
         <Card className="bg-white border-2 border-dashed border-primary/20">
           <CardHeader>

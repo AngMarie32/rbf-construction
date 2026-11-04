@@ -1,3 +1,4 @@
+import { WorkflowStepper } from '@/components/workflow/WorkflowStepper';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -223,6 +224,7 @@ export default function EstimateDashboard() {
   return (
     <Layout title={est.name}>
       <div className="space-y-4">
+        <WorkflowStepper projectId={undefined} />
         <Card className="p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
