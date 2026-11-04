@@ -115,20 +115,20 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     <div
       className={cn(
         'sticky top-0 h-screen flex flex-col overflow-y-auto transition-all duration-300 flex-shrink-0',
+        'glass-sidebar',
         collapsed ? 'w-12' : 'min-w-[220px] w-[220px]'
       )}
-      style={{ backgroundColor: 'hsl(222, 47%, 13%)' }}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-3">
         {!collapsed && (
-          <span className="font-display font-bold text-sm text-white/90 tracking-wide uppercase">
+          <span className="font-display font-bold text-sm text-sidebar-foreground tracking-wide uppercase">
             Navigation
           </span>
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="text-white/60 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
+          className="text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors p-1 rounded hover:bg-sidebar-accent"
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
@@ -141,7 +141,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             {!collapsed && (
               <button
                 onClick={() => toggleGroup(group.label)}
-                className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-white/40 hover:text-white/60 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
               >
                 {group.label}
                 <ChevronDown
@@ -165,8 +165,8 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                         className={cn(
                           'w-full flex items-center px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150 text-left',
                           isActive
-                            ? 'bg-white/15 text-white shadow-sm'
-                            : 'text-white/70 hover:bg-white/8 hover:text-white'
+                            ? 'nav-active text-sidebar-foreground'
+                            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground hover:translate-x-0.5'
                         )}
                       >
                         {item.name}
