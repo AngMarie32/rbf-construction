@@ -72,11 +72,13 @@
   }
 
   .dark {
-    --background: 225 30% 6%;
+    --background: 228 35% 5%;
     --foreground: 210 40% 96%;
 
-    --card: 225 28% 10%;
+    --card: 225 30% 11%;
     --card-foreground: 210 40% 96%;
+    --glass: 225 30% 14%;
+    --glow-primary: 220 90% 60%;
     --card-elevated: 225 26% 13%;
 
     --popover: 225 28% 10%;
@@ -101,7 +103,7 @@
     --input: 220 20% 18%;
     --ring: 27 96% 61%;
 
-    --sidebar-background: 225 32% 5%;
+    --sidebar-background: 228 35% 7%;
     --sidebar-foreground: 210 40% 88%;
     --sidebar-primary: 27 96% 61%;
     --sidebar-primary-foreground: 0 0% 100%;
@@ -370,5 +372,37 @@
   
   .print-table tr:nth-child(even) {
     background: #f9fafb !important;
+  }
+}
+
+@layer components {
+  .dark body {
+    background-image:
+      radial-gradient(60rem 40rem at 10% -10%, hsl(var(--glow-primary) / 0.12), transparent 60%),
+      radial-gradient(50rem 35rem at 100% 0%, hsl(var(--accent) / 0.07), transparent 60%);
+    background-attachment: fixed;
+  }
+  .dark .enhanced-card {
+    background: linear-gradient(145deg, hsl(var(--glass) / 0.55), hsl(var(--card) / 0.35));
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border-color: hsl(var(--foreground) / 0.07);
+    box-shadow: 0 10px 30px -12px hsl(228 50% 2% / 0.7), inset 0 1px 0 0 hsl(var(--foreground) / 0.06);
+  }
+  .dark .enhanced-card:hover {
+    background: linear-gradient(145deg, hsl(var(--glass) / 0.7), hsl(var(--card) / 0.45));
+    border-color: hsl(var(--glow-primary) / 0.25);
+    box-shadow: 0 16px 40px -14px hsl(228 50% 2% / 0.8), 0 0 24px -8px hsl(var(--glow-primary) / 0.35), inset 0 1px 0 0 hsl(var(--foreground) / 0.08);
+  }
+  .glass-sidebar {
+    background: linear-gradient(180deg, hsl(var(--sidebar-background) / 0.85), hsl(var(--sidebar-background) / 0.7));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: inset -1px 0 0 hsl(var(--foreground) / 0.06);
+  }
+  :root:not(.dark) .glass-sidebar { --sidebar-background: 222 47% 13%; --sidebar-foreground: 0 0% 100%; --sidebar-accent: 222 40% 20%; }
+  .nav-active {
+    background: linear-gradient(90deg, hsl(var(--glow-primary, 220 90% 60%) / 0.25), hsl(var(--glow-primary, 220 90% 60%) / 0.05));
+    box-shadow: inset 2px 0 0 hsl(var(--accent)), 0 0 18px -6px hsl(var(--glow-primary, 220 90% 60%) / 0.5);
   }
 }
