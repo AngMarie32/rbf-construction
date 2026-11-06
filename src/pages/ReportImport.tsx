@@ -147,7 +147,26 @@ export default function ReportImport() {
 
   const update = (i: number, patch: Partial<Row>) => setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
-  const removeRow = (i: number) => setRows((prev) => prev.filter((_, idx) => idx !== i));
+  const removeRow = (i: number) => {
+    const key = rows[i]?.key;
+    setRows((prev) => prev.filter((_, idx) => idx !== i));
+    if (key) setSelected((s) => { const n = new Set(s); n.delete(key); return n; });
+  };
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggleSel = (key: string) =>
+    setSelected((s) => { const n = new Set(s); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.key));
+  const bulkApply = (patch: Partial<Row>) => {
+    const target = selected.size ? selected : new Set(rows.map((r) => r.key));
+    setRows((prev) => prev.map((r) => (target.has(r.key) ? { ...r, ...patch } : r)));
+    toast.success(`Updated ${target.size} ${target.size === 1 ? 'line' : 'lines'}.`);
+  };
+  const fillDatesFromReport = () => {
+    if (!report) return;
+    setRows((prev) => prev.map((r) => (r.date ? r : { ...r, date: report.periodEnd })));
+    toast.success('Empty dates filled with the report end date.');
+  };
 
   const applyToJob = (i: number) => {
     const row = rows[i];
@@ -452,11 +471,62 @@ export default function ReportImport() {
               </label>
             </Card>
 
+            <Card className="flex flex-wrap items-end gap-4 p-4">
+              <div className="text-sm font-medium">
+                Change {selected.size ? `${selected.size} selected` : 'all'} lines
+              </div>
+              <div>
+                <div className="text-xs uppercase text-muted-foreground">Goes to</div>
+                <Select value="" onValueChange={(v) => bulkApply({ destination: v as Destination })}>
+                  <SelectTrigger className="w-44"><SelectValue placeholder="Choose…" /></SelectTrigger>
+                  <SelectContent>
+                    {DESTS.map((d) => <SelectItem key={d} value={d}>{DEST_LABEL[d]}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <div className="text-xs uppercase text-muted-foreground">Project</div>
+                <Select value="" onValueChange={(v) => bulkApply({ projectId: v === 'none' ? null : v })}>
+                  <SelectTrigger className="w-52"><SelectValue placeholder="Choose…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No project</SelectItem>
+                    {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <div className="text-xs uppercase text-muted-foreground">Cost code</div>
+                <Select value="" onValueChange={(v) => bulkApply({ costCodeId: v === 'none' ? null : v })}>
+                  <SelectTrigger className="w-48"><SelectValue placeholder="Choose…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {costCodes.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} · {c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <div className="text-xs uppercase text-muted-foreground">Date</div>
+                <Input type="date" className="w-40" onChange={(e) => e.target.value && bulkApply({ date: e.target.value })} />
+              </div>
+              <Button variant="outline" size="sm" onClick={fillDatesFromReport}>Fill empty dates from report</Button>
+              {selected.size > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Clear selection</Button>
+              )}
+            </Card>
+
             <Card className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                   <tr>
+                    <th className="p-3">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.key)))}
+                      />
+                    </th>
                     <th className="p-3 text-left">Line</th>
+                    <th className="p-3 text-left">Date</th>
                     <th className="p-3 text-right">Amount</th>
                     <th className="p-3 text-left">Goes to</th>
                     <th className="p-3 text-left">Project</th>
@@ -470,16 +540,27 @@ export default function ReportImport() {
                     return (
                       <tr key={r.key} className={`border-t border-border ${missing ? 'bg-destructive/10' : ''} ${r.destination === 'skip' ? 'opacity-50' : ''}`}>
                         <td className="p-3">
+                          <input type="checkbox" checked={selected.has(r.key)} onChange={() => toggleSel(r.key)} />
+                        </td>
+                        <td className="p-3">
                           <Input
                             value={r.account}
                             onChange={(e) => update(i, { account: e.target.value })}
                             className="h-8 w-56 font-medium"
                           />
                           <div className="text-xs text-muted-foreground">
-                            {[r.job && `Job: ${r.job}`, r.vendor, r.memo, r.date].filter(Boolean).join(' · ')}
+                            {[r.job && `Job: ${r.job}`, r.vendor, r.memo !== r.account && r.memo].filter(Boolean).join(' · ')}
                           </div>
                           {r.duplicate && <Badge variant="secondary" className="mt-1">Already imported — will be updated, not duplicated</Badge>}
                           {r.reason && <div className="text-xs text-muted-foreground">{r.reason}</div>}
+                        </td>
+                        <td className="p-3">
+                          <Input
+                            type="date"
+                            className="h-8 w-40"
+                            value={r.date || ''}
+                            onChange={(e) => update(i, { date: e.target.value || null })}
+                          />
                         </td>
                         <td className="whitespace-nowrap p-3 text-right tabular-nums">
                           <Input
