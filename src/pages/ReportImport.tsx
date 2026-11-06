@@ -225,7 +225,7 @@ export default function ReportImport() {
 
       const expenses = used.filter((r) => r.destination === 'project_cost' && !r.duplicate).map((r) => ({
         project_id: r.projectId!,
-        category: codeName(r.costCodeId) || r.account || 'Other',
+        category: codeName(r.costCodeId) || 'Other',
         description: label(r) || 'Imported cost',
         amount: r.amount,
         date: r.date || end,
@@ -309,7 +309,7 @@ export default function ReportImport() {
           updates.push(
             supabase.from('expenses').update({
               project_id: r.projectId!,
-              category: codeName(r.costCodeId) || r.account || 'Other',
+              category: codeName(r.costCodeId) || 'Other',
               description: label(r) || 'Imported cost',
               amount: r.amount,
               date: r.date || end,

@@ -294,11 +294,13 @@ export default function Expenses() {
     if (selectedExpenses.size === 0) return;
     try {
       const ids = Array.from(selectedExpenses);
-      const { error } = await supabase
-        .from('expenses')
-        .update({ status: newStatus })
-        .in('id', ids);
-      if (error) throw error;
+      for (let i = 0; i < ids.length; i += 100) {
+        const { error } = await supabase
+          .from('expenses')
+          .update({ status: newStatus })
+          .in('id', ids.slice(i, i + 100));
+        if (error) throw error;
+      }
       setExpenses(prev =>
         prev.map(e => ids.includes(e.id) ? { ...e, status: newStatus } : e)
       );
