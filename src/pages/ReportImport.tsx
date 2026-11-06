@@ -229,7 +229,7 @@ export default function ReportImport() {
         description: label(r) || 'Imported cost',
         amount: r.amount,
         date: r.date || end,
-        vendor: r.vendor || null,
+        vendor: r.account || r.vendor || null,
         status: 'Approved',
         cost_code_id: r.costCodeId,
         source: 'report_import',
@@ -313,7 +313,7 @@ export default function ReportImport() {
               description: label(r) || 'Imported cost',
               amount: r.amount,
               date: r.date || end,
-              vendor: r.vendor || null,
+              vendor: r.account || r.vendor || null,
               cost_code_id: r.costCodeId,
               import_batch_id: batch.id,
             }).eq('id', r.existingId)

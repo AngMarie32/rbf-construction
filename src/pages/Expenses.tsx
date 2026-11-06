@@ -54,6 +54,7 @@ export default function Expenses() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [vendorFilter, setVendorFilter] = useState('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [attachingInvoice, setAttachingInvoice] = useState<{ id: string; description: string } | null>(null);
@@ -164,7 +165,8 @@ export default function Expenses() {
       new Date(expense.date).toLocaleDateString().includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || expense.status === statusFilter;
     const matchesProject = projectFilter === 'all' || expense.project_id === projectFilter;
-    const matchesCategory = categoryFilter === 'all' || expense.category === categoryFilter;
+    const matchesCategory = (categoryFilter === 'all' || expense.category === categoryFilter) &&
+      (vendorFilter === 'all' || (expense.vendor || '') === vendorFilter);
     
     let matchesDateRange = true;
     if (dateRange?.from && dateRange?.to) {
@@ -269,6 +271,7 @@ export default function Expenses() {
   }, { total: 0, paid: 0, approved: 0, pending: 0 });
 
   const categories = [...new Set(expenses.map(e => e.category))];
+  const vendors = [...new Set(expenses.map(e => e.vendor).filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b));
 
   const toggleSelectAll = () => {
     if (selectedExpenses.size === filteredExpenses.length) {
@@ -476,12 +479,36 @@ export default function Expenses() {
                   ))}
                 </SelectContent>
               </Select>
+
+              <Select value={vendorFilter} onValueChange={(v) => { setVendorFilter(v); setSortColumn('vendor'); setSortDirection('asc'); }}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filter by vendor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Vendors</SelectItem>
+                  {vendors.map((v) => (
+                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Bulk Actions Bar */}
             {selectedExpenses.size > 0 && (
               <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                 <span className="text-sm font-medium">{selectedExpenses.size} selected</span>
+                <Select onValueChange={handleBulkStatusChange}>
+                  <SelectTrigger className="w-56 h-9">
+                    <SelectValue placeholder="Change status to…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pending Field Approval">Pending Field Approval</SelectItem>
+                    <SelectItem value="Pending Office Approval">Pending Office Approval</SelectItem>
+                    <SelectItem value="Approved">Approved</SelectItem>
+                    <SelectItem value="Paid">Paid</SelectItem>
+                    <SelectItem value="Rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button size="sm" variant="outline" onClick={() => handleBulkStatusChange('Approved')}>
                   <CheckCircle className="w-4 h-4 mr-1" /> Approve
                 </Button>
