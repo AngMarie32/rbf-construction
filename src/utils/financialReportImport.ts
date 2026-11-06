@@ -306,11 +306,14 @@ export function parseFinancialReport(
       if (s) section = s;
       return withMatches({
         key: `d${i}`,
-        account: p.account || 'Uncategorized',
+        account:
+          p.account && !/^uncategori[sz]ed/i.test(p.account)
+            ? p.account
+            : p.memo || p.vendor || p.account || 'Uncategorized',
         section: s ?? (p.account ? 'unknown' : section),
         job: p.jobName,
         amount: p.amount,
-        date: p.date,
+        date: p.date || period?.end || null,
         vendor: p.vendor,
         memo: p.memo,
       });
