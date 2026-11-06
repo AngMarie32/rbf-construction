@@ -306,7 +306,10 @@ export function parseFinancialReport(
       if (s) section = s;
       return withMatches({
         key: `d${i}`,
-        account: p.account || p.memo || p.vendor || 'Uncategorized',
+        account:
+          p.account && !/^uncategori[sz]ed/i.test(p.account)
+            ? p.account
+            : p.memo || p.vendor || p.account || 'Uncategorized',
         section: s ?? (p.account ? 'unknown' : section),
         job: p.jobName,
         amount: p.amount,
