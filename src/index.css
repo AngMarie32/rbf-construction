@@ -430,3 +430,13 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* Forms inside pop-ups: consistent label → field spacing even when markup has no gap */
+@layer components {
+  [role="dialog"] label + input,
+  [role="dialog"] label + textarea,
+  [role="dialog"] label + button[role="combobox"],
+  [role="dialog"] label + div > input {
+    margin-top: 0.375rem;
+  }
+}

@@ -32,7 +32,7 @@ export function LaborReport({ data }: LaborReportProps) {
     <div className="space-y-8">
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+        <Card className="">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -48,7 +48,7 @@ export function LaborReport({ data }: LaborReportProps) {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+        <Card className="">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -64,7 +64,7 @@ export function LaborReport({ data }: LaborReportProps) {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+        <Card className="">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -80,7 +80,7 @@ export function LaborReport({ data }: LaborReportProps) {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+        <Card className="">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -100,7 +100,7 @@ export function LaborReport({ data }: LaborReportProps) {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Expenses by Category */}
-        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0">
+        <Card className="">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
               <div className="bg-blue-500 p-2 rounded-lg">
@@ -139,7 +139,7 @@ export function LaborReport({ data }: LaborReportProps) {
         </Card>
 
         {/* Expenses by Project (Pie Chart) */}
-        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0">
+        <Card className="">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
               <div className="bg-green-500 p-2 rounded-lg">
@@ -183,7 +183,7 @@ export function LaborReport({ data }: LaborReportProps) {
       {/* Detailed Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Category Breakdown */}
-        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0">
+        <Card className="">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg font-semibold text-foreground">Category Breakdown</CardTitle>
           </CardHeader>
@@ -211,7 +211,7 @@ export function LaborReport({ data }: LaborReportProps) {
         </Card>
 
         {/* Top Projects */}
-        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0">
+        <Card className="">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg font-semibold text-foreground">Top Projects by Cost</CardTitle>
           </CardHeader>

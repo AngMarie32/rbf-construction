@@ -64,7 +64,7 @@ export function ReportCard({
   };
 
   return (
-    <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 bg-white/80 backdrop-blur-sm overflow-hidden">
+    <Card className="group hover:shadow-xl transition-all duration-300 overflow-hidden">
       <div className={`h-1 ${getCategoryColor(category).split(' ')[0]} ${getCategoryColor(category).split(' ')[1]} ${getCategoryColor(category).split(' ')[2]}`}></div>
       
       <CardHeader className="pb-3">
@@ -78,7 +78,7 @@ export function ReportCard({
             </div>
             <Badge 
               variant="secondary" 
-              className={`text-xs font-medium ${getCategoryColor(category)} border-0 shadow-sm`}
+              className={`text-xs font-medium ${getCategoryColor(category)} shadow-sm`}
             >
               {category.charAt(0).toUpperCase() + category.slice(1)}
             </Badge>

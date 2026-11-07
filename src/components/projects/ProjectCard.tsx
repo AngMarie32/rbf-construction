@@ -160,133 +160,77 @@ export function ProjectCard({
 
   return (
     <>
-      <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer group" onClick={handleCardClick}>
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <CardTitle className="text-lg mb-2 group-hover:text-primary transition-colors">{project.name}</CardTitle>
-              <Badge className={getStatusClasses(project.status)}>
-                {project.status}
-              </Badge>
-            </div>
+      <Card className="group cursor-pointer p-5 transition-all hover:border-primary/40 hover:shadow-md" onClick={handleCardClick}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h3 className="font-semibold leading-tight truncate group-hover:text-primary transition-colors">{project.name}</h3>
+            <p className="mt-1 text-xs text-muted-foreground truncate">
+              {project.client || 'No client'}
+              {project.dueDate && new Date(project.dueDate).getFullYear() > 1970 && ` · Due ${format(project.dueDate, 'MMM d, yyyy')}`}
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
+            <Badge variant="secondary" className={statusTone(project.status)}>{project.status}</Badge>
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Project actions">
                   <MoreVertical className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => {
-                  e.stopPropagation();
-                  setEditDialogOpen(true);
-                }}>
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditDialogOpen(true); }}>
+                  <Edit className="w-4 h-4 mr-2" /> Edit
                 </DropdownMenuItem>
                 {onArchive && (
-                  <DropdownMenuItem onClick={(e) => {
-                    e.stopPropagation();
-                    onArchive(project.id, !project.archivedAt);
-                  }}>
-                    {project.archivedAt ? (
-                      <><ArchiveRestore className="w-4 h-4 mr-2" />Restore</>
-                    ) : (
-                      <><Archive className="w-4 h-4 mr-2" />Archive</>
-                    )}
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onArchive(project.id, !project.archivedAt); }}>
+                    {project.archivedAt ? (<><ArchiveRestore className="w-4 h-4 mr-2" />Restore</>) : (<><Archive className="w-4 h-4 mr-2" />Archive</>)}
                   </DropdownMenuItem>
                 )}
                 {showDeleteButton && (
-                  <DropdownMenuItem onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete();
-                  }} className="text-destructive">
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="text-destructive">
+                    <Trash2 className="w-4 h-4 mr-2" /> Delete
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            {project.client && (
-              <div className="flex items-center text-sm text-muted-foreground">
-                <User className="w-4 h-4 mr-2 flex-shrink-0" />
-                {project.client}
-              </div>
-            )}
-            {project.address && (
-              <div className="flex items-center text-sm text-muted-foreground">
-                <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
-                <span className="truncate">{project.address}</span>
-              </div>
-            )}
-            {project.dueDate && new Date(project.dueDate).getFullYear() > 1970 && (
-              <div className="flex items-center text-sm text-muted-foreground">
-                <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
-                Due: {format(project.dueDate, 'MMM dd, yyyy')}
-              </div>
-            )}
+        {project.address && (
+          <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground truncate">
+            <MapPin className="h-3 w-3 shrink-0" />{project.address}
+          </p>
+        )}
+
+        <div className="mt-4 space-y-1.5">
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Complete</span>
+            <span className="font-medium">{project.completionPercentage}%</span>
           </div>
+          <Progress value={project.completionPercentage} className="h-1.5" />
+        </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-foreground">Progress</span>
-              <span className="text-sm text-muted-foreground">{project.completionPercentage}%</span>
-            </div>
-            <Progress value={project.completionPercentage} className="h-2" />
+        <dl className="mt-4 grid grid-cols-3 gap-x-2 gap-y-3 border-t pt-4 text-xs">
+          <Stat label="Contract" value={project.contractValue} />
+          <Stat label="Billed" value={billedAmount} />
+          <Stat label="Received" value={receivedAmount} />
+          <Stat label="Costs paid" value={paidExpenses} />
+          <Stat label="Pending" value={pendingExpenses} muted />
+          <Stat label="Left to bill" value={remainingAmount} muted />
+        </dl>
+
+        <div className="mt-4 flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-xs">
+          <span className="text-muted-foreground">Est. profit</span>
+          <span className={`font-semibold tabular-nums ${calculateEstimatedProfit() >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+            {money(calculateEstimatedProfit())}
+          </span>
+        </div>
+        {(contingencyAvailable > 0 || changeOrdersTotal > 0) && (
+          <div className="mt-2 flex justify-between px-3 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1"><Shield className="h-3 w-3" />Contingency left {money(contingencyAvailable)}</span>
+            {changeOrdersTotal > 0 && <span>COs {money(changeOrdersTotal)}</span>}
           </div>
-
-          {/* Financial Snapshot */}
-          <div className="bg-muted/50 dark:bg-secondary/30 rounded-lg p-3 space-y-3 border border-border/50">
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/50 pb-1.5">
-              Financial Snapshot
-            </h4>
-            
-            <div className="grid grid-cols-2 gap-2">
-              <FinancialCell icon={DollarSign} label="Contract" value={project.contractValue} colorClass="text-primary" />
-              <FinancialCell icon={TrendingUp} label="Remaining" value={remainingAmount} colorClass="text-success" />
-              <FinancialCell icon={CreditCard} label="Billed" value={billedAmount} colorClass="text-primary" />
-              <FinancialCell icon={CheckCircle} label="Received" value={receivedAmount} colorClass="text-success" />
-              <FinancialCell icon={TrendingDown} label="Expenses Paid" value={paidExpenses} colorClass="text-destructive" />
-              <FinancialCell icon={Clock} label="Pending" value={pendingExpenses} colorClass="text-accent" />
-              <FinancialCell 
-                icon={TrendingUp} 
-                label="Est. Profit" 
-                value={calculateEstimatedProfit()} 
-                colorClass={calculateEstimatedProfit() >= 0 ? 'text-primary' : 'text-destructive'} 
-              />
-              <FinancialCell 
-                icon={DollarSign} 
-                label="Actual Profit" 
-                value={calculateActualProfit()} 
-                colorClass={calculateActualProfit() >= 0 ? 'text-success' : 'text-destructive'} 
-              />
-            </div>
-
-            <div className="border-t border-border/50 pt-2">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-muted-foreground flex items-center">
-                  <Shield className="w-3 h-3 mr-1" />
-                  Contingency Available:
-                </span>
-                <span className="font-medium text-foreground">
-                  ${contingencyAvailable.toLocaleString()}
-                </span>
-              </div>
-              {changeOrdersTotal > 0 && (
-                <div className="flex justify-between items-center text-xs mt-1">
-                  <span className="text-muted-foreground">Change Orders Used:</span>
-                  <span className="text-foreground">
-                    ${changeOrdersTotal.toLocaleString()}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </CardContent>
+        )}
       </Card>
 
       <EditProjectDialog
@@ -302,21 +246,27 @@ export function ProjectCard({
   );
 }
 
-function FinancialCell({ icon: Icon, label, value, colorClass }: { 
-  icon: React.ElementType; 
-  label: string; 
-  value: number; 
-  colorClass: string;
-}) {
+const money = (n: number) => {
+  const abs = Math.abs(n || 0);
+  if (abs >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (abs >= 10_000) return `$${Math.round(n / 1000)}K`;
+  return `$${(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+};
+
+function statusTone(status: string) {
+  switch (status) {
+    case 'Active': return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300';
+    case 'Planning': return 'bg-blue-500/15 text-blue-700 dark:text-blue-300';
+    case 'On Hold': return 'bg-amber-500/15 text-amber-700 dark:text-amber-300';
+    default: return 'bg-muted text-muted-foreground';
+  }
+}
+
+function Stat({ label, value, muted = false }: { label: string; value: number; muted?: boolean }) {
   return (
-    <div className="bg-card p-2 rounded-md border border-border/50 text-center">
-      <div className={`flex items-center justify-center text-xs ${colorClass} mb-1`}>
-        <Icon className="w-3 h-3 mr-1" />
-        {label}
-      </div>
-      <div className={`text-sm font-bold ${colorClass}`}>
-        ${value.toLocaleString()}
-      </div>
+    <div>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className={`mt-0.5 font-semibold tabular-nums ${muted ? 'text-muted-foreground' : ''}`}>{money(value)}</dd>
     </div>
   );
 }

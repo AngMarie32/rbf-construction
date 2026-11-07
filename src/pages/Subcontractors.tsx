@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -246,6 +247,89 @@ export default function Subcontractors() {
     );
   }
 
+
+  const insuranceState = (d: string | null) => {
+    if (!d) return null;
+    const days = Math.ceil((new Date(d).getTime() - Date.now()) / 86400000);
+    return days < 0 ? 'expired' : days <= 30 ? 'soon' : 'ok';
+  };
+
+  const subColumns: DataTableColumn<Subcontractor>[] = [
+    {
+      id: 'company',
+      header: 'Company',
+      value: (r) => r.company || r.name,
+      cell: (r) => (
+        <div className="flex items-center gap-3">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+              {(r.company || r.name || '?').charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <div className="font-medium truncate">{r.company || r.name}</div>
+            {r.email && <div className="text-xs text-muted-foreground truncate">{r.email}</div>}
+          </div>
+        </div>
+      ),
+    },
+    { id: 'contact', header: 'Contact', value: (r) => r.name, cell: (r) => (
+      <div>
+        <div>{r.name || '—'}</div>
+        {r.phone && <div className="text-xs text-muted-foreground">{r.phone}</div>}
+      </div>
+    ) },
+    { id: 'specialties', header: 'Trades', value: (r) => (r.specialties || []).join(', '), cell: (r) => (
+      <div className="flex max-w-[260px] flex-wrap gap-1">
+        {(r.specialties || []).slice(0, 3).map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}
+        {(r.specialties || []).length > 3 && <Badge variant="outline">+{(r.specialties || []).length - 3}</Badge>}
+        {!(r.specialties || []).length && <span className="text-muted-foreground">—</span>}
+      </div>
+    ) },
+    { id: 'region', header: 'Region', value: (r) => r.region, cell: (r) => r.region || '—' },
+    {
+      id: 'insurance',
+      header: 'Insurance',
+      value: (r) => r.insurance_expiry,
+      cell: (r) => {
+        const st = insuranceState(r.insurance_expiry);
+        if (!st) return <Badge variant="warning">Missing</Badge>;
+        const label = format(new Date(r.insurance_expiry as string), 'MMM d, yyyy');
+        return st === 'expired' ? <Badge variant="destructive">Expired {label}</Badge>
+          : st === 'soon' ? <Badge variant="warning">Expires {label}</Badge>
+          : <span className="text-sm">{label}</span>;
+      },
+    },
+    { id: 'w9', header: 'W-9', align: 'center', value: (r) => (r.w9_on_file ? 'Yes' : 'No'), cell: (r) => (
+      r.w9_on_file ? <Badge variant="success">On file</Badge> : <Badge variant="warning">Missing</Badge>
+    ) },
+    {
+      id: 'actions',
+      header: '',
+      align: 'right',
+      cell: (r) => (
+        <div className="flex justify-end gap-1">
+          <Button size="sm" variant="ghost" onClick={() => setEditingSubcontractor(r)} aria-label="Edit">
+            <Edit className="w-4 h-4" />
+          </Button>
+          <SendForSignatureButton
+            source="subcontractor"
+            sourceId={r.id}
+            title={`Subcontractor Agreement – ${r.company || r.name}`}
+            company={r.company || r.name}
+            documentType="Subcontract"
+            variant="ghost"
+            size="sm"
+            iconOnly
+          />
+          <Button size="sm" variant="ghost" onClick={() => deleteSubcontractor(r.id)} className="text-destructive hover:text-destructive">
+            Delete
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <Layout title="Subcontractors" subtitle="Manage your network of subcontractors">
       <div className="space-y-6">
@@ -352,141 +436,23 @@ export default function Subcontractors() {
 
         {/* Subcontractors Content */}
         {viewMode === 'list' ? (
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleSort('company')}
-                    >
-                      <div className="flex items-center">
-                        COMPANY
-                        {getSortIcon('company')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleSort('name')}
-                    >
-                      <div className="flex items-center">
-                        CONTACT
-                        {getSortIcon('name')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleSort('specialties')}
-                    >
-                      <div className="flex items-center">
-                        SPECIALTIES
-                        {getSortIcon('specialties')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleSort('region')}
-                    >
-                      <div className="flex items-center">
-                        REGION
-                        {getSortIcon('region')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleSort('insurance_expiry')}
-                    >
-                      <div className="flex items-center">
-                        INSURANCE
-                        {getSortIcon('insurance_expiry')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleSort('w9_on_file')}
-                    >
-                      <div className="flex items-center">
-                        W9
-                        {getSortIcon('w9_on_file')}
-                      </div>
-                    </TableHead>
-                    <TableHead>ACTIONS</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredSubcontractors.map((subcontractor) => (
-                    <TableRow key={subcontractor.id}>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback>{subcontractor.company?.charAt(0).toUpperCase() || subcontractor.name?.charAt(0).toUpperCase() || '?'}</AvatarFallback>
-                          </Avatar>
-                          <span>{subcontractor.company || 'N/A'}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{subcontractor.name || 'N/A'}</TableCell>
-                      <TableCell>
-                        {subcontractor.specialties ? subcontractor.specialties.join(', ') : 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        {subcontractor.region ? (
-                          <Badge variant="outline">{subcontractor.region}</Badge>
-                        ) : 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        {subcontractor.insurance_expiry ? format(new Date(subcontractor.insurance_expiry), 'MMM dd, yyyy') : 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        {subcontractor.w9_on_file ? 'Yes' : 'No'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditingSubcontractor(subcontractor)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <SendForSignatureButton
-                            source="subcontractor"
-                            sourceId={subcontractor.id}
-                            title={`Subcontractor Agreement – ${subcontractor.company || subcontractor.name}`}
-                            company={subcontractor.company || subcontractor.name}
-                            documentType="Subcontract"
-                            variant="outline"
-                            size="sm"
-                            iconOnly
-                          />
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => deleteSubcontractor(subcontractor.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              
-{filteredSubcontractors.length === 0 && (
-              <div className="col-span-full p-4">
-                <EmptyState
-                  icon={Users}
-                  filtered={subcontractors.length > 0}
-                  title="Add your first subcontractor"
-                  description="Keep every sub's trade, contact info, insurance and rates in one place so you can invite them to bid and track their work on each job."
-                  actionSlot={<AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />}
-                />
-              </div>
-            )}
-            </CardContent>
-          </Card>
+          <DataTable
+            columns={subColumns}
+            rows={filteredSubcontractors}
+            totalCount={subcontractors.length}
+            getRowId={(r) => r.id}
+            searchable={false}
+            exportFilename="subcontractors"
+            initialSort={{ id: 'company' }}
+            empty={
+              <EmptyState
+                icon={Users}
+                title="Add your first subcontractor"
+                description="Keep every sub's trade, contact info, insurance and rates in one place so you can invite them to bid and track their work on each job."
+                actionSlot={<AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />}
+              />
+            }
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredSubcontractors.map((subcontractor) => (
