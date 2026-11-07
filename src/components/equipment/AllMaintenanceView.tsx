@@ -107,7 +107,7 @@ export function AllMaintenanceView({ open, onOpenChange }: AllMaintenanceViewPro
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           ) : maintenanceLogs.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-muted-foreground">
               No maintenance records found
             </div>
           ) : (
@@ -130,7 +130,7 @@ export function AllMaintenanceView({ open, onOpenChange }: AllMaintenanceViewPro
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-gray-700 mb-3">{log.description}</p>
+                    <p className="text-foreground/80 mb-3">{log.description}</p>
                     {log.next_due && (
                       <div className="text-sm text-muted-foreground">
                         Next maintenance due: {format(new Date(log.next_due), 'MMM dd, yyyy')}

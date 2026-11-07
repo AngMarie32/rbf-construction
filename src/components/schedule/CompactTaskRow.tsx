@@ -29,7 +29,7 @@ export function CompactTaskRow({ task }: CompactTaskRowProps) {
   };
 
   return (
-    <div className="border rounded-lg p-3 hover:bg-gray-50 transition-colors">
+    <div className="border rounded-lg p-3 hover:bg-muted/40 transition-colors">
       <div className="flex items-center justify-between mb-2">
         <h4 className="font-medium text-sm truncate flex-1">{task.title}</h4>
         <Badge className={`${getStatusColor(task.status)} text-white text-xs`}>
@@ -37,7 +37,7 @@ export function CompactTaskRow({ task }: CompactTaskRowProps) {
         </Badge>
       </div>
       
-      <div className="grid grid-cols-3 gap-2 text-xs text-gray-600 mb-2">
+      <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground mb-2">
         <div className="flex items-center">
           <Calendar className="w-3 h-3 mr-1" />
           {format(new Date(task.start_date), 'MMM dd')}
@@ -54,7 +54,7 @@ export function CompactTaskRow({ task }: CompactTaskRowProps) {
         )}
       </div>
       
-      <div className="w-full bg-gray-200 rounded-full h-1.5">
+      <div className="w-full bg-muted rounded-full h-1.5">
         <div 
           className="bg-blue-600 h-1.5 rounded-full transition-all"
           style={{ width: `${task.progress || 0}%` }}

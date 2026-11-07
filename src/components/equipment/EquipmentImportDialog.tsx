@@ -142,7 +142,7 @@ export function EquipmentImportDialog({ onImportComplete }: EquipmentImportDialo
               <h3 className="text-lg font-semibold">Preview ({previewData.length} items)</h3>
               <div className="max-h-60 overflow-auto border rounded">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-muted/40">
                     <tr>
                       <th className="px-2 py-1 text-left">Description</th>
                       <th className="px-2 py-1 text-left">Model</th>
@@ -164,7 +164,7 @@ export function EquipmentImportDialog({ onImportComplete }: EquipmentImportDialo
                   </tbody>
                 </table>
                 {previewData.length > 10 && (
-                  <div className="px-2 py-1 text-gray-500 text-center">
+                  <div className="px-2 py-1 text-muted-foreground text-center">
                     ... and {previewData.length - 10} more items
                   </div>
                 )}

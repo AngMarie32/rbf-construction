@@ -174,7 +174,7 @@ export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: Temp
               <div className="flex-1">
                 <Label htmlFor="search">Search Templates</Label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
                   <Input
                     id="search"
                     placeholder="Search by name or description..."
@@ -191,7 +191,7 @@ export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: Temp
               {loading ? (
                 <div className="col-span-full text-center py-8">Loading templates...</div>
               ) : filteredTemplates.length === 0 ? (
-                <div className="col-span-full text-center py-8 text-gray-500">
+                <div className="col-span-full text-center py-8 text-muted-foreground">
                   {searchTerm ? 'No templates match your search.' : 'No templates found.'}
                 </div>
               ) : (
@@ -224,7 +224,7 @@ export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: Temp
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0">
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                         {template.description || 'No description available'}
                       </p>
                       <div className="flex justify-between items-center">
@@ -274,12 +274,12 @@ export function TemplateLibrary({ open, onOpenChange, onTemplateSelected }: Temp
                 <h3 className="font-semibold text-lg mb-3 text-blue-600 border-b pb-1">{category}</h3>
                 <div className="grid gap-2">
                   {items.map((item, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-2 text-sm py-1 border-b border-gray-100">
+                    <div key={index} className="grid grid-cols-12 gap-2 text-sm py-1 border-b border-border">
                       <div className="col-span-4 font-medium">{item.description}</div>
-                      <div className="col-span-2 text-gray-600">{item.subcategory || '-'}</div>
+                      <div className="col-span-2 text-muted-foreground">{item.subcategory || '-'}</div>
                       <div className="col-span-2 text-center">{item.unit}</div>
                       <div className="col-span-2 text-right">${item.unit_cost.toFixed(2)}</div>
-                      <div className="col-span-2 text-right text-gray-500">Qty: -</div>
+                      <div className="col-span-2 text-right text-muted-foreground">Qty: -</div>
                     </div>
                   ))}
                 </div>

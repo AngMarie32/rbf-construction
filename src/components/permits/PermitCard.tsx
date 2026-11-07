@@ -22,7 +22,7 @@ export const PermitCard = ({ permit, onEdit, onView, onDelete }: PermitCardProps
       case 'Application Submitted': return 'bg-orange-500 text-white';
       case 'Rejected': return 'bg-red-500 text-white';
       case 'Expired': return 'bg-gray-500 text-white';
-      default: return 'bg-gray-200 text-gray-800';
+      default: return 'bg-muted text-foreground';
     }
   };
 

@@ -579,7 +579,7 @@ export default function Invoices() {
                             <Input
                               value={`$${item.total.toFixed(2)}`}
                               readOnly
-                              className="bg-gray-50"
+                              className="bg-muted/40"
                             />
                           </div>
                           <div className="col-span-1">

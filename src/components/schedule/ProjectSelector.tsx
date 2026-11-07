@@ -137,7 +137,7 @@ export function ProjectSelector({ projects, selectedProjects, onSelectionChange 
                 {project?.name}
                 <button
                   onClick={() => handleProjectToggle(projectId, false)}
-                  className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                  className="ml-1 hover:bg-muted rounded-full p-0.5"
                 >
                   <X className="w-3 h-3" />
                 </button>

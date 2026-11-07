@@ -192,7 +192,7 @@ export const EmailSettings: React.FC = () => {
         );
       default:
         return (
-          <Badge className="bg-gray-100 text-gray-800">
+          <Badge className="bg-muted text-foreground">
             <XCircle className="w-3 h-3 mr-1" />
             Not Verified
           </Badge>
@@ -207,7 +207,7 @@ export const EmailSettings: React.FC = () => {
           <Mail className="w-5 h-5" />
           Email Settings
         </CardTitle>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           Verify your email address to send bid invitations from your own email
         </p>
       </CardHeader>
@@ -264,7 +264,7 @@ export const EmailSettings: React.FC = () => {
                 {loading ? 'Verifying...' : 'Verify'}
               </Button>
             </div>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               Check your email for the verification code. Didn't receive it?{' '}
               <Button 
                 variant="link" 

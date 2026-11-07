@@ -139,7 +139,7 @@ export function WeatherWidget() {
       case 'clouds':
       case 'partly cloudy':
       default:
-        return <Cloud className="w-5 h-5 text-gray-500" />;
+        return <Cloud className="w-5 h-5 text-muted-foreground" />;
     }
   };
 

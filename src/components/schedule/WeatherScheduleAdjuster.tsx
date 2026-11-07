@@ -160,7 +160,7 @@ export function WeatherScheduleAdjuster({
     switch (condition) {
       case 'rain': return <CloudRain className="w-4 h-4 text-blue-500" />;
       case 'snow': return <CloudSnow className="w-4 h-4 text-blue-300" />;
-      case 'wind': return <Wind className="w-4 h-4 text-gray-500" />;
+      case 'wind': return <Wind className="w-4 h-4 text-muted-foreground" />;
       default: return <Sun className="w-4 h-4 text-yellow-500" />;
     }
   };
@@ -170,7 +170,7 @@ export function WeatherScheduleAdjuster({
       case 'high': return 'text-red-600 border-red-300 bg-red-50';
       case 'medium': return 'text-orange-600 border-orange-300 bg-orange-50';
       case 'low': return 'text-yellow-600 border-yellow-300 bg-yellow-50';
-      default: return 'text-gray-600 border-gray-300 bg-gray-50';
+      default: return 'text-muted-foreground border-input bg-muted/40';
     }
   };
 
@@ -196,7 +196,7 @@ export function WeatherScheduleAdjuster({
                   <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex-1">
                       <div className="font-medium">{rule.condition}</div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-muted-foreground">
                         Affects: {rule.taskTypes.join(', ')} | Delay: {rule.delayDays} days
                       </div>
                     </div>
@@ -220,7 +220,7 @@ export function WeatherScheduleAdjuster({
             </CardHeader>
             <CardContent>
               {weatherImpacts.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   <Sun className="w-12 h-12 mx-auto mb-2 text-yellow-400" />
                   <p>No weather-related schedule impacts detected</p>
                 </div>
@@ -243,11 +243,11 @@ export function WeatherScheduleAdjuster({
                         </Badge>
                       </div>
                       
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-muted-foreground">
                         <strong>Affected Tasks ({impact.affectedTasks.length}):</strong>
                         <div className="mt-1">
                           {impact.affectedTasks.map(task => (
-                            <span key={task.id} className="inline-block mr-2 mb-1 px-2 py-1 bg-gray-100 rounded text-xs">
+                            <span key={task.id} className="inline-block mr-2 mb-1 px-2 py-1 bg-muted rounded text-xs">
                               {task.title}
                             </span>
                           ))}
@@ -272,19 +272,19 @@ export function WeatherScheduleAdjuster({
                     <div className="text-2xl font-bold text-blue-600">
                       {weatherImpacts.length}
                     </div>
-                    <div className="text-sm text-gray-600">Weather Events</div>
+                    <div className="text-sm text-muted-foreground">Weather Events</div>
                   </div>
                   <div>
                     <div className="text-2xl font-bold text-orange-600">
                       {weatherImpacts.reduce((sum, impact) => sum + impact.affectedTasks.length, 0)}
                     </div>
-                    <div className="text-sm text-gray-600">Affected Tasks</div>
+                    <div className="text-sm text-muted-foreground">Affected Tasks</div>
                   </div>
                   <div>
                     <div className="text-2xl font-bold text-red-600">
                       {Math.max(...weatherImpacts.map(impact => impact.delayDays))}
                     </div>
-                    <div className="text-sm text-gray-600">Max Delay (days)</div>
+                    <div className="text-sm text-muted-foreground">Max Delay (days)</div>
                   </div>
                 </div>
               </CardContent>

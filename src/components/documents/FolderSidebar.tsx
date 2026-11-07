@@ -105,7 +105,7 @@ export function FolderSidebar({ selectedFolder, onFolderSelect, documentCount }:
   };
 
   return (
-    <div className="w-80 bg-gray-50 border-r p-4 overflow-y-auto">
+    <div className="w-80 bg-muted/40 border-r p-4 overflow-y-auto">
       <div className="mb-6">
         <h3 className="text-lg font-semibold mb-4">Document Folders</h3>
         <div className="space-y-1">
@@ -118,13 +118,13 @@ export function FolderSidebar({ selectedFolder, onFolderSelect, documentCount }:
               onDrop={(e) => handleDrop(e, folder.id)}
               className={cn(
                 "flex items-center justify-between p-2 rounded hover:bg-blue-50 transition-colors group",
-                selectedFolder === folder.id ? "bg-blue-100 text-blue-700" : "text-gray-700",
+                selectedFolder === folder.id ? "bg-blue-100 text-blue-700" : "text-foreground/80",
                 draggedFolder === folder.id ? "opacity-50" : ""
               )}
             >
               <div className="flex items-center space-x-2 flex-1">
                 {folder.isDeletable && (
-                  <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                  <GripVertical className="w-4 h-4 text-muted-foreground/70 cursor-grab" />
                 )}
                 <div 
                   className="flex items-center space-x-2 flex-1 cursor-pointer"
@@ -139,7 +139,7 @@ export function FolderSidebar({ selectedFolder, onFolderSelect, documentCount }:
                 </div>
               </div>
               <div className="flex items-center space-x-2">
-                <span className="text-xs bg-gray-200 px-2 py-1 rounded-full min-w-[24px] text-center">
+                <span className="text-xs bg-muted px-2 py-1 rounded-full min-w-[24px] text-center">
                   {folder.count}
                 </span>
                 {folder.isDeletable && (
@@ -183,7 +183,7 @@ export function FolderSidebar({ selectedFolder, onFolderSelect, documentCount }:
             variant="ghost"
             size="sm"
             onClick={() => setShowNewFolder(true)}
-            className="w-full mt-3 justify-start text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+            className="w-full mt-3 justify-start text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             <Plus className="w-4 h-4 mr-2" />
             New Folder
@@ -191,13 +191,13 @@ export function FolderSidebar({ selectedFolder, onFolderSelect, documentCount }:
         )}
 
         {/* Quick Actions */}
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">Quick Actions</h4>
+        <div className="mt-6 pt-6 border-t border-border">
+          <h4 className="text-sm font-semibold text-foreground/80 mb-3">Quick Actions</h4>
           <div className="space-y-2">
             <Button
               variant="ghost"
               size="sm"
-              className="w-full justify-start text-sm text-gray-600 hover:text-gray-800"
+              className="w-full justify-start text-sm text-muted-foreground hover:text-foreground"
               onClick={() => onFolderSelect('recent')}
             >
               <Clock className="w-4 h-4 mr-2" />
@@ -206,7 +206,7 @@ export function FolderSidebar({ selectedFolder, onFolderSelect, documentCount }:
             <Button
               variant="ghost"
               size="sm"
-              className="w-full justify-start text-sm text-gray-600 hover:text-gray-800"
+              className="w-full justify-start text-sm text-muted-foreground hover:text-foreground"
               onClick={() => onFolderSelect('favorites')}
             >
               <Star className="w-4 h-4 mr-2" />
@@ -215,7 +215,7 @@ export function FolderSidebar({ selectedFolder, onFolderSelect, documentCount }:
             <Button
               variant="ghost"
               size="sm"
-              className="w-full justify-start text-sm text-gray-600 hover:text-gray-800"
+              className="w-full justify-start text-sm text-muted-foreground hover:text-foreground"
               onClick={() => onFolderSelect('archived')}
             >
               <Archive className="w-4 h-4 mr-2" />

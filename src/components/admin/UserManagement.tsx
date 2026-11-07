@@ -211,13 +211,13 @@ export const UserManagement: React.FC = () => {
           <Users className="w-5 h-5" />
           User Management
         </CardTitle>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           Review and approve user role change requests
         </p>
       </CardHeader>
       <CardContent>
         {requests.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             No role change requests found
           </div>
         ) : (
@@ -229,7 +229,7 @@ export const UserManagement: React.FC = () => {
                     <h3 className="font-medium">
                       {request.user_profile?.name || 'Unknown User'}
                     </h3>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-muted-foreground">
                       {request.user_profile?.email || 'No email available'}
                     </p>
                   </div>
@@ -248,11 +248,11 @@ export const UserManagement: React.FC = () => {
                 {request.reason && (
                   <div>
                     <span className="font-medium text-sm">Reason:</span>
-                    <p className="text-sm text-gray-600 mt-1">{request.reason}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{request.reason}</p>
                   </div>
                 )}
 
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-muted-foreground">
                   Requested: {new Date(request.requested_at).toLocaleDateString()}
                 </div>
 

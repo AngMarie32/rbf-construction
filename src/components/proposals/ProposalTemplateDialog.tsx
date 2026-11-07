@@ -357,7 +357,7 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               ) : templates.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-muted-foreground">
                   <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
                   <p className="text-lg mb-2">No templates found</p>
                   <p className="text-sm">Create your first template or import from bid planner to get started!</p>
@@ -368,7 +368,7 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
                     <TableHeader>
                       <TableRow>
                         <TableHead 
-                          className="cursor-pointer hover:bg-gray-50 select-none"
+                          className="cursor-pointer hover:bg-muted/40 select-none"
                           onClick={() => handleSort('name')}
                         >
                           <div className="flex items-center">
@@ -378,7 +378,7 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
                         </TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead 
-                          className="cursor-pointer hover:bg-gray-50 select-none"
+                          className="cursor-pointer hover:bg-muted/40 select-none"
                           onClick={() => handleSort('projectType')}
                         >
                           <div className="flex items-center">
@@ -389,7 +389,7 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
                         <TableHead>Items</TableHead>
                         <TableHead>Total Value</TableHead>
                         <TableHead 
-                          className="cursor-pointer hover:bg-gray-50 select-none"
+                          className="cursor-pointer hover:bg-muted/40 select-none"
                           onClick={() => handleSort('createdAt')}
                         >
                           <div className="flex items-center">
@@ -406,7 +406,7 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
                         return (
                           <TableRow 
                             key={template.id} 
-                            className="cursor-pointer hover:bg-gray-50"
+                            className="cursor-pointer hover:bg-muted/40"
                             onClick={() => selectTemplate(template)}
                           >
                             <TableCell className="font-medium">

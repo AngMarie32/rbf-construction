@@ -181,7 +181,7 @@ export function ChangeOrderTemplatesDialog({
             {!showCreateForm && !viewingTemplate ? (
               <>
                 <div className="flex justify-between items-center">
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     Select a template to quickly create a change order
                   </p>
                   <Button onClick={() => setShowCreateForm(true)}>
@@ -238,7 +238,7 @@ export function ChangeOrderTemplatesDialog({
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{template.description}</p>
+                        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{template.description}</p>
                         <div className="flex justify-between items-center">
                           <span className="text-lg font-semibold text-green-600">
                             ${template.estimatedAmount.toLocaleString()}
@@ -282,7 +282,7 @@ export function ChangeOrderTemplatesDialog({
                     <div className="space-y-4">
                       <div>
                         <Label className="text-sm font-medium">Description</Label>
-                        <p className="text-gray-600 mt-1">{viewingTemplate.description}</p>
+                        <p className="text-muted-foreground mt-1">{viewingTemplate.description}</p>
                       </div>
                       <div className="flex gap-2 pt-4">
                         <Button onClick={() => handleUseTemplate(viewingTemplate)}>

@@ -102,7 +102,7 @@ export function LaborReport({ data }: LaborReportProps) {
         {/* Expenses by Category */}
         <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+            <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
               <div className="bg-blue-500 p-2 rounded-lg">
                 <Users className="w-5 h-5 text-white" />
               </div>
@@ -141,7 +141,7 @@ export function LaborReport({ data }: LaborReportProps) {
         {/* Expenses by Project (Pie Chart) */}
         <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+            <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
               <div className="bg-green-500 p-2 rounded-lg">
                 <TrendingUp className="w-5 h-5 text-white" />
               </div>
@@ -185,21 +185,21 @@ export function LaborReport({ data }: LaborReportProps) {
         {/* Category Breakdown */}
         <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0">
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold text-gray-900">Category Breakdown</CardTitle>
+            <CardTitle className="text-lg font-semibold text-foreground">Category Breakdown</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {categoryData.sort((a, b) => b.amount - a.amount).map((item, index) => (
-                <div key={item.category} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={item.category} className="flex items-center justify-between p-3 bg-muted/40 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div 
                       className="w-4 h-4 rounded-full"
                       style={{ backgroundColor: COLORS[index % COLORS.length] }}
                     />
-                    <span className="font-medium text-gray-900">{item.category}</span>
+                    <span className="font-medium text-foreground">{item.category}</span>
                   </div>
                   <div className="text-right">
-                    <div className="font-semibold text-gray-900">${item.amount.toLocaleString()}</div>
+                    <div className="font-semibold text-foreground">${item.amount.toLocaleString()}</div>
                     <Badge variant="secondary" className="text-xs">
                       {item.percentage}%
                     </Badge>
@@ -213,20 +213,20 @@ export function LaborReport({ data }: LaborReportProps) {
         {/* Top Projects */}
         <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0">
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold text-gray-900">Top Projects by Cost</CardTitle>
+            <CardTitle className="text-lg font-semibold text-foreground">Top Projects by Cost</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {projectData.sort((a, b) => b.amount - a.amount).slice(0, 8).map((item, index) => (
-                <div key={item.project} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={item.project} className="flex items-center justify-between p-3 bg-muted/40 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
                       {index + 1}
                     </div>
-                    <span className="font-medium text-gray-900">{item.project}</span>
+                    <span className="font-medium text-foreground">{item.project}</span>
                   </div>
                   <div className="text-right">
-                    <div className="font-semibold text-gray-900">${item.amount.toLocaleString()}</div>
+                    <div className="font-semibold text-foreground">${item.amount.toLocaleString()}</div>
                     <Badge variant="outline" className="text-xs">
                       {item.percentage}%
                     </Badge>

@@ -67,9 +67,9 @@ export function ViewChangeOrderDocumentsDialog({
             <DialogTitle>View Documents</DialogTitle>
           </DialogHeader>
           <div className="text-center py-8">
-            <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Documents Attached</h3>
-            <p className="text-gray-500 mb-4">This change order doesn't have any attached documents.</p>
+            <FileText className="w-16 h-16 text-muted-foreground/50 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">No Documents Attached</h3>
+            <p className="text-muted-foreground mb-4">This change order doesn't have any attached documents.</p>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Close
             </Button>
@@ -105,11 +105,11 @@ export function ViewChangeOrderDocumentsDialog({
 
           {/* Document details */}
           {selectedDocument && (
-            <div className="border rounded-lg p-4 bg-gray-50">
+            <div className="border rounded-lg p-4 bg-muted/40">
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h4 className="font-medium">{selectedDocument.fileName}</h4>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     {(selectedDocument.fileSize / 1024 / 1024).toFixed(2)} MB • 
                     Uploaded {new Date(selectedDocument.uploadDate).toLocaleDateString()}
                   </p>
@@ -125,7 +125,7 @@ export function ViewChangeOrderDocumentsDialog({
               </div>
 
               {/* Document preview with scrolling */}
-              <ScrollArea className="border rounded-lg bg-white h-96">
+              <ScrollArea className="border rounded-lg bg-card h-96">
                 {isImageFile(selectedDocument.fileType) ? (
                   <img
                     src={selectedDocument.fileUrl}
@@ -139,7 +139,7 @@ export function ViewChangeOrderDocumentsDialog({
                     title={selectedDocument.fileName}
                   />
                 ) : (
-                  <div className="flex items-center justify-center h-48 text-gray-500">
+                  <div className="flex items-center justify-center h-48 text-muted-foreground">
                     <div className="text-center">
                       <FileText className="w-16 h-16 mb-2 mx-auto" />
                       <p>Preview not available for this file type</p>

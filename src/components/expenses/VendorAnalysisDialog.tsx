@@ -251,7 +251,7 @@ export function VendorAnalysisDialog({ open, onOpenChange, projects }: VendorAna
             <div className="flex-1 min-w-48">
               <Label htmlFor="search">Search Vendors</Label>
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
                 <Input
                   id="search"
                   placeholder="Search by vendor name..."
@@ -327,7 +327,7 @@ export function VendorAnalysisDialog({ open, onOpenChange, projects }: VendorAna
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-green-600" />
                   <div>
-                    <p className="text-sm text-gray-600">Total Paid</p>
+                    <p className="text-sm text-muted-foreground">Total Paid</p>
                     <p className="text-xl font-bold text-green-600">
                       ${totalSummary.totalPaid.toLocaleString()}
                     </p>
@@ -341,7 +341,7 @@ export function VendorAnalysisDialog({ open, onOpenChange, projects }: VendorAna
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-orange-600" />
                   <div>
-                    <p className="text-sm text-gray-600">Outstanding</p>
+                    <p className="text-sm text-muted-foreground">Outstanding</p>
                     <p className="text-xl font-bold text-orange-600">
                       ${totalSummary.totalOutstanding.toLocaleString()}
                     </p>
@@ -355,7 +355,7 @@ export function VendorAnalysisDialog({ open, onOpenChange, projects }: VendorAna
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-yellow-600" />
                   <div>
-                    <p className="text-sm text-gray-600">Pending</p>
+                    <p className="text-sm text-muted-foreground">Pending</p>
                     <p className="text-xl font-bold text-yellow-600">
                       ${totalSummary.totalPending.toLocaleString()}
                     </p>

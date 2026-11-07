@@ -729,11 +729,11 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
             {/* Left Column - Summary */}
             <div className="space-y-6">
               <div className="space-y-4">
-                <div className="text-2xl font-bold text-gray-700">
+                <div className="text-2xl font-bold text-foreground/80">
                   Subtotal: ${calculateSubtotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 {(contingencyPercentage > 0 || contingencyDollarAmount > 0) && (
-                  <div className="text-lg text-gray-600">
+                  <div className="text-lg text-muted-foreground">
                     Contingency ({contingencyType === 'percentage' ? `${contingencyPercentage}%` : 'Fixed'}): ${calculateContingencyAmount().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 )}

@@ -50,7 +50,7 @@ export function CriticalPath({ tasks, selectedProjects }: CriticalPathProps) {
   }, [tasks, selectedProjects]);
 
   return (
-    <div className="bg-white rounded-lg border">
+    <div className="bg-card rounded-lg border">
       <div className="p-4 border-b">
         <div className="flex items-center gap-2">
           <AlertTriangle className="w-5 h-5 text-orange-500" />
@@ -65,33 +65,33 @@ export function CriticalPath({ tasks, selectedProjects }: CriticalPathProps) {
             <div className="text-2xl font-bold text-red-600">
               {criticalPathData.criticalTasks.length}
             </div>
-            <div className="text-sm text-gray-600">Critical Tasks</div>
+            <div className="text-sm text-muted-foreground">Critical Tasks</div>
           </div>
           <div className="text-center p-3 bg-orange-50 rounded-lg">
             <div className="text-2xl font-bold text-orange-600">
               {criticalPathData.criticalDuration}
             </div>
-            <div className="text-sm text-gray-600">Critical Days</div>
+            <div className="text-sm text-muted-foreground">Critical Days</div>
           </div>
           <div className="text-center p-3 bg-yellow-50 rounded-lg">
             <div className="text-2xl font-bold text-yellow-600">
               {criticalPathData.criticalPercentage}%
             </div>
-            <div className="text-sm text-gray-600">Critical Ratio</div>
+            <div className="text-sm text-muted-foreground">Critical Ratio</div>
           </div>
         </div>
 
         {/* Critical Tasks List */}
         <div className="space-y-3">
-          <h4 className="font-medium text-gray-900">Critical Tasks</h4>
+          <h4 className="font-medium text-foreground">Critical Tasks</h4>
           {criticalPathData.criticalTasks.length === 0 ? (
-            <p className="text-gray-500 text-sm">No critical tasks identified</p>
+            <p className="text-muted-foreground text-sm">No critical tasks identified</p>
           ) : (
             criticalPathData.criticalTasks.map((task) => (
               <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg bg-red-50">
                 <div>
                   <div className="font-medium text-sm">{task.title}</div>
-                  <div className="text-xs text-gray-600">
+                  <div className="text-xs text-muted-foreground">
                     {task.startDate.toLocaleDateString()} - {task.endDate.toLocaleDateString()}
                   </div>
                 </div>

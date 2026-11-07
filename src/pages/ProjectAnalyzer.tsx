@@ -274,10 +274,10 @@ export default function ProjectAnalyzer() {
                   />
                   <label htmlFor="plan-upload" className="cursor-pointer flex flex-col items-center">
                     <Upload className="w-10 h-10 text-primary/70 mx-auto mb-2 group-hover:scale-105 transition-transform" />
-                    <p className="text-sm text-gray-700 font-playfair">
+                    <p className="text-sm text-foreground/80 font-playfair">
                       Drag and drop or click to upload plans
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       PDF, Images (JPG, PNG, TIFF), Excel files
                     </p>
                   </label>
@@ -394,10 +394,10 @@ export default function ProjectAnalyzer() {
               )}
 
               {/* Chat Messages */}
-              <div className="flex-1 overflow-y-auto space-y-4 mb-4 p-4 bg-gray-50 rounded-lg">
+              <div className="flex-1 overflow-y-auto space-y-4 mb-4 p-4 bg-muted/40 rounded-lg">
                 {messages.length === 0 ? (
-                  <div className="text-center text-gray-500 py-8">
-                    <Brain className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <div className="text-center text-muted-foreground py-8">
+                    <Brain className="w-12 h-12 text-muted-foreground/70 mx-auto mb-4" />
                     <p className="text-lg font-medium font-playfair">Construction Plan Analyzer</p>
                     <p className="text-sm">
                       Upload your construction plans and ask questions about scope, measurements, and analysis.
@@ -415,7 +415,7 @@ export default function ProjectAnalyzer() {
                         className={`max-w-[80%] p-3 rounded-2xl shadow font-playfair ${
                           message.role === 'user' 
                             ? 'bg-primary text-primary-foreground rounded-br-md'
-                            : 'bg-secondary/90 border border-primary/20 text-gray-800 rounded-bl-md'
+                            : 'bg-secondary/90 border border-primary/20 text-foreground rounded-bl-md'
                         }`}
                       >
                         <p className="text-sm whitespace-pre-line">{message.content}</p>
@@ -427,9 +427,9 @@ export default function ProjectAnalyzer() {
                 
                 {loading && (
                   <div className="flex justify-start animate-fade-in">
-                    <div className="bg-white border shadow-sm p-3 rounded-xl flex items-center gap-2">
+                    <div className="bg-card border shadow-sm p-3 rounded-xl flex items-center gap-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                      <span className="text-sm text-gray-500">Analyzing plans and generating response...</span>
+                      <span className="text-sm text-muted-foreground">Analyzing plans and generating response...</span>
                     </div>
                   </div>
                 )}

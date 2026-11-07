@@ -241,7 +241,7 @@ export function ImportBidItemsDialog({ onItemsImported, projects }: ImportBidIte
                 onChange={handleImageUpload}
                 className="cursor-pointer"
               />
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Upload images of bid sheets or cost estimates. The system will extract line items and costs.
               </p>
             </div>
@@ -271,7 +271,7 @@ export function ImportBidItemsDialog({ onItemsImported, projects }: ImportBidIte
 
             <div className="bg-blue-50 p-4 rounded-lg">
               <h4 className="font-medium mb-2">💡 Expected Results:</h4>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 This will import 68 comprehensive bid items totaling approximately $1,479,940 (before contingency).
                 The system will extract categories, descriptions, quantities, and costs from your uploaded images.
               </p>

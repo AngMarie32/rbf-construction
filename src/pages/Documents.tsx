@@ -427,7 +427,7 @@ export default function Documents() {
                 ) : viewMode === 'list' ? (
                   <div className="h-full overflow-auto">
                     <Table>
-                      <TableHeader className="sticky top-0 bg-white z-10">
+                      <TableHeader className="sticky top-0 bg-card z-10">
                         <TableRow>
                           <TableHead>Name</TableHead>
                           <TableHead>Project</TableHead>
@@ -439,7 +439,7 @@ export default function Documents() {
                       </TableHeader>
                       <TableBody>
                         {filteredDocuments.map((document) => (
-                          <TableRow key={document.id} className="hover:bg-gray-50">
+                          <TableRow key={document.id} className="hover:bg-muted/40">
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 {favoriteDocuments.includes(document.id) && (
@@ -448,7 +448,7 @@ export default function Documents() {
                                 <div>
                                   <div className="font-medium">{document.name}</div>
                                   {document.description && (
-                                    <div className="text-sm text-gray-500 truncate max-w-xs">
+                                    <div className="text-sm text-muted-foreground truncate max-w-xs">
                                       {document.description}
                                     </div>
                                   )}
@@ -492,7 +492,7 @@ export default function Documents() {
                                     <MoreHorizontal className="w-4 h-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="bg-white border shadow-lg z-50">
+                                <DropdownMenuContent align="end" className="bg-card border shadow-lg z-50">
                                   <DropdownMenuItem onClick={() => viewDocument(document)} className="cursor-pointer">
                                     <Eye className="w-4 h-4 mr-2" />
                                     Preview
@@ -554,7 +554,7 @@ export default function Documents() {
                                       <MoreHorizontal className="w-4 h-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="bg-white border shadow-lg z-50">
+                                  <DropdownMenuContent align="end" className="bg-card border shadow-lg z-50">
                                     <DropdownMenuItem onClick={() => viewDocument(document)} className="cursor-pointer">
                                       <Eye className="w-4 h-4 mr-2" />
                                       Preview
@@ -586,7 +586,7 @@ export default function Documents() {
                             <h3 className="font-semibold text-sm mb-2 line-clamp-2">{document.name}</h3>
                             
                             {document.description && (
-                              <p className="text-xs text-gray-600 mb-3 line-clamp-2">
+                              <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
                                 {document.description}
                               </p>
                             )}
@@ -611,7 +611,7 @@ export default function Documents() {
                                 </div>
                               )}
                               
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-muted-foreground">
                                 {format(document.createdAt, "MMM dd, yyyy")}
                               </div>
                             </div>

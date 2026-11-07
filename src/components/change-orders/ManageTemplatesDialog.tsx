@@ -202,7 +202,7 @@ export function ManageTemplatesDialog({ open, onOpenChange }: ManageTemplatesDia
                 Loading templates...
               </div>
             ) : templates.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12 text-muted-foreground">
                 <h3 className="text-lg font-semibold mb-2">No templates found</h3>
                 <p>Create your first template to get started</p>
               </div>
@@ -233,7 +233,7 @@ export function ManageTemplatesDialog({ open, onOpenChange }: ManageTemplatesDia
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-muted-foreground">
                         {template.description || 'No description provided'}
                       </p>
                     </CardContent>

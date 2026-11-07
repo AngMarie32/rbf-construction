@@ -110,7 +110,7 @@ export function BurnAnalysisFilters({
                   </SelectTrigger>
                   <SelectContent>
                     {projects.map(project => (
-                      <div key={project.id} className="flex items-center space-x-2 px-2 py-1 hover:bg-gray-50">
+                      <div key={project.id} className="flex items-center space-x-2 px-2 py-1 hover:bg-muted/40">
                         <input
                           type="checkbox"
                           checked={selectedProjects.includes(project.id)}
@@ -199,7 +199,7 @@ export function BurnAnalysisFilters({
               <div className="space-y-2">
                 <label className="text-sm font-medium">Search</label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 w-4 h-4" />
                   <Input
                     placeholder="Search cost items..."
                     value={searchTerm}

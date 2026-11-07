@@ -35,8 +35,8 @@ export default {
 					700: 'hsl(220, 90%, 40%)',
 				},
 				secondary: {
-					DEFAULT: 'hsl(210, 40%, 96.1%)',
-					foreground: 'hsl(222.2, 47.4%, 11.2%)'
+					DEFAULT: 'hsl(var(--secondary))',
+					foreground: 'hsl(var(--secondary-foreground))'
 				},
 				accent: {
 					DEFAULT: 'hsl(27, 96%, 61%)',
@@ -55,12 +55,12 @@ export default {
 					foreground: 'hsl(0, 0%, 100%)',
 				},
 				destructive: {
-					DEFAULT: 'hsl(0, 84.2%, 60.2%)',
-					foreground: 'hsl(210, 40%, 98%)'
+					DEFAULT: 'hsl(var(--destructive))',
+					foreground: 'hsl(var(--destructive-foreground))'
 				},
 				muted: {
-					DEFAULT: 'hsl(210, 40%, 96.1%)',
-					foreground: 'hsl(215.4, 16.3%, 46.9%)'
+					DEFAULT: 'hsl(var(--muted))',
+					foreground: 'hsl(var(--muted-foreground))'
 				},
 				popover: {
 					DEFAULT: 'hsl(var(--popover))',

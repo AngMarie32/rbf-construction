@@ -58,7 +58,7 @@ export function DocumentVersionDialog({
 
         <div className="flex-1 overflow-hidden flex flex-col">
           <div className="flex justify-between items-center mb-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               {versions.length} version{versions.length !== 1 ? 's' : ''} available
             </p>
             <Button onClick={onUploadNewVersion}>
@@ -95,7 +95,7 @@ export function DocumentVersionDialog({
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-gray-400" />
+                        <User className="w-4 h-4 text-muted-foreground/70" />
                         {version.uploadedBy}
                       </div>
                     </TableCell>

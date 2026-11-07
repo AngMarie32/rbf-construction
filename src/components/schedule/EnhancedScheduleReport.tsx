@@ -411,7 +411,7 @@ export function EnhancedScheduleReport({ tasks, projects, selectedProjects }: En
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={generateReport} className="bg-green-600 hover:bg-green-700">
+          <Button onClick={generateReport} >
             <Download className="w-4 h-4 mr-2" />
             Generate Report
           </Button>

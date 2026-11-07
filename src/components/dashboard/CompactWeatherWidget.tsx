@@ -48,7 +48,7 @@ export function CompactWeatherWidget() {
       case 'clouds':
       case 'partly cloudy':
       default:
-        return <Cloud className="w-4 h-4 text-gray-500" />;
+        return <Cloud className="w-4 h-4 text-muted-foreground" />;
     }
   };
 

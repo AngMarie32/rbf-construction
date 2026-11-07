@@ -205,7 +205,7 @@ export function BidAnalysis({ projectId, bidItems }: BidAnalysisProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-muted/40 rounded-lg">
               <div>
                 <div className="font-medium">Overall Risk Level</div>
                 <div className="text-sm text-muted-foreground">Based on item complexity and cost distribution</div>

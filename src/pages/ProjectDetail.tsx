@@ -287,9 +287,9 @@ export default function ProjectDetail() {
 
         {/* Quick actions */}
         <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
-          <span className="mr-1 text-sm font-medium text-muted-foreground">Add to this job:</span>
+          <span className="mr-1 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground"><Plus className="h-4 w-4" />Add to this job:</span>
           {quickActions.map((a) => {
-            const inner = (<><Plus className="mr-1 h-3.5 w-3.5" /><a.icon className="mr-1.5 h-4 w-4" />{a.label}</>);
+            const inner = (<><a.icon className="h-4 w-4" />{a.label}</>);
             return a.to ? (
               <Button key={a.label} asChild variant="secondary" size="sm"><Link to={a.to}>{inner}</Link></Button>
             ) : (
@@ -301,7 +301,7 @@ export default function ProjectDetail() {
         {/* Key numbers */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {stats.map((s) => (
-            <Card key={s.label} className="enhanced-card">
+            <Card key={s.label} className="p-0">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>{s.label}</span>

@@ -47,7 +47,7 @@ export function BulkOperationsToolbar({
         <div className="h-4 w-px bg-gray-300" />
 
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Update status:</span>
+          <span className="text-sm text-muted-foreground">Update status:</span>
           <Select onValueChange={(value) => onBulkStatusUpdate(value as Equipment['status'])}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="Status" />
@@ -86,7 +86,7 @@ export function BulkOperationsToolbar({
           variant="ghost"
           size="sm"
           onClick={onClearSelection}
-          className="text-gray-500"
+          className="text-muted-foreground"
         >
           Cancel
         </Button>

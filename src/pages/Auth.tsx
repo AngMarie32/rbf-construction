@@ -4,9 +4,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wrench, Eye, EyeOff } from 'lucide-react';
+import { HardHat, Eye, EyeOff, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -85,151 +85,177 @@ export default function Auth() {
     setLoading(false);
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <Wrench className="w-6 h-6 text-white" />
-            </div>
-            <span className="font-bold text-2xl text-gray-900">RBF Construction</span>
-          </div>
-          <CardTitle>RBF Construction Management Portal</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-4">
-                <div>
-                  <Input
-                    name="email"
-                    type="email"
-                    placeholder="Email"
-                    required
-                    disabled={loading}
-                  />
-                </div>
-                <div className="relative">
-                  <Input
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Password"
-                    required
-                    disabled={loading}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? 'Signing in...' : 'Sign In'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="link"
-                  className="w-full text-sm"
-                  onClick={() => setShowForgotPassword(true)}
-                >
-                  Forgot password?
-                </Button>
-              </form>
+  // Called as a function (not <PasswordField/>) so toggling visibility doesn't remount the input and clear it.
+  const passwordField = (id: string, minLength?: number) => (
+    <div className="relative">
+      <Input
+        id={id}
+        name="password"
+        type={showPassword ? 'text' : 'password'}
+        autoComplete={minLength ? 'new-password' : 'current-password'}
+        placeholder="••••••••"
+        required
+        disabled={loading}
+        minLength={minLength}
+        className="h-11 pr-10"
+      />
+      <button
+        type="button"
+        className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+        onClick={() => setShowPassword(!showPassword)}
+        aria-label={showPassword ? 'Hide password' : 'Show password'}
+      >
+        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
+  );
 
-              {showForgotPassword && (
-                <div className="mt-4 p-4 border rounded-lg bg-muted/50">
-                  <h3 className="font-medium mb-2">Reset Password</h3>
-                  <form onSubmit={handleForgotPassword} className="space-y-3">
-                    <Input
-                      type="email"
-                      placeholder="Enter your email"
-                      value={resetEmail}
-                      onChange={(e) => setResetEmail(e.target.value)}
-                      disabled={loading}
-                    />
-                    <div className="flex gap-2">
-                      <Button type="submit" size="sm" disabled={loading}>
-                        {loading ? 'Sending...' : 'Send Reset Link'}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowForgotPassword(false)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </form>
-                </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div>
+  const highlights = [
+    'Bids, estimates and proposals in one place',
+    'Real-time job costs, billing and profit',
+    'Change orders and pay apps with e-signature',
+  ];
+
+  return (
+    <div className="min-h-screen grid lg:grid-cols-2 bg-background">
+      {/* Brand panel */}
+      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-[hsl(222_47%_11%)] p-12 text-white">
+        <div
+          aria-hidden
+          className="absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              'linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+          }}
+        />
+        <div aria-hidden className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-accent/30 blur-3xl" />
+        <div aria-hidden className="absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-primary/30 blur-3xl" />
+
+        <div className="relative flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-orange-600 shadow-lg shadow-orange-500/30">
+            <HardHat className="h-6 w-6" />
+          </span>
+          <div className="leading-tight">
+            <div className="font-display text-lg font-extrabold tracking-tight">RBF Construction</div>
+            <div className="text-xs text-white/60">Operations Hub</div>
+          </div>
+        </div>
+
+        <div className="relative max-w-md">
+          <h2 className="font-display text-4xl font-extrabold leading-tight tracking-tight">
+            Run every job from bid to closeout.
+          </h2>
+          <ul className="mt-8 space-y-4">
+            {highlights.map((h) => (
+              <li key={h} className="flex items-start gap-3 text-white/80">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
+                {h}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="relative text-xs text-white/40">© {new Date().getFullYear()} RBF Construction</p>
+      </div>
+
+      {/* Form panel */}
+      <div className="flex items-center justify-center p-6 sm:p-12">
+        <div className="w-full max-w-sm">
+          <div className="mb-8 flex items-center gap-3 lg:hidden">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-orange-600 text-white">
+              <HardHat className="h-5 w-5" />
+            </span>
+            <span className="font-display text-lg font-extrabold tracking-tight">RBF Construction</span>
+          </div>
+
+          {showForgotPassword ? (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(false)}
+                className="mb-6 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="mr-1 h-4 w-4" /> Back to sign in
+              </button>
+              <h1 className="font-display text-2xl font-bold tracking-tight">Reset your password</h1>
+              <p className="mt-1 text-sm text-muted-foreground">We'll email you a link to choose a new password.</p>
+              <form onSubmit={handleForgotPassword} className="mt-6 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Email</Label>
                   <Input
-                    name="name"
-                    type="text"
-                    placeholder="Full Name"
-                    required
-                    disabled={loading}
-                  />
-                </div>
-                <div>
-                  <Input
-                    name="email"
+                    id="reset-email"
                     type="email"
-                    placeholder="Email"
-                    required
+                    autoComplete="email"
+                    placeholder="you@company.com"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
                     disabled={loading}
+                    className="h-11"
                   />
                 </div>
-                <div className="relative">
-                  <Input
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Password"
-                    required
-                    disabled={loading}
-                    minLength={6}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? 'Creating account...' : 'Create Account'}
+                <Button type="submit" className="h-11 w-full" disabled={loading}>
+                  {loading ? 'Sending…' : 'Send reset link'}
                 </Button>
               </form>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+            </div>
+          ) : (
+            <>
+              <h1 className="font-display text-2xl font-bold tracking-tight">Welcome back</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Sign in to your construction management portal.</p>
+
+              <Tabs defaultValue="signin" className="mt-6 w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="signin">Sign in</TabsTrigger>
+                  <TabsTrigger value="signup">Create account</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="signin" className="mt-6">
+                  <form onSubmit={handleSignIn} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signin-email">Email</Label>
+                      <Input id="signin-email" name="email" type="email" autoComplete="email" placeholder="you@company.com" required disabled={loading} className="h-11" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="signin-password">Password</Label>
+                        <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => setShowForgotPassword(true)}>
+                          Forgot password?
+                        </button>
+                      </div>
+                      {passwordField('signin-password')}
+                    </div>
+                    <Button type="submit" className="h-11 w-full" disabled={loading}>
+                      {loading ? 'Signing in…' : 'Sign in'}
+                    </Button>
+                  </form>
+                </TabsContent>
+
+                <TabsContent value="signup" className="mt-6">
+                  <form onSubmit={handleSignUp} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-name">Full name</Label>
+                      <Input id="signup-name" name="name" type="text" autoComplete="name" placeholder="Jane Smith" required disabled={loading} className="h-11" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-email">Work email</Label>
+                      <Input id="signup-email" name="email" type="email" autoComplete="email" placeholder="you@company.com" required disabled={loading} className="h-11" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-password">Password</Label>
+                      {passwordField('signup-password', 6)}
+                      <p className="text-xs text-muted-foreground">At least 6 characters.</p>
+                    </div>
+                    <Button type="submit" className="h-11 w-full" disabled={loading}>
+                      {loading ? 'Creating account…' : 'Create account'}
+                    </Button>
+                  </form>
+                </TabsContent>
+              </Tabs>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

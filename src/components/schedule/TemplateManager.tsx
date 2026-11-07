@@ -381,7 +381,7 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
             {loading ? (
               <div className="text-center py-8">Loading schedule templates...</div>
             ) : templates.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-muted-foreground">
                 No schedule templates found. Create your first template to get started.
               </div>
             ) : (
@@ -392,7 +392,7 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
                       <div>
                         <h3 className="font-semibold">{template.name}</h3>
                         {template.description && (
-                          <p className="text-sm text-gray-600">{template.description}</p>
+                          <p className="text-sm text-muted-foreground">{template.description}</p>
                         )}
                       </div>
                       {template.isDefault && (
@@ -400,7 +400,7 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
                       )}
                     </div>
                     
-                    <div className="text-sm text-gray-500 mb-3">
+                    <div className="text-sm text-muted-foreground mb-3">
                       {template.items.length} tasks
                     </div>
                     
@@ -451,7 +451,7 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
                 <div>
                   <h3 className="text-lg font-semibold">{selectedTemplate.name}</h3>
                   {selectedTemplate.description && (
-                    <p className="text-gray-600">{selectedTemplate.description}</p>
+                    <p className="text-muted-foreground">{selectedTemplate.description}</p>
                   )}
                 </div>
 

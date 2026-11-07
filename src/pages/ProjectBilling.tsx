@@ -216,7 +216,7 @@ export default function ProjectBilling() {
       case 'sent':
         return 'bg-blue-100 text-blue-800';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-muted text-foreground';
     }
   };
 
@@ -241,7 +241,7 @@ export default function ProjectBilling() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Billed</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Billed</CardTitle>
               <DollarSign className="h-5 w-5 text-blue-600" />
             </CardHeader>
             <CardContent>
@@ -251,7 +251,7 @@ export default function ProjectBilling() {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Payments Received</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Payments Received</CardTitle>
               <CheckCircle className="h-5 w-5 text-green-600" />
             </CardHeader>
             <CardContent>
@@ -261,7 +261,7 @@ export default function ProjectBilling() {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Outstanding</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Outstanding</CardTitle>
               <AlertTriangle className="h-5 w-5 text-red-600" />
             </CardHeader>
             <CardContent>
@@ -275,7 +275,7 @@ export default function ProjectBilling() {
           <CardContent className="pt-6">
             <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
               <div className="relative flex-1 min-w-[300px]">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 h-4 w-4" />
                 <Input
                   placeholder="Search by project, invoice number, or notes..."
                   value={searchQuery}
@@ -320,7 +320,7 @@ export default function ProjectBilling() {
         </Card>
 
         {/* Results Summary */}
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-muted-foreground">
           Showing {filteredRecords.length} of {billingRecords.length} billing records
         </div>
 
@@ -366,7 +366,7 @@ export default function ProjectBilling() {
                           <div>
                             <div className="font-medium">{record.project?.name}</div>
                             {record.project?.client && (
-                              <div className="text-sm text-gray-500">{record.project.client}</div>
+                              <div className="text-sm text-muted-foreground">{record.project.client}</div>
                             )}
                           </div>
                         </TableCell>

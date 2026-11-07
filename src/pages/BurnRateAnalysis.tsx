@@ -256,18 +256,18 @@ export default function BurnRateAnalysis() {
                     <div className={`text-2xl font-bold ${summaryStats.schedulePerformanceIndex >= 1 ? 'text-green-600' : 'text-red-600'}`}>
                       {summaryStats.schedulePerformanceIndex.toFixed(2)}
                     </div>
-                    <div className="text-xs text-gray-500">SPI (Target: ≥1.0)</div>
+                    <div className="text-xs text-muted-foreground">SPI (Target: ≥1.0)</div>
                   </div>
                   <div className="bg-green-50 p-4 rounded-lg">
                     <div className="text-green-600 text-sm font-medium">Cost Performance</div>
                     <div className={`text-2xl font-bold ${summaryStats.costPerformanceIndex >= 1 ? 'text-green-600' : 'text-red-600'}`}>
                       {summaryStats.costPerformanceIndex.toFixed(2)}
                     </div>
-                    <div className="text-xs text-gray-500">CPI (Target: ≥1.0)</div>
+                    <div className="text-xs text-muted-foreground">CPI (Target: ≥1.0)</div>
                   </div>
                   <div className="bg-purple-50 p-4 rounded-lg">
                     <div className="text-purple-600 text-sm font-medium">Forecast at Completion</div>
-                    <div className="text-2xl font-bold text-gray-900">
+                    <div className="text-2xl font-bold text-foreground">
                       ${summaryStats.estimateAtCompletion.toLocaleString()}
                     </div>
                     <div className={`text-xs ${summaryStats.estimateAtCompletion <= summaryStats.totalBudget ? 'text-green-600' : 'text-red-600'}`}>
@@ -282,7 +282,7 @@ export default function BurnRateAnalysis() {
                         <span className="text-red-600">At Risk</span>
                       }
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       Based on SPI & CPI
                     </div>
                   </div>

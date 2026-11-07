@@ -97,7 +97,7 @@ export function DocumentUploadDialog({ open, onOpenChange, onUpload, projects }:
             <Upload className="w-5 h-5" />
             Upload Document
           </DialogTitle>
-          <p className="text-sm text-gray-600">Upload a new document to the system.</p>
+          <p className="text-sm text-muted-foreground">Upload a new document to the system.</p>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -107,8 +107,8 @@ export function DocumentUploadDialog({ open, onOpenChange, onUpload, projects }:
               <div
                 className={cn(
                   "border-2 border-dashed rounded-lg p-6 text-center transition-colors",
-                  isDragOver ? "border-blue-400 bg-blue-50" : "border-gray-300",
-                  "hover:border-gray-400 hover:bg-gray-50"
+                  isDragOver ? "border-blue-400 bg-blue-50" : "border-input",
+                  "hover:border-gray-400 hover:bg-muted/40"
                 )}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -119,7 +119,7 @@ export function DocumentUploadDialog({ open, onOpenChange, onUpload, projects }:
                     <FileText className="w-8 h-8 mx-auto text-blue-500" />
                     <div>
                       <p className="font-medium">{file.name}</p>
-                      <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
+                      <p className="text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
                     </div>
                     <Button
                       variant="outline"
@@ -131,10 +131,10 @@ export function DocumentUploadDialog({ open, onOpenChange, onUpload, projects }:
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <Upload className="w-8 h-8 mx-auto text-gray-400" />
+                    <Upload className="w-8 h-8 mx-auto text-muted-foreground/70" />
                     <div>
                       <p className="font-medium">Drop files here or click to browse</p>
-                      <p className="text-sm text-gray-500">Support for PDF, images, documents, and more</p>
+                      <p className="text-sm text-muted-foreground">Support for PDF, images, documents, and more</p>
                     </div>
                     <Input
                       id="file"
@@ -225,7 +225,7 @@ export function DocumentUploadDialog({ open, onOpenChange, onUpload, projects }:
               onChange={(e) => setTags(e.target.value)}
               placeholder="Enter tags separated by commas (e.g., urgent, review, contract)"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Separate multiple tags with commas
             </p>
           </div>

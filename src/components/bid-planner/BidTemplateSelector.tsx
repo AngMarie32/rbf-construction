@@ -113,7 +113,7 @@ export function BidTemplateSelector({ onTemplateSelected, onCreateNew }: BidTemp
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 w-4 h-4" />
           <Input
             placeholder="Search templates..."
             value={searchTerm}
@@ -180,7 +180,7 @@ export function BidTemplateSelector({ onTemplateSelected, onCreateNew }: BidTemp
       {filteredTemplates.length === 0 && (
         <Card>
           <CardContent className="text-center py-8">
-            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <FileText className="w-12 h-12 text-muted-foreground/70 mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">No Templates Found</h3>
             <p className="text-muted-foreground mb-4">
               {searchTerm ? 'No templates match your search.' : 'You haven\'t created any bid templates yet.'}

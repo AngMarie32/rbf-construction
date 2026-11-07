@@ -127,7 +127,7 @@
 @layer components {
   /* Enhanced card styles */
   .enhanced-card {
-    @apply bg-card backdrop-blur-sm border border-border shadow-lg hover:shadow-xl transition-all duration-300 ease-out;
+    @apply bg-card text-card-foreground border border-border transition-shadow duration-200 ease-out;
   }
 
   .dark .enhanced-card {
@@ -141,9 +141,7 @@
     box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.4), inset 0 1px 0 0 hsl(220, 25%, 18%, 0.5);
   }
 
-  .enhanced-card:hover {
-    transform: translateY(-2px);
-  }
+
 
   /* Accent highlight for key metrics */
   .metric-accent {
@@ -197,7 +195,7 @@
 
   /* Enhanced inputs */
   .enhanced-input {
-    @apply border-2 border-input bg-background focus:border-primary transition-all duration-200 ease-out;
+    @apply border border-input bg-background shadow-sm focus:border-primary transition-colors duration-150 ease-out;
   }
 
   .enhanced-input:focus {
@@ -400,7 +398,7 @@
     -webkit-backdrop-filter: blur(20px);
     box-shadow: inset -1px 0 0 hsl(var(--foreground) / 0.06);
   }
-  :root:not(.dark) .glass-sidebar { --sidebar-background: 222 47% 13%; --sidebar-foreground: 0 0% 100%; --sidebar-accent: 222 40% 20%; }
+  :root:not(.dark) .glass-sidebar { --sidebar-background: 222 47% 13%; --sidebar-foreground: 0 0% 100%; --sidebar-accent: 222 40% 20%; background: hsl(222 47% 13%); }
   .nav-active {
     background: linear-gradient(90deg, hsl(var(--glow-primary, 220 90% 60%) / 0.25), hsl(var(--glow-primary, 220 90% 60%) / 0.05));
     box-shadow: inset 2px 0 0 hsl(var(--accent)), 0 0 18px -6px hsl(var(--glow-primary, 220 90% 60%) / 0.5);

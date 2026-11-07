@@ -276,7 +276,7 @@ export const SubcontractorGroupsDialog: React.FC = () => {
                 <div 
                   key={group.id} 
                   className={`p-3 border rounded cursor-pointer ${
-                    selectedGroup?.id === group.id ? 'border-blue-500 bg-blue-50' : 'hover:bg-gray-50'
+                    selectedGroup?.id === group.id ? 'border-blue-500 bg-blue-50' : 'hover:bg-muted/40'
                   }`}
                   onClick={() => setSelectedGroup(group)}
                 >
@@ -284,7 +284,7 @@ export const SubcontractorGroupsDialog: React.FC = () => {
                     <div>
                       <div className="font-medium">{group.name}</div>
                       {group.description && (
-                        <div className="text-sm text-gray-500">{group.description}</div>
+                        <div className="text-sm text-muted-foreground">{group.description}</div>
                       )}
                     </div>
                     <Button
@@ -338,7 +338,7 @@ export const SubcontractorGroupsDialog: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="text-gray-500 text-center py-8">
+              <div className="text-muted-foreground text-center py-8">
                 Select a group to edit members or create a new group
               </div>
             )}
@@ -355,7 +355,7 @@ export const SubcontractorGroupsDialog: React.FC = () => {
                       />
                       <div className="flex-1">
                         <div className="font-medium">{sub.name}</div>
-                        <div className="text-sm text-gray-500">{sub.company}</div>
+                        <div className="text-sm text-muted-foreground">{sub.company}</div>
                         {sub.specialties && (
                           <div className="flex gap-1 mt-1">
                             {sub.specialties.slice(0, 2).map(specialty => (

@@ -85,8 +85,8 @@ export function DocumentCollaborationDialog({
       case 'owner': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'editor': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'commenter': return 'bg-green-100 text-green-800 border-green-200';
-      case 'viewer': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'viewer': return 'bg-muted text-foreground border-border';
+      default: return 'bg-muted text-foreground border-border';
     }
   };
 
@@ -153,9 +153,9 @@ export function DocumentCollaborationDialog({
                     </Avatar>
                     <div>
                       <div className="font-medium">{collaborator.name}</div>
-                      <div className="text-sm text-gray-600">{collaborator.email}</div>
+                      <div className="text-sm text-muted-foreground">{collaborator.email}</div>
                       {collaborator.lastAccess && (
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           Last access: {format(collaborator.lastAccess, 'MMM dd, yyyy')}
                         </div>
                       )}
@@ -217,7 +217,7 @@ export function DocumentCollaborationDialog({
             {/* Comments List */}
             <div className="flex-1 overflow-auto space-y-3">
               {comments.map((comment) => (
-                <div key={comment.id} className={`p-3 border rounded-lg ${comment.resolved ? 'bg-gray-50' : 'bg-white'}`}>
+                <div key={comment.id} className={`p-3 border rounded-lg ${comment.resolved ? 'bg-muted/40' : 'bg-card'}`}>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2 mb-2">
                       <Avatar className="w-6 h-6">
@@ -226,7 +226,7 @@ export function DocumentCollaborationDialog({
                         </AvatarFallback>
                       </Avatar>
                       <span className="font-medium text-sm">{comment.author}</span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-muted-foreground">
                         {format(comment.createdAt, 'MMM dd, yyyy HH:mm')}
                       </span>
                       {comment.resolved && (
@@ -248,8 +248,8 @@ export function DocumentCollaborationDialog({
               ))}
 
               {comments.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                <div className="text-center py-8 text-muted-foreground">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
                   <p>No comments yet</p>
                 </div>
               )}
@@ -259,20 +259,20 @@ export function DocumentCollaborationDialog({
           <TabsContent value="activity" className="flex-1 overflow-auto space-y-2">
             {activities.map((activity) => (
               <div key={activity.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <Clock className="w-4 h-4 text-muted-foreground/70 flex-shrink-0" />
                 <div className="flex-1">
                   <span className="font-medium">{activity.user}</span>
-                  <span className="text-gray-600"> {activity.action}</span>
+                  <span className="text-muted-foreground"> {activity.action}</span>
                 </div>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-muted-foreground">
                   {format(activity.timestamp, 'MMM dd, yyyy HH:mm')}
                 </span>
               </div>
             ))}
 
             {activities.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <Clock className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+              <div className="text-center py-8 text-muted-foreground">
+                <Clock className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
                 <p>No activity yet</p>
               </div>
             )}

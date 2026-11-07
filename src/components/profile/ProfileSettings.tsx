@@ -166,7 +166,7 @@ export const ProfileSettings: React.FC = () => {
                 <User className="w-5 h-5" />
                 Profile Settings
               </CardTitle>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 Manage your personal profile information
               </p>
             </CardHeader>
@@ -198,10 +198,10 @@ export const ProfileSettings: React.FC = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="role">Current Role</Label>
-                  <div className="p-2 bg-gray-50 border rounded-md">
+                  <div className="p-2 bg-muted/40 border rounded-md">
                     <span className="font-medium">{profileData.role}</span>
                   </div>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     To change your role, use the "Role Change" tab to submit a request for admin approval.
                   </p>
                 </div>

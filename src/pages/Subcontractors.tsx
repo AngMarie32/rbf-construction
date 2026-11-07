@@ -498,31 +498,31 @@ export default function Subcontractors() {
                     </Avatar>
                     <div className="space-y-1">
                       <CardTitle className="text-lg font-semibold">{subcontractor.company || 'No Company'}</CardTitle>
-                      {subcontractor.name && <div className="text-sm text-gray-500">Contact: {subcontractor.name}</div>}
+                      {subcontractor.name && <div className="text-sm text-muted-foreground">Contact: {subcontractor.name}</div>}
                       {subcontractor.region && <Badge variant="outline">{subcontractor.region}</Badge>}
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center space-x-2">
-                    <Building className="w-4 h-4 text-gray-500" />
+                    <Building className="w-4 h-4 text-muted-foreground" />
                     <span>{subcontractor.specialties ? subcontractor.specialties.join(', ') : 'N/A'}</span>
                   </div>
                   {(subcontractor.address || subcontractor.city || subcontractor.state) && (
                     <div className="flex items-center space-x-2">
-                      <MapPin className="w-4 h-4 text-gray-500" />
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
                       <span>{[subcontractor.address, subcontractor.city, subcontractor.state].filter(Boolean).join(', ')}</span>
                     </div>
                   )}
                   {subcontractor.email && (
                     <div className="flex items-center space-x-2">
-                      <Mail className="w-4 h-4 text-gray-500" />
+                      <Mail className="w-4 h-4 text-muted-foreground" />
                       <a href={`mailto:${subcontractor.email}`}>{subcontractor.email}</a>
                     </div>
                   )}
                   {subcontractor.phone && (
                     <div className="flex items-center space-x-2">
-                      <Phone className="w-4 h-4 text-gray-500" />
+                      <Phone className="w-4 h-4 text-muted-foreground" />
                       <span>{subcontractor.phone}</span>
                     </div>
                   )}

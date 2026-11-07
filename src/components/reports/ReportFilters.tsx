@@ -39,14 +39,14 @@ export function ReportFilters({
       <CardContent className="p-8">
         <div className="flex items-center gap-2 mb-6">
           <Filter className="w-5 h-5 text-primary" />
-          <h3 className="text-lg font-semibold text-gray-900">Report Filters</h3>
+          <h3 className="text-lg font-semibold text-foreground">Report Filters</h3>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Category</label>
+            <label className="text-sm font-medium text-foreground/80">Category</label>
             <Select value={selectedCategory} onValueChange={onCategoryChange}>
-              <SelectTrigger className="bg-white border-gray-200 hover:border-primary/30 transition-colors h-12">
+              <SelectTrigger className="bg-card border-border hover:border-primary/30 transition-colors h-12">
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
@@ -61,18 +61,18 @@ export function ReportFilters({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Date Range</label>
+            <label className="text-sm font-medium text-foreground/80">Date Range</label>
             <DatePickerWithRange 
               date={dateRange} 
               onDateChange={onDateRangeChange}
-              className="bg-white border-gray-200 hover:border-primary/30 transition-colors"
+              className="bg-card border-border hover:border-primary/30 transition-colors"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Field Leader</label>
+            <label className="text-sm font-medium text-foreground/80">Field Leader</label>
             <Select value={selectedProjectManager} onValueChange={onProjectManagerChange}>
-              <SelectTrigger className="bg-white border-gray-200 hover:border-primary/30 transition-colors h-12">
+              <SelectTrigger className="bg-card border-border hover:border-primary/30 transition-colors h-12">
                 <SelectValue placeholder="All Field Leaders" />
               </SelectTrigger>
               <SelectContent>
@@ -97,7 +97,7 @@ export function ReportFilters({
             <Button 
               variant="outline" 
               onClick={onClearFilters}
-              className="bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 transition-colors h-12 px-4"
+              className="bg-card hover:bg-muted/40 border-border hover:border-input transition-colors h-12 px-4"
             >
               <RotateCcw className="w-4 h-4" />
             </Button>

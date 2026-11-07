@@ -377,9 +377,9 @@ export default function Analytics() {
             
             {filteredReports.length === 0 && (
               <div className="text-center py-12">
-                <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No reports found</h3>
-                <p className="text-gray-600">Try adjusting your filters to see more reports.</p>
+                <FileText className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">No reports found</h3>
+                <p className="text-muted-foreground">Try adjusting your filters to see more reports.</p>
               </div>
             )}
           </TabsContent>

@@ -62,7 +62,7 @@ export function BulkTaskOperations({
             variant="ghost"
             size="sm"
             onClick={onClearSelection}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-muted-foreground hover:text-foreground/80"
           >
             <X className="w-4 h-4 mr-1" />
             Clear
@@ -86,7 +86,7 @@ export function BulkTaskOperations({
               size="sm"
               onClick={handleBulkStatusUpdate}
               disabled={!bulkStatus}
-              className="bg-blue-600 hover:bg-blue-700"
+              
             >
               <CheckSquare className="w-4 h-4 mr-1" />
               Update

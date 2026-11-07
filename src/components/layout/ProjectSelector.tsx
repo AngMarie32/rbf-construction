@@ -69,7 +69,7 @@ export function ProjectSelector({
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">{title}</CardTitle>
-            <p className="text-gray-600">{subtitle}</p>
+            <p className="text-muted-foreground">{subtitle}</p>
           </CardHeader>
           <CardContent>
             <Select value={selectedProject} onValueChange={handleProjectChange} disabled={loading}>

@@ -121,7 +121,7 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
       case 'High': return 'bg-orange-100 text-orange-800';
       case 'Medium': return 'bg-yellow-100 text-yellow-800';
       case 'Low': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-muted text-foreground';
     }
   };
 
@@ -131,7 +131,7 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
       case 'Verified': return 'bg-blue-100 text-blue-800';
       case 'In Progress': return 'bg-yellow-100 text-yellow-800';
       case 'Open': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-muted text-foreground';
     }
   };
 
@@ -262,7 +262,7 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
-            <Building className="w-5 h-5 text-gray-600" />
+            <Building className="w-5 h-5 text-muted-foreground" />
             <div className="flex-1">
               <Label htmlFor="project-select">Select Project</Label>
               <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
@@ -287,31 +287,31 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold">{stats.total}</div>
-            <div className="text-sm text-gray-600">Total Items</div>
+            <div className="text-sm text-muted-foreground">Total Items</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-red-600">{stats.open}</div>
-            <div className="text-sm text-gray-600">Open</div>
+            <div className="text-sm text-muted-foreground">Open</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-yellow-600">{stats.inProgress}</div>
-            <div className="text-sm text-gray-600">In Progress</div>
+            <div className="text-sm text-muted-foreground">In Progress</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-            <div className="text-sm text-gray-600">Completed</div>
+            <div className="text-sm text-muted-foreground">Completed</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-blue-600">{stats.verified}</div>
-            <div className="text-sm text-gray-600">Verified</div>
+            <div className="text-sm text-muted-foreground">Verified</div>
           </CardContent>
         </Card>
       </div>
@@ -488,9 +488,9 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
                         </div>
                       </div>
                       
-                      <p className="text-gray-700">{item.description}</p>
+                      <p className="text-foreground/80">{item.description}</p>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <MapPin className="w-4 h-4" />
                           {item.location}
@@ -553,7 +553,7 @@ export function PunchListManager({ projectId }: PunchListManagerProps) {
           </div>
           
           {filteredItems.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               No punch list items found matching your criteria.
             </div>
           )}
