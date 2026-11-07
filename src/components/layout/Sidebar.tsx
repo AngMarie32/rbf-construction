@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { ChevronDown, ChevronsLeft, ChevronsRight, HardHat } from 'lucide-react';
+import { ChevronDown, ChevronsLeft, ChevronsRight, HardHat, FolderKanban } from 'lucide-react';
+import { getRecentProjects, onRecentProjectsChange, type RecentProject } from '@/utils/recentProjects';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { navGroups, isActivePath } from './navigation';
 
@@ -52,6 +53,9 @@ export function Sidebar({ onNavigate, mobile = false }: SidebarProps) {
 
   useEffect(() => writeStorage(GROUPS_KEY, openGroups), [openGroups]);
 
+  const [recent, setRecent] = useState<RecentProject[]>(() => getRecentProjects());
+  useEffect(() => onRecentProjectsChange(() => setRecent(getRecentProjects())), []);
+
   const toggleCollapsed = () => {
     setCollapsedPref((c) => {
       writeStorage(COLLAPSE_KEY, !c);
@@ -99,6 +103,32 @@ export function Sidebar({ onNavigate, mobile = false }: SidebarProps) {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-3">
+          {!collapsed && recent.length > 0 && (
+            <div className="mb-2">
+              <div className="px-5 py-2 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/45">Recent jobs</div>
+              <ul className="space-y-0.5 px-3">
+                {recent.map((p) => {
+                  const active = location.pathname === `/projects/${p.id}`;
+                  return (
+                    <li key={p.id}>
+                      <button
+                        onClick={() => handleItemClick(`/projects/${p.id}`)}
+                        aria-current={active ? 'page' : undefined}
+                        className={cn(
+                          'group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] font-medium text-left transition-colors',
+                          active ? 'nav-active text-sidebar-foreground' : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                        )}
+                      >
+                        <FolderKanban className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-accent' : 'text-sidebar-foreground/50')} />
+                        <span className="truncate">{p.name}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="mx-5 mt-3 h-px bg-sidebar-foreground/10" />
+            </div>
+          )}
           {navGroups.map((group) => {
             const groupActive = group.items.some((i) => isActivePath(location.pathname, i.href));
             const isOpen = collapsed || openGroups[group.label];

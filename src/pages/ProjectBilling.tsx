@@ -1,6 +1,7 @@
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 import { useState, useEffect } from 'react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,8 @@ import {
   DollarSign, 
   Download,
   Plus,
+  Receipt as ReceiptIcon,
+  FileText as FileTextIcon,
   Search,
   CheckCircle,
   AlertTriangle
@@ -66,7 +69,7 @@ export default function ProjectBilling() {
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [projectFilter, setProjectFilter] = useState('all');
+  const [projectFilter, setProjectFilter] = useState(new URLSearchParams(window.location.search).get('project') || 'all');
   const [dateFilter, setDateFilter] = useState<{ 
     type: 'year' | 'month' | 'custom' | 'range';
     value?: string;
@@ -332,9 +335,14 @@ export default function ProjectBilling() {
                 <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
               </div>
             ) : filteredRecords.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No billing records found
-              </div>
+              <EmptyState
+                icon={ReceiptIcon}
+                filtered={billingRecords.length > 0}
+                title="Send your first bill"
+                description="Billing records track what you've invoiced each client, what they've paid and what's still owed, per project and billing period."
+                action={{ label: 'Create your first bill', onClick: () => setBillingDialogOpen(true) }}
+                secondaryAction={{ label: 'Use a pay application (AIA)', icon: FileTextIcon, to: '/payment-applications' }}
+              />
             ) : (
               <div className="overflow-x-auto">
                 <Table>

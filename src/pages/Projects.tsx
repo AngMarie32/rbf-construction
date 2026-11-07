@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -368,11 +369,14 @@ export default function Projects() {
           {filteredProjects.length === 0 && (
             <div className="col-span-full text-center py-16">
               {projects.length === 0 ? (
-                <div className="space-y-4">
-                  <FolderOpen className="w-16 h-16 mx-auto text-muted-foreground/40" />
-                  <p className="text-lg text-muted-foreground">No projects yet</p>
-                  <NewProjectDialog onProjectCreated={fetchProjects} />
-                </div>
+                <EmptyState
+                  icon={FolderOpen}
+                  title="Create your first project"
+                  description="A project is one job. Everything else (schedule, costs, change orders, billing, documents) hangs off it, so this is the place to start."
+                  actionSlot={<NewProjectDialog onProjectCreated={fetchProjects} />}
+                  secondaryAction={{ label: 'Start from an estimate', icon: Search, to: '/estimating' }}
+                  steps={['Enter the client, address and contract value', 'Open the project and follow its Next step guide', 'Track costs and bill from the job page']}
+                />
               ) : (
                 <div className="space-y-2">
                   <Search className="w-12 h-12 mx-auto text-muted-foreground/40" />

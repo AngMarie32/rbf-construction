@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -473,13 +474,17 @@ export default function Subcontractors() {
                 </TableBody>
               </Table>
               
-              {filteredSubcontractors.length === 0 && (
-                <div className="text-center py-12">
-                  <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No subcontractors found</h3>
-                  <p className="text-gray-500 mb-6">Start building your network of trusted subcontractors.</p>
-                </div>
-              )}
+{filteredSubcontractors.length === 0 && (
+              <div className="col-span-full p-4">
+                <EmptyState
+                  icon={Users}
+                  filtered={subcontractors.length > 0}
+                  title="Add your first subcontractor"
+                  description="Keep every sub's trade, contact info, insurance and rates in one place so you can invite them to bid and track their work on each job."
+                  actionSlot={<AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />}
+                />
+              </div>
+            )}
             </CardContent>
           </Card>
         ) : (
@@ -534,11 +539,15 @@ export default function Subcontractors() {
               </Card>
             ))}
             
-            {filteredSubcontractors.length === 0 && (
-              <div className="col-span-full text-center py-12">
-                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No subcontractors found</h3>
-                <p className="text-gray-500 mb-6">Start building your network of trusted subcontractors.</p>
+{filteredSubcontractors.length === 0 && (
+              <div className="col-span-full p-4">
+                <EmptyState
+                  icon={Users}
+                  filtered={subcontractors.length > 0}
+                  title="Add your first subcontractor"
+                  description="Keep every sub's trade, contact info, insurance and rates in one place so you can invite them to bid and track their work on each job."
+                  actionSlot={<AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />}
+                />
               </div>
             )}
           </div>

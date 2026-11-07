@@ -1,5 +1,6 @@
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Layout } from '@/components/layout/Layout';
 import { FolderSidebar } from '@/components/documents/FolderSidebar';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
@@ -75,7 +76,7 @@ export default function Documents() {
   // Advanced filter states
   const [advancedFilters, setAdvancedFilters] = useState({
     selectedCategory: 'all',
-    selectedProject: 'all',
+    selectedProject: new URLSearchParams(window.location.search).get('project') || 'all',
     selectedTags: [] as string[],
     dateRange: {} as { from?: Date; to?: Date },
     fileType: 'all',
@@ -415,19 +416,14 @@ export default function Documents() {
                     Loading documents...
                   </div>
                 ) : filteredDocuments.length === 0 ? (
-                  <div className="text-center py-12">
-                    <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
-                    <p className="text-gray-500 mb-4">
-                      {documents.length === 0 ? 'Upload documents to get started' : 'Try adjusting your filters'}
-                    </p>
-                    {documents.length === 0 && (
-                      <Button onClick={() => setShowUploadDialog(true)}>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Upload Document
-                      </Button>
-                    )}
-                  </div>
+                  <EmptyState
+                    className="m-4"
+                    icon={FileText}
+                    filtered={documents.length > 0}
+                    title="Upload your first document"
+                    description="Store contracts, drawings, permits, insurance certificates and photos by project, so the office and the field always have the latest version."
+                    action={{ label: 'Upload your first document', icon: Upload, onClick: () => setShowUploadDialog(true) }}
+                  />
                 ) : viewMode === 'list' ? (
                   <div className="h-full overflow-auto">
                     <Table>

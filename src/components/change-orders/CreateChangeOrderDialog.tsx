@@ -11,6 +11,7 @@ import { FileText, Layout } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ChangeOrderTemplatesDialog } from './ChangeOrderTemplatesDialog';
+import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 interface CreateChangeOrderDialogProps {
   open: boolean;
@@ -31,9 +32,22 @@ interface ChangeOrderTemplate {
 export function CreateChangeOrderDialog({ 
   open, 
   onOpenChange, 
-  projectId,
+  projectId: fixedProjectId,
   onSave
 }: CreateChangeOrderDialogProps) {
+  // When opened without a project (e.g. from the Change Orders page), let the user pick one.
+  const [pickedProject, setPickedProject] = useState('');
+  const [projectOptions, setProjectOptions] = useState<{ id: string; name: string; status?: string | null }[]>([]);
+  const projectId = fixedProjectId || pickedProject || null;
+
+  useEffect(() => {
+    if (!open || fixedProjectId) return;
+    supabase
+      .from('projects')
+      .select('id, name, status')
+      .then(({ data }) => setProjectOptions(sortProjectsOpenFirst(data || [])));
+  }, [open, fixedProjectId]);
+
   const [formData, setFormData] = useState({
     number: '',
     description: '',
@@ -89,7 +103,7 @@ export function CreateChangeOrderDialog({
     e.preventDefault();
     
     if (!projectId) {
-      toast.error('Project ID is required');
+      toast.error('Choose the project this change order belongs to');
       return;
     }
 
@@ -152,8 +166,24 @@ export function CreateChangeOrderDialog({
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {!fixedProjectId && (
+              <div>
+                <Label>Project *</Label>
+                <Select value={pickedProject} onValueChange={setPickedProject}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Which job is this change order for?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projectOptions.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Template Selection */}
-            <div className="border rounded-lg p-4 bg-gray-50">
+            <div className="border rounded-lg p-4 bg-muted/40">
               <div className="flex justify-between items-center mb-3">
                 <Label className="text-sm font-medium">Start from Template</Label>
                 <Button
