@@ -25,7 +25,10 @@ import {
   MapPin,
   User,
   HardHat,
+  Copy,
+  Loader2,
 } from 'lucide-react';
+import { ScanReceiptDialog } from '@/components/expenses/ScanReceiptDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BurnAnalysisTab } from '@/components/projects/BurnAnalysisTab';
@@ -67,6 +70,7 @@ export default function ProjectDetail() {
     setSearchParams(next, { replace: true });
   };
   const [changeOrderOpen, setChangeOrderOpen] = useState(false);
+  const [reusing, setReusing] = useState(false);
   const [project, setProject] = useState<GlobalProject | null>(null);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -248,6 +252,58 @@ export default function ProjectDetail() {
     { label: 'Punch item', icon: ListChecks, to: `/punch-list${qs}` },
   ];
 
+  /** Turn this job's real costs into a Bid Template (one line per cost category) for estimating similar work. */
+  const reuseCostsForBid = async () => {
+    if (expenses.length === 0) {
+      toast.info('This job has no recorded costs yet, so there is nothing to reuse.');
+      return;
+    }
+    setReusing(true);
+    try {
+      const byCategory: Record<string, { total: number; count: number; vendors: Record<string, number> }> = {};
+      expenses.forEach((e) => {
+        const c = e.category || 'Other';
+        const g = (byCategory[c] ||= { total: 0, count: 0, vendors: {} });
+        g.total += e.amount || 0;
+        g.count += 1;
+        if (e.vendor) g.vendors[e.vendor] = (g.vendors[e.vendor] || 0) + (e.amount || 0);
+      });
+      const { data: tpl, error } = await supabase
+        .from('bid_templates')
+        .insert({
+          name: `Actual costs: ${project.name}`,
+          description: `Built from ${expenses.length} recorded costs on ${project.name}${project.client ? ` (${project.client})` : ''}, contract ${money(project.contractValue || 0)}. Adjust quantities and markup for the new bid.`,
+        })
+        .select('id')
+        .single();
+      if (error || !tpl) throw error || new Error('No template created');
+      const items = Object.entries(byCategory)
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([category, g], i) => {
+          const topVendors = Object.entries(g.vendors).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([v]) => v);
+          return {
+            template_id: tpl.id,
+            category,
+            description: `${category} (actual from ${project.name}, ${g.count} entr${g.count === 1 ? 'y' : 'ies'}${topVendors.length ? `; ${topVendors.join(', ')}` : ''})`,
+            quantity: 1,
+            unit: 'LS',
+            unit_cost: Math.round(g.total * 100) / 100,
+            markup_pct: 0,
+            sort_order: i,
+          };
+        });
+      const { error: itemsError } = await supabase.from('bid_template_items').insert(items);
+      if (itemsError) throw itemsError;
+      toast.success('Bid template created from this job\'s actual costs.');
+      navigate('/bid-templates');
+    } catch (e) {
+      console.error(e);
+      toast.error('Could not create the bid template.');
+    } finally {
+      setReusing(false);
+    }
+  };
+
   const ViewAll = ({ to, label }: { to: string; label: string }) => (
     <Button asChild variant="ghost" size="sm" className="text-primary">
       <Link to={to}>{label} <ArrowRight className="ml-1 h-4 w-4" /></Link>
@@ -278,10 +334,16 @@ export default function ProjectDetail() {
                 {project.type && <span>{project.type}</span>}
               </div>
             </div>
-            <Button variant="outline" onClick={() => setEditDialogOpen(true)} className="shrink-0">
-              <Edit className="w-4 h-4 mr-2" />
-              Edit project
-            </Button>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button variant="outline" onClick={reuseCostsForBid} disabled={reusing} title="Create a bid template from this job's actual costs">
+                {reusing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+                Reuse costs for a bid
+              </Button>
+              <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
+                <Edit className="w-4 h-4" />
+                Edit project
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -296,6 +358,7 @@ export default function ProjectDetail() {
               <Button key={a.label} variant="secondary" size="sm" onClick={a.onClick}>{inner}</Button>
             );
           })}
+          <ScanReceiptDialog onExpenseCreated={() => fetchProjectData()} defaultProjectId={pid} triggerLabel="Snap receipt" />
         </div>
 
         {/* Key numbers */}

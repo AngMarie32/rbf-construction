@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Link } from 'react-router-dom';
+import { ScanReceiptDialog } from '@/components/expenses/ScanReceiptDialog';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -445,6 +446,7 @@ export default function Expenses() {
             <TrendingUp className="w-4 h-4" /> Vendor analysis
           </Button>
           <BulkExpenseDialog onExpensesCreated={fetchExpenses} projects={projects} />
+          <ScanReceiptDialog onExpenseCreated={fetchExpenses} />
           <CreateExpenseDialog onExpenseCreated={fetchExpenses} projects={projects} />
         </>
       }

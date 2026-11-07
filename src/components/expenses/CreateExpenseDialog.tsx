@@ -64,7 +64,7 @@ export function CreateExpenseDialog({ onExpenseCreated, projects }: CreateExpens
           date: formData.date,
           vendor: formData.vendor || null,
           receipt_number: formData.receipt_number || null,
-          status: 'Field Approval'
+          status: 'Pending Field Approval'
         }]);
 
       if (error) throw error;

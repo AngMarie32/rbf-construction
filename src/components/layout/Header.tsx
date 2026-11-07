@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { useTheme } from 'next-themes';
 import { CompanySwitcher } from '@/components/layout/CompanySwitcher';
+import { RemindersMenu } from '@/components/layout/RemindersMenu';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,6 +88,8 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           >
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
+
+          <RemindersMenu />
 
           {/* Notifications Dropdown */}
           <DropdownMenu>
