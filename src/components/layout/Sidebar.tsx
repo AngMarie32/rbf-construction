@@ -1,106 +1,63 @@
-
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronsLeft, ChevronsRight, HardHat } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { navGroups, isActivePath } from './navigation';
 
 interface SidebarProps {
   onNavigate?: (path: string) => void;
+  /** Mobile drawer mode: always expanded, no collapse control, no sticky positioning. */
+  mobile?: boolean;
 }
 
-interface NavGroup {
-  label: string;
-  items: { name: string; href: string }[];
+const COLLAPSE_KEY = 'rbf.sidebar.collapsed';
+const GROUPS_KEY = 'rbf.sidebar.groups';
+
+function readStorage<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
-const navGroups: NavGroup[] = [
-  {
-    label: 'Quick Access',
-    items: [
-      { name: 'Cost Database', href: '/cost-database' },
-      { name: 'Document Sender', href: '/invoice-sender' },
-      { name: 'E-Sign', href: '/esign' },
-    ],
-  },
-  {
-    label: 'Overview',
-    items: [
-      { name: 'Analytics', href: '/analytics' },
-      { name: 'Dashboard', href: '/dashboard' },
-      { name: 'Owner Cockpit', href: '/owner-money' },
-      { name: 'Projects', href: '/projects' },
-    ],
-  },
-  {
-    label: 'Portfolio',
-    items: [
-      { name: 'Cash Flow', href: '/cash-flow' },
-      { name: 'Companies', href: '/companies' },
-      { name: 'Operating Costs', href: '/operating-costs' },
-      { name: 'Properties', href: '/properties' },
-    ],
-  },
-  {
-    label: 'Bidding',
-    items: [
-      { name: 'Bid Estimator', href: '/estimating' },
-      { name: 'Bid Planner', href: '/bid-planner' },
-      { name: 'Bid Templates', href: '/bid-templates' },
-      { name: 'Proposals', href: '/proposals' },
-    ],
-  },
-  {
-    label: 'Project Management',
-    items: [
-      { name: 'Documents', href: '/documents' },
-      { name: 'Payment Applications', href: '/payment-applications' },
-      { name: 'Permits', href: '/permits' },
-      { name: 'Project Schedule', href: '/project-schedule' },
-      { name: 'Punch List', href: '/punch-list' },
-      { name: 'Subcontractors', href: '/subcontractors' },
-    ],
-  },
-  {
-    label: 'Equipment',
-    items: [
-      { name: 'Equipment', href: '/equipment' },
-      { name: 'Equipment Intelligence', href: '/equipment-insights' },
-    ],
-  },
-  {
-    label: 'Financial',
-    items: [
-      { name: 'Billing', href: '/billing' },
-      { name: 'Burn Analysis', href: '/burn-rate-analysis' },
-      { name: 'Change Orders', href: '/change-orders' },
-      { name: 'Cost Import', href: '/cost-import' },
-      { name: 'Expenses', href: '/expenses' },
-      { name: 'Labor Costs', href: '/labor-costs' },
-      { name: 'Loans', href: '/loans' },
-      { name: 'QuickBooks Export', href: '/quickbooks-export' },
-      { name: 'Report Import', href: '/report-import' },
-    ],
-  },
-  {
-    label: 'Admin',
-    items: [
-      { name: 'Settings', href: '/settings' },
-      { name: 'Weekly Reports', href: '/weekly-reports' },
-    ],
-  },
-];
+function writeStorage(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* ignore */
+  }
+}
 
-export function Sidebar({ onNavigate }: SidebarProps) {
+export function Sidebar({ onNavigate, mobile = false }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {};
-    navGroups.forEach((g) => {
-      initial[g.label] = g.label === 'Quick Access';
+  const [collapsedPref, setCollapsedPref] = useState<boolean>(() => readStorage(COLLAPSE_KEY, false));
+  const collapsed = !mobile && collapsedPref;
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    readStorage(GROUPS_KEY, { Overview: true, 'Quick Access': true })
+  );
+
+  // Always expand the group that contains the current page.
+  useEffect(() => {
+    const active = navGroups.find((g) => g.items.some((i) => isActivePath(location.pathname, i.href)));
+    if (active && !openGroups[active.label]) {
+      setOpenGroups((prev) => ({ ...prev, [active.label]: true }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  useEffect(() => writeStorage(GROUPS_KEY, openGroups), [openGroups]);
+
+  const toggleCollapsed = () => {
+    setCollapsedPref((c) => {
+      writeStorage(COLLAPSE_KEY, !c);
+      return !c;
     });
-    return initial;
-  });
+  };
 
   const toggleGroup = (label: string) => {
     setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
@@ -112,73 +69,119 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   };
 
   return (
-    <div
-      className={cn(
-        'sticky top-0 h-screen flex flex-col overflow-y-auto transition-all duration-300 flex-shrink-0',
-        'glass-sidebar',
-        collapsed ? 'w-12' : 'min-w-[220px] w-[220px]'
-      )}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between p-3">
-        {!collapsed && (
-          <span className="font-display font-bold text-sm text-sidebar-foreground tracking-wide uppercase">
-            Navigation
-          </span>
+    <TooltipProvider delayDuration={150}>
+      <aside
+        className={cn(
+          'h-screen flex flex-col flex-shrink-0 glass-sidebar transition-[width] duration-300',
+          mobile ? 'w-full' : 'sticky top-0 hidden lg:flex',
+          !mobile && (collapsed ? 'w-[68px]' : 'w-[248px]')
         )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors p-1 rounded hover:bg-sidebar-accent"
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </button>
-      </div>
-
-      {/* Nav groups */}
-      <nav className="flex-1 pb-4">
-        {navGroups.map((group) => (
-          <div key={group.label} className="mb-1">
+        aria-label="Main navigation"
+      >
+        {/* Brand */}
+        <div className={cn('flex items-center gap-3 h-16 px-4 border-b border-white/10', collapsed && 'justify-center px-0')}>
+          <button
+            onClick={() => handleItemClick('/dashboard')}
+            className="flex items-center gap-3 min-w-0"
+            aria-label="Go to dashboard"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-orange-600 text-white shadow-lg shadow-orange-500/30">
+              <HardHat className="h-5 w-5" />
+            </span>
             {!collapsed && (
-              <button
-                onClick={() => toggleGroup(group.label)}
-                className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
-              >
-                {group.label}
-                <ChevronDown
-                  className={cn(
-                    'h-3 w-3 transition-transform duration-200',
-                    openGroups[group.label] ? '' : '-rotate-90'
-                  )}
-                />
-              </button>
+              <span className="flex flex-col leading-tight text-left">
+                <span className="font-display font-extrabold text-[15px] text-sidebar-foreground tracking-tight">RBF Construction</span>
+                <span className="text-[11px] text-sidebar-foreground/50">Operations Hub</span>
+              </span>
             )}
+          </button>
+        </div>
 
-            {!collapsed && openGroups[group.label] && (
-              <ul className="space-y-0.5 px-2">
-                {group.items.map((item) => {
-                  const isActive = location.pathname === item.href;
-                  return (
-                    <li key={item.name}>
-                      <button
-                        onClick={() => handleItemClick(item.href)}
-                        title={collapsed ? item.name : undefined}
-                        className={cn(
-                          'w-full flex items-center px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150 text-left',
-                          isActive
-                            ? 'nav-active text-sidebar-foreground'
-                            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground hover:translate-x-0.5'
-                        )}
-                      >
-                        {item.name}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-3">
+          {navGroups.map((group) => {
+            const groupActive = group.items.some((i) => isActivePath(location.pathname, i.href));
+            const isOpen = collapsed || openGroups[group.label];
+            return (
+              <div key={group.label} className={cn('mb-1', collapsed && 'mb-2')}>
+                {collapsed ? (
+                  <div className="mx-auto my-2 h-px w-8 bg-sidebar-foreground/10 first:hidden" />
+                ) : (
+                  <button
+                    onClick={() => toggleGroup(group.label)}
+                    aria-expanded={isOpen}
+                    className={cn(
+                      'w-full flex items-center justify-between px-5 py-2 text-[11px] font-semibold uppercase tracking-wider transition-colors',
+                      groupActive ? 'text-accent' : 'text-sidebar-foreground/45 hover:text-sidebar-foreground/80'
+                    )}
+                  >
+                    {group.label}
+                    <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', !isOpen && '-rotate-90')} />
+                  </button>
+                )}
+
+                {isOpen && (
+                  <ul className={cn('space-y-0.5', collapsed ? 'px-2' : 'px-3')}>
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const active = isActivePath(location.pathname, item.href);
+                      const button = (
+                        <button
+                          onClick={() => handleItemClick(item.href)}
+                          aria-current={active ? 'page' : undefined}
+                          className={cn(
+                            'group w-full flex items-center gap-3 rounded-lg text-[13.5px] font-medium transition-all duration-150 text-left',
+                            collapsed ? 'justify-center h-10' : 'px-3 py-2',
+                            active
+                              ? 'nav-active text-sidebar-foreground'
+                              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                          )}
+                        >
+                          <Icon
+                            className={cn(
+                              'h-[18px] w-[18px] shrink-0 transition-colors',
+                              active ? 'text-accent' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground'
+                            )}
+                          />
+                          {!collapsed && <span className="truncate">{item.name}</span>}
+                        </button>
+                      );
+                      return (
+                        <li key={item.href}>
+                          {collapsed ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>{button}</TooltipTrigger>
+                              <TooltipContent side="right">{item.name}</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            button
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* Collapse control */}
+        {!mobile && (
+          <div className="border-t border-white/10 p-3">
+            <button
+              onClick={toggleCollapsed}
+              className={cn(
+                'w-full flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors',
+                collapsed && 'justify-center px-0'
+              )}
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {collapsed ? <ChevronsRight className="h-4 w-4" /> : <><ChevronsLeft className="h-4 w-4" /> Collapse</>}
+            </button>
           </div>
-        ))}
-      </nav>
-    </div>
+        )}
+      </aside>
+    </TooltipProvider>
   );
 }

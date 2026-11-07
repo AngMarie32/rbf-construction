@@ -75,7 +75,7 @@ export default function ChangeOrders() {
   };
 
   return (
-    <Layout title="Change Orders" subtitle="Manage project change orders and track approvals">
+    <Layout hideTitle title="Change Orders" subtitle="Manage project change orders and track approvals">
       <div className="space-y-6">
         {/* Enhanced Header with Quick Guide */}
         <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-lg p-6 border border-orange-200">

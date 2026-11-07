@@ -158,7 +158,7 @@ export default function Proposals() {
   const statusOptions = ['Draft', 'Sent', 'Viewed', 'Approved', 'Rejected'];
 
   return (
-    <Layout title="Proposals" subtitle="Create and manage project proposals">
+    <Layout hideTitle title="Proposals" subtitle="Create and manage project proposals">
       <div className="space-y-6">
         <WorkflowStepper projectId={undefined} />
         {/* Enhanced Header with Quick Guide */}

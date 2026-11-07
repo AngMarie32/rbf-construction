@@ -2,7 +2,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bell, Menu, Settings, Moon, Sun } from 'lucide-react';
+import { Bell, Menu, Settings, Moon, Sun, Search, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { useTheme } from 'next-themes';
@@ -11,6 +12,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -23,6 +26,8 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { notifications, markAsRead, deleteNotification, getUnreadCount } = useNotificationStore();
   const unreadCount = getUnreadCount();
   const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
   const handleNotificationClick = (notificationId: string) => {
     markAsRead(notificationId);
@@ -34,30 +39,51 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-background/60 backdrop-blur-xl border-b border-border/60 px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+    <header className="sticky top-0 z-30 h-16 bg-background/70 backdrop-blur-xl border-b border-border/60 px-4 sm:px-6">
+      <div className="flex h-full items-center justify-between gap-3">
+        <div className="flex flex-1 items-center gap-3 min-w-0">
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={onMenuClick}
-            className="lg:hidden"
+            className="lg:hidden shrink-0"
+            aria-label="Open navigation"
           >
             <Menu className="h-5 w-5" />
           </Button>
-          
-          <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-display font-extrabold tracking-tight text-foreground">RBF Construction</h1>
-          </div>
+
+          <span className="lg:hidden font-display font-extrabold tracking-tight text-foreground truncate">RBF Construction</span>
+
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event('open-command-palette'))}
+            className="hidden md:flex w-full max-w-md items-center gap-2 rounded-xl border border-border bg-muted/50 px-3 h-10 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <Search className="h-4 w-4" />
+            <span className="flex-1 text-left">Search projects, pages, actions…</span>
+            <kbd className="pointer-events-none rounded-md border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-medium">
+              {isMac ? '⌘' : 'Ctrl'} K
+            </kbd>
+          </button>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            aria-label="Search"
+            onClick={() => window.dispatchEvent(new Event('open-command-palette'))}
+          >
+            <Search className="h-5 w-5" />
+          </Button>
           <CompanySwitcher />
           {/* Dark Mode Toggle */}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            aria-label="Toggle dark mode"
           >
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
@@ -65,11 +91,11 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           {/* Notifications Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="relative">
+              <Button variant="ghost" size="sm" className="relative" aria-label="Notifications">
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {unreadCount}
+                  <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full min-w-5 h-5 px-1 flex items-center justify-center ring-2 ring-background">
+                    {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
               </Button>
@@ -126,20 +152,27 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback>
+              <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0" aria-label="Account menu">
+                <Avatar className="h-9 w-9 ring-2 ring-primary/20">
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-blue-700 text-white font-semibold">
                     {user?.email?.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 bg-popover z-50" align="end" forceMount>
-              <DropdownMenuItem onClick={() => window.location.href = '/settings'}>
+              <DropdownMenuLabel className="font-normal">
+                <p className="text-xs text-muted-foreground">Signed in as</p>
+                <p className="text-sm font-medium truncate">{user?.email}</p>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/settings')}>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={signOut}>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">
+                <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
