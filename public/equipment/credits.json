@@ -34,5 +34,41 @@
   "artist": "Acroterion",
   "license": "CC BY-SA 4.0",
   "source": "https://commons.wikimedia.org/wiki/File:Caterpillar_D6_bulldozer_VA2.jpg"
+ },
+ "forklift": {
+  "title": "File:Toyota forklift 25 RSA 2003.jpg",
+  "artist": "Ossewa",
+  "license": "CC BY 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Toyota_forklift_25_RSA_2003.jpg"
+ },
+ "roller": {
+  "title": "File:Caterpillar CB54B roller on dirt lot in Campbell.jpg",
+  "artist": "Grendelkhan",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Caterpillar_CB54B_roller_on_dirt_lot_in_Campbell.jpg"
+ },
+ "generator": {
+  "title": "File:Caterpillar Diesel Generators.JPG",
+  "artist": "Bryansfiles",
+  "license": "CC BY-SA 3.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Caterpillar_Diesel_Generators.JPG"
+ },
+ "scissor-lift": {
+  "title": "File:Hy-Brid Lifts PS-1930 scissor lift with worker working while elevated.jpg",
+  "artist": "Justinjkiss",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Hy-Brid_Lifts_PS-1930_scissor_lift_with_worker_working_while_elevated.jpg"
+ },
+ "tractor": {
+  "title": "File:Kubota compact tractor equipped with a Kubota LA713 front loader.jpg",
+  "artist": "Novoklimov",
+  "license": "CC BY 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Kubota_compact_tractor_equipped_with_a_Kubota_LA713_front_loader.jpg"
+ },
+ "construction-equipment": {
+  "title": "File:Parked construction equipment (60b7f310-81d1-4653-b7ed-8884418aaa66).JPG",
+  "artist": "NPS Photo",
+  "license": "Public domain",
+  "source": "https://commons.wikimedia.org/wiki/File:Parked_construction_equipment_(60b7f310-81d1-4653-b7ed-8884418aaa66).JPG"
  }
 }
