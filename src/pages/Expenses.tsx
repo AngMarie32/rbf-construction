@@ -1,5 +1,6 @@
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,7 +53,7 @@ export default function Expenses() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [projectFilter, setProjectFilter] = useState('all');
+  const [projectFilter, setProjectFilter] = useState(new URLSearchParams(window.location.search).get('project') || 'all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [vendorFilter, setVendorFilter] = useState('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -531,6 +532,16 @@ export default function Expenses() {
               <div className="flex justify-center items-center h-64">
                 <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
               </div>
+            ) : filteredExpenses.length === 0 ? (
+              <EmptyState
+                icon={TrendingUp}
+                filtered={expenses.length > 0}
+                title="Record your first job cost"
+                description="Expenses are every dollar spent on a job: materials, subcontractor invoices, equipment rental, permits. Tie each one to a project to see true job profit."
+                actionSlot={<CreateExpenseDialog onExpenseCreated={fetchExpenses} projects={projects} />}
+                secondaryAction={{ label: 'Import from QuickBooks report', icon: FileText, to: '/report-import' }}
+                steps={['Add costs one at a time or in bulk', 'Attach the receipt or invoice', 'Watch job profit update on the project']}
+              />
             ) : (
               <Table>
                 <TableHeader>

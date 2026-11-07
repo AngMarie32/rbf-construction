@@ -5,10 +5,10 @@ import { PunchListManager } from '@/components/quality/PunchListManager';
 export default function PunchList() {
   return (
     <Layout 
-      title="Punch List Management" 
-      subtitle="Track and manage construction punch list items and quality control"
+      title="Punch List"
+      subtitle="Track items that must be fixed or finished before the job is closed out"
     >
-      <PunchListManager />
+      <PunchListManager projectId={new URLSearchParams(window.location.search).get('project') || undefined} />
     </Layout>
   );
 }

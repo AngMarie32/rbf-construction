@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/ui/empty-state';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
@@ -638,9 +639,11 @@ export default function Invoices() {
             {loading ? (
               <div className="text-center py-8">Loading invoices...</div>
             ) : invoices.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No invoices found. Create your first invoice to get started.
-              </div>
+              <EmptyState
+                icon={FileText}
+                title="Create your first invoice"
+                description="Invoices bill your clients for completed work. Use the New Invoice button above to create one, then send it and track payment."
+              />
             ) : (
               <Table>
                 <TableHeader>

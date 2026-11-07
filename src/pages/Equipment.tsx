@@ -2,6 +2,7 @@ import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { 
@@ -281,10 +282,13 @@ export default function Equipment() {
               ))}
 
               {equipment.length === 0 && (
-                <div className="col-span-full text-center py-12 text-gray-500">
-                  <AlertTriangle className="w-12 h-12 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No equipment found</h3>
-                  <p>No equipment matches your current filters.</p>
+                <div className="col-span-full">
+                  <EmptyState
+                    icon={AlertTriangle}
+                    title="Add your first piece of equipment"
+                    description="List the machines, trucks and tools you own or rent to track maintenance, hours and the true cost of using them on each job."
+                    actionSlot={<NewEquipmentDialog onEquipmentCreated={fetchEquipment} />}
+                  />
                 </div>
               )}
             </div>

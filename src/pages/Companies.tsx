@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Layout } from '@/components/layout/Layout';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompanies } from '@/contexts/CompanyContext';
@@ -204,7 +205,12 @@ export default function Companies() {
           )}
 
           {companies.length === 0 ? (
-            <p className="text-muted-foreground">No companies yet.</p>
+            <EmptyState
+              icon={Plus}
+              title="Add your first company"
+              description="Companies are the businesses you operate (the construction company, holding or property LLCs). Projects, loans and costs are tracked per company."
+              action={isAdmin ? { label: 'Add your first company', onClick: () => { setForm(emptyCompany()); setShowForm(true); } } : undefined}
+            />
           ) : (
             companies.map((c) => (
               <Card key={c.id} className="p-4 flex items-center justify-between gap-4">

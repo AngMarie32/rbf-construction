@@ -1,6 +1,7 @@
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 import React, { useState, useEffect } from 'react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -173,22 +174,14 @@ export default function Permits() {
         </div>
 
         {filteredPermits.length === 0 && (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <FileCheck className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No permits found</h3>
-              <p className="text-muted-foreground mb-4">
-                {Object.keys(filters).length > 0 
-                  ? "Try adjusting your filters or add a new permit."
-                  : "Get started by adding your first permit."
-                }
-              </p>
-              <Button onClick={() => setNewPermitDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Permit
-              </Button>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={FileCheck}
+            filtered={Object.keys(filters).length > 0}
+            title="Track your first permit"
+            description="Log building, electrical, plumbing and other permits with their numbers, inspection dates and expiry so nothing holds up the job."
+            action={{ label: 'Add your first permit', onClick: () => setNewPermitDialogOpen(true) }}
+            steps={['Add the permit and attach the approval', 'Schedule inspections', 'Get reminded before it expires']}
+          />
         )}
       </div>
 
