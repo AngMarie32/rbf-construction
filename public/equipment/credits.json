@@ -1,0 +1,38 @@
+{
+ "excavator": {
+  "title": "File:Caterpillar 330 excavator on a pile of dirt.jpg",
+  "artist": "Matthew T Rader",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Caterpillar_330_excavator_on_a_pile_of_dirt.jpg"
+ },
+ "mini-excavator": {
+  "title": "File:JCB compact excavator.JPG",
+  "artist": "High Contrast",
+  "license": "CC BY 3.0 de",
+  "source": "https://commons.wikimedia.org/wiki/File:JCB_compact_excavator.JPG"
+ },
+ "skid-steer": {
+  "title": "File:Bobcat T650 compact track loader (side view).jpg",
+  "artist": "Dmitry Ivanov.",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Bobcat_T650_compact_track_loader_(side_view).jpg"
+ },
+ "wheel-loader": {
+  "title": "File:Komatsu WA500 wheel loader for gravel mining.jpg",
+  "artist": "Syced",
+  "license": "CC0",
+  "source": "https://commons.wikimedia.org/wiki/File:Komatsu_WA500_wheel_loader_for_gravel_mining.jpg"
+ },
+ "backhoe": {
+  "title": "File:JCB 3CX backhoe loader.jpg",
+  "artist": "Andrey Butko",
+  "license": "CC BY-SA 3.0",
+  "source": "https://commons.wikimedia.org/wiki/File:JCB_3CX_backhoe_loader.jpg"
+ },
+ "bulldozer": {
+  "title": "File:Caterpillar D6 bulldozer VA2.jpg",
+  "artist": "Acroterion",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Caterpillar_D6_bulldozer_VA2.jpg"
+ }
+}

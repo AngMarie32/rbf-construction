@@ -3,6 +3,7 @@ import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState } from '@/components/ui/empty-state';
+import { StockPhotoCredits } from '@/components/equipment/StockPhotoCredits';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { 
@@ -292,6 +293,9 @@ export default function Equipment() {
                 </div>
               )}
             </div>
+            {equipment.length > 0 && (
+              <div className="mt-6 text-center"><StockPhotoCredits /></div>
+            )}
           </div>
         </div>
 

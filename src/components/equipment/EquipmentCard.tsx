@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { MaintenanceAlertSettings } from './MaintenanceAlertSettings';
 import type { Equipment } from '@/types/equipment';
+import { stockPhotoFor } from '@/lib/equipmentPhotos';
 
 interface EquipmentCardProps {
   equipment: Equipment;
@@ -40,6 +41,7 @@ export function EquipmentCard({
   onAddToEstimator
 }: EquipmentCardProps) {
   const [imageError, setImageError] = useState(false);
+  const [stockError, setStockError] = useState(false);
 
   const handleDelete = () => {
     if (confirm(`Are you sure you want to delete ${equipment.name}?`)) {
@@ -109,21 +111,32 @@ export function EquipmentCard({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Equipment Image */}
-        {equipment.image && !imageError ? (
-          <div className="aspect-video rounded-lg overflow-hidden bg-muted">
-            <img
-              src={equipment.image}
-              alt={equipment.name}
-              className="w-full h-full object-cover"
-              onError={() => setImageError(true)}
-            />
-          </div>
-        ) : (
-          <div className="aspect-video rounded-lg bg-muted flex items-center justify-center">
-            <span className="text-muted-foreground/70 text-sm">No Image</span>
-          </div>
-        )}
+        {/* Equipment Image: own photo first, then a stock photo for its type */}
+        {(() => {
+          const stock = stockPhotoFor(equipment);
+          const src = equipment.image && !imageError ? equipment.image : !stockError ? stock : null;
+          const isStock = !!src && src === stock;
+          return src ? (
+            <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
+              <img
+                src={src}
+                alt={equipment.name}
+                loading="lazy"
+                className="h-full w-full object-cover"
+                onError={() => (isStock ? setStockError(true) : setImageError(true))}
+              />
+              {isStock && (
+                <span className="absolute bottom-2 left-2 rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm" title="Representative photo. Edit the unit to upload your own.">
+                  Stock photo
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="aspect-video rounded-lg bg-muted flex items-center justify-center">
+              <span className="text-muted-foreground/70 text-sm">No Image</span>
+            </div>
+          );
+        })()}
 
         {/* Equipment Details */}
         <div className="space-y-2">
