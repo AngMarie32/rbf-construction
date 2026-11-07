@@ -1,28 +1,4 @@
 {
- "excavator": {
-  "title": "File:Caterpillar 330 excavator on a pile of dirt.jpg",
-  "artist": "Matthew T Rader",
-  "license": "CC BY-SA 4.0",
-  "source": "https://commons.wikimedia.org/wiki/File:Caterpillar_330_excavator_on_a_pile_of_dirt.jpg"
- },
- "mini-excavator": {
-  "title": "File:JCB compact excavator.JPG",
-  "artist": "High Contrast",
-  "license": "CC BY 3.0 de",
-  "source": "https://commons.wikimedia.org/wiki/File:JCB_compact_excavator.JPG"
- },
- "skid-steer": {
-  "title": "File:Bobcat T650 compact track loader (side view).jpg",
-  "artist": "Dmitry Ivanov.",
-  "license": "CC BY-SA 4.0",
-  "source": "https://commons.wikimedia.org/wiki/File:Bobcat_T650_compact_track_loader_(side_view).jpg"
- },
- "wheel-loader": {
-  "title": "File:Komatsu WA500 wheel loader for gravel mining.jpg",
-  "artist": "Syced",
-  "license": "CC0",
-  "source": "https://commons.wikimedia.org/wiki/File:Komatsu_WA500_wheel_loader_for_gravel_mining.jpg"
- },
  "backhoe": {
   "title": "File:JCB 3CX backhoe loader.jpg",
   "artist": "Andrey Butko",
@@ -35,17 +11,35 @@
   "license": "CC BY-SA 4.0",
   "source": "https://commons.wikimedia.org/wiki/File:Caterpillar_D6_bulldozer_VA2.jpg"
  },
+ "construction-equipment": {
+  "title": "File:Parked construction equipment (60b7f310-81d1-4653-b7ed-8884418aaa66).JPG",
+  "artist": "NPS Photo",
+  "license": "Public domain",
+  "source": "https://commons.wikimedia.org/wiki/File:Parked_construction_equipment_(60b7f310-81d1-4653-b7ed-8884418aaa66).JPG"
+ },
+ "crane": {
+  "title": "File:Liebherr LTM 1100-5.1.jpg",
+  "artist": "Reise Reise",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Liebherr_LTM_1100-5.1.jpg"
+ },
+ "dump-truck": {
+  "title": "File:Kenworth T800 dump truck, Loveland CO.jpg",
+  "artist": "Greg Goebel from Loveland CO, USA",
+  "license": "CC BY-SA 2.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Kenworth_T800_dump_truck,_Loveland_CO.jpg"
+ },
+ "excavator": {
+  "title": "File:Caterpillar 330 excavator on a pile of dirt.jpg",
+  "artist": "Matthew T Rader",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Caterpillar_330_excavator_on_a_pile_of_dirt.jpg"
+ },
  "forklift": {
   "title": "File:Toyota forklift 25 RSA 2003.jpg",
   "artist": "Ossewa",
   "license": "CC BY 4.0",
   "source": "https://commons.wikimedia.org/wiki/File:Toyota_forklift_25_RSA_2003.jpg"
- },
- "roller": {
-  "title": "File:Caterpillar CB54B roller on dirt lot in Campbell.jpg",
-  "artist": "Grendelkhan",
-  "license": "CC BY-SA 4.0",
-  "source": "https://commons.wikimedia.org/wiki/File:Caterpillar_CB54B_roller_on_dirt_lot_in_Campbell.jpg"
  },
  "generator": {
   "title": "File:Caterpillar Diesel Generators.JPG",
@@ -53,11 +47,47 @@
   "license": "CC BY-SA 3.0",
   "source": "https://commons.wikimedia.org/wiki/File:Caterpillar_Diesel_Generators.JPG"
  },
+ "mini-excavator": {
+  "title": "File:JCB compact excavator.JPG",
+  "artist": "High Contrast",
+  "license": "CC BY 3.0 de",
+  "source": "https://commons.wikimedia.org/wiki/File:JCB_compact_excavator.JPG"
+ },
+ "mixer": {
+  "title": "File:Line of Mack Granite rear-discharge concrete mixer trucks.jpg",
+  "artist": "Oleg Yunakov",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Line_of_Mack_Granite_rear-discharge_concrete_mixer_trucks.jpg"
+ },
+ "pickup-truck": {
+  "title": "File:2020-2022 Ford F-250 Super Duty Mov Crew Cab.jpg",
+  "artist": "Bull-Doser",
+  "license": "Public domain",
+  "source": "https://commons.wikimedia.org/wiki/File:2020-2022_Ford_F-250_Super_Duty_Mov_Crew_Cab.jpg"
+ },
+ "roller": {
+  "title": "File:Caterpillar CB54B roller on dirt lot in Campbell.jpg",
+  "artist": "Grendelkhan",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Caterpillar_CB54B_roller_on_dirt_lot_in_Campbell.jpg"
+ },
  "scissor-lift": {
   "title": "File:Hy-Brid Lifts PS-1930 scissor lift with worker working while elevated.jpg",
   "artist": "Justinjkiss",
   "license": "CC BY-SA 4.0",
   "source": "https://commons.wikimedia.org/wiki/File:Hy-Brid_Lifts_PS-1930_scissor_lift_with_worker_working_while_elevated.jpg"
+ },
+ "skid-steer": {
+  "title": "File:Bobcat T650 compact track loader (side view).jpg",
+  "artist": "Dmitry Ivanov.",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Bobcat_T650_compact_track_loader_(side_view).jpg"
+ },
+ "telehandler": {
+  "title": "File:Manitou, Gda\u0144sk.jpg",
+  "artist": "Raf24~commonswiki",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Manitou,_Gda%C5%84sk.jpg"
  },
  "tractor": {
   "title": "File:Kubota compact tractor equipped with a Kubota LA713 front loader.jpg",
@@ -65,10 +95,16 @@
   "license": "CC BY 4.0",
   "source": "https://commons.wikimedia.org/wiki/File:Kubota_compact_tractor_equipped_with_a_Kubota_LA713_front_loader.jpg"
  },
- "construction-equipment": {
-  "title": "File:Parked construction equipment (60b7f310-81d1-4653-b7ed-8884418aaa66).JPG",
-  "artist": "NPS Photo",
-  "license": "Public domain",
-  "source": "https://commons.wikimedia.org/wiki/File:Parked_construction_equipment_(60b7f310-81d1-4653-b7ed-8884418aaa66).JPG"
+ "trailer": {
+  "title": "File:Globe Trailers detachable gooseneck trailer.jpg",
+  "artist": "Leighketchum",
+  "license": "CC BY-SA 3.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Globe_Trailers_detachable_gooseneck_trailer.jpg"
+ },
+ "wheel-loader": {
+  "title": "File:Komatsu WA500 wheel loader for gravel mining.jpg",
+  "artist": "Syced",
+  "license": "CC0",
+  "source": "https://commons.wikimedia.org/wiki/File:Komatsu_WA500_wheel_loader_for_gravel_mining.jpg"
  }
 }
