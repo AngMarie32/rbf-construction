@@ -36,12 +36,12 @@ export function DocumentPreviewDialog({
   if (!document) return null;
 
   const getFileIcon = (mimeType?: string) => {
-    if (!mimeType) return <FileText className="w-16 h-16 text-gray-400" />;
+    if (!mimeType) return <FileText className="w-16 h-16 text-muted-foreground/70" />;
     
     if (mimeType.startsWith('image/')) return <Image className="w-16 h-16 text-blue-500" />;
     if (mimeType.startsWith('video/')) return <Film className="w-16 h-16 text-red-500" />;
     if (mimeType.startsWith('audio/')) return <Music className="w-16 h-16 text-green-500" />;
-    return <FileText className="w-16 h-16 text-gray-400" />;
+    return <FileText className="w-16 h-16 text-muted-foreground/70" />;
   };
 
   const formatFileSize = (bytes?: number) => {
@@ -79,14 +79,14 @@ export function DocumentPreviewDialog({
 
         <div className="space-y-6">
           {/* Document Header */}
-          <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
+          <div className="flex items-start gap-4 p-4 bg-muted/40 rounded-lg">
             <div className="flex-shrink-0">
               {getFileIcon(document.mimeType)}
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-xl font-semibold truncate">{document.name}</h2>
               {document.description && (
-                <p className="text-gray-600 mt-1">{document.description}</p>
+                <p className="text-muted-foreground mt-1">{document.description}</p>
               )}
               <div className="flex flex-wrap gap-2 mt-3">
                 <Badge variant="secondary">{document.category}</Badge>
@@ -105,19 +105,19 @@ export function DocumentPreviewDialog({
               <h3 className="font-semibold mb-2">File Information</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">File Size:</span>
+                  <span className="text-muted-foreground">File Size:</span>
                   <span>{formatFileSize(document.fileSize)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Type:</span>
+                  <span className="text-muted-foreground">Type:</span>
                   <span>{document.mimeType || 'Unknown'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Created:</span>
+                  <span className="text-muted-foreground">Created:</span>
                   <span>{format(document.createdAt, 'MMM dd, yyyy HH:mm')}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Modified:</span>
+                  <span className="text-muted-foreground">Modified:</span>
                   <span>{format(document.updatedAt, 'MMM dd, yyyy HH:mm')}</span>
                 </div>
               </div>
@@ -125,15 +125,15 @@ export function DocumentPreviewDialog({
           </div>
 
           {/* Preview Area */}
-          <div className="bg-gray-100 rounded-lg p-8 text-center min-h-64">
+          <div className="bg-muted rounded-lg p-8 text-center min-h-64">
             {document.mimeType?.startsWith('image/') ? (
-              <div className="text-gray-500">
+              <div className="text-muted-foreground">
                 <Image className="w-24 h-24 mx-auto mb-4" />
                 <p>Image preview would appear here</p>
                 <p className="text-sm mt-2">Preview functionality requires file storage integration</p>
               </div>
             ) : (
-              <div className="text-gray-500">
+              <div className="text-muted-foreground">
                 <FileText className="w-24 h-24 mx-auto mb-4" />
                 <p>File preview not available</p>
                 <p className="text-sm mt-2">Download to view content</p>

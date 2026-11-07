@@ -22,11 +22,11 @@ export function ProposalViewModal({ proposal, open, onOpenChange }: ProposalView
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Draft': return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'Draft': return 'bg-muted text-foreground border-input';
       case 'Sent': return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'Approved': return 'bg-green-100 text-green-800 border-green-300';
       case 'Rejected': return 'bg-red-100 text-red-800 border-red-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+      default: return 'bg-muted text-foreground border-input';
     }
   };
 
@@ -131,12 +131,12 @@ Thank you for considering our proposal. We look forward to working with you.
             <CardContent>
               {proposal.scope ? (
                 <div className="prose max-w-none">
-                  <p className="whitespace-pre-wrap text-gray-700 leading-relaxed">
+                  <p className="whitespace-pre-wrap text-foreground/80 leading-relaxed">
                     {proposal.scope}
                   </p>
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p>No scope of work defined for this proposal.</p>
                 </div>
@@ -152,21 +152,21 @@ Thank you for considering our proposal. We look forward to working with you.
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Project Name:</span>
+                  <span className="text-muted-foreground">Project Name:</span>
                   <span className="font-medium">{proposal.projectName}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Client:</span>
+                  <span className="text-muted-foreground">Client:</span>
                   <span className="font-medium">{proposal.client}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Status:</span>
+                  <span className="text-muted-foreground">Status:</span>
                   <Badge className={getStatusColor(proposal.status)}>
                     {proposal.status}
                   </Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Created:</span>
+                  <span className="text-muted-foreground">Created:</span>
                   <span className="font-medium">{format(proposal.createdAt, 'MMM dd, yyyy')}</span>
                 </div>
               </CardContent>
@@ -178,12 +178,12 @@ Thank you for considering our proposal. We look forward to working with you.
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Total Project Value:</span>
+                  <span className="text-muted-foreground">Total Project Value:</span>
                   <span className="text-2xl font-bold text-green-600">
                     ${proposal.amount.toLocaleString()}
                   </span>
                 </div>
-                <div className="text-sm text-gray-500 space-y-1">
+                <div className="text-sm text-muted-foreground space-y-1">
                   <p>• Price includes all materials and labor</p>
                   <p>• Valid for 30 days from proposal date</p>
                   <p>• Payment terms: Net 30 days</p>
@@ -198,7 +198,7 @@ Thank you for considering our proposal. We look forward to working with you.
               <CardTitle>Terms and Conditions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-sm text-gray-700 space-y-2">
+              <div className="text-sm text-foreground/80 space-y-2">
                 <p><strong>1. Validity:</strong> This proposal is valid for 30 days from the date above.</p>
                 <p><strong>2. Payment Terms:</strong> Net 30 days from invoice date.</p>
                 <p><strong>3. Work Commencement:</strong> Work will begin upon signed contract and receipt of any required deposit.</p>

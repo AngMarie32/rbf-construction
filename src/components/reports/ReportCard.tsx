@@ -64,7 +64,7 @@ export function ReportCard({
   };
 
   return (
-    <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 bg-white/80 backdrop-blur-sm overflow-hidden">
+    <Card className="group hover:shadow-xl transition-all duration-300 overflow-hidden">
       <div className={`h-1 ${getCategoryColor(category).split(' ')[0]} ${getCategoryColor(category).split(' ')[1]} ${getCategoryColor(category).split(' ')[2]}`}></div>
       
       <CardHeader className="pb-3">
@@ -72,13 +72,13 @@ export function ReportCard({
           <div className="space-y-2 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-lg">{getCategoryIcon(category)}</span>
-              <CardTitle className="text-lg font-semibold text-gray-900 group-hover:text-primary transition-colors">
+              <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
                 {title}
               </CardTitle>
             </div>
             <Badge 
               variant="secondary" 
-              className={`text-xs font-medium ${getCategoryColor(category)} border-0 shadow-sm`}
+              className={`text-xs font-medium ${getCategoryColor(category)} shadow-sm`}
             >
               {category.charAt(0).toUpperCase() + category.slice(1)}
             </Badge>
@@ -108,12 +108,12 @@ export function ReportCard({
           )}
         </div>
         
-        <p className="text-sm text-gray-600 leading-relaxed mt-2">{description}</p>
+        <p className="text-sm text-muted-foreground leading-relaxed mt-2">{description}</p>
       </CardHeader>
       
       <CardContent className="pt-0">
         <div className="flex items-center justify-between">
-          <div className="flex items-center text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-full">
+          <div className="flex items-center text-xs text-muted-foreground bg-muted/40 px-2 py-1 rounded-full">
             <Calendar className="w-3 h-3 mr-1" />
             Updated {lastUpdated}
           </div>
@@ -124,7 +124,7 @@ export function ReportCard({
               size="sm" 
               onClick={onView}
               disabled={isLoading}
-              className="bg-white hover:bg-gray-50 border-gray-200 hover:border-primary/30 transition-all duration-200"
+              className="bg-card hover:bg-muted/40 border-border hover:border-primary/30 transition-all duration-200"
             >
               <Eye className="w-4 h-4 mr-1" />
               View
@@ -134,7 +134,7 @@ export function ReportCard({
               size="sm" 
               onClick={onExport}
               disabled={isLoading}
-              className="bg-white hover:bg-gray-50 border-gray-200 hover:border-green-500/30 hover:text-green-600 transition-all duration-200"
+              className="bg-card hover:bg-muted/40 border-border hover:border-green-500/30 hover:text-green-600 transition-all duration-200"
             >
               <Download className="w-4 h-4 mr-1" />
               Export

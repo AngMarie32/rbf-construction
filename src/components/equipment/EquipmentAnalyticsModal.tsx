@@ -60,7 +60,7 @@ export function EquipmentAnalyticsModal({
                   ${currentValue.toLocaleString()}
                 </div>
                 {equipment.value && (
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-muted-foreground">
                     Original: ${equipment.value.toLocaleString()}
                   </div>
                 )}
@@ -78,7 +78,7 @@ export function EquipmentAnalyticsModal({
                 <div className="text-2xl font-bold text-blue-600">
                   {utilization.toFixed(1)}%
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-muted-foreground">
                   {equipment.total_hours_used || 0} hours used
                 </div>
               </CardContent>
@@ -95,7 +95,7 @@ export function EquipmentAnalyticsModal({
                 <div className="text-2xl font-bold text-purple-600">
                   ${totalRevenue.toLocaleString()}
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-muted-foreground">
                   ${equipment.hourly_rate}/hr rate
                 </div>
               </CardContent>
@@ -112,7 +112,7 @@ export function EquipmentAnalyticsModal({
                 <div className="text-2xl font-bold text-orange-600">
                   {roi.toFixed(1)}%
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-muted-foreground">
                   Return on investment
                 </div>
               </CardContent>
@@ -127,16 +127,16 @@ export function EquipmentAnalyticsModal({
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Category</label>
+                  <label className="text-sm font-medium text-muted-foreground">Category</label>
                   <p>{equipment.category}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Status</label>
+                  <label className="text-sm font-medium text-muted-foreground">Status</label>
                   <Badge variant="outline">{equipment.status}</Badge>
                 </div>
                 {equipment.location && (
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Location</label>
+                    <label className="text-sm font-medium text-muted-foreground">Location</label>
                     <p className="flex items-center gap-1">
                       <MapPin className="w-4 h-4" />
                       {equipment.location}
@@ -145,7 +145,7 @@ export function EquipmentAnalyticsModal({
                 )}
                 {equipment.purchase_date && (
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Purchase Date</label>
+                    <label className="text-sm font-medium text-muted-foreground">Purchase Date</label>
                     <p className="flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
                       {new Date(equipment.purchase_date).toLocaleDateString()}
@@ -156,8 +156,8 @@ export function EquipmentAnalyticsModal({
 
               {equipment.specifications && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Specifications</label>
-                  <div className="mt-1 p-3 bg-gray-50 rounded">
+                  <label className="text-sm font-medium text-muted-foreground">Specifications</label>
+                  <div className="mt-1 p-3 bg-muted/40 rounded">
                     <pre className="text-sm whitespace-pre-wrap">
                       {JSON.stringify(equipment.specifications, null, 2)}
                     </pre>
@@ -194,7 +194,7 @@ export function EquipmentAnalyticsModal({
                         </Badge>
                       </div>
                       {alert.due_date && (
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-sm text-muted-foreground mt-1">
                           Due: {new Date(alert.due_date).toLocaleDateString()}
                         </p>
                       )}
@@ -214,17 +214,17 @@ export function EquipmentAnalyticsModal({
               <CardContent>
                 <div className="space-y-2">
                   {usageLogs.slice(0, 5).map((log) => (
-                    <div key={log.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div key={log.id} className="flex items-center justify-between p-2 bg-muted/40 rounded">
                       <div>
                         <p className="font-medium">{log.operator_name || 'Unknown Operator'}</p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-muted-foreground">
                           {new Date(log.start_time).toLocaleDateString()}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="font-medium">{log.hours_used || 0} hours</p>
                         {log.fuel_consumed && (
-                          <p className="text-sm text-gray-600">{log.fuel_consumed}L fuel</p>
+                          <p className="text-sm text-muted-foreground">{log.fuel_consumed}L fuel</p>
                         )}
                       </div>
                     </div>

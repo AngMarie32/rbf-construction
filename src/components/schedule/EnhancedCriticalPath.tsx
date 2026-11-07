@@ -183,7 +183,7 @@ export function EnhancedCriticalPath({ tasks, projects, selectedProjects }: Crit
             <div className="text-2xl font-bold text-red-600">
               {criticalPathAnalysis.criticalPath.length}
             </div>
-            <div className="text-sm text-gray-600">Critical Tasks</div>
+            <div className="text-sm text-muted-foreground">Critical Tasks</div>
           </CardContent>
         </Card>
         <Card>
@@ -191,7 +191,7 @@ export function EnhancedCriticalPath({ tasks, projects, selectedProjects }: Crit
             <div className="text-2xl font-bold text-orange-600">
               {criticalPathAnalysis.criticalDuration}
             </div>
-            <div className="text-sm text-gray-600">Critical Days</div>
+            <div className="text-sm text-muted-foreground">Critical Days</div>
           </CardContent>
         </Card>
         <Card>
@@ -199,7 +199,7 @@ export function EnhancedCriticalPath({ tasks, projects, selectedProjects }: Crit
             <div className="text-2xl font-bold text-blue-600">
               {criticalPathAnalysis.totalDuration}
             </div>
-            <div className="text-sm text-gray-600">Total Duration</div>
+            <div className="text-sm text-muted-foreground">Total Duration</div>
           </CardContent>
         </Card>
         <Card>
@@ -207,7 +207,7 @@ export function EnhancedCriticalPath({ tasks, projects, selectedProjects }: Crit
             <div className="text-2xl font-bold text-green-600">
               {criticalPathAnalysis.projectSlack}
             </div>
-            <div className="text-sm text-gray-600">Project Slack</div>
+            <div className="text-sm text-muted-foreground">Project Slack</div>
           </CardContent>
         </Card>
       </div>
@@ -232,7 +232,7 @@ export function EnhancedCriticalPath({ tasks, projects, selectedProjects }: Crit
                     </div>
                     <div>
                       <div className="font-medium">{task.title}</div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-muted-foreground">
                         {format(task.startDate, 'MMM d')} - {format(task.endDate, 'MMM d')}
                       </div>
                     </div>
@@ -245,7 +245,7 @@ export function EnhancedCriticalPath({ tasks, projects, selectedProjects }: Crit
                       />
                     )}
                     <Badge className="bg-red-100 text-red-800">Critical</Badge>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-muted-foreground">
                       {task.progress}% complete
                     </div>
                   </div>
@@ -273,7 +273,7 @@ export function EnhancedCriticalPath({ tasks, projects, selectedProjects }: Crit
                   <div className="flex items-center gap-3">
                     <div>
                       <div className="font-medium">{node.task.title}</div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-muted-foreground">
                         Duration: {duration} days | Float: {node.totalFloat} days
                       </div>
                     </div>
@@ -298,7 +298,7 @@ export function EnhancedCriticalPath({ tasks, projects, selectedProjects }: Crit
                   </div>
                   <Progress 
                     value={node.task.progress} 
-                    className={`h-2 ${node.isCritical ? 'bg-red-100' : 'bg-gray-100'}`}
+                    className={`h-2 ${node.isCritical ? 'bg-red-100' : 'bg-muted'}`}
                   />
                 </div>
               </CardContent>
@@ -322,7 +322,7 @@ export function EnhancedCriticalPath({ tasks, projects, selectedProjects }: Crit
                   <div className="flex items-center gap-3">
                     <div>
                       <div className="font-medium">{node.task.title}</div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-muted-foreground">
                         {format(node.task.startDate, 'MMM d')} - {format(node.task.endDate, 'MMM d')}
                       </div>
                     </div>
@@ -338,7 +338,7 @@ export function EnhancedCriticalPath({ tasks, projects, selectedProjects }: Crit
                       <div className="text-sm font-medium">
                         Total Float: {node.totalFloat} days
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted-foreground">
                         Free Float: {node.freeFloat} days
                       </div>
                     </div>
@@ -362,7 +362,7 @@ export function EnhancedCriticalPath({ tasks, projects, selectedProjects }: Crit
             <TrendingUp className="w-5 h-5 text-blue-600" />
             Enhanced Critical Path Analysis
           </CardTitle>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-muted-foreground">
             {criticalPathAnalysis.nodes.length} tasks analyzed
           </div>
         </div>

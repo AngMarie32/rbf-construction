@@ -99,10 +99,10 @@ export function ScheduleCalendar({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
+        <div className="grid grid-cols-7 gap-px bg-muted rounded-lg overflow-hidden">
           {/* Header row */}
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div key={day} className="bg-gray-50 p-2 text-center text-sm font-medium text-gray-600">
+            <div key={day} className="bg-muted/40 p-2 text-center text-sm font-medium text-muted-foreground">
               {day}
             </div>
           ))}
@@ -117,8 +117,8 @@ export function ScheduleCalendar({
               return (
                 <div
                   key={`${weekIndex}-${dayIndex}`}
-                  className={`bg-white p-2 min-h-24 ${
-                    !isCurrentMonth ? 'text-gray-400 bg-gray-50' : ''
+                  className={`bg-card p-2 min-h-24 ${
+                    !isCurrentMonth ? 'text-muted-foreground/70 bg-muted/40' : ''
                   } ${isCurrentDay ? 'bg-blue-50 border-2 border-blue-200' : ''}`}
                 >
                   <div className="text-sm font-medium mb-1">
@@ -140,7 +140,7 @@ export function ScheduleCalendar({
                       </div>
                     ))}
                     {dayTasks.length > 3 && (
-                      <div className="text-xs text-gray-500 font-medium">
+                      <div className="text-xs text-muted-foreground font-medium">
                         +{dayTasks.length - 3} more
                       </div>
                     )}

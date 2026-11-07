@@ -332,7 +332,7 @@ export const CreateBidInvitationDialog: React.FC<CreateBidInvitationDialogProps>
             <Mail className="w-5 h-5" />
             {bidPackageId ? 'Invite Subcontractors' : 'Create New Bid Invitation'}
           </DialogTitle>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             {bidPackageId
               ? 'Invite subcontractors to bid on this package'
               : 'Create a bid invitation to send to subcontractors'}
@@ -414,13 +414,13 @@ export const CreateBidInvitationDialog: React.FC<CreateBidInvitationDialogProps>
               <Users className="w-4 h-4" />
               <Label className="text-base font-medium">Select Subcontractors *</Label>
             </div>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               Choose the subcontractors you want to invite for this bid.
             </p>
 
             {subcontractors.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
-                <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+              <div className="text-center py-8 text-muted-foreground border-2 border-dashed border-border rounded-lg">
+                <Users className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
                 <p className="font-medium">No subcontractors found</p>
                 <p className="text-sm">Add subcontractors to your list first</p>
               </div>
@@ -458,7 +458,7 @@ export const CreateBidInvitationDialog: React.FC<CreateBidInvitationDialogProps>
                 <FileText className="w-4 h-4" />
                 <Label className="text-base font-medium">Include Documents</Label>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 Select documents to include in this bid invitation
               </p>
 

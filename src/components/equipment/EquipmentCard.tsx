@@ -56,7 +56,7 @@ export function EquipmentCard({
       case 'Maintenance':
         return 'text-yellow-600';
       default:
-        return 'text-gray-600';
+        return 'text-muted-foreground';
     }
   };
 
@@ -66,7 +66,7 @@ export function EquipmentCard({
         <Checkbox
           checked={isSelected}
           onCheckedChange={() => onSelect(equipment.id)}
-          className="bg-white border-2"
+          className="bg-card border-2"
         />
       </div>
 
@@ -111,7 +111,7 @@ export function EquipmentCard({
       <CardContent className="space-y-4">
         {/* Equipment Image */}
         {equipment.image && !imageError ? (
-          <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
+          <div className="aspect-video rounded-lg overflow-hidden bg-muted">
             <img
               src={equipment.image}
               alt={equipment.name}
@@ -120,8 +120,8 @@ export function EquipmentCard({
             />
           </div>
         ) : (
-          <div className="aspect-video rounded-lg bg-gray-100 flex items-center justify-center">
-            <span className="text-gray-400 text-sm">No Image</span>
+          <div className="aspect-video rounded-lg bg-muted flex items-center justify-center">
+            <span className="text-muted-foreground/70 text-sm">No Image</span>
           </div>
         )}
 
@@ -175,7 +175,7 @@ export function EquipmentCard({
 
         {/* Description */}
         {equipment.description && (
-          <p className="text-sm text-gray-600 line-clamp-2">
+          <p className="text-sm text-muted-foreground line-clamp-2">
             {equipment.description}
           </p>
         )}

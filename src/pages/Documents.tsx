@@ -1,6 +1,7 @@
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Layout } from '@/components/layout/Layout';
 import { FolderSidebar } from '@/components/documents/FolderSidebar';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
@@ -315,6 +316,79 @@ export default function Documents() {
 
   const filteredDocuments = getFilteredDocuments();
 
+
+  const projectName = (id?: string) => (id ? projects.find((p) => p.id === id)?.name || 'Unknown' : 'General');
+  const fileSize = (b?: number) => (!b ? '—' : b > 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+
+  const docColumns: DataTableColumn<Document>[] = [
+    {
+      id: 'name',
+      header: 'Name',
+      value: (d) => d.name,
+      cell: (d) => (
+        <button type="button" onClick={() => viewDocument(d)} className="flex items-center gap-3 text-left">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <FileText className="h-4 w-4" />
+          </span>
+          <span className="min-w-0">
+            <span className="flex items-center gap-1.5 font-medium hover:text-primary">
+              {favoriteDocuments.includes(d.id) && <Star className="h-3.5 w-3.5 fill-current text-yellow-500" />}
+              <span className="truncate max-w-[260px]">{d.name}</span>
+            </span>
+            {d.description && <span className="block max-w-xs truncate text-xs text-muted-foreground">{d.description}</span>}
+          </span>
+        </button>
+      ),
+    },
+    { id: 'project', header: 'Project', value: (d) => projectName(d.projectId), cell: (d) => projectName(d.projectId) },
+    { id: 'category', header: 'Category', value: (d) => d.category, cell: (d) => <Badge variant="secondary">{d.category}</Badge> },
+    {
+      id: 'tags',
+      header: 'Tags',
+      value: (d) => (d.tags || []).join(', '),
+      cell: (d) => (
+        <div className="flex flex-wrap gap-1">
+          {(d.tags || []).slice(0, 2).map((tag) => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}
+          {(d.tags || []).length > 2 && <Badge variant="outline" className="text-xs">+{(d.tags || []).length - 2}</Badge>}
+        </div>
+      ),
+    },
+    { id: 'size', header: 'Size', align: 'right', value: (d) => d.fileSize || 0, cell: (d) => <span className="text-muted-foreground">{fileSize(d.fileSize)}</span> },
+    { id: 'created', header: 'Added', value: (d) => d.createdAt, cell: (d) => <span className="whitespace-nowrap">{format(d.createdAt, 'MMM d, yyyy')}</span> },
+    {
+      id: 'actions',
+      header: '',
+      align: 'right',
+      cell: (d) => (
+        <div className="flex justify-end gap-0.5">
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Download" aria-label="Download" onClick={() => downloadDocument(d)}>
+            <Download className="w-4 h-4" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="More actions"><MoreHorizontal className="w-4 h-4" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => viewDocument(d)}><Eye className="w-4 h-4 mr-2" />Preview</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editDocument(d)}><Edit className="w-4 h-4 mr-2" />Edit</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => showVersionHistory(d)}><Clock className="w-4 h-4 mr-2" />Versions</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => showCollaboration(d)}><Users className="w-4 h-4 mr-2" />Share</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toggleFavorite(d.id)}>
+                <Star className="w-4 h-4 mr-2" />{favoriteDocuments.includes(d.id) ? 'Remove from favorites' : 'Add to favorites'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toggleArchive(d.id)}>
+                <Archive className="w-4 h-4 mr-2" />{archivedDocuments.includes(d.id) ? 'Unarchive' : 'Archive'}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive" onClick={() => deleteDocument(d.id)}>
+                <Trash2 className="w-4 h-4 mr-2" />Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <Layout hideTitle title="Document Management" subtitle="Store, organize, and share project documents">
       <div className="flex h-[calc(100vh-200px)]">
@@ -425,117 +499,16 @@ export default function Documents() {
                     action={{ label: 'Upload your first document', icon: Upload, onClick: () => setShowUploadDialog(true) }}
                   />
                 ) : viewMode === 'list' ? (
-                  <div className="h-full overflow-auto">
-                    <Table>
-                      <TableHeader className="sticky top-0 bg-white z-10">
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Project</TableHead>
-                          <TableHead>Category</TableHead>
-                          <TableHead>Tags</TableHead>
-                          <TableHead>Created</TableHead>
-                          <TableHead className="w-12"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredDocuments.map((document) => (
-                          <TableRow key={document.id} className="hover:bg-gray-50">
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                {favoriteDocuments.includes(document.id) && (
-                                  <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                                )}
-                                <div>
-                                  <div className="font-medium">{document.name}</div>
-                                  {document.description && (
-                                    <div className="text-sm text-gray-500 truncate max-w-xs">
-                                      {document.description}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {document.projectId 
-                                ? projects.find(p => p.id === document.projectId)?.name || 'Unknown'
-                                : 'General'
-                              }
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="secondary">
-                                {document.category}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {(document.tags || []).slice(0, 2).map((tag) => (
-                                  <Badge key={tag} variant="outline" className="text-xs">
-                                    {tag}
-                                  </Badge>
-                                ))}
-                                {(document.tags || []).length > 2 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    +{(document.tags || []).length - 2}
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-sm">
-                                {format(document.createdAt, "MMM dd, yyyy")}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="sm">
-                                    <MoreHorizontal className="w-4 h-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="bg-white border shadow-lg z-50">
-                                  <DropdownMenuItem onClick={() => viewDocument(document)} className="cursor-pointer">
-                                    <Eye className="w-4 h-4 mr-2" />
-                                    Preview
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => editDocument(document)} className="cursor-pointer">
-                                    <Edit className="w-4 h-4 mr-2" />
-                                    Edit
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => showVersionHistory(document)} className="cursor-pointer">
-                                    <Clock className="w-4 h-4 mr-2" />
-                                    Versions
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => showCollaboration(document)} className="cursor-pointer">
-                                    <Users className="w-4 h-4 mr-2" />
-                                    Share
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => downloadDocument(document)} className="cursor-pointer">
-                                    <Download className="w-4 h-4 mr-2" />
-                                    Download
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => toggleFavorite(document.id)} className="cursor-pointer">
-                                    <Star className="w-4 h-4 mr-2" />
-                                    {favoriteDocuments.includes(document.id) ? 'Remove from Favorites' : 'Add to Favorites'}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => toggleArchive(document.id)} className="cursor-pointer">
-                                    <Archive className="w-4 h-4 mr-2" />
-                                    {archivedDocuments.includes(document.id) ? 'Unarchive' : 'Archive'}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    className="text-red-600 cursor-pointer"
-                                    onClick={() => deleteDocument(document.id)}
-                                  >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  <DataTable
+                    className="rounded-none border-0"
+                    columns={docColumns}
+                    rows={filteredDocuments}
+                    totalCount={documents.length}
+                    getRowId={(d) => d.id}
+                    searchable={false}
+                    exportFilename="documents"
+                    initialSort={{ id: 'created', desc: true }}
+                  />
                 ) : (
                   <div className="p-6 h-full overflow-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -554,7 +527,7 @@ export default function Documents() {
                                       <MoreHorizontal className="w-4 h-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="bg-white border shadow-lg z-50">
+                                  <DropdownMenuContent align="end" className="bg-card border shadow-lg z-50">
                                     <DropdownMenuItem onClick={() => viewDocument(document)} className="cursor-pointer">
                                       <Eye className="w-4 h-4 mr-2" />
                                       Preview
@@ -586,7 +559,7 @@ export default function Documents() {
                             <h3 className="font-semibold text-sm mb-2 line-clamp-2">{document.name}</h3>
                             
                             {document.description && (
-                              <p className="text-xs text-gray-600 mb-3 line-clamp-2">
+                              <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
                                 {document.description}
                               </p>
                             )}
@@ -611,7 +584,7 @@ export default function Documents() {
                                 </div>
                               )}
                               
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-muted-foreground">
                                 {format(document.createdAt, "MMM dd, yyyy")}
                               </div>
                             </div>

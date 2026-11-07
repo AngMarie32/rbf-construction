@@ -84,7 +84,7 @@ export function ProjectDelayDialog({
           <div className="space-y-2">
             <Label htmlFor="delay-start-date">Delay Start Date</Label>
             <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
               <Input
                 id="delay-start-date"
                 type="date"
@@ -108,7 +108,7 @@ export function ProjectDelayDialog({
           </div>
           
           {delayDays > 0 && (
-            <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+            <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-md">
               <div className="font-medium">Impact Summary:</div>
               <div>• {affectedTasksCount} tasks will be delayed</div>
               <div>• Tasks starting from {format(new Date(delayStartDate), 'MMM dd, yyyy')} onwards</div>

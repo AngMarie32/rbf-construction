@@ -88,7 +88,7 @@ export const RoleChangeRequest: React.FC<RoleChangeRequestProps> = ({
           <UserCheck className="w-5 h-5" />
           Request Role Change
         </CardTitle>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           Submit a request to change your role. This will require admin approval.
         </p>
       </CardHeader>
@@ -96,8 +96,8 @@ export const RoleChangeRequest: React.FC<RoleChangeRequestProps> = ({
         <form onSubmit={handleSubmitRequest} className="space-y-4">
           <div className="space-y-2">
             <Label>Current Role</Label>
-            <div className="flex items-center gap-2 p-2 bg-gray-50 rounded">
-              <Clock className="w-4 h-4 text-gray-500" />
+            <div className="flex items-center gap-2 p-2 bg-muted/40 rounded">
+              <Clock className="w-4 h-4 text-muted-foreground" />
               <span className="font-medium">{currentRole}</span>
             </div>
           </div>

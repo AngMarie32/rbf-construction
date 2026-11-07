@@ -212,7 +212,7 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
             <Package className="w-5 h-5" />
             Create New Bid Package
           </DialogTitle>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Create a bid package to send project documents to subcontractors for estimates
           </p>
         </DialogHeader>
@@ -302,13 +302,13 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
                 <FileText className="w-4 h-4" />
                 <Label className="text-base font-medium">Include Project Documents</Label>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 Select documents from the selected project to include in this bid package
               </p>
               
               {documents.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
-                  <FileText className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                <div className="text-center py-8 text-muted-foreground border-2 border-dashed border-border rounded-lg">
+                  <FileText className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
                   <p className="font-medium">No documents found for this project</p>
                   <p className="text-sm">Upload documents to the selected project first</p>
                 </div>
@@ -316,7 +316,7 @@ export const CreateBidPackageDialog: React.FC<CreateBidPackageDialogProps> = ({ 
                 <div className="max-h-64 overflow-y-auto border rounded-lg p-4 space-y-4">
                   {getDocumentsByCategory().map(({ category, documents: categoryDocs }) => (
                     <div key={category} className="space-y-2">
-                      <h4 className="font-medium text-sm text-gray-700 border-b pb-1">
+                      <h4 className="font-medium text-sm text-foreground/80 border-b pb-1">
                         {category}
                       </h4>
                       <div className="grid grid-cols-1 gap-2">

@@ -107,14 +107,14 @@ export function AttachChangeOrderDocumentDialog({
 
         <div className="space-y-4">
           <div>
-            <Label className="text-sm font-medium text-gray-700">Change Order:</Label>
-            <p className="text-sm text-gray-600">CO #{changeOrderNumber}</p>
+            <Label className="text-sm font-medium text-foreground/80">Change Order:</Label>
+            <p className="text-sm text-muted-foreground">CO #{changeOrderNumber}</p>
           </div>
 
           <div>
             <Label htmlFor="file">Document File *</Label>
             <div 
-              className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors"
+              className="mt-2 border-2 border-dashed border-input rounded-lg p-6 text-center hover:border-gray-400 transition-colors"
               onDragOver={handleDragOver}
               onDrop={handleDrop}
             >
@@ -122,7 +122,7 @@ export function AttachChangeOrderDocumentDialog({
                 <div className="space-y-2">
                   <FileText className="w-8 h-8 text-blue-500 mx-auto" />
                   <p className="text-sm font-medium">{selectedFile.name}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                   </p>
                   <Button 
@@ -135,7 +135,7 @@ export function AttachChangeOrderDocumentDialog({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto" />
+                  <Upload className="w-8 h-8 text-muted-foreground/70 mx-auto" />
                   <div>
                     <Button 
                       variant="outline" 
@@ -143,11 +143,11 @@ export function AttachChangeOrderDocumentDialog({
                     >
                       Select File
                     </Button>
-                    <p className="text-xs text-gray-500 mt-2">
+                    <p className="text-xs text-muted-foreground mt-2">
                       or drag and drop
                     </p>
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     PNG, JPG, PDF, DOC, DOCX up to 10MB
                   </p>
                 </div>

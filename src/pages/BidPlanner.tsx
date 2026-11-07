@@ -203,16 +203,16 @@ export default function BidPlanner() {
             onProjectChange={handleProjectSelect}
           />
         ) : (
-          <Card className="border-2 border-dashed border-gray-200">
+          <Card className="border-2 border-dashed border-border">
             <CardContent className="text-center py-16">
-              <Calculator className="w-20 h-20 text-gray-300 mx-auto mb-6" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Bid Planning</h3>
-              <p className="text-gray-500 mb-8 max-w-md mx-auto">
+              <Calculator className="w-20 h-20 text-muted-foreground/50 mx-auto mb-6" />
+              <h3 className="text-xl font-semibold text-foreground mb-3">Bid Planning</h3>
+              <p className="text-muted-foreground mb-8 max-w-md mx-auto">
                 Select a project above to start creating detailed construction bids with accurate cost estimates and formatting.
               </p>
               {projects.length === 0 && (
                 <div className="mt-6">
-                  <p className="text-gray-400 mb-4">No projects found. Create a project first to start bid planning.</p>
+                  <p className="text-muted-foreground/70 mb-4">No projects found. Create a project first to start bid planning.</p>
                   <Button onClick={() => window.location.href = '/projects'} variant="outline">
                     <Building2 className="w-4 h-4 mr-2" />
                     Go to Projects
@@ -233,7 +233,7 @@ export default function BidPlanner() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-3 gap-4">
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
+              <div className="bg-card p-4 rounded-lg border border-blue-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Target className="w-4 h-4 text-blue-600" />
                   <h4 className="font-semibold text-blue-800">1. Select Project</h4>
@@ -241,7 +241,7 @@ export default function BidPlanner() {
                 <p className="text-sm text-blue-700">Choose an existing project from the dropdown above to begin bid planning.</p>
               </div>
               
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
+              <div className="bg-card p-4 rounded-lg border border-blue-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Plus className="w-4 h-4 text-blue-600" />
                   <h4 className="font-semibold text-blue-800">2. Add Bid Items</h4>
@@ -249,7 +249,7 @@ export default function BidPlanner() {
                 <p className="text-sm text-blue-700">Use templates, import from images, or create custom bid items with quantities and costs.</p>
               </div>
               
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
+              <div className="bg-card p-4 rounded-lg border border-blue-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Download className="w-4 h-4 text-blue-600" />
                   <h4 className="font-semibold text-blue-800">3. Export Bid</h4>

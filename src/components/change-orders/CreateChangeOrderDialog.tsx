@@ -200,7 +200,7 @@ export function CreateChangeOrderDialog({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary">{selectedTemplate.name}</Badge>
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-muted-foreground">
                       ${selectedTemplate.estimatedAmount.toLocaleString()}
                     </span>
                   </div>

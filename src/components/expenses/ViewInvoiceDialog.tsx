@@ -69,9 +69,9 @@ export function ViewInvoiceDialog({
             <DialogTitle>View Invoice</DialogTitle>
           </DialogHeader>
           <div className="text-center py-8">
-            <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Invoice Attached</h3>
-            <p className="text-gray-500 mb-4">This expense doesn't have any attached invoices.</p>
+            <FileText className="w-16 h-16 text-muted-foreground/50 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">No Invoice Attached</h3>
+            <p className="text-muted-foreground mb-4">This expense doesn't have any attached invoices.</p>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Close
             </Button>
@@ -107,11 +107,11 @@ export function ViewInvoiceDialog({
 
           {/* Invoice details */}
           {selectedInvoice && (
-            <div className="border rounded-lg p-4 bg-gray-50">
+            <div className="border rounded-lg p-4 bg-muted/40">
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h4 className="font-medium">{selectedInvoice.fileName}</h4>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     {(selectedInvoice.fileSize / 1024 / 1024).toFixed(2)} MB • 
                     Uploaded {new Date(selectedInvoice.uploadDate).toLocaleDateString()}
                   </p>
@@ -127,7 +127,7 @@ export function ViewInvoiceDialog({
               </div>
 
               {/* Invoice preview with scrolling */}
-              <ScrollArea className="border rounded-lg bg-white h-96">
+              <ScrollArea className="border rounded-lg bg-card h-96">
                 {isImageFile(selectedInvoice.fileType) ? (
                   <img
                     src={selectedInvoice.fileUrl}
@@ -141,7 +141,7 @@ export function ViewInvoiceDialog({
                     title={selectedInvoice.fileName}
                   />
                 ) : (
-                  <div className="flex items-center justify-center h-48 text-gray-500">
+                  <div className="flex items-center justify-center h-48 text-muted-foreground">
                     <div className="text-center">
                       <FileText className="w-16 h-16 mb-2 mx-auto" />
                       <p>Preview not available for this file type</p>

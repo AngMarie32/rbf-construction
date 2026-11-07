@@ -149,7 +149,7 @@ export function DocumentTemplatesDialog({
           {/* Search and Actions */}
           <div className="flex gap-4">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 w-4 h-4" />
               <Input
                 placeholder="Search templates..."
                 value={searchTerm}
@@ -205,8 +205,8 @@ export function DocumentTemplatesDialog({
                 Loading templates...
               </div>
             ) : filteredTemplates.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <div className="text-center py-12 text-muted-foreground">
+                <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
                 <h3 className="text-lg font-semibold mb-2">No templates found</h3>
                 <p>{searchTerm ? 'Try adjusting your search criteria' : 'Create your first template to get started'}</p>
               </div>
@@ -231,7 +231,7 @@ export function DocumentTemplatesDialog({
                       <CardTitle className="text-lg">{template.name}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <p className="text-sm text-gray-600 line-clamp-2">
+                      <p className="text-sm text-muted-foreground line-clamp-2">
                         {template.description || 'No description provided'}
                       </p>
                       

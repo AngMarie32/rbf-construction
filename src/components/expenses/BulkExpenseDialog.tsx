@@ -150,7 +150,7 @@ export function BulkExpenseDialog({ onExpensesCreated, projects }: BulkExpenseDi
             </div>
 
             <div className="border rounded-lg overflow-hidden">
-              <div className="bg-gray-50 grid grid-cols-8 gap-2 p-2 text-xs font-medium text-gray-700 border-b">
+              <div className="bg-muted/40 grid grid-cols-8 gap-2 p-2 text-xs font-medium text-foreground/80 border-b">
                 <div>Project</div>
                 <div>Description</div>
                 <div>Category</div>
@@ -163,7 +163,7 @@ export function BulkExpenseDialog({ onExpensesCreated, projects }: BulkExpenseDi
 
               <div className="max-h-96 overflow-y-auto">
                 {expenses.map((expense, index) => (
-                  <div key={expense.id} className="grid grid-cols-8 gap-2 p-2 border-b hover:bg-gray-50">
+                  <div key={expense.id} className="grid grid-cols-8 gap-2 p-2 border-b hover:bg-muted/40">
                     <Select value={expense.project_id} onValueChange={(value) => updateExpense(expense.id, 'project_id', value)}>
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue placeholder="Select..." />

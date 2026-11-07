@@ -36,10 +36,10 @@ export function ChangeOrderSelection({
 
   if (changeOrders.length === 0) {
     return (
-      <Card className="border-dashed border-gray-300">
+      <Card className="border-dashed border-input">
         <CardContent className="py-8">
-          <div className="text-center text-gray-500">
-            <DollarSign className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+          <div className="text-center text-muted-foreground">
+            <DollarSign className="w-8 h-8 mx-auto mb-2 text-muted-foreground/70" />
             <p className="text-sm">No approved change orders available for this project.</p>
           </div>
         </CardContent>
@@ -57,7 +57,7 @@ export function ChangeOrderSelection({
           </CardTitle>
           {selectedChangeOrders.length > 0 && (
             <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-muted-foreground">
                 Selected: <span className="font-medium text-green-600">${selectedTotal.toLocaleString()}</span>
               </div>
               <Button 
@@ -76,7 +76,7 @@ export function ChangeOrderSelection({
       <CardContent>
         <div className="space-y-3">
           {displayedOrders.map((co) => (
-            <div key={co.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+            <div key={co.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/40 transition-colors">
               <div className="flex items-center gap-3">
                 <Checkbox
                   id={`co-${co.id}`}

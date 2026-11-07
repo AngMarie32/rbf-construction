@@ -315,7 +315,7 @@ export function MaintenanceView({ open, onOpenChange }: MaintenanceViewProps) {
               <div>
                 <label className="text-sm font-medium mb-1 block">Search</label>
                 <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70" />
                   <Input
                     placeholder=""
                     value={searchTerm}
@@ -410,7 +410,7 @@ export function MaintenanceView({ open, onOpenChange }: MaintenanceViewProps) {
                 {loading ? (
                   <div className="text-center py-8">Loading maintenance records...</div>
                 ) : filteredRecords.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-muted-foreground">
                     <AlertTriangle className="w-12 h-12 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No maintenance records found</h3>
                     <p>No records match your current filters.</p>
@@ -481,7 +481,7 @@ export function MaintenanceView({ open, onOpenChange }: MaintenanceViewProps) {
                         <TableRow key={record.id}>
                           <TableCell>
                             <div className="flex items-center space-x-2">
-                              <Calendar className="w-4 h-4 text-gray-400" />
+                              <Calendar className="w-4 h-4 text-muted-foreground/70" />
                               <span>{format(record.date, 'MMM dd, yyyy')}</span>
                             </div>
                           </TableCell>
@@ -497,7 +497,7 @@ export function MaintenanceView({ open, onOpenChange }: MaintenanceViewProps) {
                           <TableCell>
                             {record.nextDue ? (
                               <div className="flex items-center space-x-2">
-                                <Clock className="w-4 h-4 text-gray-400" />
+                                <Clock className="w-4 h-4 text-muted-foreground/70" />
                                 <span>{format(record.nextDue, 'MMM dd, yyyy')}</span>
                               </div>
                             ) : (

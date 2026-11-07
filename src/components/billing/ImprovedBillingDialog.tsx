@@ -336,7 +336,7 @@ export function ImprovedBillingDialog({
 
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <p className="text-sm text-gray-600">Add multiple billing records at once</p>
+              <p className="text-sm text-muted-foreground">Add multiple billing records at once</p>
               <Button onClick={addBulkEntry} variant="outline">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Entry
@@ -440,7 +440,7 @@ export function ImprovedBillingDialog({
               ))}
 
               {bulkEntries.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   <p>No entries added yet. Click "Add Entry" to start.</p>
                 </div>
               )}
@@ -495,7 +495,7 @@ export function ImprovedBillingDialog({
                             <div className="max-w-[300px]">
                               <div className="font-medium truncate">{project.name}</div>
                               {project.client && (
-                                <div className="text-sm text-gray-500 truncate">{project.client}</div>
+                                <div className="text-sm text-muted-foreground truncate">{project.client}</div>
                               )}
                             </div>
                           </SelectItem>
@@ -519,10 +519,10 @@ export function ImprovedBillingDialog({
                   )}
 
                   {showPaymentApps && (
-                    <Card className="p-4 bg-gray-50">
+                    <Card className="p-4 bg-muted/40">
                       <h4 className="font-medium mb-3">Available Payment Applications</h4>
                       {paymentApps.length === 0 ? (
-                        <p className="text-sm text-gray-500">No payment applications found for this project.</p>
+                        <p className="text-sm text-muted-foreground">No payment applications found for this project.</p>
                       ) : (
                         <div className="space-y-2 max-h-32 overflow-y-auto">
                           {paymentApps.map(app => (
@@ -619,15 +619,15 @@ export function ImprovedBillingDialog({
 
                   <Separator />
 
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg space-y-3">
-                    <h4 className="font-semibold text-gray-800">Billing Summary</h4>
+                  <div className="bg-card p-4 border border-border shadow-sm rounded-lg space-y-3">
+                    <h4 className="font-semibold text-foreground">Billing Summary</h4>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Billed:</span>
+                        <span className="text-muted-foreground">Billed:</span>
                         <span className="font-medium">${formData.billed_amount.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Paid:</span>
+                        <span className="text-muted-foreground">Paid:</span>
                         <span className="font-medium text-green-600">${formData.paid_amount.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between col-span-2 pt-2 border-t">

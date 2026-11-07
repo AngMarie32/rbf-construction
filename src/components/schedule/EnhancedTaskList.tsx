@@ -57,8 +57,8 @@ export function EnhancedTaskList({
       case 'Completed': return 'bg-green-100 text-green-800 border-green-200';
       case 'In Progress': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'On Hold': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Not Started': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'Not Started': return 'bg-muted text-foreground border-border';
+      default: return 'bg-muted text-foreground border-border';
     }
   };
 
@@ -124,7 +124,7 @@ export function EnhancedTaskList({
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="text-center text-gray-500">Loading tasks...</div>
+          <div className="text-center text-muted-foreground">Loading tasks...</div>
         </CardContent>
       </Card>
     );
@@ -142,11 +142,11 @@ export function EnhancedTaskList({
                   checked={tasks.length > 0 && selectedTasks.length === tasks.length}
                   onCheckedChange={handleSelectAll}
                 />
-                <span className="text-sm text-gray-600">Select All</span>
+                <span className="text-sm text-muted-foreground">Select All</span>
               </div>
             )}
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Sort by:</span>
+              <span className="text-sm text-muted-foreground">Sort by:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
@@ -170,7 +170,7 @@ export function EnhancedTaskList({
       </CardHeader>
       <CardContent className="p-0">
         {sortedTasks.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">
+          <div className="p-6 text-center text-muted-foreground">
             No tasks found for the selected criteria.
           </div>
         ) : (
@@ -178,7 +178,7 @@ export function EnhancedTaskList({
             {sortedTasks.map((task, index) => (
               <div
                 key={task.id}
-                className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                className={`p-4 border-b border-border hover:bg-muted/40 transition-colors ${
                   selectedTasks.includes(task.id) ? 'bg-blue-50 border-blue-200' : ''
                 }`}
               >
@@ -193,7 +193,7 @@ export function EnhancedTaskList({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
-                        <h3 className="font-medium text-gray-900 truncate">{task.title}</h3>
+                        <h3 className="font-medium text-foreground truncate">{task.title}</h3>
                         <TaskPriorityIndicator priority={getTaskPriority(task)} />
                         <Badge variant="outline" className={getStatusColor(task.status)}>
                           {task.status}
@@ -231,7 +231,7 @@ export function EnhancedTaskList({
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-3 h-3 rounded-full" 
@@ -255,7 +255,7 @@ export function EnhancedTaskList({
                     
                     <div className="mt-3">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-gray-600">Progress</span>
+                        <span className="text-sm text-muted-foreground">Progress</span>
                         <span className="text-sm font-medium">{task.progress}%</span>
                       </div>
                       <Progress value={task.progress} className="h-2" />
@@ -263,7 +263,7 @@ export function EnhancedTaskList({
 
                     {task.dependencies.length > 0 && (
                       <div className="mt-2">
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           Dependencies: {task.dependencies.length} task(s)
                         </div>
                       </div>

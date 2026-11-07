@@ -249,7 +249,7 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
           <div>
             <Label>Equipment Image</Label>
             {!formData.image ? (
-              <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center">
+              <div className="border-2 border-dashed border-border rounded-lg p-4 text-center">
                 <input
                   type="file"
                   accept="image/*"
@@ -258,9 +258,9 @@ export function NewEquipmentDialog({ onEquipmentCreated }: NewEquipmentDialogPro
                   id="image-upload"
                 />
                 <label htmlFor="image-upload" className="cursor-pointer">
-                  <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-600">Click to upload image</p>
-                  <p className="text-xs text-gray-400">JPEG, PNG up to 10MB</p>
+                  <Upload className="w-8 h-8 mx-auto text-muted-foreground/70 mb-2" />
+                  <p className="text-sm text-muted-foreground">Click to upload image</p>
+                  <p className="text-xs text-muted-foreground/70">JPEG, PNG up to 10MB</p>
                 </label>
               </div>
             ) : (

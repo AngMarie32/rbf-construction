@@ -96,7 +96,7 @@ export function GanttChart({
     if (!isBusinessDay(day)) {
       return 'bg-blue-50 border-blue-200';
     }
-    return 'bg-white border-gray-200';
+    return 'bg-card border-border';
   };
 
   const handleEditTask = (task: Task) => {
@@ -140,10 +140,10 @@ export function GanttChart({
     <Card className="overflow-hidden">
       <CardContent className="p-0">
         {/* Enhanced Header with Project Filter */}
-        <div className="bg-gray-50 border-b-2 border-gray-200 p-4">
+        <div className="bg-muted/40 border-b-2 border-border p-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
-              <h3 className="text-lg font-semibold text-gray-900">Project Schedule</h3>
+              <h3 className="text-lg font-semibold text-foreground">Project Schedule</h3>
               <Badge variant="outline" className="text-xs">
                 {filteredTasks.length} Tasks
               </Badge>
@@ -151,7 +151,7 @@ export function GanttChart({
             
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-gray-500" />
+                <Filter className="w-4 h-4 text-muted-foreground" />
                 <Select value={selectedProjectFilter} onValueChange={setSelectedProjectFilter}>
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Filter by project" />
@@ -174,7 +174,7 @@ export function GanttChart({
               </div>
               
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-500" />
+                <Calendar className="w-4 h-4 text-muted-foreground" />
                 <Select value={viewMode} onValueChange={(value: any) => setViewMode(value)}>
                   <SelectTrigger className="w-44">
                     <SelectValue />
@@ -191,7 +191,7 @@ export function GanttChart({
           
           {/* Project Statistics Summary */}
           {selectedProjectFilter !== 'all' && (
-            <div className="bg-white rounded-lg p-3 border">
+            <div className="bg-card rounded-lg p-3 border">
               {(() => {
                 const project = projectStats.find(p => p.id === selectedProjectFilter);
                 if (!project) return null;
@@ -205,7 +205,7 @@ export function GanttChart({
                       />
                       <span className="font-medium">{project.name}</span>
                     </div>
-                    <div className="flex items-center gap-6 text-sm text-gray-600">
+                    <div className="flex items-center gap-6 text-sm text-muted-foreground">
                       <span>{project.taskCount} Tasks</span>
                       <span>{project.completedTasks} Completed</span>
                       <span>{project.inProgressTasks} In Progress</span>
@@ -220,20 +220,20 @@ export function GanttChart({
 
         <div className="overflow-x-auto" style={{ minWidth: '1000px' }}>
           {/* Main Header */}
-          <div className="flex bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10">
-            <div className="w-80 px-4 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700">
+          <div className="flex bg-muted/40 border-b-2 border-border sticky top-0 z-10">
+            <div className="w-80 px-4 py-3 border-r border-input bg-card font-semibold text-foreground/80">
               Task Name
             </div>
-            <div className="w-28 px-2 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center text-xs">
+            <div className="w-28 px-2 py-3 border-r border-input bg-card font-semibold text-foreground/80 text-center text-xs">
               Start
             </div>
-            <div className="w-28 px-2 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center text-xs">
+            <div className="w-28 px-2 py-3 border-r border-input bg-card font-semibold text-foreground/80 text-center text-xs">
               Finish
             </div>
-            <div className="w-24 px-2 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center text-xs">
+            <div className="w-24 px-2 py-3 border-r border-input bg-card font-semibold text-foreground/80 text-center text-xs">
               Duration
             </div>
-            <div className="w-32 px-2 py-3 border-r border-gray-300 bg-white font-semibold text-gray-700 text-center text-xs">
+            <div className="w-32 px-2 py-3 border-r border-input bg-card font-semibold text-foreground/80 text-center text-xs">
               % Complete
             </div>
             <div className="flex-1 relative">
@@ -243,8 +243,8 @@ export function GanttChart({
                     key={day.toISOString()} 
                     className={`flex-1 min-w-[30px] p-2 text-xs text-center border-r ${getDayBackgroundClass(day, index)}`}
                   >
-                    <div className="font-medium text-gray-600">{format(day, 'dd')}</div>
-                    <div className={`text-[10px] ${isHoliday(day) ? 'text-red-600 font-medium' : !isBusinessDay(day) ? 'text-blue-600' : 'text-gray-500'}`}>
+                    <div className="font-medium text-muted-foreground">{format(day, 'dd')}</div>
+                    <div className={`text-[10px] ${isHoliday(day) ? 'text-red-600 font-medium' : !isBusinessDay(day) ? 'text-blue-600' : 'text-muted-foreground'}`}>
                       {format(day, 'EEE')}
                     </div>
                   </div>
@@ -255,7 +255,7 @@ export function GanttChart({
 
           {/* Task Rows */}
           {filteredTasks.length === 0 ? (
-            <div className="p-8 text-center text-gray-500 bg-white">
+            <div className="p-8 text-center text-muted-foreground bg-card">
               No tasks found for the selected filters.
             </div>
           ) : (
@@ -265,14 +265,14 @@ export function GanttChart({
               const businessDayDuration = getBusinessDaysBetween(task.startDate, task.endDate);
               
               return (
-                <div key={task.id} className={`flex border-b border-gray-200 hover:bg-blue-50 group ${isEvenRow ? 'bg-white' : 'bg-gray-50'}`}>
+                <div key={task.id} className={`flex border-b border-border hover:bg-blue-50 group ${isEvenRow ? 'bg-card' : 'bg-muted/40'}`}>
                   {/* Task Info Column */}
-                  <div className="w-80 px-4 py-3 border-r border-gray-300">
+                  <div className="w-80 px-4 py-3 border-r border-input">
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-medium text-gray-900 flex-shrink-0">{taskIndex + 1}</span>
-                          <h4 className="font-medium text-sm text-gray-900 truncate">
+                          <span className="text-sm font-medium text-foreground flex-shrink-0">{taskIndex + 1}</span>
+                          <h4 className="font-medium text-sm text-foreground truncate">
                             {task.title}
                           </h4>
                         </div>
@@ -281,7 +281,7 @@ export function GanttChart({
                             className="w-2 h-2 rounded-full flex-shrink-0" 
                             style={{ backgroundColor: getProjectColor(task.projectId) }}
                           />
-                          <span className="text-xs text-gray-600 truncate">
+                          <span className="text-xs text-muted-foreground truncate">
                             {getProjectName(task.projectId)}
                           </span>
                         </div>
@@ -322,30 +322,30 @@ export function GanttChart({
                   </div>
 
                   {/* Start Date Column */}
-                  <div className="w-28 px-2 py-3 border-r border-gray-300 text-center">
-                    <span className="text-xs text-gray-700">{format(task.startDate, 'MM/dd/yy')}</span>
+                  <div className="w-28 px-2 py-3 border-r border-input text-center">
+                    <span className="text-xs text-foreground/80">{format(task.startDate, 'MM/dd/yy')}</span>
                   </div>
 
                   {/* End Date Column */}
-                  <div className="w-28 px-2 py-3 border-r border-gray-300 text-center">
-                    <span className="text-xs text-gray-700">{format(task.endDate, 'MM/dd/yy')}</span>
+                  <div className="w-28 px-2 py-3 border-r border-input text-center">
+                    <span className="text-xs text-foreground/80">{format(task.endDate, 'MM/dd/yy')}</span>
                   </div>
 
                   {/* Duration Column */}
-                  <div className="w-24 px-2 py-3 border-r border-gray-300 text-center">
+                  <div className="w-24 px-2 py-3 border-r border-input text-center">
                     <div className="flex flex-col items-center justify-center h-full">
-                      <span className="text-xs font-medium text-gray-700">{businessDayDuration}d</span>
+                      <span className="text-xs font-medium text-foreground/80">{businessDayDuration}d</span>
                       <div className="flex items-center gap-1">
-                        <Clock className="w-2 h-2 text-gray-400" />
+                        <Clock className="w-2 h-2 text-muted-foreground/70" />
                       </div>
                     </div>
                   </div>
 
                   {/* Progress Column */}
-                  <div className="w-32 px-2 py-3 border-r border-gray-300 text-center">
+                  <div className="w-32 px-2 py-3 border-r border-input text-center">
                     <div className="flex flex-col items-center justify-center h-full">
-                      <span className="text-xs font-medium text-gray-700 mb-1">{task.progress}%</span>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                      <span className="text-xs font-medium text-foreground/80 mb-1">{task.progress}%</span>
+                      <div className="w-full bg-muted rounded-full h-1.5">
                         <div 
                           className="bg-blue-600 h-1.5 rounded-full transition-all duration-300" 
                           style={{ width: `${task.progress}%` }}
@@ -438,9 +438,9 @@ export function GanttChart({
         </div>
 
         {/* Enhanced Legend */}
-        <div className="border-t border-gray-200 p-4 bg-gray-50">
+        <div className="border-t border-border p-4 bg-muted/40">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6 text-xs text-gray-600">
+            <div className="flex items-center gap-6 text-xs text-muted-foreground">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-blue-50 border border-blue-200 rounded"></div>
                 <span>Weekends</span>
@@ -450,12 +450,12 @@ export function GanttChart({
                 <span>Holidays</span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="w-3 h-3 text-gray-400" />
+                <Clock className="w-3 h-3 text-muted-foreground/70" />
                 <span>Duration shown in business days</span>
               </div>
             </div>
             
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-muted-foreground">
               Showing {filteredTasks.length} of {tasks.length} tasks
             </div>
           </div>

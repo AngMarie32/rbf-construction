@@ -162,7 +162,7 @@ export default function Proposals() {
       <div className="space-y-6">
         <WorkflowStepper projectId={undefined} />
         {/* Enhanced Header with Quick Guide */}
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
+        <div className="bg-card rounded-lg p-6 border border-border shadow-sm">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
               <div>

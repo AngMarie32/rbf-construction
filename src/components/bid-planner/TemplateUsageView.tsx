@@ -133,7 +133,7 @@ export function TemplateUsageView({ projectId, onBack, onTemplateLoaded }: Templ
         </CardHeader>
         <CardContent>
           <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
             <Input
               placeholder="Search by name or description..."
               value={searchTerm}
@@ -148,7 +148,7 @@ export function TemplateUsageView({ projectId, onBack, onTemplateLoaded }: Templ
         {loading ? (
           <div className="col-span-full text-center py-8">Loading templates...</div>
         ) : filteredTemplates.length === 0 ? (
-          <div className="col-span-full text-center py-8 text-gray-500">
+          <div className="col-span-full text-center py-8 text-muted-foreground">
             No templates found matching your criteria.
           </div>
         ) : (
@@ -166,11 +166,11 @@ export function TemplateUsageView({ projectId, onBack, onTemplateLoaded }: Templ
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
                   {template.description || 'No description available'}
                 </p>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-muted-foreground">
                     {template.itemCount} items
                   </span>
                   <Button

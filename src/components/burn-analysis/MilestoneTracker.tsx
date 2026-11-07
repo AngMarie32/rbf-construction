@@ -22,7 +22,7 @@ export function MilestoneTracker({ milestones, loading = false }: MilestoneTrack
           <div className="space-y-4">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="animate-pulse">
-                <div className="h-16 bg-gray-200 rounded"></div>
+                <div className="h-16 bg-muted rounded"></div>
               </div>
             ))}
           </div>
@@ -42,7 +42,7 @@ export function MilestoneTracker({ milestones, loading = false }: MilestoneTrack
           <AlertCircle className="w-5 h-5 text-amber-500" /> : 
           <Clock className="w-5 h-5 text-blue-500" />;
       default:
-        return <Calendar className="w-5 h-5 text-gray-500" />;
+        return <Calendar className="w-5 h-5 text-muted-foreground" />;
     }
   };
 
@@ -73,9 +73,9 @@ export function MilestoneTracker({ milestones, loading = false }: MilestoneTrack
       <CardContent>
         {milestones.length === 0 ? (
           <div className="text-center py-8">
-            <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+            <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground/70" />
             <h3 className="text-lg font-semibold mb-2">No Milestones Found</h3>
-            <p className="text-gray-500 mb-4">
+            <p className="text-muted-foreground mb-4">
               Add project milestones to track budget performance at key project checkpoints.
             </p>
             <Button variant="outline">Add Milestone</Button>
@@ -83,12 +83,12 @@ export function MilestoneTracker({ milestones, loading = false }: MilestoneTrack
         ) : (
           <div className="space-y-4">
             {milestones.map((milestone, index) => (
-              <div key={index} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+              <div key={index} className="border rounded-lg p-4 hover:bg-muted/40 transition-colors">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       {getStatusIcon(milestone.status, milestone.daysDelayed)}
-                      <h3 className="font-semibold text-gray-900">{milestone.name}</h3>
+                      <h3 className="font-semibold text-foreground">{milestone.name}</h3>
                       <Badge 
                         className={`${getStatusColor(milestone.status, milestone.daysDelayed)} text-white text-xs`}
                       >
@@ -98,7 +98,7 @@ export function MilestoneTracker({ milestones, loading = false }: MilestoneTrack
                     
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
-                        <span className="text-gray-500">Target Date:</span>
+                        <span className="text-muted-foreground">Target Date:</span>
                         <div className="font-medium">
                           {format(parseISO(milestone.targetDate), 'MMM dd, yyyy')}
                         </div>
@@ -106,7 +106,7 @@ export function MilestoneTracker({ milestones, loading = false }: MilestoneTrack
                       
                       {milestone.actualDate && (
                         <div>
-                          <span className="text-gray-500">Actual Date:</span>
+                          <span className="text-muted-foreground">Actual Date:</span>
                           <div className="font-medium">
                             {format(parseISO(milestone.actualDate), 'MMM dd, yyyy')}
                           </div>
@@ -114,14 +114,14 @@ export function MilestoneTracker({ milestones, loading = false }: MilestoneTrack
                       )}
                       
                       <div>
-                        <span className="text-gray-500">Budget Checkpoint:</span>
+                        <span className="text-muted-foreground">Budget Checkpoint:</span>
                         <div className="font-medium">
                           ${milestone.budgetCheckpoint.toLocaleString()}
                         </div>
                       </div>
                       
                       <div>
-                        <span className="text-gray-500">Actual Spent:</span>
+                        <span className="text-muted-foreground">Actual Spent:</span>
                         <div className={`font-medium ${
                           milestone.actualSpent > milestone.budgetCheckpoint ? 'text-red-600' : 'text-green-600'
                         }`}>
@@ -137,7 +137,7 @@ export function MilestoneTracker({ milestones, loading = false }: MilestoneTrack
                           <span>Completion</span>
                           <span>{milestone.completionPercentage}%</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="w-full bg-muted rounded-full h-2">
                           <div 
                             className="bg-blue-500 h-2 rounded-full transition-all"
                             style={{ width: `${milestone.completionPercentage}%` }}

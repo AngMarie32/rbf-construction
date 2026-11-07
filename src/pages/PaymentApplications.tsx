@@ -307,7 +307,7 @@ export default function PaymentApplications() {
       <div className="space-y-6">
         <WorkflowStepper projectId={selectedProject} />
         {/* Project Selection */}
-        <Card className="bg-white border border-green-300">
+        <Card className="bg-card border border-green-300">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-green-800">
               <FileText className="w-5 h-5" />
@@ -339,7 +339,7 @@ export default function PaymentApplications() {
           <>
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-white border border-blue-300">
+              <Card className="bg-card border border-blue-300">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -352,7 +352,7 @@ export default function PaymentApplications() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border border-green-300">
+              <Card className="bg-card border border-green-300">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -365,7 +365,7 @@ export default function PaymentApplications() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border border-orange-300">
+              <Card className="bg-card border border-orange-300">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -384,7 +384,7 @@ export default function PaymentApplications() {
             </div>
 
             {/* Payment Applications */}
-            <Card className="bg-white">
+            <Card className="bg-card">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle className="flex items-center gap-2">
@@ -392,7 +392,7 @@ export default function PaymentApplications() {
                     Payment Applications
                   </CardTitle>
                   <div className="flex gap-2">
-                    <Button onClick={handleNewApplication} className="bg-green-600 hover:bg-green-700">
+                    <Button onClick={handleNewApplication} >
                       <Plus className="w-4 h-4 mr-2" />
                       New Application
                     </Button>
@@ -407,7 +407,7 @@ export default function PaymentApplications() {
                 {applications.length > 0 ? (
                   <div className="space-y-4 p-6">
                     {applications.map((app) => (
-                      <Card key={app.id} className="bg-white border-l-4 border-l-blue-500">
+                      <Card key={app.id} className="bg-card border-l-4 border-l-blue-500">
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
@@ -419,19 +419,19 @@ export default function PaymentApplications() {
                               </div>
                               <div className="grid grid-cols-4 gap-4 text-sm">
                                 <div>
-                                  <p className="text-gray-600">CONTRACT SUM</p>
+                                  <p className="text-muted-foreground">CONTRACT SUM</p>
                                   <p className="font-semibold text-lg">${app.original_contract_sum.toLocaleString()}</p>
                                 </div>
                                 <div>
-                                  <p className="text-gray-600">WORK COMPLETED</p>
+                                  <p className="text-muted-foreground">WORK COMPLETED</p>
                                   <p className="font-semibold text-lg text-green-600">${(app.total_completed_and_stored || 0).toLocaleString()}</p>
                                 </div>
                                 <div>
-                                  <p className="text-gray-600">LESS RETAINAGE</p>
+                                  <p className="text-muted-foreground">LESS RETAINAGE</p>
                                   <p className="font-semibold text-lg text-red-600">${(app.total_retainage || 0).toLocaleString()}</p>
                                 </div>
                                 <div>
-                                  <p className="text-gray-600">PAYMENT DUE</p>
+                                  <p className="text-muted-foreground">PAYMENT DUE</p>
                                   <p className="font-semibold text-lg text-blue-600">${app.current_payment_due.toLocaleString()}</p>
                                 </div>
                               </div>
@@ -526,9 +526,9 @@ export default function PaymentApplications() {
                   </div>
                 ) : (
                   <div className="text-center py-12">
-                    <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-4">No payment applications found for this project.</p>
-                    <Button onClick={handleNewApplication} className="bg-green-600 hover:bg-green-700">
+                    <FileText className="w-12 h-12 text-muted-foreground/70 mx-auto mb-4" />
+                    <p className="text-muted-foreground mb-4">No payment applications found for this project.</p>
+                    <Button onClick={handleNewApplication} >
                       <Plus className="w-4 h-4 mr-2" />
                       Create First Application
                     </Button>
@@ -538,7 +538,7 @@ export default function PaymentApplications() {
             </Card>
 
             {/* Quick Start Guide */}
-            <Card className="bg-white border border-green-300">
+            <Card className="bg-card border border-green-300">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-green-800">
                   <HelpCircle className="w-5 h-5" />
@@ -547,7 +547,7 @@ export default function PaymentApplications() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid md:grid-cols-3 gap-4">
-                  <div className="bg-white p-4 rounded-lg border border-green-200">
+                  <div className="bg-card p-4 rounded-lg border border-green-200">
                     <div className="flex items-center gap-2 mb-2">
                       <CheckSquare className="w-4 h-4 text-green-600" />
                       <h4 className="font-semibold text-green-800">1. Set Up SOV</h4>
@@ -555,7 +555,7 @@ export default function PaymentApplications() {
                     <p className="text-sm text-green-700">Create a Schedule of Values (SOV) for your project with line items and values.</p>
                   </div>
                   
-                  <div className="bg-white p-4 rounded-lg border border-green-200">
+                  <div className="bg-card p-4 rounded-lg border border-green-200">
                     <div className="flex items-center gap-2 mb-2">
                       <Plus className="w-4 h-4 text-green-600" />
                       <h4 className="font-semibold text-green-800">2. Create Application</h4>
@@ -563,7 +563,7 @@ export default function PaymentApplications() {
                     <p className="text-sm text-green-700">Generate G702/G703 payment applications based on work completed for each period.</p>
                   </div>
                   
-                  <div className="bg-white p-4 rounded-lg border border-green-200">
+                  <div className="bg-card p-4 rounded-lg border border-green-200">
                     <div className="flex items-center gap-2 mb-2">
                       <Upload className="w-4 h-4 text-green-600" />
                       <h4 className="font-semibold text-green-800">3. Submit & Track</h4>

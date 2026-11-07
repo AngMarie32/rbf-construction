@@ -189,10 +189,10 @@ export default function BidPackages() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Draft': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'Draft': return 'bg-muted text-foreground border-border';
       case 'Published': return 'bg-green-100 text-green-800 border-green-200';
       case 'Closed': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-muted text-foreground border-border';
     }
   };
 
@@ -224,12 +224,12 @@ export default function BidPackages() {
     <Layout hideTitle title="Bid Packages" subtitle="Manage bid packages and subcontractor invitations">
       <div className="space-y-6">
         {/* Enhanced Header with Stats */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+        <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
           <div className="flex flex-col gap-6">
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Bid Management Center</h1>
-                <p className="text-gray-600 text-lg">Create packages, send invitations, and track responses</p>
+                <h1 className="text-3xl font-bold text-foreground mb-2">Bid Management Center</h1>
+                <p className="text-muted-foreground text-lg">Create packages, send invitations, and track responses</p>
               </div>
               
               <div className="flex flex-wrap gap-2">
@@ -261,8 +261,8 @@ export default function BidPackages() {
                       <Package className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-gray-900">{stats.packages.total}</div>
-                      <div className="text-sm text-gray-600">Total Packages</div>
+                      <div className="text-2xl font-bold text-foreground">{stats.packages.total}</div>
+                      <div className="text-sm text-muted-foreground">Total Packages</div>
                     </div>
                   </div>
                 </CardContent>
@@ -275,8 +275,8 @@ export default function BidPackages() {
                       <TrendingUp className="w-5 h-5 text-green-600" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-gray-900">{stats.packages.published}</div>
-                      <div className="text-sm text-gray-600">Active Packages</div>
+                      <div className="text-2xl font-bold text-foreground">{stats.packages.published}</div>
+                      <div className="text-sm text-muted-foreground">Active Packages</div>
                     </div>
                   </div>
                 </CardContent>
@@ -289,8 +289,8 @@ export default function BidPackages() {
                       <Mail className="w-5 h-5 text-purple-600" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-gray-900">{stats.invitations.sent}</div>
-                      <div className="text-sm text-gray-600">Sent Invitations</div>
+                      <div className="text-2xl font-bold text-foreground">{stats.invitations.sent}</div>
+                      <div className="text-sm text-muted-foreground">Sent Invitations</div>
                     </div>
                   </div>
                 </CardContent>
@@ -303,8 +303,8 @@ export default function BidPackages() {
                       <Users className="w-5 h-5 text-orange-600" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-gray-900">{subcontractors.length}</div>
-                      <div className="text-sm text-gray-600">Subcontractors</div>
+                      <div className="text-2xl font-bold text-foreground">{subcontractors.length}</div>
+                      <div className="text-sm text-muted-foreground">Subcontractors</div>
                     </div>
                   </div>
                 </CardContent>
@@ -354,7 +354,7 @@ export default function BidPackages() {
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4 flex-1">
                 <div className="relative flex-1 max-w-sm">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 w-4 h-4" />
                   <Input
                     type="text"
                     placeholder="Search packages..."
@@ -365,11 +365,11 @@ export default function BidPackages() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-gray-500" />
+                  <Filter className="w-4 h-4 text-muted-foreground" />
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="border rounded-lg px-3 py-2 bg-white"
+                    className="border rounded-lg px-3 py-2 bg-card"
                   >
                     <option value="All">All Statuses</option>
                     <option value="Draft">Draft</option>
@@ -379,7 +379,7 @@ export default function BidPackages() {
                 </div>
               </div>
 
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-muted-foreground">
                 Showing {activeTab === 'packages' ? filteredBidPackages.length : stats.invitations.total} results
               </div>
             </div>
@@ -405,13 +405,13 @@ export default function BidPackages() {
                 {[...Array(6)].map((_, i) => (
                   <Card key={i} className="animate-pulse">
                     <CardHeader>
-                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      <div className="h-4 bg-muted rounded w-3/4"></div>
+                      <div className="h-3 bg-muted rounded w-1/2"></div>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        <div className="h-3 bg-gray-200 rounded"></div>
-                        <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                        <div className="h-3 bg-muted rounded"></div>
+                        <div className="h-3 bg-muted rounded w-2/3"></div>
                       </div>
                     </CardContent>
                   </Card>
@@ -432,24 +432,24 @@ export default function BidPackages() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        <p className="text-sm text-gray-600 line-clamp-2">{pkg.description}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{pkg.description}</p>
                         
                         <div className="grid grid-cols-2 gap-3 text-xs">
                           {pkg.due_date && (
                             <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3 text-gray-400" />
+                              <Calendar className="w-3 h-3 text-muted-foreground/70" />
                               <span>{format(new Date(pkg.due_date), 'MMM d')}</span>
                             </div>
                           )}
                           {pkg.estimated_value && (
                             <div className="flex items-center gap-1">
-                              <DollarSign className="w-3 h-3 text-gray-400" />
+                              <DollarSign className="w-3 h-3 text-muted-foreground/70" />
                               <span>${pkg.estimated_value.toLocaleString()}</span>
                             </div>
                           )}
                         </div>
                         
-                        <div className="pt-2 border-t text-xs text-gray-500">
+                        <div className="pt-2 border-t text-xs text-muted-foreground">
                           Created {format(new Date(pkg.created_at), 'MMM dd, yyyy')}
                         </div>
                       </div>
@@ -460,9 +460,9 @@ export default function BidPackages() {
             ) : (
               <Card className="border-dashed">
                 <CardContent className="text-center py-12">
-                  <Package className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No bid packages found</h3>
-                  <p className="text-gray-600 mb-4">Create your first bid package to get started</p>
+                  <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">No bid packages found</h3>
+                  <p className="text-muted-foreground mb-4">Create your first bid package to get started</p>
                   <Button onClick={() => setCreatePackageOpen(true)}>
                     <Plus className="w-4 h-4 mr-2" />
                     Create Package

@@ -61,7 +61,7 @@ export function CategoryBreakdownTable({
           <div className="space-y-4">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="animate-pulse">
-                <div className="h-12 bg-gray-200 rounded"></div>
+                <div className="h-12 bg-muted rounded"></div>
               </div>
             ))}
           </div>
@@ -96,7 +96,7 @@ export function CategoryBreakdownTable({
           </TableHeader>
           <TableBody>
             {categoryBreakdown.map((category) => (
-              <TableRow key={category.category} className="hover:bg-gray-50">
+              <TableRow key={category.category} className="hover:bg-muted/40">
                 <TableCell className="font-medium">{category.category}</TableCell>
                 <TableCell className="text-right">${category.plannedBudget.toLocaleString()}</TableCell>
                 <TableCell className="text-right">${category.actualSpend.toLocaleString()}</TableCell>

@@ -65,7 +65,7 @@ const AdminUsers = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">
+              <p className="text-muted-foreground">
                 You don't have permission to access this page. Only administrators can manage user roles and permissions.
               </p>
             </CardContent>

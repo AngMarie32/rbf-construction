@@ -125,7 +125,7 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
       case 'In Progress': return 'bg-blue-100 text-blue-800';
       case 'Scheduled': return 'bg-yellow-100 text-yellow-800';
       case 'Cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-muted text-foreground';
     }
   };
 
@@ -240,7 +240,7 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
-            <Building className="w-5 h-5 text-gray-600" />
+            <Building className="w-5 h-5 text-muted-foreground" />
             <div className="flex-1">
               <Label htmlFor="project-select">Select Project</Label>
               <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
@@ -265,25 +265,25 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold">{stats.total}</div>
-            <div className="text-sm text-gray-600">Total Meetings</div>
+            <div className="text-sm text-muted-foreground">Total Meetings</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-yellow-600">{stats.scheduled}</div>
-            <div className="text-sm text-gray-600">Scheduled</div>
+            <div className="text-sm text-muted-foreground">Scheduled</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
-            <div className="text-sm text-gray-600">In Progress</div>
+            <div className="text-sm text-muted-foreground">In Progress</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-            <div className="text-sm text-gray-600">Completed</div>
+            <div className="text-sm text-muted-foreground">Completed</div>
           </CardContent>
         </Card>
       </div>
@@ -441,10 +441,10 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
                       </div>
                       
                       {meeting.description && (
-                        <p className="text-gray-700">{meeting.description}</p>
+                        <p className="text-foreground/80">{meeting.description}</p>
                       )}
                       
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
                           {meeting.date.toLocaleDateString()}
@@ -464,9 +464,9 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
                       </div>
                       
                       {meeting.notes && (
-                        <div className="bg-gray-50 p-3 rounded-md">
+                        <div className="bg-muted/40 p-3 rounded-md">
                           <h4 className="font-medium text-sm mb-1">Meeting Notes:</h4>
-                          <p className="text-sm text-gray-700">{meeting.notes}</p>
+                          <p className="text-sm text-foreground/80">{meeting.notes}</p>
                         </div>
                       )}
                       
@@ -525,7 +525,7 @@ export function MeetingManager({ projectId }: MeetingManagerProps) {
           </div>
           
           {filteredMeetings.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               No meetings found matching your criteria.
             </div>
           )}

@@ -96,16 +96,16 @@ export function BidOverview({ projectId, onExportReport }: BidOverviewProps) {
                 <div key={item.id} className="flex justify-between items-center border-b pb-2">
                   <div>
                     <div className="font-medium">{item.description}</div>
-                    <div className="text-sm text-gray-600">{item.category} - {item.subcategory}</div>
+                    <div className="text-sm text-muted-foreground">{item.category} - {item.subcategory}</div>
                   </div>
                   <div className="text-right">
                     <div className="font-medium">${item.total?.toLocaleString()}</div>
-                    <div className="text-sm text-gray-600">{item.quantity} {item.unit}</div>
+                    <div className="text-sm text-muted-foreground">{item.quantity} {item.unit}</div>
                   </div>
                 </div>
               ))}
               {bidItems.length > 5 && (
-                <div className="text-sm text-gray-600 text-center">
+                <div className="text-sm text-muted-foreground text-center">
                   And {bidItems.length - 5} more items...
                 </div>
               )}
@@ -118,7 +118,7 @@ export function BidOverview({ projectId, onExportReport }: BidOverviewProps) {
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
               <p>No bid items found for this project.</p>
               <p className="text-sm">Create your first bid to get started.</p>
             </div>

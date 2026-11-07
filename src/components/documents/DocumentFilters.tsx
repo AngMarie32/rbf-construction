@@ -131,7 +131,7 @@ export function DocumentFilters({
       <CardContent className="space-y-4">
         {/* Search */}
         <div className="relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70" />
           <Input
             placeholder="Search documents, descriptions, tags..."
             value={searchTerm}
@@ -286,7 +286,7 @@ export function DocumentFilters({
               </div>
               {selectedTags.length > 0 && (
                 <div className="mt-2">
-                  <span className="text-sm text-gray-600">Selected: </span>
+                  <span className="text-sm text-muted-foreground">Selected: </span>
                   {selectedTags.map((tag) => (
                     <Badge key={tag} variant="secondary" className="mr-1">
                       {tag}

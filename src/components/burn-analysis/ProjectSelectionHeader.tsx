@@ -26,10 +26,10 @@ export function ProjectSelectionHeader({ selectedProjects, projects }: ProjectSe
 
   if (selectedProjects.length === 0) {
     return (
-      <Card className="border-dashed border-2 border-gray-300">
+      <Card className="border-dashed border-2 border-input">
         <CardContent className="pt-6">
-          <div className="text-center text-gray-500">
-            <Building className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+          <div className="text-center text-muted-foreground">
+            <Building className="w-12 h-12 mx-auto mb-4 text-muted-foreground/70" />
             <h3 className="text-lg font-semibold mb-2">No Projects Selected</h3>
             <p className="text-sm">
               Please select one or more projects from the filters above to view burn analysis data.

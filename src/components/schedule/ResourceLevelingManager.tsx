@@ -186,7 +186,7 @@ export function ResourceLevelingManager({
                 {resources.map(resource => (
                   <div key={resource.id} className="p-3 border rounded-lg">
                     <div className="font-medium text-sm">{resource.name}</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       Capacity: {resource.capacity} | Cost: ${resource.cost}/day
                     </div>
                   </div>
@@ -208,7 +208,7 @@ export function ResourceLevelingManager({
                 <div className="text-2xl font-bold text-orange-600">
                   {resourceAnalysis.totalConflicts}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-muted-foreground">
                   Total resource conflicts across all dates
                 </div>
               </div>
@@ -224,7 +224,7 @@ export function ResourceLevelingManager({
                         Over-allocated by {conflict.overAllocated}
                       </Badge>
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-muted-foreground">
                       Conflicting tasks: {conflict.conflictingTasks.map(t => t.title).join(', ')}
                     </div>
                   </div>

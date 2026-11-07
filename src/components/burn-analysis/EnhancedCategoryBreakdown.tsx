@@ -39,7 +39,7 @@ export function EnhancedCategoryBreakdown({
       case 'On Track': return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'At Risk': return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
       case 'Over Budget': return <TrendingDown className="w-4 h-4 text-red-500" />;
-      default: return <Clock className="w-4 h-4 text-gray-500" />;
+      default: return <Clock className="w-4 h-4 text-muted-foreground" />;
     }
   };
 
@@ -59,7 +59,7 @@ export function EnhancedCategoryBreakdown({
           <div className="space-y-4">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="animate-pulse">
-                <div className="h-16 bg-gray-200 rounded"></div>
+                <div className="h-16 bg-muted rounded"></div>
               </div>
             ))}
           </div>
@@ -100,7 +100,7 @@ export function EnhancedCategoryBreakdown({
                 (costVariance / category.earnedValue) * 100 : 0;
 
               return (
-                <TableRow key={category.category} className="hover:bg-gray-50">
+                <TableRow key={category.category} className="hover:bg-muted/40">
                   <TableCell className="font-medium">
                     <div>
                       <div>{category.category}</div>
@@ -122,7 +122,7 @@ export function EnhancedCategoryBreakdown({
                   <TableCell className="text-right">
                     <div>
                       <div>${category.earnedValue.toLocaleString()}</div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted-foreground">
                         {category.plannedBudget > 0 ? 
                           `${((category.earnedValue / category.plannedBudget) * 100).toFixed(1)}% earned` : 
                           'N/A'
@@ -164,9 +164,9 @@ export function EnhancedCategoryBreakdown({
         
         {categoryBreakdown.length === 0 && (
           <div className="text-center py-8">
-            <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+            <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-muted-foreground/70" />
             <h3 className="text-lg font-semibold mb-2">No Category Data Available</h3>
-            <p className="text-gray-500 mb-4">
+            <p className="text-muted-foreground mb-4">
               No expenses or budget allocations found for the selected projects and date range.
             </p>
             <Button variant="outline">Setup Category Budgets</Button>

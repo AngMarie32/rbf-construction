@@ -672,7 +672,7 @@ export function CustomReportBuilder({ onClose }: CustomReportBuilderProps) {
           ))}
 
           {report.sections.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               No sections added yet. Click "Add Section" to get started.
             </div>
           )}

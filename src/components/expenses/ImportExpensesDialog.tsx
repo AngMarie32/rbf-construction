@@ -115,7 +115,7 @@ export function ImportExpensesDialog({ onExpensesImported, projects }: ImportExp
                 onChange={handleImageUpload}
                 className="cursor-pointer"
               />
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Upload images of receipts or expense documents. Supported formats: JPG, PNG, GIF
               </p>
             </div>
@@ -145,7 +145,7 @@ export function ImportExpensesDialog({ onExpensesImported, projects }: ImportExp
 
             <div className="bg-yellow-50 p-4 rounded-lg">
               <h4 className="font-medium mb-2">📝 Note:</h4>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 This feature will create placeholder expense entries based on your uploaded images. 
                 You'll need to review and edit the details (amounts, vendors, categories) after import.
                 Future versions will include automatic data extraction from receipt images.

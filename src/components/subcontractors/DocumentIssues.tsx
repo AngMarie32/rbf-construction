@@ -153,7 +153,7 @@ export function DocumentIssues({ onBack }: DocumentIssuesProps) {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">Document Issues</h1>
-            <p className="text-gray-600">Loading...</p>
+            <p className="text-muted-foreground">Loading...</p>
           </div>
         </div>
       </div>
@@ -171,7 +171,7 @@ export function DocumentIssues({ onBack }: DocumentIssuesProps) {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">Document Issues</h1>
-            <p className="text-gray-600">Subcontractors › Document Issues</p>
+            <p className="text-muted-foreground">Subcontractors › Document Issues</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -244,9 +244,9 @@ export function DocumentIssues({ onBack }: DocumentIssuesProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Subcontractors with Issues</p>
+                <p className="text-sm text-muted-foreground">Subcontractors with Issues</p>
                 <p className="text-3xl font-bold">{totalWithIssues}</p>
-                <p className="text-sm text-gray-500">Active tracking</p>
+                <p className="text-sm text-muted-foreground">Active tracking</p>
               </div>
               <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
                 <AlertTriangle className="w-8 h-8 text-red-600" />
@@ -259,9 +259,9 @@ export function DocumentIssues({ onBack }: DocumentIssuesProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Expired Documents</p>
+                <p className="text-sm text-muted-foreground">Expired Documents</p>
                 <p className="text-3xl font-bold">{expiredCount}</p>
-                <p className="text-sm text-gray-500">Requires immediate attention</p>
+                <p className="text-sm text-muted-foreground">Requires immediate attention</p>
               </div>
               <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
                 <FileX className="w-8 h-8 text-red-600" />
@@ -274,9 +274,9 @@ export function DocumentIssues({ onBack }: DocumentIssuesProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Expiring Soon</p>
+                <p className="text-sm text-muted-foreground">Expiring Soon</p>
                 <p className="text-3xl font-bold">{expiringSoonCount}</p>
-                <p className="text-sm text-gray-500">Within next 30 days</p>
+                <p className="text-sm text-muted-foreground">Within next 30 days</p>
               </div>
               <div className="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center">
                 <Clock className="w-8 h-8 text-yellow-600" />
@@ -289,9 +289,9 @@ export function DocumentIssues({ onBack }: DocumentIssuesProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Missing Documents</p>
+                <p className="text-sm text-muted-foreground">Missing Documents</p>
                 <p className="text-3xl font-bold">{missingCount}</p>
-                <p className="text-sm text-gray-500">Required documents not submitted</p>
+                <p className="text-sm text-muted-foreground">Required documents not submitted</p>
               </div>
               <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center">
                 <FileX className="w-8 h-8 text-orange-600" />
@@ -307,7 +307,7 @@ export function DocumentIssues({ onBack }: DocumentIssuesProps) {
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-64">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 w-4 h-4" />
                 <Input
                   placeholder="Search subcontractors..."
                   value={searchTerm}
@@ -361,9 +361,9 @@ export function DocumentIssues({ onBack }: DocumentIssuesProps) {
         <CardContent>
           {filteredIssues.length === 0 ? (
             <div className="text-center py-12">
-              <FileX className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-600 mb-2">No Document Issues Found</h3>
-              <p className="text-gray-500 mb-4">
+              <FileX className="w-12 h-12 text-muted-foreground/70 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-muted-foreground mb-2">No Document Issues Found</h3>
+              <p className="text-muted-foreground mb-4">
                 All subcontractor documents appear to be up to date.
               </p>
               <Button onClick={() => setUploadDialogOpen(true)}>
@@ -381,7 +381,7 @@ export function DocumentIssues({ onBack }: DocumentIssuesProps) {
                     </div>
                     <div>
                       <h4 className="font-semibold">{issue.subcontractor_name}</h4>
-                      <p className="text-sm text-gray-600">{issue.document_type}</p>
+                      <p className="text-sm text-muted-foreground">{issue.document_type}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
@@ -390,7 +390,7 @@ export function DocumentIssues({ onBack }: DocumentIssuesProps) {
                         {issue.status}
                       </Badge>
                       {issue.expiration_date && (
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-sm text-muted-foreground mt-1">
                           Expires: {new Date(issue.expiration_date).toLocaleDateString()}
                         </p>
                       )}

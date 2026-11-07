@@ -141,10 +141,10 @@ export const BidInvitationsList: React.FC<BidInvitationsListProps> = ({ refreshT
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Draft': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'Draft': return 'bg-muted text-foreground border-border';
       case 'Sent': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'Responded': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-muted text-foreground border-border';
     }
   };
 
@@ -210,13 +210,13 @@ export const BidInvitationsList: React.FC<BidInvitationsListProps> = ({ refreshT
         {[...Array(3)].map((_, i) => (
           <Card key={i} className="animate-pulse">
             <CardHeader>
-              <div className="h-6 bg-gray-200 rounded w-3/4"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              <div className="h-6 bg-muted rounded w-3/4"></div>
+              <div className="h-4 bg-muted rounded w-1/2"></div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="h-4 bg-gray-200 rounded"></div>
-                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                <div className="h-4 bg-muted rounded"></div>
+                <div className="h-4 bg-muted rounded w-2/3"></div>
               </div>
             </CardContent>
           </Card>
@@ -229,9 +229,9 @@ export const BidInvitationsList: React.FC<BidInvitationsListProps> = ({ refreshT
     return (
       <Card className="border-dashed">
         <CardContent className="text-center py-12">
-          <Mail className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No bid invitations yet</h3>
-          <p className="text-gray-600 mb-4">Create your first bid invitation to get started</p>
+          <Mail className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">No bid invitations yet</h3>
+          <p className="text-muted-foreground mb-4">Create your first bid invitation to get started</p>
           <Button>
             <Mail className="w-4 h-4 mr-2" />
             Create Invitation
@@ -247,7 +247,7 @@ export const BidInvitationsList: React.FC<BidInvitationsListProps> = ({ refreshT
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="flex flex-1 items-center space-x-2">
           <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 w-4 h-4" />
             <Input
               placeholder="Search invitations..."
               value={searchQuery}
@@ -270,7 +270,7 @@ export const BidInvitationsList: React.FC<BidInvitationsListProps> = ({ refreshT
         </div>
         
         {/* Summary Stats */}
-        <div className="flex items-center space-x-4 text-sm text-gray-600">
+        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
           <span>{filteredInvitations.length} invitations</span>
           <span>•</span>
           <span>{filteredInvitations.filter(i => i.status === 'Sent').length} active</span>
@@ -295,7 +295,7 @@ export const BidInvitationsList: React.FC<BidInvitationsListProps> = ({ refreshT
                         <span className="ml-1">{invitation.status}</span>
                       </Badge>
                     </CardTitle>
-                    <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
                       <span className="font-medium">{invitation.bid_package?.project?.name}</span>
                       <span>•</span>
                       <span>{invitation.bid_package?.name}</span>
@@ -343,7 +343,7 @@ export const BidInvitationsList: React.FC<BidInvitationsListProps> = ({ refreshT
               <CardContent>
                 <div className="space-y-4">
                   {invitation.message && (
-                    <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-200">
+                    <p className="text-sm text-foreground/80 bg-muted/40 p-3 rounded-lg border-l-4 border-blue-200">
                       {invitation.message}
                     </p>
                   )}
@@ -351,36 +351,36 @@ export const BidInvitationsList: React.FC<BidInvitationsListProps> = ({ refreshT
                   {/* Enhanced Stats Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <Calendar className="w-4 h-4 text-muted-foreground/70" />
                       <div>
                         <div className="font-medium">Due Date</div>
-                        <div className="text-gray-600">
+                        <div className="text-muted-foreground">
                           {invitation.due_date ? format(new Date(invitation.due_date), 'MMM d, yyyy') : 'Not set'}
                         </div>
                       </div>
                     </div>
                     
                     <div className="flex items-center gap-2 text-sm">
-                      <Users className="w-4 h-4 text-gray-400" />
+                      <Users className="w-4 h-4 text-muted-foreground/70" />
                       <div>
                         <div className="font-medium">Recipients</div>
-                        <div className="text-gray-600">{total} invited</div>
+                        <div className="text-muted-foreground">{total} invited</div>
                       </div>
                     </div>
                     
                     <div className="flex items-center gap-2 text-sm">
-                      <CheckCircle2 className="w-4 h-4 text-gray-400" />
+                      <CheckCircle2 className="w-4 h-4 text-muted-foreground/70" />
                       <div>
                         <div className="font-medium">Response Rate</div>
-                        <div className="text-gray-600">{responseRate}% ({responded}/{total})</div>
+                        <div className="text-muted-foreground">{responseRate}% ({responded}/{total})</div>
                       </div>
                     </div>
                     
                     <div className="flex items-center gap-2 text-sm">
-                      <FileText className="w-4 h-4 text-gray-400" />
+                      <FileText className="w-4 h-4 text-muted-foreground/70" />
                       <div>
                         <div className="font-medium">Documents</div>
-                        <div className="text-gray-600">{invitation.bid_invitation_documents.length} files</div>
+                        <div className="text-muted-foreground">{invitation.bid_invitation_documents.length} files</div>
                       </div>
                     </div>
                   </div>
@@ -388,9 +388,9 @@ export const BidInvitationsList: React.FC<BidInvitationsListProps> = ({ refreshT
                   {/* Recipients Preview */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">Recipients</span>
+                      <span className="text-sm font-medium text-foreground/80">Recipients</span>
                       {invitation.sent_at && (
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-muted-foreground">
                           Sent {format(new Date(invitation.sent_at), 'MMM d, h:mm a')}
                         </span>
                       )}
@@ -405,7 +405,7 @@ export const BidInvitationsList: React.FC<BidInvitationsListProps> = ({ refreshT
                         </Badge>
                       ))}
                       {total > 4 && (
-                        <Badge variant="outline" className="text-xs text-gray-500">
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
                           +{total - 4} more
                         </Badge>
                       )}
@@ -414,7 +414,7 @@ export const BidInvitationsList: React.FC<BidInvitationsListProps> = ({ refreshT
 
                   {/* Action Buttons */}
                   <div className="flex justify-between items-center pt-2 border-t">
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       Created {format(new Date(invitation.created_at), 'MMM d, yyyy')}
                     </div>
                     

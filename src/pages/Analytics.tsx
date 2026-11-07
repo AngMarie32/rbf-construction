@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,6 +24,23 @@ import { DateRange } from 'react-day-picker';
 interface FieldLeader {
   id: string;
   name: string;
+}
+
+function ExportMenu({ onExport }: { onExport: (format: 'excel' | 'pdf' | 'csv') => void }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Download className="w-4 h-4" /> Export
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => onExport('excel')}>Excel (.xlsx)</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onExport('pdf')}>PDF</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onExport('csv')}>CSV</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 export default function Analytics() {
@@ -310,8 +328,8 @@ export default function Analytics() {
   );
 
   return (
-    <Layout title="Analytics & Reporting" subtitle="Executive reports and business intelligence">
-      <div className="space-y-8">
+    <Layout title="Analytics & Reports" subtitle="Company-wide reports on projects, money and labor">
+      <div className="space-y-6">
         <ReportFilters
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
@@ -329,36 +347,38 @@ export default function Analytics() {
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6 bg-white/80 backdrop-blur-sm border shadow-sm">
-            <TabsTrigger value="gallery" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
+          <div className="-mx-1 overflow-x-auto px-1">
+          <TabsList className="inline-flex w-max">
+            <TabsTrigger value="gallery" className="gap-2">
               <FileText className="w-4 h-4" />
               Gallery
             </TabsTrigger>
-            <TabsTrigger value="snapshot" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
+            <TabsTrigger value="snapshot" className="gap-2">
               <FileText className="w-4 h-4" />
               Snapshot
             </TabsTrigger>
-            <TabsTrigger value="project" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
+            <TabsTrigger value="project" className="gap-2">
               <Building className="w-4 h-4" />
               Projects
             </TabsTrigger>
-            <TabsTrigger value="financial" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
+            <TabsTrigger value="financial" className="gap-2">
               <BarChart3 className="w-4 h-4" />
               Financial
             </TabsTrigger>
-            <TabsTrigger value="labor" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
+            <TabsTrigger value="labor" className="gap-2">
               <Users className="w-4 h-4" />
               Labor
             </TabsTrigger>
-            <TabsTrigger value="builder" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
+            <TabsTrigger value="builder" className="gap-2">
               <Settings className="w-4 h-4" />
               Report Builder
             </TabsTrigger>
           </TabsList>
+          </div>
 
 
-          <TabsContent value="gallery" className="space-y-6 mt-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <TabsContent value="gallery" className="space-y-6 mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredReports.map((report, index) => (
                 <ReportCard
                   key={index}
@@ -377,27 +397,16 @@ export default function Analytics() {
             
             {filteredReports.length === 0 && (
               <div className="text-center py-12">
-                <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No reports found</h3>
-                <p className="text-gray-600">Try adjusting your filters to see more reports.</p>
+                <FileText className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">No reports found</h3>
+                <p className="text-muted-foreground">Try adjusting your filters to see more reports.</p>
               </div>
             )}
           </TabsContent>
 
           <TabsContent value="snapshot" className="space-y-4">
-            <div className="flex justify-end gap-2 mb-4">
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('snapshot', 'excel')}>
-                <Download className="w-4 h-4 mr-1" />
-                Excel
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('snapshot', 'pdf')}>
-                <Download className="w-4 h-4 mr-1" />
-                PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('snapshot', 'csv')}>
-                <Download className="w-4 h-4 mr-1" />
-                CSV
-              </Button>
+            <div className="flex justify-end">
+              <ExportMenu onExport={(fmt) => handleExportReport('snapshot', fmt)} />
             </div>
             <ProjectReport 
               projects={projects}
@@ -408,55 +417,22 @@ export default function Analytics() {
           </TabsContent>
 
           <TabsContent value="project" className="space-y-4">
-            <div className="flex justify-end gap-2 mb-4">
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('project', 'excel')}>
-                <Download className="w-4 h-4 mr-1" />
-                Excel
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('project', 'pdf')}>
-                <Download className="w-4 h-4 mr-1" />
-                PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('project', 'csv')}>
-                <Download className="w-4 h-4 mr-1" />
-                CSV
-              </Button>
+            <div className="flex justify-end">
+              <ExportMenu onExport={(fmt) => handleExportReport('project', fmt)} />
             </div>
             {reportData.project && <ProjectReports data={reportData.project} />}
           </TabsContent>
 
           <TabsContent value="financial" className="space-y-4">
-            <div className="flex justify-end gap-2 mb-4">
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('financial', 'excel')}>
-                <Download className="w-4 h-4 mr-1" />
-                Excel
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('financial', 'pdf')}>
-                <Download className="w-4 h-4 mr-1" />
-                PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('financial', 'csv')}>
-                <Download className="w-4 h-4 mr-1" />
-                CSV
-              </Button>
+            <div className="flex justify-end">
+              <ExportMenu onExport={(fmt) => handleExportReport('financial', fmt)} />
             </div>
             {reportData.financial && <FinancialReports data={reportData.financial} />}
           </TabsContent>
 
           <TabsContent value="labor" className="space-y-4">
-            <div className="flex justify-end gap-2 mb-4">
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('labor', 'excel')}>
-                <Download className="w-4 h-4 mr-1" />
-                Excel
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('labor', 'pdf')}>
-                <Download className="w-4 h-4 mr-1" />
-                PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExportReport('labor', 'csv')}>
-                <Download className="w-4 h-4 mr-1" />
-                CSV
-              </Button>
+            <div className="flex justify-end">
+              <ExportMenu onExport={(fmt) => handleExportReport('labor', fmt)} />
             </div>
             {reportData.labor && <LaborReport data={reportData.labor} />}
           </TabsContent>

@@ -2,6 +2,8 @@ import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 import { useState, useEffect } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
+import { Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -57,6 +59,8 @@ interface BillingRecord {
     client?: string;
   };
 }
+
+const money = (n: number) => `$${(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
 export default function ProjectBilling() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -216,202 +220,152 @@ export default function ProjectBilling() {
       case 'sent':
         return 'bg-blue-100 text-blue-800';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-muted text-foreground';
     }
   };
 
+  const statusTone: Record<string, 'success' | 'destructive' | 'info'> = {
+    paid: 'success',
+    overdue: 'destructive',
+    sent: 'info',
+  };
+
+  const columns: DataTableColumn<BillingRecord>[] = [
+    {
+      id: 'project',
+      header: 'Project',
+      value: (r) => r.project?.name,
+      cell: (r) => (
+        <div>
+          <Link to={`/projects/${r.project_id}?tab=billing`} className="font-medium hover:text-primary">{r.project?.name}</Link>
+          {r.project?.client && <div className="text-xs text-muted-foreground">{r.project.client}</div>}
+        </div>
+      ),
+    },
+    { id: 'invoice', header: 'Invoice #', value: (r) => r.invoice_number, cell: (r) => r.invoice_number || '—' },
+    {
+      id: 'period',
+      header: 'Period',
+      value: (r) => r.billing_period_start,
+      cell: (r) => (
+        <span className="whitespace-nowrap">
+          {format(new Date(r.billing_period_start), 'MMM d')} – {format(new Date(r.billing_period_end), 'MMM d, yyyy')}
+        </span>
+      ),
+    },
+    { id: 'billed', header: 'Billed', align: 'right', value: (r) => r.billed_amount, cell: (r) => money(r.billed_amount) },
+    { id: 'paid', header: 'Paid', align: 'right', value: (r) => r.paid_amount, cell: (r) => money(r.paid_amount) },
+    {
+      id: 'remaining',
+      header: 'Remaining',
+      align: 'right',
+      value: (r) => r.billed_amount - r.paid_amount,
+      cell: (r) => {
+        const owed = r.billed_amount - r.paid_amount;
+        return <span className={owed > 0 ? 'font-semibold' : 'text-muted-foreground'}>{money(owed)}</span>;
+      },
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      value: (r) => r.status,
+      cell: (r) => (
+        <Badge variant={statusTone[r.status.toLowerCase()] || 'secondary'} className="capitalize">
+          {r.status}
+        </Badge>
+      ),
+    },
+    { id: 'due', header: 'Due', value: (r) => r.due_date, cell: (r) => (r.due_date ? format(new Date(r.due_date), 'MMM d, yyyy') : '—') },
+    {
+      id: 'actions',
+      header: '',
+      align: 'right',
+      cell: (r) => (
+        <div className="flex justify-end gap-1">
+          <Button size="sm" variant="ghost" onClick={() => setEditingBilling(r)}>Edit</Button>
+          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => handleDeleteBilling(r.id)}>
+            Delete
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  const summary = [
+    { label: 'Total billed', value: totalBilled, icon: DollarSign, tone: '' },
+    { label: 'Payments received', value: totalReceived, icon: CheckCircle, tone: '' },
+    { label: 'Outstanding', value: totalOutstanding, icon: AlertTriangle, tone: totalOutstanding > 0 ? 'text-amber-600 dark:text-amber-400' : '' },
+  ];
+
   return (
-    <Layout title="Project Billing" subtitle="Manage billing records across all projects">
+    <Layout
+      title="Billing"
+      subtitle="What you've invoiced each client, what's been paid and what's still owed"
+      actions={
+        <Button onClick={() => setBillingDialogOpen(true)}>
+          <Plus className="w-4 h-4" /> New bill
+        </Button>
+      }
+    >
       <div className="space-y-6">
-        {/* Header Actions */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Button onClick={() => setBillingDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Add New Billing
-            </Button>
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              Export CSV
-            </Button>
-          </div>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Billed</CardTitle>
-              <DollarSign className="h-5 w-5 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">${totalBilled.toLocaleString()}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Payments Received</CardTitle>
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">${totalReceived.toLocaleString()}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Outstanding</CardTitle>
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">${totalOutstanding.toLocaleString()}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-              <div className="relative flex-1 min-w-[300px]">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search by project, invoice number, or notes..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {summary.map((s) => (
+            <Card key={s.label} className="p-5">
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>{s.label}</span>
+                <s.icon className="h-4 w-4" />
               </div>
-              
+              <div className={`mt-2 text-2xl font-bold tabular-nums ${s.tone}`}>{money(s.value)}</div>
+            </Card>
+          ))}
+        </div>
+
+        <div className="overflow-x-auto">
+          <FinancialDateFilter currentFilter={dateFilter} onFilterChange={setDateFilter} />
+        </div>
+
+        <DataTable
+          columns={columns}
+          rows={filteredRecords}
+          totalCount={billingRecords.length}
+          getRowId={(r) => r.id}
+          loading={loading}
+          searchPlaceholder="Search project, invoice #…"
+          exportFilename="billing"
+          initialSort={{ id: 'period', desc: true }}
+          filters={
+            <>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
+                <SelectTrigger className="w-[140px]"><SelectValue placeholder="All statuses" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="all">All statuses</SelectItem>
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="sent">Sent</SelectItem>
                   <SelectItem value="paid">Paid</SelectItem>
                   <SelectItem value="overdue">Overdue</SelectItem>
                 </SelectContent>
               </Select>
-
               <Select value={projectFilter} onValueChange={setProjectFilter}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="All Projects" />
-                </SelectTrigger>
+                <SelectTrigger className="w-[180px]"><SelectValue placeholder="All projects" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Projects</SelectItem>
+                  <SelectItem value="all">All projects</SelectItem>
                   {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
+                    <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-
-              <FinancialDateFilter
-                currentFilter={dateFilter}
-                onFilterChange={setDateFilter}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Results Summary */}
-        <div className="text-sm text-gray-600">
-          Showing {filteredRecords.length} of {billingRecords.length} billing records
-        </div>
-
-        {/* Billing Records Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Billing Records</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex justify-center items-center h-48">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
-              </div>
-            ) : filteredRecords.length === 0 ? (
-              <EmptyState
-                icon={ReceiptIcon}
-                filtered={billingRecords.length > 0}
-                title="Send your first bill"
-                description="Billing records track what you've invoiced each client, what they've paid and what's still owed, per project and billing period."
-                action={{ label: 'Create your first bill', onClick: () => setBillingDialogOpen(true) }}
-                secondaryAction={{ label: 'Use a pay application (AIA)', icon: FileTextIcon, to: '/payment-applications' }}
-              />
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Project</TableHead>
-                      <TableHead>Invoice #</TableHead>
-                      <TableHead>Period</TableHead>
-                      <TableHead>Billed</TableHead>
-                      <TableHead>Paid</TableHead>
-                      <TableHead>Remaining</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredRecords.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{record.project?.name}</div>
-                            {record.project?.client && (
-                              <div className="text-sm text-gray-500">{record.project.client}</div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>{record.invoice_number || '-'}</TableCell>
-                        <TableCell>
-                          {format(new Date(record.billing_period_start), 'MMM dd')} - {format(new Date(record.billing_period_end), 'MMM dd, yyyy')}
-                        </TableCell>
-                        <TableCell>${record.billed_amount.toLocaleString()}</TableCell>
-                        <TableCell>${record.paid_amount.toLocaleString()}</TableCell>
-                        <TableCell>${(record.billed_amount - record.paid_amount).toLocaleString()}</TableCell>
-                        <TableCell>
-                          <Badge className={getStatusBadgeColor(record.status)}>
-                            {record.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {record.due_date ? format(new Date(record.due_date), 'MMM dd, yyyy') : '-'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setEditingBilling(record)}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-red-600 hover:text-red-700"
-                              onClick={() => handleDeleteBilling(record.id)}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </>
+          }
+          empty={
+            <EmptyState
+              icon={ReceiptIcon}
+              title="Send your first bill"
+              description="Billing records track what you've invoiced each client, what they've paid and what's still owed, per project and billing period."
+              action={{ label: 'Create your first bill', onClick: () => setBillingDialogOpen(true) }}
+              secondaryAction={{ label: 'Use a pay application (AIA)', icon: FileTextIcon, to: '/payment-applications' }}
+            />
+          }
+        />
 
         {/* Dialogs */}
         <ImprovedBillingDialog

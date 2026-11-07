@@ -156,7 +156,7 @@ export function QuickPlanner({ open, onOpenChange, projects, onTemplateApplied, 
         
         <div className="space-y-4 overflow-y-auto">
           {/* Project Selection */}
-          <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+          <div className="flex items-center gap-4 p-4 bg-muted/40 rounded-lg">
             <Label className="font-medium">Project:</Label>
             <Select value={selectedProject} onValueChange={setSelectedProject}>
               <SelectTrigger className="w-64">
@@ -259,7 +259,7 @@ export function QuickPlanner({ open, onOpenChange, projects, onTemplateApplied, 
                       />
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-muted-foreground">
                         {format(calculateEndDate(task.startDate, task.duration), "MMM dd, yyyy")}
                       </div>
                     </TableCell>
@@ -295,7 +295,7 @@ export function QuickPlanner({ open, onOpenChange, projects, onTemplateApplied, 
                 ))}
                 {tasks.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No tasks added yet. Click "Add Task" to get started.
                     </TableCell>
                   </TableRow>

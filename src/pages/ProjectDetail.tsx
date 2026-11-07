@@ -25,7 +25,11 @@ import {
   MapPin,
   User,
   HardHat,
+  Copy,
+  Loader2,
+  BadgeCheck,
 } from 'lucide-react';
+import { ScanReceiptDialog } from '@/components/expenses/ScanReceiptDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BurnAnalysisTab } from '@/components/projects/BurnAnalysisTab';
@@ -67,6 +71,7 @@ export default function ProjectDetail() {
     setSearchParams(next, { replace: true });
   };
   const [changeOrderOpen, setChangeOrderOpen] = useState(false);
+  const [reusing, setReusing] = useState(false);
   const [project, setProject] = useState<GlobalProject | null>(null);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -246,7 +251,60 @@ export default function ProjectDetail() {
     { label: 'Invoice / billing', icon: CreditCard, to: `/billing${qs}` },
     { label: 'Document', icon: Upload, to: `/documents${qs}` },
     { label: 'Punch item', icon: ListChecks, to: `/punch-list${qs}` },
+    { label: 'Permit', icon: BadgeCheck, to: `/permits${qs}` },
   ];
+
+  /** Turn this job's real costs into a Bid Template (one line per cost category) for estimating similar work. */
+  const reuseCostsForBid = async () => {
+    if (expenses.length === 0) {
+      toast.info('This job has no recorded costs yet, so there is nothing to reuse.');
+      return;
+    }
+    setReusing(true);
+    try {
+      const byCategory: Record<string, { total: number; count: number; vendors: Record<string, number> }> = {};
+      expenses.forEach((e) => {
+        const c = e.category || 'Other';
+        const g = (byCategory[c] ||= { total: 0, count: 0, vendors: {} });
+        g.total += e.amount || 0;
+        g.count += 1;
+        if (e.vendor) g.vendors[e.vendor] = (g.vendors[e.vendor] || 0) + (e.amount || 0);
+      });
+      const { data: tpl, error } = await supabase
+        .from('bid_templates')
+        .insert({
+          name: `Actual costs: ${project.name}`,
+          description: `Built from ${expenses.length} recorded costs on ${project.name}${project.client ? ` (${project.client})` : ''}, contract ${money(project.contractValue || 0)}. Adjust quantities and markup for the new bid.`,
+        })
+        .select('id')
+        .single();
+      if (error || !tpl) throw error || new Error('No template created');
+      const items = Object.entries(byCategory)
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([category, g], i) => {
+          const topVendors = Object.entries(g.vendors).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([v]) => v);
+          return {
+            template_id: tpl.id,
+            category,
+            description: `${category} (actual from ${project.name}, ${g.count} entr${g.count === 1 ? 'y' : 'ies'}${topVendors.length ? `; ${topVendors.join(', ')}` : ''})`,
+            quantity: 1,
+            unit: 'LS',
+            unit_cost: Math.round(g.total * 100) / 100,
+            markup_pct: 0,
+            sort_order: i,
+          };
+        });
+      const { error: itemsError } = await supabase.from('bid_template_items').insert(items);
+      if (itemsError) throw itemsError;
+      toast.success('Bid template created from this job\'s actual costs.');
+      navigate('/bid-templates');
+    } catch (e) {
+      console.error(e);
+      toast.error('Could not create the bid template.');
+    } finally {
+      setReusing(false);
+    }
+  };
 
   const ViewAll = ({ to, label }: { to: string; label: string }) => (
     <Button asChild variant="ghost" size="sm" className="text-primary">
@@ -278,30 +336,37 @@ export default function ProjectDetail() {
                 {project.type && <span>{project.type}</span>}
               </div>
             </div>
-            <Button variant="outline" onClick={() => setEditDialogOpen(true)} className="shrink-0">
-              <Edit className="w-4 h-4 mr-2" />
-              Edit project
-            </Button>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button variant="outline" onClick={reuseCostsForBid} disabled={reusing} title="Create a bid template from this job's actual costs">
+                {reusing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+                Reuse costs for a bid
+              </Button>
+              <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
+                <Edit className="w-4 h-4" />
+                Edit project
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Quick actions */}
         <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
-          <span className="mr-1 text-sm font-medium text-muted-foreground">Add to this job:</span>
+          <span className="mr-1 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground"><Plus className="h-4 w-4" />Add to this job:</span>
           {quickActions.map((a) => {
-            const inner = (<><Plus className="mr-1 h-3.5 w-3.5" /><a.icon className="mr-1.5 h-4 w-4" />{a.label}</>);
+            const inner = (<><a.icon className="h-4 w-4" />{a.label}</>);
             return a.to ? (
               <Button key={a.label} asChild variant="secondary" size="sm"><Link to={a.to}>{inner}</Link></Button>
             ) : (
               <Button key={a.label} variant="secondary" size="sm" onClick={a.onClick}>{inner}</Button>
             );
           })}
+          <ScanReceiptDialog onExpenseCreated={() => fetchProjectData()} defaultProjectId={pid} triggerLabel="Snap receipt" />
         </div>
 
         {/* Key numbers */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {stats.map((s) => (
-            <Card key={s.label} className="enhanced-card">
+            <Card key={s.label} className="p-0">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>{s.label}</span>

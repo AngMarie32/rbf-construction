@@ -308,7 +308,7 @@ export function MaintenanceDialog({ open, onOpenChange, equipmentId, equipmentNa
                   {loading ? (
                     <div className="text-center py-8">Loading maintenance records...</div>
                   ) : completedRecords.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-8 text-muted-foreground">
                       No completed maintenance records found.
                     </div>
                   ) : (
@@ -327,7 +327,7 @@ export function MaintenanceDialog({ open, onOpenChange, equipmentId, equipmentNa
                           <TableRow key={record.id}>
                             <TableCell>
                               <div className="flex items-center space-x-2">
-                                <Calendar className="w-4 h-4 text-gray-400" />
+                                <Calendar className="w-4 h-4 text-muted-foreground/70" />
                                 <span>{format(record.date, 'MMM dd, yyyy')}</span>
                               </div>
                             </TableCell>
@@ -361,7 +361,7 @@ export function MaintenanceDialog({ open, onOpenChange, equipmentId, equipmentNa
                   {loading ? (
                     <div className="text-center py-8">Loading scheduled maintenance...</div>
                   ) : scheduledRecords.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-8 text-muted-foreground">
                       No scheduled maintenance found.
                     </div>
                   ) : (
@@ -379,7 +379,7 @@ export function MaintenanceDialog({ open, onOpenChange, equipmentId, equipmentNa
                           <TableRow key={record.id}>
                             <TableCell>
                               <div className="flex items-center space-x-2">
-                                <Clock className="w-4 h-4 text-gray-400" />
+                                <Clock className="w-4 h-4 text-muted-foreground/70" />
                                 <span>{record.nextDue ? format(record.nextDue, 'MMM dd, yyyy') : 'N/A'}</span>
                               </div>
                             </TableCell>

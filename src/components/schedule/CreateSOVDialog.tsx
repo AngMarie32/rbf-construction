@@ -441,7 +441,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
             <div className="space-y-6">
               <div className="text-center">
                 <h3 className="text-lg font-semibold mb-2">How would you like to start?</h3>
-                <p className="text-gray-600">Choose a template to get started quickly, or build from scratch</p>
+                <p className="text-muted-foreground">Choose a template to get started quickly, or build from scratch</p>
               </div>
 
               {/* Built-in Templates */}
@@ -457,7 +457,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                       className={`p-6 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
                         selectedTemplate === template.id 
                           ? 'border-blue-500 bg-blue-50 shadow-md' 
-                          : 'border-gray-200 hover:border-gray-300'
+                          : 'border-border hover:border-input'
                       }`}
                       onClick={() => handleTemplateSelect(template.id)}
                     >
@@ -465,9 +465,9 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                         {template.icon}
                       </div>
                       <h3 className="font-medium text-center mb-2">{template.name}</h3>
-                      <p className="text-sm text-gray-500 text-center">{template.description}</p>
+                      <p className="text-sm text-muted-foreground text-center">{template.description}</p>
                       <div className="mt-3 text-center">
-                        <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                        <span className="text-xs bg-muted px-2 py-1 rounded">
                           {template.items.length} items
                         </span>
                       </div>
@@ -490,7 +490,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                         className={`p-6 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
                           selectedTemplate === template.id 
                             ? 'border-purple-500 bg-purple-50 shadow-md' 
-                            : 'border-gray-200 hover:border-gray-300'
+                            : 'border-border hover:border-input'
                         }`}
                         onClick={() => handleTemplateSelect(template.id)}
                       >
@@ -511,9 +511,9 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                           </Button>
                         </div>
                         <h3 className="font-medium text-center mb-2">{template.name}</h3>
-                        <p className="text-sm text-gray-500 text-center">{template.description}</p>
+                        <p className="text-sm text-muted-foreground text-center">{template.description}</p>
                         <div className="mt-3 text-center">
-                          <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                          <span className="text-xs bg-muted px-2 py-1 rounded">
                             {template.bid_template_items?.length || 0} items
                           </span>
                         </div>
@@ -533,7 +533,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                   className={`p-6 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
                     selectedTemplate === 'scratch' 
                       ? 'border-green-500 bg-green-50 shadow-md' 
-                      : 'border-gray-200 hover:border-gray-300'
+                      : 'border-border hover:border-input'
                   }`}
                   onClick={() => handleTemplateSelect('scratch')}
                 >
@@ -541,7 +541,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                     <Plus className="w-8 h-8 text-green-600" />
                   </div>
                   <h3 className="font-medium text-center mb-2">Start from Scratch</h3>
-                  <p className="text-sm text-gray-500 text-center">
+                  <p className="text-sm text-muted-foreground text-center">
                     Create your own custom structure from the ground up. Perfect for unique projects.
                   </p>
                 </div>
@@ -681,7 +681,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                       ))}
                       {sovItems.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                             No line items added yet. Click "Add Line Item" to get started.
                           </TableCell>
                         </TableRow>
@@ -691,7 +691,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                 </div>
 
                 {sovItems.length > 0 && (
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="mt-4 p-4 bg-muted/40 rounded-lg">
                     <div className="flex justify-between items-center">
                       <span className="font-medium">Total Contract Value:</span>
                       <span className="text-xl font-bold text-blue-600">
@@ -710,7 +710,7 @@ export function CreateSOVDialog({ open, onOpenChange, projectId, onSave }: Creat
                   value={projectInfo.notes}
                   onChange={(e) => setProjectInfo({...projectInfo, notes: e.target.value})}
                   placeholder="Enter any additional notes"
-                  className="w-full p-3 border border-gray-300 rounded-md resize-none"
+                  className="w-full p-3 border border-input rounded-md resize-none"
                   rows={3}
                 />
               </div>

@@ -700,7 +700,7 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
       <CardContent>
         <div className="w-full">
           <div className="min-w-full">
-            <div className="grid grid-cols-12 gap-2 pb-3 mb-3 text-xs font-semibold text-gray-700 bg-gray-50 px-3 py-3 rounded">
+            <div className="grid grid-cols-12 gap-2 pb-3 mb-3 text-xs font-semibold text-foreground/80 bg-muted/40 px-3 py-3 rounded">
               <div className="col-span-1">Division</div>
               <div className="col-span-2">Category</div>
               <div className="col-span-2">Subcategory</div>
@@ -714,7 +714,7 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
 
             <div className="space-y-2">
               {currentItems.map((item, index) => (
-                <div key={item.id} className={`grid grid-cols-12 gap-2 items-center py-3 px-3 rounded ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-all duration-200`}>
+                <div key={item.id} className={`grid grid-cols-12 gap-2 items-center py-3 px-3 rounded ${index % 2 === 0 ? 'bg-card' : 'bg-muted/40'} hover:bg-blue-50 transition-all duration-200`}>
                   <div className="col-span-1">
                     <SearchableSelect
                       value={item.division}
@@ -817,15 +817,15 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
         </div>
 
         {currentItems.length > 0 && (
-          <div className="border-t pt-6 mt-6 bg-gradient-to-r from-gray-50 to-blue-50 px-6 py-6 rounded-lg">
+          <div className="border-t pt-6 mt-6 bg-card px-6 py-6 border border-border shadow-sm rounded-lg">
             <div className="flex justify-end">
               <div className="text-right space-y-2">
-                <div className="text-xl font-bold text-gray-700">
+                <div className="text-xl font-bold text-foreground/80">
                   Subtotal: ${calculateGrandTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 {contingency > 0 && (
                   <>
-                    <div className="text-lg text-gray-600">
+                    <div className="text-lg text-muted-foreground">
                       Contingency ({contingency}%): ${(calculateGrandTotal() * (contingency / 100)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="text-3xl font-bold text-blue-700 border-t pt-2">
@@ -838,7 +838,7 @@ export function BidItemForm({ items, onItemsChange, projectId, contingency = 0 }
                     Grand Total: ${calculateGrandTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 )}
-                <div className="text-sm text-gray-600 mt-2">
+                <div className="text-sm text-muted-foreground mt-2">
                   {currentItems.length} line item{currentItems.length !== 1 ? 's' : ''}
                 </div>
               </div>

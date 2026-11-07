@@ -3387,6 +3387,118 @@ export type Database = {
         }
         Relationships: []
       }
+      permit_inspections: {
+        Row: {
+          created_at: string
+          id: string
+          inspection_type: string
+          inspector: string | null
+          notes: string | null
+          permit_id: string
+          result: string
+          scheduled_date: string
+          scheduled_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inspection_type: string
+          inspector?: string | null
+          notes?: string | null
+          permit_id: string
+          result?: string
+          scheduled_date: string
+          scheduled_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inspection_type?: string
+          inspector?: string | null
+          notes?: string | null
+          permit_id?: string
+          result?: string
+          scheduled_date?: string
+          scheduled_time?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permit_inspections_permit_id_fkey"
+            columns: ["permit_id"]
+            isOneToOne: false
+            referencedRelation: "permits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permits: {
+        Row: {
+          application_date: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          expiration_date: string | null
+          fee_amount: number | null
+          fee_paid: boolean
+          id: string
+          issued_date: string | null
+          issuing_authority: string
+          notes: string | null
+          permit_number: string | null
+          permit_type: string
+          project_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          application_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          expiration_date?: string | null
+          fee_amount?: number | null
+          fee_paid?: boolean
+          id?: string
+          issued_date?: string | null
+          issuing_authority?: string
+          notes?: string | null
+          permit_number?: string | null
+          permit_type?: string
+          project_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          application_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          expiration_date?: string | null
+          fee_amount?: number | null
+          fee_paid?: boolean
+          id?: string
+          issued_date?: string | null
+          issuing_authority?: string
+          notes?: string | null
+          permit_number?: string | null
+          permit_type?: string
+          project_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permits_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_applications: {
         Row: {
           application_number: number

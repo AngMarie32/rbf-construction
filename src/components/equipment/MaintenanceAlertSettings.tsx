@@ -198,8 +198,8 @@ export function MaintenanceAlertSettings({ equipmentId, equipmentName }: Mainten
             </CardHeader>
             <CardContent>
               {alertSettings.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <div className="text-center py-8 text-muted-foreground">
+                  <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
                   <p>No alert settings configured</p>
                   <p className="text-sm">Add an alert above to get notified about upcoming maintenance</p>
                 </div>
@@ -211,7 +211,7 @@ export function MaintenanceAlertSettings({ equipmentId, equipmentName }: Mainten
                         <div className={`w-3 h-3 rounded-full ${alert.is_active ? 'bg-green-500' : 'bg-gray-300'}`} />
                         <div>
                           <div className="font-medium capitalize">{alert.alert_type}</div>
-                          <div className="text-sm text-gray-500 flex items-center gap-1">
+                          <div className="text-sm text-muted-foreground flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             Alert {alert.alert_days_before} days before due
                           </div>

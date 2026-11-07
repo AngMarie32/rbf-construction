@@ -99,9 +99,9 @@ export function EquipmentEstimator({
   };
 
   return (
-    <div className="fixed right-0 top-0 h-full w-96 bg-white border-l shadow-lg z-50 flex flex-col">
+    <div className="fixed right-0 top-0 h-full w-96 bg-card border-l shadow-lg z-50 flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b bg-gray-50">
+      <div className="p-4 border-b bg-muted/40">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Cost Estimator</h3>
           <Button
@@ -132,8 +132,8 @@ export function EquipmentEstimator({
       <div className="flex-1 overflow-y-auto p-4">
         {selectedEquipment.length === 0 ? (
           <div className="text-center py-12">
-            <Truck className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">Add equipment using the Add button</p>
+            <Truck className="w-16 h-16 text-muted-foreground/50 mx-auto mb-4" />
+            <p className="text-muted-foreground">Add equipment using the Add button</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -147,7 +147,7 @@ export function EquipmentEstimator({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
+                          className="h-6 w-6 p-0 text-muted-foreground/70 hover:text-red-500"
                           onClick={() => onRemoveEquipment(item.equipment.id)}
                         >
                           <X className="w-3 h-3" />
@@ -158,7 +158,7 @@ export function EquipmentEstimator({
                         <Badge variant="secondary" className="text-xs">
                           {item.equipment.category}
                         </Badge>
-                        <span className="text-xs text-gray-600">
+                        <span className="text-xs text-muted-foreground">
                           ${item.equipment.hourly_rate}/hr
                         </span>
                       </div>
@@ -213,7 +213,7 @@ export function EquipmentEstimator({
                   const categoryCost = categoryItems.reduce((sum, item) => sum + calculateItemCost(item), 0);
                   return (
                     <div key={category} className="flex justify-between items-center py-1">
-                      <span className="text-sm text-gray-600">{category}</span>
+                      <span className="text-sm text-muted-foreground">{category}</span>
                       <span className="text-sm font-medium">${categoryCost.toLocaleString()}</span>
                     </div>
                   );
@@ -222,7 +222,7 @@ export function EquipmentEstimator({
             </Card>
           </div>
 
-          <div className="p-4 border-t bg-gray-50">
+          <div className="p-4 border-t bg-muted/40">
             <div className="flex justify-between items-center mb-3">
               <span className="font-semibold">Total Cost:</span>
               <span className="text-xl font-bold text-blue-600">${totalCost.toLocaleString()}</span>

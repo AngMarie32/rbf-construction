@@ -404,7 +404,7 @@ export function EnhancedExportDialog({
             <Button 
               onClick={handleGeneratePDF}
               disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700"
+              
             >
               <Printer className="w-4 h-4 mr-2" />
               PDF Report

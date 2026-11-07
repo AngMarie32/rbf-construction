@@ -28,7 +28,7 @@ interface PlannerBoardProps {
 }
 
 const statusColumns: { status: Task['status']; title: string; color: string }[] = [
-  { status: 'Not Started', title: 'To Do', color: 'bg-gray-100' },
+  { status: 'Not Started', title: 'To Do', color: 'bg-muted' },
   { status: 'In Progress', title: 'In Progress', color: 'bg-blue-100' },
   { status: 'Completed', title: 'Done', color: 'bg-green-100' },
   { status: 'On Hold', title: 'On Hold', color: 'bg-yellow-100' }
@@ -127,11 +127,11 @@ export function PlannerBoard({
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, column.status)}
             >
-              <div className={`rounded-t-lg p-4 ${column.color} border-b-2 border-gray-200`}>
+              <div className={`rounded-t-lg p-4 ${column.color} border-b-2 border-border`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-gray-800">{column.title}</h3>
-                    <Badge variant="outline" className="bg-white">
+                    <h3 className="font-semibold text-foreground">{column.title}</h3>
+                    <Badge variant="outline" className="bg-card">
                       {columnTasks.length}
                     </Badge>
                   </div>
@@ -146,11 +146,11 @@ export function PlannerBoard({
                 </div>
               </div>
               
-              <div className="bg-gray-50 min-h-96 p-4 space-y-3 rounded-b-lg">
+              <div className="bg-muted/40 min-h-96 p-4 space-y-3 rounded-b-lg">
                 {columnTasks.map((task) => (
                   <Card
                     key={task.id}
-                    className="cursor-move hover:shadow-md transition-shadow bg-white border-l-4"
+                    className="cursor-move hover:shadow-md transition-shadow bg-card border-l-4"
                     style={{ borderLeftColor: getProjectColor(task.projectId) }}
                     draggable
                     onDragStart={() => handleDragStart(task)}
@@ -176,7 +176,7 @@ export function PlannerBoard({
                             className="w-2 h-2 rounded-full"
                             style={{ backgroundColor: getProjectColor(task.projectId) }}
                           />
-                          <span className="text-xs text-gray-600 truncate">
+                          <span className="text-xs text-muted-foreground truncate">
                             {getProjectName(task.projectId)}
                           </span>
                         </div>
@@ -184,14 +184,14 @@ export function PlannerBoard({
                         {/* Progress */}
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-xs">
-                            <span className="text-gray-600">Progress</span>
+                            <span className="text-muted-foreground">Progress</span>
                             <span className="font-medium">{task.progress}%</span>
                           </div>
                           <Progress value={task.progress} className="h-1" />
                         </div>
 
                         {/* Dates and Priority */}
-                        <div className="flex items-center justify-between text-xs text-gray-500">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             <span>{format(task.startDate, 'MMM dd')}</span>
@@ -202,7 +202,7 @@ export function PlannerBoard({
                         </div>
 
                         {/* Due Date */}
-                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Clock className="w-3 h-3" />
                           <span>Due: {format(task.endDate, 'MMM dd, yyyy')}</span>
                         </div>
@@ -217,8 +217,8 @@ export function PlannerBoard({
                         {/* Assignee (placeholder) */}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1">
-                            <User className="w-3 h-3 text-gray-400" />
-                            <span className="text-xs text-gray-500">Assigned</span>
+                            <User className="w-3 h-3 text-muted-foreground/70" />
+                            <span className="text-xs text-muted-foreground">Assigned</span>
                           </div>
                           <Avatar className="h-6 w-6">
                             <AvatarFallback className="text-xs">
@@ -232,7 +232,7 @@ export function PlannerBoard({
                 ))}
                 
                 {columnTasks.length === 0 && (
-                  <div className="text-center py-8 text-gray-400">
+                  <div className="text-center py-8 text-muted-foreground/70">
                     <div className="text-sm">No tasks</div>
                     <Button
                       variant="ghost"
