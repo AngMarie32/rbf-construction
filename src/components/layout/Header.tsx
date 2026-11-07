@@ -24,7 +24,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { user, signOut } = useAuth();
-  const { notifications, markAsRead, deleteNotification, getUnreadCount } = useNotificationStore();
+  const { notifications, markAsRead, deleteNotification, getUnreadCount, clearAll } = useNotificationStore();
   const unreadCount = getUnreadCount();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
@@ -109,8 +109,20 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               side="bottom"
               sideOffset={5}
             >
-              <div className="p-4 border-b">
+              <div className="flex items-center justify-between p-4 border-b">
                 <h3 className="font-semibold">Notifications</h3>
+                {notifications.length > 0 && (
+                  <div className="flex gap-1">
+                    {unreadCount > 0 && (
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={(e) => { e.preventDefault(); notifications.forEach((n) => !n.read && markAsRead(n.id)); }}>
+                        Mark all read
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={(e) => { e.preventDefault(); clearAll(); }}>
+                      Clear all
+                    </Button>
+                  </div>
+                )}
               </div>
               {notifications.length > 0 ? (
                 notifications.slice(0, 10).map((notification) => (

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { HardHat, Eye, EyeOff, ArrowLeft, Fish, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Fish, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -174,9 +174,6 @@ export default function Auth() {
       <div className="flex items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-orange-600 text-white">
-              <HardHat className="h-5 w-5" />
-            </span>
             <div className="leading-tight">
               <div className="font-display text-lg font-extrabold tracking-tight">RBF Construction</div>
               <div className="text-xs text-muted-foreground">Rather Be Fishing</div>
