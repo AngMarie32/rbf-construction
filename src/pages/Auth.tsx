@@ -119,6 +119,8 @@ export default function Auth() {
     'Concrete takes 28 days to cure. Plenty of time to fish.',
     "Ahead of schedule? Bait's in the truck.",
   ];
+  // Drop a picture at public/login-hero.jpg to replace the drawn scene; falls back to the SVG if it's missing.
+  const [heroFailed, setHeroFailed] = useState(false);
   const [joke] = useState(() => jokes[Math.floor(Math.random() * jokes.length)]);
 
   return (
@@ -148,7 +150,16 @@ export default function Auth() {
         </div>
 
         <div className="relative">
-          <GoneFishingScene className="w-full max-w-xl rounded-[28px] shadow-2xl shadow-black/40" />
+          {heroFailed ? (
+            <GoneFishingScene className="w-full max-w-xl rounded-[28px] shadow-2xl shadow-black/40" />
+          ) : (
+            <img
+              src="/login-hero.jpg"
+              alt="RBF crew member fishing off the dock next to a job site"
+              onError={() => setHeroFailed(true)}
+              className="aspect-[4/3] w-full max-w-xl rounded-[28px] object-cover shadow-2xl shadow-black/40"
+            />
+          )}
           <h2 className="mt-8 font-display text-5xl font-extrabold leading-none tracking-tight">
             <span className="text-accent">R</span>ather <span className="text-accent">B</span>e <span className="text-accent">F</span>ishing.
           </h2>
