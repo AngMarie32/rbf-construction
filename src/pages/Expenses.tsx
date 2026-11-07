@@ -1,6 +1,8 @@
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
+import { Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,9 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Download, Edit, Trash2, Eye, TrendingUp, MoreHorizontal, ArrowUpDown, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { Search, Download, Edit, Trash2, Eye, TrendingUp, FileText, CheckCircle, XCircle, Paperclip, Clock } from 'lucide-react';
 import { CreateExpenseDialog } from '@/components/expenses/CreateExpenseDialog';
 import { EditExpenseDialog } from '@/components/expenses/EditExpenseDialog';
 import { BulkExpenseDialog } from '@/components/expenses/BulkExpenseDialog';
@@ -164,7 +166,7 @@ export default function Expenses() {
       expense.amount.toString().includes(searchTerm) ||
       expense.receipt_number?.toLowerCase().includes(searchLower) ||
       new Date(expense.date).toLocaleDateString().includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || expense.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || expense.status === statusFilter || (statusFilter === 'pending' && expense.status.includes('Pending'));
     const matchesProject = projectFilter === 'all' || expense.project_id === projectFilter;
     const matchesCategory = (categoryFilter === 'all' || expense.category === categoryFilter) &&
       (vendorFilter === 'all' || (expense.vendor || '') === vendorFilter);
@@ -350,324 +352,235 @@ export default function Expenses() {
     toast.success(`Expense report exported as ${format.toUpperCase()}`);
   };
 
+  const STATUSES = ['Pending Field Approval', 'Pending Office Approval', 'Approved', 'Paid', 'Rejected'];
+  const money2 = (n: number) => `$${(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const columns: DataTableColumn<Expense>[] = [
+    {
+      id: 'date',
+      header: 'Date',
+      value: (e) => e.date,
+      cell: (e) => <span className="whitespace-nowrap">{new Date(e.date).toLocaleDateString()}</span>,
+    },
+    {
+      id: 'project',
+      header: 'Project',
+      value: (e) => e.projects?.name,
+      cell: (e) => (
+        <Link to={`/projects/${e.project_id}?tab=expenses`} className="font-medium hover:text-primary">
+          {e.projects?.name || 'Unknown'}
+        </Link>
+      ),
+    },
+    {
+      id: 'description',
+      header: 'Description',
+      value: (e) => e.description,
+      cell: (e) => (
+        <div className="max-w-[280px]">
+          <div className="truncate">{e.description || '—'}</div>
+          {e.receipt_number && <div className="text-xs text-muted-foreground">#{e.receipt_number}</div>}
+        </div>
+      ),
+    },
+    { id: 'category', header: 'Category', value: (e) => e.category, cell: (e) => <Badge variant="secondary">{e.category}</Badge> },
+    { id: 'vendor', header: 'Vendor', value: (e) => e.vendor, cell: (e) => e.vendor || <span className="text-muted-foreground">—</span> },
+    { id: 'amount', header: 'Amount', align: 'right', value: (e) => e.amount, cell: (e) => <span className="font-medium">{money2(e.amount)}</span> },
+    {
+      id: 'status',
+      header: 'Status',
+      value: (e) => e.status,
+      cell: (e) => (
+        <Select value={e.status} onValueChange={(newStatus) => handleStatusChange(e.id, newStatus)}>
+          <SelectTrigger className="h-auto w-auto border-0 bg-transparent p-0 shadow-none focus:ring-0 [&>svg]:hidden" aria-label="Change status">
+            <Badge variant={getStatusColor(e.status) as 'success' | 'warning' | 'destructive' | 'info' | 'secondary'} className="cursor-pointer whitespace-nowrap">
+              <span className="mr-1">{getStatusIcon(e.status)}</span>
+              {e.status}
+            </Badge>
+          </SelectTrigger>
+          <SelectContent>
+            {STATUSES.map((st) => <SelectItem key={st} value={st}>{st}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      ),
+    },
+    {
+      id: 'actions',
+      header: '',
+      align: 'right',
+      cell: (e) => (
+        <div className="flex justify-end gap-0.5">
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" aria-label="Edit" onClick={() => setEditingExpense(e)}>
+            <Edit className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Attach invoice" aria-label="Attach invoice" onClick={() => setAttachingInvoice({ id: e.id, description: e.description })}>
+            <Paperclip className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="View invoice" aria-label="View invoice" onClick={() => setViewingInvoice({ id: e.id, description: e.description })}>
+            <Eye className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Delete" aria-label="Delete" onClick={() => handleDeleteExpense(e.id)}>
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  const summaryCards = [
+    { label: 'Paid', value: expenseSummary.paid, tone: '' },
+    { label: 'Approved, not yet paid', value: expenseSummary.approved, tone: '' },
+    { label: 'Waiting for approval', value: expenseSummary.pending, tone: expenseSummary.pending > 0 ? 'text-amber-600 dark:text-amber-400' : '' },
+  ];
+
+  const pendingCount = expenses.filter((e) => e.status.includes('Pending')).length;
+
   return (
-    <Layout title="Expense Management" subtitle="Track and manage project expenses">
+    <Layout
+      title="Expenses"
+      subtitle="Every dollar spent on a job: materials, subs, rentals and permits"
+      actions={
+        <>
+          <Button variant="outline" onClick={() => setVendorAnalysisOpen(true)}>
+            <TrendingUp className="w-4 h-4" /> Vendor analysis
+          </Button>
+          <BulkExpenseDialog onExpensesCreated={fetchExpenses} projects={projects} />
+          <CreateExpenseDialog onExpenseCreated={fetchExpenses} projects={projects} />
+        </>
+      }
+    >
       <div className="space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-sm font-medium text-muted-foreground">Paid</p>
-              <p className="text-2xl font-bold">${expenseSummary.paid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-sm font-medium text-muted-foreground">Approved</p>
-              <p className="text-2xl font-bold">${expenseSummary.approved.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-sm font-medium text-muted-foreground">Pending</p>
-              <p className="text-2xl font-bold">${expenseSummary.pending.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {summaryCards.map((c) => (
+            <Card key={c.label} className="p-5">
+              <p className="text-sm text-muted-foreground">{c.label}</p>
+              <p className={`mt-2 text-2xl font-bold tabular-nums ${c.tone}`}>{money2(c.value)}</p>
+            </Card>
+          ))}
         </div>
 
-        {/* Actions and Filters */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>Expense Records</CardTitle>
-              <div className="flex gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline">
-                      <MoreHorizontal className="w-4 h-4 mr-2" />
-                      More Actions
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => handleExport('excel')}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Export Excel
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExport('pdf')}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Export PDF
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExport('csv')}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Export CSV
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <div className="w-full">
-                        <ImportExpensesDialog onExpensesImported={fetchExpenses} projects={projects} />
-                      </div>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <BulkExpenseDialog onExpensesCreated={fetchExpenses} projects={projects} />
-                <Button 
-                  onClick={() => setVendorAnalysisOpen(true)}
-                  variant="outline"
-                >
-                  <TrendingUp className="w-4 h-4 mr-2" />
-                  Vendor Analysis
-                </Button>
-                <CreateExpenseDialog onExpenseCreated={fetchExpenses} projects={projects} />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Filters */}
-            <div className="flex gap-4 items-center flex-wrap">
-              <div className="relative flex-1 min-w-64">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search expenses..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              
-              <DatePickerWithRange
-                date={dateRange}
-                onDateChange={setDateRange}
-                className="w-auto"
-              />
-              
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
+        {pendingCount > 0 && statusFilter === 'all' && (
+          <button
+            type="button"
+            onClick={() => setStatusFilter('pending')}
+            className="flex w-full items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-left text-sm hover:bg-amber-500/15"
+          >
+            <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <span className="flex-1">
+              <strong>{pendingCount}</strong> expense{pendingCount === 1 ? ' is' : 's are'} waiting for approval.
+            </span>
+            <span className="font-medium text-amber-700 dark:text-amber-300">Review now →</span>
+          </button>
+        )}
+
+        <DataTable
+          columns={columns}
+          rows={filteredExpenses}
+          totalCount={expenses.length}
+          getRowId={(e) => e.id}
+          loading={loading}
+          searchable={false}
+          selectedIds={selectedExpenses}
+          onSelectedIdsChange={setSelectedExpenses}
+          bulkActions={
+            <>
+              <Button size="sm" variant="outline" onClick={() => handleBulkStatusChange('Approved')}>
+                <CheckCircle className="w-4 h-4" /> Approve
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => handleBulkStatusChange('Paid')}>
+                Mark paid
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => handleBulkStatusChange('Rejected')}>
+                <XCircle className="w-4 h-4" /> Reject
+              </Button>
+              <Select onValueChange={handleBulkStatusChange}>
+                <SelectTrigger className="h-9 w-48"><SelectValue placeholder="Set status to…" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="Pending Field Approval">Pending Field</SelectItem>
-                  <SelectItem value="Pending Office Approval">Pending Office</SelectItem>
+                  {STATUSES.map((st) => <SelectItem key={st} value={st}>{st}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </>
+          }
+          filters={
+            <>
+              <div className="relative w-full sm:w-60">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input placeholder="Search expenses…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
+              </div>
+              <DatePickerWithRange date={dateRange} onDateChange={setDateRange} className="w-auto" />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-44"><SelectValue placeholder="All statuses" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="pending">Waiting for approval</SelectItem>
+                  <SelectItem value="Pending Field Approval">Pending field</SelectItem>
+                  <SelectItem value="Pending Office Approval">Pending office</SelectItem>
                   <SelectItem value="Approved">Approved</SelectItem>
                   <SelectItem value="Paid">Paid</SelectItem>
                   <SelectItem value="Rejected">Rejected</SelectItem>
                 </SelectContent>
               </Select>
-
               <Select value={projectFilter} onValueChange={setProjectFilter}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filter by project" />
-                </SelectTrigger>
+                <SelectTrigger className="w-44"><SelectValue placeholder="All projects" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Projects</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">All projects</SelectItem>
+                  {projects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filter by category" />
-                </SelectTrigger>
+                <SelectTrigger className="w-40"><SelectValue placeholder="All categories" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">All categories</SelectItem>
+                  {categories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}
                 </SelectContent>
               </Select>
-
               <Select value={vendorFilter} onValueChange={(v) => { setVendorFilter(v); setSortColumn('vendor'); setSortDirection('asc'); }}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filter by vendor" />
-                </SelectTrigger>
+                <SelectTrigger className="w-40"><SelectValue placeholder="All vendors" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Vendors</SelectItem>
-                  {vendors.map((v) => (
-                    <SelectItem key={v} value={v}>{v}</SelectItem>
-                  ))}
+                  <SelectItem value="all">All vendors</SelectItem>
+                  {vendors.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </div>
-
-            {/* Bulk Actions Bar */}
-            {selectedExpenses.size > 0 && (
-              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                <span className="text-sm font-medium">{selectedExpenses.size} selected</span>
-                <Select onValueChange={handleBulkStatusChange}>
-                  <SelectTrigger className="w-56 h-9">
-                    <SelectValue placeholder="Change status to…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pending Field Approval">Pending Field Approval</SelectItem>
-                    <SelectItem value="Pending Office Approval">Pending Office Approval</SelectItem>
-                    <SelectItem value="Approved">Approved</SelectItem>
-                    <SelectItem value="Paid">Paid</SelectItem>
-                    <SelectItem value="Rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button size="sm" variant="outline" onClick={() => handleBulkStatusChange('Approved')}>
-                  <CheckCircle className="w-4 h-4 mr-1" /> Approve
+            </>
+          }
+          toolbarEnd={
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="w-4 h-4" /> Export
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => handleBulkStatusChange('Rejected')}>
-                  <XCircle className="w-4 h-4 mr-1" /> Reject
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => handleBulkStatusChange('Paid')}>
-                  Paid
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setSelectedExpenses(new Set())}>
-                  Clear
-                </Button>
-              </div>
-            )}
-
-            {/* Expenses Table */}
-            {loading ? (
-              <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-              </div>
-            ) : filteredExpenses.length === 0 ? (
-              <EmptyState
-                icon={TrendingUp}
-                filtered={expenses.length > 0}
-                title="Record your first job cost"
-                description="Expenses are every dollar spent on a job: materials, subcontractor invoices, equipment rental, permits. Tie each one to a project to see true job profit."
-                actionSlot={<CreateExpenseDialog onExpenseCreated={fetchExpenses} projects={projects} />}
-                secondaryAction={{ label: 'Import from QuickBooks report', icon: FileText, to: '/report-import' }}
-                steps={['Add costs one at a time or in bulk', 'Attach the receipt or invoice', 'Watch job profit update on the project']}
-              />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10">
-                      <Checkbox
-                        checked={filteredExpenses.length > 0 && selectedExpenses.size === filteredExpenses.length}
-                        onCheckedChange={toggleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('date')}>
-                      <div className="flex items-center gap-1">
-                        Date
-                        <ArrowUpDown className="w-3 h-3" />
-                      </div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('project')}>
-                      <div className="flex items-center gap-1">
-                        Project
-                        <ArrowUpDown className="w-3 h-3" />
-                      </div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('description')}>
-                      <div className="flex items-center gap-1">
-                        Description
-                        <ArrowUpDown className="w-3 h-3" />
-                      </div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('category')}>
-                      <div className="flex items-center gap-1">
-                        Category
-                        <ArrowUpDown className="w-3 h-3" />
-                      </div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('vendor')}>
-                      <div className="flex items-center gap-1">
-                        Vendor
-                        <ArrowUpDown className="w-3 h-3" />
-                      </div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('amount')}>
-                      <div className="flex items-center gap-1">
-                        Amount
-                        <ArrowUpDown className="w-3 h-3" />
-                      </div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status')}>
-                      <div className="flex items-center gap-1">
-                        Status
-                        <ArrowUpDown className="w-3 h-3" />
-                      </div>
-                    </TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredExpenses.map((expense) => (
-                    <TableRow key={expense.id} className={selectedExpenses.has(expense.id) ? 'bg-muted/40' : ''}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedExpenses.has(expense.id)}
-                          onCheckedChange={() => toggleSelectExpense(expense.id)}
-                        />
-                      </TableCell>
-                      <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
-                      <TableCell>{expense.projects?.name || 'Unknown'}</TableCell>
-                      <TableCell>{expense.description || ''}</TableCell>
-                      <TableCell>{expense.category}</TableCell>
-                      <TableCell>{expense.vendor || 'N/A'}</TableCell>
-                      <TableCell className="font-medium">${expense.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                      <TableCell>
-                        <Select value={expense.status} onValueChange={(newStatus) => handleStatusChange(expense.id, newStatus)}>
-                          <SelectTrigger className="w-auto border-0 bg-transparent p-0">
-                            <Badge variant={getStatusColor(expense.status) as any} className="cursor-pointer px-3 py-1 font-medium">
-                              <span className="mr-1">{getStatusIcon(expense.status)}</span>
-                              {expense.status}
-                            </Badge>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Pending Field Approval">Pending Field Approval</SelectItem>
-                            <SelectItem value="Pending Office Approval">Pending Office Approval</SelectItem>
-                            <SelectItem value="Approved">Approved</SelectItem>
-                            <SelectItem value="Paid">Paid</SelectItem>
-                            <SelectItem value="Rejected">Rejected</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditingExpense(expense)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setAttachingInvoice({ id: expense.id, description: expense.description })}
-                          >
-                            <FileText className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setViewingInvoice({ id: expense.id, description: expense.description })}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteExpense(expense.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleExport('excel')}>Excel (.xlsx)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('pdf')}>PDF</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('csv')}>CSV</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <div className="w-full">
+                    <ImportExpensesDialog onExpensesImported={fetchExpenses} projects={projects} />
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          }
+          footer={(rows) => (
+            <>
+              <TableCell colSpan={5} className="text-right text-sm text-muted-foreground">Total of {rows.length} shown</TableCell>
+              <TableCell className="text-right tabular-nums">{money2(rows.reduce((sum, e) => sum + e.amount, 0))}</TableCell>
+              <TableCell colSpan={2} />
+            </>
+          )}
+          empty={
+            <EmptyState
+              icon={TrendingUp}
+              title="Record your first job cost"
+              description="Expenses are every dollar spent on a job: materials, subcontractor invoices, equipment rental, permits. Tie each one to a project to see true job profit."
+              actionSlot={<CreateExpenseDialog onExpenseCreated={fetchExpenses} projects={projects} />}
+              secondaryAction={{ label: 'Import from QuickBooks report', icon: FileText, to: '/report-import' }}
+              steps={['Add costs one at a time or in bulk', 'Attach the receipt or invoice', 'Watch job profit update on the project']}
+            />
+          }
+        />
 
         {/* Dialogs */}
         {editingExpense && (

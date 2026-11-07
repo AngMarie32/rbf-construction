@@ -1,9 +1,10 @@
-import { ReactNode, useEffect, useMemo, useState } from 'react';
+import { Fragment, ReactNode, useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Download, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
 export interface DataTableColumn<T> {
@@ -42,6 +43,16 @@ interface DataTableProps<T> {
   rowClassName?: (row: T) => string | undefined;
   /** Footer row, e.g. totals. Receives the filtered rows. */
   footer?: (rows: T[]) => ReactNode;
+  /** Row checkboxes. Pass both to enable; "select all" covers every row that matches the current search. */
+  selectedIds?: Set<string>;
+  onSelectedIdsChange?: (ids: Set<string>) => void;
+  /** Shown in a bar above the table while rows are selected. */
+  bulkActions?: ReactNode;
+  /** Extra buttons at the right end of the toolbar (e.g. an export menu with more formats). */
+  toolbarEnd?: ReactNode;
+  className?: string;
+  /** Optional full-width detail row shown under a row (return null for none). */
+  renderExpanded?: (row: T) => ReactNode;
 }
 
 function toComparable(v: unknown): string | number {
@@ -76,7 +87,14 @@ export function DataTable<T>({
   onRowClick,
   rowClassName,
   footer,
+  selectedIds,
+  onSelectedIdsChange,
+  bulkActions,
+  toolbarEnd,
+  className,
+  renderExpanded,
 }: DataTableProps<T>) {
+  const selectable = !!selectedIds && !!onSelectedIdsChange;
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<{ id: string; desc: boolean } | null>(
     initialSort ? { id: initialSort.id, desc: !!initialSort.desc } : null
@@ -135,10 +153,19 @@ export function DataTable<T>({
     a === 'right' ? 'text-right' : a === 'center' ? 'text-center' : 'text-left';
 
   const total = totalCount ?? rows.length;
-  const showToolbar = searchable || filters || exportFilename;
+  const showToolbar = searchable || filters || exportFilename || toolbarEnd;
+  const allSelected = selectable && sorted.length > 0 && sorted.every((r) => selectedIds!.has(getRowId(r)));
+  const someSelected = selectable && !allSelected && sorted.some((r) => selectedIds!.has(getRowId(r)));
+  const toggleAll = () => onSelectedIdsChange!(allSelected ? new Set() : new Set(sorted.map(getRowId)));
+  const toggleOne = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    onSelectedIdsChange!(next);
+  };
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
+    <div className={cn('overflow-hidden rounded-xl border bg-card', className)}>
       {showToolbar && (
         <div className="flex flex-col gap-3 border-b p-3 sm:flex-row sm:items-center">
           {searchable && (
@@ -152,12 +179,21 @@ export function DataTable<T>({
             <span className="whitespace-nowrap text-xs text-muted-foreground">
               {loading ? 'Loading…' : sorted.length === total ? `${total} ${total === 1 ? 'record' : 'records'}` : `${sorted.length} of ${total}`}
             </span>
+            {toolbarEnd}
             {exportFilename && (
               <Button variant="outline" size="sm" onClick={exportCsv} disabled={loading || sorted.length === 0}>
                 <Download className="h-4 w-4" /> Export
               </Button>
             )}
           </div>
+        </div>
+      )}
+
+      {selectable && selectedIds!.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 border-b bg-primary/5 px-4 py-2.5">
+          <span className="text-sm font-medium">{selectedIds!.size} selected</span>
+          {bulkActions}
+          <Button size="sm" variant="ghost" onClick={() => onSelectedIdsChange!(new Set())}>Clear</Button>
         </div>
       )}
 
@@ -179,6 +215,15 @@ export function DataTable<T>({
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
+                {selectable && (
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                      onCheckedChange={toggleAll}
+                      aria-label="Select all"
+                    />
+                  </TableHead>
+                )}
                 {columns.map((c) => {
                   const active = sort?.id === c.id;
                   return (
@@ -201,21 +246,38 @@ export function DataTable<T>({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visible.map((r) => (
+              {visible.map((r) => {
+                const detail = renderExpanded?.(r);
+                return (
+                <Fragment key={getRowId(r)}>
                 <TableRow
-                  key={getRowId(r)}
                   onClick={onRowClick ? () => onRowClick(r) : undefined}
-                  className={cn(onRowClick && 'cursor-pointer', rowClassName?.(r))}
+                  className={cn(onRowClick && 'cursor-pointer', selectable && selectedIds!.has(getRowId(r)) && 'bg-primary/5', rowClassName?.(r))}
                 >
+                  {selectable && (
+                    <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox checked={selectedIds!.has(getRowId(r))} onCheckedChange={() => toggleOne(getRowId(r))} aria-label="Select row" />
+                    </TableCell>
+                  )}
                   {columns.map((c) => (
                     <TableCell key={c.id} className={cn(alignClass(c.align), c.align === 'right' && 'tabular-nums', c.className)}>
                       {c.cell(r)}
                     </TableCell>
                   ))}
                 </TableRow>
-              ))}
+                {detail && (
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableCell colSpan={columns.length + (selectable ? 1 : 0)}>{detail}</TableCell>
+                  </TableRow>
+                )}
+                </Fragment>
+                );
+              })}
               {footer && (
-                <TableRow className="bg-muted/40 font-semibold hover:bg-muted/40">{footer(sorted)}</TableRow>
+                <TableRow className="bg-muted/40 font-semibold hover:bg-muted/40">
+                  {selectable && <TableCell />}
+                  {footer(sorted)}
+                </TableRow>
               )}
             </TableBody>
           </Table>

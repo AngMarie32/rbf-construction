@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -220,6 +221,48 @@ export default function EquipmentInsights() {
     }
   };
 
+
+  type EquipRow = (typeof rows)[number];
+  const equipColumns: DataTableColumn<EquipRow>[] = [
+    {
+      id: 'name',
+      header: 'Equipment',
+      value: (r) => r.eq.name,
+      cell: (r) => (
+        <div>
+          <div className="font-medium">{r.eq.name}</div>
+          <div className="text-xs text-muted-foreground">
+            {r.eq.category} {r.eq.year ? `• ${r.eq.year}` : ''} • {r.events} events
+          </div>
+        </div>
+      ),
+    },
+    { id: 'value', header: 'Book value', align: 'right', value: (r) => Number(r.eq.value || 0), cell: (r) => currency(Number(r.eq.value || 0)) },
+    { id: 'spend', header: 'Repairs (period)', align: 'right', value: (r) => r.spend, cell: (r) => currency(r.spend) },
+    { id: 'lifetime', header: 'Lifetime repairs', align: 'right', value: (r) => r.lifetime, cell: (r) => currency(r.lifetime) },
+    { id: 'ratio', header: '% of value', align: 'right', value: (r) => r.ratio, cell: (r) => `${r.ratio.toFixed(2)}%` },
+    { id: 'cph', header: '$ / hour', align: 'right', value: (r) => r.costPerHour, cell: (r) => currency(r.costPerHour) },
+    { id: 'health', header: 'Health', value: (r) => r.ratio, noExport: true, cell: (r) => healthBadge(r.ratio) },
+    {
+      id: 'est',
+      header: 'Est. value',
+      align: 'right',
+      value: (r) => (valuations[r.eq.id] ? Number(valuations[r.eq.id].estimated_value || 0) : null),
+      cell: (r) => (valuations[r.eq.id] ? currency(Number(valuations[r.eq.id].estimated_value || 0)) : '—'),
+    },
+    {
+      id: 'actions',
+      header: '',
+      align: 'right',
+      cell: (r) => (
+        <Button size="sm" variant="outline" disabled={valuingId === r.eq.id} onClick={() => runValuation(r.eq)} title="Run smart valuation">
+          {valuingId === r.eq.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+          Value
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <Layout title="Equipment Intelligence" subtitle="Repair history, cost trends and smart valuation">
       <Tabs value={tab} onValueChange={setTab} className="space-y-6">
@@ -356,116 +399,55 @@ export default function EquipmentInsights() {
             <CardTitle className="text-base">Unit economics & smart valuation</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Equipment</TableHead>
-                  <TableHead className="text-right">Book value</TableHead>
-                  <TableHead className="text-right">Repairs (period)</TableHead>
-                  <TableHead className="text-right">Lifetime repairs</TableHead>
-                  <TableHead className="text-right">% of value</TableHead>
-                  <TableHead className="text-right">$ / hour</TableHead>
-                  <TableHead>Health</TableHead>
-                  <TableHead className="text-right">Est. value</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading && (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
-                      Loading...
-                    </TableCell>
-                  </TableRow>
-                )}
-                {!loading && rows.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
-                      No equipment found.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {rows.map(({ eq, events, spend, lifetime, ratio, costPerHour }) => {
-                  const v = valuations[eq.id];
-                  return (
-                    <Fragment key={eq.id}>
-                      <TableRow>
-                        <TableCell>
-                          <div className="font-medium">{eq.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {eq.category} {eq.year ? `• ${eq.year}` : ''} • {events} events
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">{currency(Number(eq.value || 0))}</TableCell>
-                        <TableCell className="text-right">{currency(spend)}</TableCell>
-                        <TableCell className="text-right">{currency(lifetime)}</TableCell>
-                        <TableCell className="text-right">{ratio.toFixed(2)}%</TableCell>
-                        <TableCell className="text-right">{currency(costPerHour)}</TableCell>
-                        <TableCell>{healthBadge(ratio)}</TableCell>
-                        <TableCell className="text-right">
-                          {v ? currency(Number(v.estimated_value || 0)) : '—'}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={valuingId === eq.id}
-                            onClick={() => runValuation(eq)}
-                          >
-                            {valuingId === eq.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Sparkles className="w-4 h-4" />
-                            )}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                      {v && (
-                        <TableRow className="bg-muted/40">
-                          <TableCell colSpan={9}>
-                            <div className="flex flex-wrap gap-6 text-sm">
-                              <div>
-                                <div className="text-xs text-muted-foreground">Value range</div>
-                                <div className="font-medium">
-                                  {currency(Number(v.value_range_low || 0))} –{' '}
-                                  {currency(Number(v.value_range_high || 0))}
-                                </div>
-                              </div>
-                              <div>
-                                <div className="text-xs text-muted-foreground">Recommendation</div>
-                                <div className="font-medium capitalize">{v.recommendation}</div>
-                              </div>
-                              <div>
-                                <div className="text-xs text-muted-foreground">Condition</div>
-                                <div className="font-medium">{v.condition_grade}</div>
-                              </div>
-                              <div>
-                                <div className="text-xs text-muted-foreground">Annual repair run-rate</div>
-                                <div className="font-medium">
-                                  {currency(Number(v.annual_repair_run_rate || 0))}
-                                </div>
-                              </div>
-                              <div>
-                                <div className="text-xs text-muted-foreground">Confidence</div>
-                                <div className="font-medium capitalize">{v.confidence}</div>
-                              </div>
-                            </div>
-                            <p className="mt-3 text-sm text-muted-foreground">{v.summary}</p>
-                            {v.risk_factors?.length ? (
-                              <ul className="mt-2 text-sm text-muted-foreground list-disc pl-5">
-                                {v.risk_factors.map((rf, i) => (
-                                  <li key={i}>{rf}</li>
-                                ))}
-                              </ul>
-                            ) : null}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </Fragment>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <DataTable
+              className="rounded-none border-0"
+              columns={equipColumns}
+              rows={rows}
+              getRowId={(r) => r.eq.id}
+              loading={loading}
+              searchable={false}
+              exportFilename="equipment-economics"
+              initialSort={{ id: 'ratio', desc: true }}
+              empty={<div className="py-10 text-center text-sm text-muted-foreground">No equipment found.</div>}
+              renderExpanded={({ eq }) => {
+                const v = valuations[eq.id];
+                if (!v) return null;
+                return (
+                  <div>
+                    <div className="flex flex-wrap gap-6 text-sm">
+                      <div>
+                        <div className="text-xs text-muted-foreground">Value range</div>
+                        <div className="font-medium">
+                          {currency(Number(v.value_range_low || 0))} – {currency(Number(v.value_range_high || 0))}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Recommendation</div>
+                        <div className="font-medium capitalize">{v.recommendation}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Condition</div>
+                        <div className="font-medium">{v.condition_grade}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Annual repair run-rate</div>
+                        <div className="font-medium">{currency(Number(v.annual_repair_run_rate || 0))}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Confidence</div>
+                        <div className="font-medium capitalize">{v.confidence}</div>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-sm text-muted-foreground">{v.summary}</p>
+                    {v.risk_factors?.length ? (
+                      <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground">
+                        {v.risk_factors.map((rf, i) => <li key={i}>{rf}</li>)}
+                      </ul>
+                    ) : null}
+                  </div>
+                );
+              }}
+            />
           </CardContent>
         </Card>
         </TabsContent>
