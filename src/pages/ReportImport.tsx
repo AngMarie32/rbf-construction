@@ -382,7 +382,7 @@ export default function ReportImport() {
   };
 
   return (
-    <Layout title="Report Import">
+    <Layout hideTitle title="Report Import">
       <div className="space-y-6 p-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Report Import</h1>

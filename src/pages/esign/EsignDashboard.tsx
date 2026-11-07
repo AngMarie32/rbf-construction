@@ -85,7 +85,7 @@ export default function EsignDashboard() {
   const recent = filteredEnvelopes.slice(0, 5);
 
   return (
-    <Layout title="E-Sign" subtitle="Send, sign, and track documents">
+    <Layout hideTitle title="E-Sign" subtitle="Send, sign, and track documents">
       <div className="space-y-6">
         {/* Header actions */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

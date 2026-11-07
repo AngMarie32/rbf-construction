@@ -315,7 +315,7 @@ export default function Documents() {
   const filteredDocuments = getFilteredDocuments();
 
   return (
-    <Layout title="Document Management" subtitle="Store, organize, and share project documents">
+    <Layout hideTitle title="Document Management" subtitle="Store, organize, and share project documents">
       <div className="flex h-[calc(100vh-200px)]">
         <FolderSidebar 
           selectedFolder={selectedFolder}

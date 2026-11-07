@@ -221,7 +221,7 @@ export default function BidPackages() {
   };
 
   return (
-    <Layout title="Bid Packages" subtitle="Manage bid packages and subcontractor invitations">
+    <Layout hideTitle title="Bid Packages" subtitle="Manage bid packages and subcontractor invitations">
       <div className="space-y-6">
         {/* Enhanced Header with Stats */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">

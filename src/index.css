@@ -19,8 +19,8 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 220 33% 98%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -43,8 +43,8 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 220 16% 90%;
+    --input: 220 16% 88%;
     --ring: 220 90% 56%;
 
     --radius: 0.75rem;
@@ -405,4 +405,30 @@
     background: linear-gradient(90deg, hsl(var(--glow-primary, 220 90% 60%) / 0.25), hsl(var(--glow-primary, 220 90% 60%) / 0.05));
     box-shadow: inset 2px 0 0 hsl(var(--accent)), 0 0 18px -6px hsl(var(--glow-primary, 220 90% 60%) / 0.5);
   }
+}
+
+@layer base {
+  h1, h2, h3, h4 { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.01em; }
+  :focus-visible { outline: none; box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring) / 0.6); }
+  .tabular-nums, td { font-variant-numeric: tabular-nums; }
+}
+
+@layer components {
+  /* Light mode: soft elevated cards instead of heavy shadows */
+  :root:not(.dark) .enhanced-card {
+    box-shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  }
+  :root:not(.dark) .enhanced-card:hover {
+    box-shadow: 0 8px 24px -8px rgb(16 24 40 / 0.12), 0 2px 6px rgb(16 24 40 / 0.05);
+  }
+  :root:not(.dark) body {
+    background-image: radial-gradient(70rem 30rem at 50% -12rem, hsl(220 90% 56% / 0.06), transparent 70%);
+    background-attachment: fixed;
+  }
+  .dark ::-webkit-scrollbar-thumb { background: hsl(var(--foreground) / 0.15); }
+  .dark ::-webkit-scrollbar-track { background: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
