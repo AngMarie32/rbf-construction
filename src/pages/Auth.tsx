@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { HardHat, Eye, EyeOff, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { HardHat, Eye, EyeOff, ArrowLeft, Fish } from 'lucide-react';
+import { GoneFishingScene } from '@/components/auth/GoneFishingScene';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -110,11 +111,15 @@ export default function Auth() {
     </div>
   );
 
-  const highlights = [
-    'Bids, estimates and proposals in one place',
-    'Real-time job costs, billing and profit',
-    'Change orders and pay apps with e-signature',
+  const jokes = [
+    'Measure twice, cast once.',
+    'Our crew is hooked on quality.',
+    "Scope creep? That's just the one that got away.",
+    'Plumb, level, and slightly sunburnt.',
+    'Concrete takes 28 days to cure. Plenty of time to fish.',
+    "Ahead of schedule? Bait's in the truck.",
   ];
+  const [joke] = useState(() => jokes[Math.floor(Math.random() * jokes.length)]);
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
@@ -138,22 +143,19 @@ export default function Auth() {
           </span>
           <div className="leading-tight">
             <div className="font-display text-lg font-extrabold tracking-tight">RBF Construction</div>
-            <div className="text-xs text-white/60">Operations Hub</div>
+            <div className="text-xs text-white/60">Rather Be Fishing</div>
           </div>
         </div>
 
-        <div className="relative max-w-md">
-          <h2 className="font-display text-4xl font-extrabold leading-tight tracking-tight">
-            Run every job from bid to closeout.
+        <div className="relative">
+          <GoneFishingScene className="w-full max-w-xl rounded-[28px] shadow-2xl shadow-black/40" />
+          <h2 className="mt-8 font-display text-5xl font-extrabold leading-none tracking-tight">
+            <span className="text-accent">R</span>ather <span className="text-accent">B</span>e <span className="text-accent">F</span>ishing.
           </h2>
-          <ul className="mt-8 space-y-4">
-            {highlights.map((h) => (
-              <li key={h} className="flex items-start gap-3 text-white/80">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
-                {h}
-              </li>
-            ))}
-          </ul>
+          <p className="mt-3 flex items-center gap-2 text-lg text-white/70">
+            <Fish className="h-5 w-5 text-accent" />
+            {joke}
+          </p>
         </div>
 
         <p className="relative text-xs text-white/40">© {new Date().getFullYear()} RBF Construction</p>
@@ -166,7 +168,10 @@ export default function Auth() {
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-orange-600 text-white">
               <HardHat className="h-5 w-5" />
             </span>
-            <span className="font-display text-lg font-extrabold tracking-tight">RBF Construction</span>
+            <div className="leading-tight">
+              <div className="font-display text-lg font-extrabold tracking-tight">RBF Construction</div>
+              <div className="text-xs text-muted-foreground">Rather Be Fishing</div>
+            </div>
           </div>
 
           {showForgotPassword ? (
@@ -202,7 +207,7 @@ export default function Auth() {
           ) : (
             <>
               <h1 className="font-display text-2xl font-bold tracking-tight">Welcome back</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Sign in to your construction management portal.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Sign in to get back to work. The fish can wait.</p>
 
               <Tabs defaultValue="signin" className="mt-6 w-full">
                 <TabsList className="grid w-full grid-cols-2">
