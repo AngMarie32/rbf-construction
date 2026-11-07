@@ -5,6 +5,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
  * - Cron mode (body {cron:true}): emails every Admin profile.
  * - Test mode (body {test:true}, signed-in user): emails only the caller.
  * Rules mirror src/lib/reminders.ts; keep them in sync.
+ * Covers overdue invoices, sub insurance, permit inspections (today/tomorrow), permits expiring, job cost jumps.
  */
 
 const corsHeaders = {
@@ -12,7 +13,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const RULES = { invoiceOverdueDays: 30, insuranceWarningDays: 14, costSpikePct: 10, costSpikeWindowDays: 7 };
+const RULES = { invoiceOverdueDays: 30, insuranceWarningDays: 14, costSpikePct: 10, costSpikeWindowDays: 7, permitWarningDays: 14 };
 const DAY = 86_400_000;
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const money = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
@@ -23,13 +24,17 @@ interface Reminder { severity: 'high' | 'medium'; group: string; title: string; 
 async function buildReminders(admin: any): Promise<Reminder[]> {
   const today = new Date();
   const out: Reminder[] = [];
-  const [billing, subs, projects, expenses] = await Promise.all([
+  const [billing, subs, projects, expenses, inspections, permits] = await Promise.all([
     admin.from('project_billing').select('id, project_id, invoice_number, billed_amount, paid_amount, due_date')
       .not('due_date', 'is', null).lte('due_date', iso(new Date(today.getTime() - RULES.invoiceOverdueDays * DAY))),
     admin.from('subcontractors').select('id, name, company, insurance_expiry')
       .not('insurance_expiry', 'is', null).lte('insurance_expiry', iso(new Date(today.getTime() + RULES.insuranceWarningDays * DAY))),
     admin.from('projects').select('id, name, status'),
     admin.from('expenses').select('project_id, amount, date'),
+    admin.from('permit_inspections').select('id, inspection_type, scheduled_date, scheduled_time, permits(permit_type, permit_number, project_id)')
+      .eq('result', 'Scheduled').gte('scheduled_date', iso(today)).lte('scheduled_date', iso(new Date(today.getTime() + DAY))),
+    admin.from('permits').select('id, project_id, permit_type, permit_number, expiration_date, status')
+      .not('expiration_date', 'is', null).gte('expiration_date', iso(today)).lte('expiration_date', iso(new Date(today.getTime() + RULES.permitWarningDays * DAY))),
   ]);
 
   const name: Record<string, string> = {};
@@ -54,6 +59,19 @@ async function buildReminders(admin: any): Promise<Reminder[]> {
     out.push(days < 0
       ? { severity: 'high', group: 'Subcontractor insurance', title: `${who}: insurance expired`, detail: `Expired ${-days} days ago`, path: '/subcontractors' }
       : { severity: 'medium', group: 'Subcontractor insurance', title: `${who}: expires in ${days} days`, detail: 'Ask for an updated certificate', path: '/subcontractors' });
+  }
+
+  for (const i of inspections.data || []) {
+    const pm = i.permits as any;
+    const isToday = i.scheduled_date === iso(today);
+    out.push({ severity: isToday ? 'high' : 'medium', group: 'Inspections', title: `${i.inspection_type} inspection ${isToday ? 'today' : 'tomorrow'}${i.scheduled_time ? ` (${i.scheduled_time})` : ''}`, detail: `${pm ? name[pm.project_id] || 'Unknown job' : 'Unknown job'}${pm ? ` · ${pm.permit_type} permit${pm.permit_number ? ` #${pm.permit_number}` : ''}` : ''}`, path: pm ? `/permits?project=${pm.project_id}` : '/permits' });
+  }
+
+  for (const p of permits.data || []) {
+    if (['Expired', 'Rejected'].includes(p.status)) continue;
+    const days = Math.ceil((new Date(p.expiration_date).getTime() - today.getTime()) / DAY);
+    if (days < 0 || days > RULES.permitWarningDays) continue;
+    out.push({ severity: days <= 3 ? 'high' : 'medium', group: 'Permits expiring', title: `${p.permit_type} permit expires in ${days} days`, detail: `${name[p.project_id] || 'Unknown job'}${p.permit_number ? ` · #${p.permit_number}` : ''}`, path: `/permits?project=${p.project_id}` });
   }
 
   const weekStart = iso(new Date(today.getTime() - RULES.costSpikeWindowDays * DAY));

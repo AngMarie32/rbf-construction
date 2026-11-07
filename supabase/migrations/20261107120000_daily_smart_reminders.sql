@@ -1,4 +1,4 @@
--- Daily smart-reminder email (overdue invoices, expiring sub insurance, job cost jumps).
+-- Daily smart-reminder email (overdue invoices, sub insurance, permit inspections and expiry, job cost jumps).
 -- Runs at 12:15 UTC (7:15 am Central). Calls the send-reminders edge function in cron mode.
 SELECT cron.schedule(
   'daily-smart-reminders',

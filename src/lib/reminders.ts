@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
  * Smart reminders computed from existing data. The same rules run in the
  * `send-reminders` edge function for the daily email; keep them in sync.
  */
-export type ReminderKind = 'invoice_overdue' | 'insurance_expiring' | 'insurance_expired' | 'cost_spike';
+export type ReminderKind = 'invoice_overdue' | 'insurance_expiring' | 'insurance_expired' | 'cost_spike' | 'inspection_soon' | 'permit_expiring';
 
 export interface Reminder {
   id: string;
@@ -20,6 +20,7 @@ export const REMINDER_RULES = {
   insuranceWarningDays: 14,
   costSpikePct: 10,
   costSpikeWindowDays: 7,
+  permitWarningDays: 14,
 };
 
 const DAY = 86_400_000;
@@ -32,7 +33,9 @@ export async function fetchReminders(today = new Date()): Promise<Reminder[]> {
   const insuranceCutoff = iso(new Date(today.getTime() + REMINDER_RULES.insuranceWarningDays * DAY));
   const weekStart = iso(new Date(today.getTime() - REMINDER_RULES.costSpikeWindowDays * DAY));
 
-  const [billingRes, subsRes, projectsRes, expensesRes] = await Promise.all([
+  const tomorrow = iso(new Date(today.getTime() + DAY));
+  const permitCutoff = iso(new Date(today.getTime() + REMINDER_RULES.permitWarningDays * DAY));
+  const [billingRes, subsRes, projectsRes, expensesRes, inspectionsRes, permitsRes] = await Promise.all([
     supabase
       .from('project_billing')
       .select('id, project_id, invoice_number, billed_amount, paid_amount, due_date')
@@ -45,6 +48,18 @@ export async function fetchReminders(today = new Date()): Promise<Reminder[]> {
       .lte('insurance_expiry', insuranceCutoff),
     supabase.from('projects').select('id, name, status'),
     supabase.from('expenses').select('project_id, amount, date'),
+    supabase
+      .from('permit_inspections')
+      .select('id, inspection_type, scheduled_date, scheduled_time, result, permits(permit_type, permit_number, project_id)')
+      .eq('result', 'Scheduled')
+      .gte('scheduled_date', iso(today))
+      .lte('scheduled_date', tomorrow),
+    supabase
+      .from('permits')
+      .select('id, project_id, permit_type, permit_number, expiration_date, status')
+      .not('expiration_date', 'is', null)
+      .lte('expiration_date', permitCutoff)
+      .gte('expiration_date', iso(today)),
   ]);
 
   const projectName: Record<string, string> = {};
@@ -83,7 +98,36 @@ export async function fetchReminders(today = new Date()): Promise<Reminder[]> {
     );
   });
 
-  // 3) Job costs jumped more than 10% in the last 7 days
+  // 3) Permit inspections today or tomorrow
+  (inspectionsRes.data || []).forEach((i) => {
+    const pm = i.permits as unknown as { permit_type: string; permit_number: string | null; project_id: string } | null;
+    const isToday = i.scheduled_date === iso(today);
+    out.push({
+      id: `insp-${i.id}`,
+      kind: 'inspection_soon',
+      severity: isToday ? 'high' : 'medium',
+      title: `${i.inspection_type} inspection ${isToday ? 'today' : 'tomorrow'}${i.scheduled_time ? ` (${i.scheduled_time})` : ''}`,
+      detail: `${pm ? projectName[pm.project_id] || 'Unknown job' : 'Unknown job'}${pm ? ` · ${pm.permit_type} permit${pm.permit_number ? ` #${pm.permit_number}` : ''}` : ''}`,
+      to: pm ? `/permits?project=${pm.project_id}` : '/permits',
+    });
+  });
+
+  // 4) Permits expiring within 2 weeks
+  (permitsRes.data || []).forEach((p) => {
+    if (!p.expiration_date || ['Expired', 'Rejected'].includes(p.status)) return;
+    const days = Math.ceil((new Date(p.expiration_date).getTime() - today.getTime()) / DAY);
+    if (days < 0 || days > REMINDER_RULES.permitWarningDays) return;
+    out.push({
+      id: `permit-${p.id}`,
+      kind: 'permit_expiring',
+      severity: days <= 3 ? 'high' : 'medium',
+      title: `${p.permit_type} permit expires in ${days} day${days === 1 ? '' : 's'}`,
+      detail: `${projectName[p.project_id] || 'Unknown job'}${p.permit_number ? ` · #${p.permit_number}` : ''}. Renew or request an extension.`,
+      to: `/permits?project=${p.project_id}`,
+    });
+  });
+
+  // 5) Job costs jumped more than 10% in the last 7 days
   const before: Record<string, number> = {};
   const week: Record<string, number> = {};
   (expensesRes.data || []).forEach((e) => {

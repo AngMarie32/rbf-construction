@@ -27,6 +27,7 @@ import {
   HardHat,
   Copy,
   Loader2,
+  BadgeCheck,
 } from 'lucide-react';
 import { ScanReceiptDialog } from '@/components/expenses/ScanReceiptDialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -250,6 +251,7 @@ export default function ProjectDetail() {
     { label: 'Invoice / billing', icon: CreditCard, to: `/billing${qs}` },
     { label: 'Document', icon: Upload, to: `/documents${qs}` },
     { label: 'Punch item', icon: ListChecks, to: `/punch-list${qs}` },
+    { label: 'Permit', icon: BadgeCheck, to: `/permits${qs}` },
   ];
 
   /** Turn this job's real costs into a Bid Template (one line per cost category) for estimating similar work. */

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlarmClock, CreditCard, ShieldAlert, TrendingUp, CheckCircle2, Mail, Loader2 } from 'lucide-react';
+import { AlarmClock, CreditCard, ShieldAlert, TrendingUp, CheckCircle2, Mail, Loader2, ClipboardCheck, FileCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { fetchReminders, type Reminder } from '@/lib/reminders';
@@ -13,6 +13,8 @@ const ICONS = {
   insurance_expired: ShieldAlert,
   insurance_expiring: ShieldAlert,
   cost_spike: TrendingUp,
+  inspection_soon: ClipboardCheck,
+  permit_expiring: FileCheck,
 } as const;
 
 /** Header button listing smart reminders (overdue invoices, expiring insurance, cost spikes). */
@@ -73,7 +75,7 @@ export function RemindersMenu() {
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div>
             <p className="font-semibold">Reminders</p>
-            <p className="text-xs text-muted-foreground">Overdue invoices, insurance and cost jumps</p>
+            <p className="text-xs text-muted-foreground">Invoices, insurance, inspections, permits and cost jumps</p>
           </div>
           <Button size="sm" variant="ghost" onClick={emailMe} disabled={sending} title="Email this list to the admins">
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
