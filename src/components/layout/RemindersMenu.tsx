@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlarmClock, CreditCard, ShieldAlert, TrendingUp, CheckCircle2, Mail, Loader2, ClipboardCheck, FileCheck } from 'lucide-react';
+import { AlarmClock, CreditCard, ShieldAlert, TrendingUp, CheckCircle2, Mail, Loader2, ClipboardCheck, FileCheck, X, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { fetchReminders, type Reminder } from '@/lib/reminders';
+import { fetchReminders, type Reminder, type ReminderKind } from '@/lib/reminders';
+import { loadPrefs, savePrefs, REMINDER_KIND_LABELS, type ReminderPrefs } from '@/lib/reminderPrefs';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -55,8 +57,7 @@ export function RemindersMenu() {
   const [prefs, setPrefsState] = useState<ReminderPrefs>(loadPrefs);
   const [showSettings, setShowSettings] = useState(false);
   const setPrefs = (p: ReminderPrefs) => { setPrefsState(p); savePrefs(p); };
-  const all = reminders;
-  const reminders_ = all.filter((r) => !prefs.disabled.includes(r.kind) && !prefs.dismissed.includes(r.id));
+  const reminders_ = reminders.filter((r) => !prefs.disabled.includes(r.kind) && !prefs.dismissed.includes(r.id));
   const dismiss = (id: string) => setPrefs({ ...prefs, dismissed: [...prefs.dismissed, id] });
   const clearAll = () => setPrefs({ ...prefs, dismissed: [...prefs.dismissed, ...reminders_.map((r) => r.id)] });
   const toggleKind = (k: ReminderKind) =>
@@ -67,16 +68,16 @@ export function RemindersMenu() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative" aria-label={`Reminders (${reminders.length})`}>
+        <Button variant="ghost" size="icon" className="relative" aria-label={`Reminders (${visible.length})`}>
           <AlarmClock className="h-5 w-5" />
-          {reminders.length > 0 && (
+          {visible.length > 0 && (
             <span
               className={cn(
                 'absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold text-white ring-2 ring-background',
                 high ? 'bg-destructive' : 'bg-amber-500'
               )}
             >
-              {reminders.length > 99 ? '99+' : reminders.length}
+              {visible.length > 99 ? '99+' : visible.length}
             </span>
           )}
         </Button>
@@ -87,24 +88,51 @@ export function RemindersMenu() {
             <p className="font-semibold">Reminders</p>
             <p className="text-xs text-muted-foreground">Invoices, insurance, inspections, permits and cost jumps</p>
           </div>
-          <Button size="sm" variant="ghost" onClick={emailMe} disabled={sending} title="Email this list to the admins">
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-          </Button>
+          <div className="flex items-center">
+            <Button size="sm" variant="ghost" onClick={emailMe} disabled={sending} title="Email this list to the admins">
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowSettings((v) => !v)} title="Alert settings" aria-label="Alert settings">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
+        {showSettings && (
+          <div className="space-y-2 border-b px-4 py-3">
+            <p className="text-xs font-medium text-muted-foreground">Show these alerts</p>
+            {(Object.keys(REMINDER_KIND_LABELS) as ReminderKind[]).map((k) => (
+              <label key={k} className="flex items-center justify-between text-sm">
+                {REMINDER_KIND_LABELS[k]}
+                <Switch checked={!prefs.disabled.includes(k)} onCheckedChange={() => toggleKind(k)} />
+              </label>
+            ))}
+            {prefs.dismissed.length > 0 && (
+              <Button size="sm" variant="ghost" className="px-0" onClick={() => setPrefs({ ...prefs, dismissed: [] })}>
+                Restore {prefs.dismissed.length} deleted alert{prefs.dismissed.length === 1 ? '' : 's'}
+              </Button>
+            )}
+          </div>
+        )}
+        {!loading && visible.length > 0 && (
+          <div className="flex justify-end px-4 pt-2">
+            <Button size="sm" variant="ghost" onClick={clearAll}>Delete all</Button>
+          </div>
+        )}
         <div className="max-h-[420px] overflow-y-auto p-2">
           {loading ? (
             <p className="p-4 text-center text-sm text-muted-foreground">Checking…</p>
-          ) : reminders.length === 0 ? (
+          ) : visible.length === 0 ? (
             <div className="flex flex-col items-center p-6 text-center">
               <CheckCircle2 className="h-8 w-8 text-emerald-600" />
               <p className="mt-2 text-sm font-medium">Nothing needs attention</p>
               <p className="text-xs text-muted-foreground">Go fishing.</p>
             </div>
           ) : (
-            reminders.map((r) => {
+            visible.map((r) => {
               const Icon = ICONS[r.kind];
               return (
-                <Link key={r.id} to={r.to} onClick={() => setOpen(false)} className="flex gap-3 rounded-lg p-2 hover:bg-muted/60">
+                <div key={r.id} className="group flex items-start rounded-lg hover:bg-muted/60">
+                <Link to={r.to} onClick={() => setOpen(false)} className="flex flex-1 gap-3 p-2">
                   <span
                     className={cn(
                       'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
@@ -118,6 +146,10 @@ export function RemindersMenu() {
                     <span className="block text-xs text-muted-foreground">{r.detail}</span>
                   </span>
                 </Link>
+                <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0 m-1" onClick={() => dismiss(r.id)} aria-label="Delete alert" title="Delete alert">
+                  <X className="h-4 w-4" />
+                </Button>
+                </div>
               );
             })
           )}
