@@ -37,7 +37,7 @@ export function PermitInspectionsDialog({ permit, onOpenChange, onChanged }: Pro
     e.preventDefault();
     if (!permit || !form.inspection_type || !form.scheduled_date) return toast.error('Pick the inspection and the date.');
     setSaving(true);
-    const { error } = await supabase.from('permit_inspections').insert({
+    const { error } = await (supabase as any).from('permit_inspections').insert({
       permit_id: permit.id,
       inspection_type: form.inspection_type,
       scheduled_date: form.scheduled_date,
@@ -52,14 +52,14 @@ export function PermitInspectionsDialog({ permit, onOpenChange, onChanged }: Pro
   };
 
   const setResult = async (i: PermitInspection, result: string) => {
-    const { error } = await supabase.from('permit_inspections').update({ result }).eq('id', i.id);
+    const { error } = await (supabase as any).from('permit_inspections').update({ result }).eq('id', i.id);
     if (error) return toast.error('Could not update the inspection.');
     onChanged();
   };
 
   const remove = async (i: PermitInspection) => {
     if (!confirm(`Delete the ${i.inspection_type} inspection?`)) return;
-    const { error } = await supabase.from('permit_inspections').delete().eq('id', i.id);
+    const { error } = await (supabase as any).from('permit_inspections').delete().eq('id', i.id);
     if (error) return toast.error('Could not delete the inspection.');
     onChanged();
   };
