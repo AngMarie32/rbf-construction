@@ -52,7 +52,17 @@ export function RemindersMenu() {
     else toast.success(data?.sent ? 'Reminder email sent.' : 'Nothing to send right now.');
   };
 
-  const high = reminders.filter((r) => r.severity === 'high').length;
+  const [prefs, setPrefsState] = useState<ReminderPrefs>(loadPrefs);
+  const [showSettings, setShowSettings] = useState(false);
+  const setPrefs = (p: ReminderPrefs) => { setPrefsState(p); savePrefs(p); };
+  const all = reminders;
+  const reminders_ = all.filter((r) => !prefs.disabled.includes(r.kind) && !prefs.dismissed.includes(r.id));
+  const dismiss = (id: string) => setPrefs({ ...prefs, dismissed: [...prefs.dismissed, id] });
+  const clearAll = () => setPrefs({ ...prefs, dismissed: [...prefs.dismissed, ...reminders_.map((r) => r.id)] });
+  const toggleKind = (k: ReminderKind) =>
+    setPrefs({ ...prefs, disabled: prefs.disabled.includes(k) ? prefs.disabled.filter((x) => x !== k) : [...prefs.disabled, k] });
+  const visible = reminders_;
+  const high = visible.filter((r) => r.severity === 'high').length;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
