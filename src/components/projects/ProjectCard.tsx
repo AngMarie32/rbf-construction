@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { normalizeProjectStatus } from '@/lib/projectStatus';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -254,7 +255,7 @@ const money = (n: number) => {
 };
 
 function statusTone(status: string) {
-  switch (status) {
+  switch (normalizeProjectStatus(status)) {
     case 'Active': return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300';
     case 'Planning': return 'bg-blue-500/15 text-blue-700 dark:text-blue-300';
     case 'On Hold': return 'bg-amber-500/15 text-amber-700 dark:text-amber-300';

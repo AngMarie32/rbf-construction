@@ -33,7 +33,7 @@ export interface ATimeEntry {
 
 const n = (v: unknown) => Number(v) || 0;
 /** Jobs that are under way: Active or On Hold. Planning, Completed and Closed are excluded. */
-export const isOpenJob = (s?: string | null) => ['active', 'on hold'].includes((s || '').toLowerCase());
+export const isOpenJob = (s?: string | null) => ['active', 'on hold', 'open', 'in progress'].includes((s || '').toLowerCase().trim());
 const OPEN = isOpenJob;
 
 /** Last `count` calendar months ending with the current month, oldest first. */

@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { normalizeProjectStatus } from '@/lib/projectStatus';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Layout } from '@/components/layout/Layout';
@@ -98,7 +99,7 @@ export default function Analytics() {
 
       // Set projects data and extract field leaders
       // Analytics covers open jobs only: Active and On Hold (not Planning, Completed or Closed).
-      const projectsData = sortProjectsOpenFirst((projects || []).filter((p) => isOpenJob(p.status)));
+      const projectsData = sortProjectsOpenFirst((projects || []).map((p) => ({ ...p, status: normalizeProjectStatus(p.status) })).filter((p) => isOpenJob(p.status)));
       const openIds = new Set(projectsData.map((p) => p.id));
       const expenses = (allExpenses || []).filter((e) => openIds.has(e.project_id));
       const billing = (allBilling || []).filter((b) => openIds.has(b.project_id));

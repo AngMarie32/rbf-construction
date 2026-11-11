@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { normalizeProjectStatus } from '@/lib/projectStatus';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -77,7 +78,7 @@ export default function Projects() {
         name: item.name,
         type: item.type,
         contractValue: item.contract_value || 0,
-        status: item.status as Project['status'],
+        status: normalizeProjectStatus(item.status) as Project['status'],
         startDate: item.start_date ? new Date(item.start_date) : new Date(),
         dueDate: item.due_date ? new Date(item.due_date) : new Date(),
         completionPercentage: item.completion_percentage || 0,

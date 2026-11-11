@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { normalizeProjectStatus } from '@/lib/projectStatus';
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -111,7 +112,7 @@ export default function ProjectDetail() {
           name: data.name,
           description: data.description,
           type: data.type,
-          status: data.status as 'Planning' | 'Active' | 'On Hold' | 'Completed' | 'Closed',
+          status: normalizeProjectStatus(data.status) as 'Planning' | 'Active' | 'On Hold' | 'Completed' | 'Closed',
           startDate: data.start_date ? new Date(data.start_date) : new Date(),
           dueDate: data.due_date ? new Date(data.due_date) : new Date(),
           contractValue: data.contract_value,

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { normalizeProjectStatus } from '@/lib/projectStatus';
 import { Link, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { FinancialDateFilter } from '@/components/dashboard/FinancialDateFilter';
@@ -117,7 +118,7 @@ export default function Dashboard() {
         .select('id, status, contract_value, name, completion_percentage, due_date, client, address').is('archived_at', null);
       if (error) throw error;
 
-      const open = (projects || []).filter((p) => p.status !== 'Completed' && p.status !== 'Closed');
+      const open = (projects || []).map((p) => ({ ...p, status: normalizeProjectStatus(p.status) })).filter((p) => p.status !== 'Completed' && p.status !== 'Closed');
       const ids = open.map((p) => p.id);
       if (ids.length === 0) {
         setOpenProjects([]);

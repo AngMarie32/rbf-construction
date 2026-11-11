@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { normalizeProjectStatus, saveWithStatus } from '@/lib/projectStatus';
 import { Project } from '@/types';
 
 interface EditProjectDialogProps {
@@ -26,7 +27,7 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
     name: project.name,
     type: project.type,
     contractValue: project.contractValue.toString(),
-    status: project.status,
+    status: normalizeProjectStatus(project.status),
     startDate: project.startDate,
     dueDate: project.dueDate,
     address: project.address,
@@ -41,7 +42,7 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
       name: project.name,
       type: project.type,
       contractValue: project.contractValue.toString(),
-      status: project.status,
+      status: normalizeProjectStatus(project.status),
       startDate: project.startDate,
       dueDate: project.dueDate,
       address: project.address,
@@ -61,14 +62,10 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
 
     setLoading(true);
     try {
-      // Map "Active" to "Open" for database storage, keep others as-is
-      const dbStatus = formData.status === 'Active' ? 'Open' : formData.status;
-      
       const updateData = {
         name: formData.name,
         type: formData.type || 'General',
         contract_value: formData.contractValue ? parseFloat(formData.contractValue) : 0,
-        status: dbStatus,
         start_date: formData.startDate ? format(formData.startDate, 'yyyy-MM-dd') : null,
         due_date: formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : null,
         address: formData.address || null,
@@ -79,14 +76,14 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
         updated_at: new Date().toISOString()
       };
 
-      console.log('Updating project with data:', updateData);
-
-      const { error } = await supabase
-        .from('projects')
-        .update(updateData)
-        .eq('id', project.id);
-
-      if (error) throw error;
+      // Saves the chosen status; retries "Active" as legacy "Open" if the database still requires it.
+      const problem = await saveWithStatus(formData.status, (status) =>
+        supabase.from('projects').update({ ...updateData, status }).eq('id', project.id)
+      );
+      if (problem) {
+        toast.error(`Couldn't update the project: ${problem}`);
+        return;
+      }
 
       toast.success('Project updated successfully');
       onProjectUpdated();
