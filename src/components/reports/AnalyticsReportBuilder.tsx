@@ -134,7 +134,7 @@ export function AnalyticsReportBuilder() {
   const load = async () => {
     setLoading(true);
     const [p, e, b, c] = await Promise.all([
-      supabase.from('projects').select('*'),
+      supabase.from('projects').select('*').is('archived_at', null),
       supabase.from('expenses').select('*'),
       supabase.from('project_billing').select('*'),
       supabase.from('change_orders').select('*'),

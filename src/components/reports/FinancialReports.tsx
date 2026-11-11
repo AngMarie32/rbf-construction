@@ -16,6 +16,7 @@ export function FinancialReports({ data, actions }: { data: Data; actions?: Reac
       <ReportToolbar>{actions}</ReportToolbar>
       <ReportDocument
         eyebrow="Financial Report"
+        chips={["Open jobs: Active and On Hold"]}
         title="Money in and out"
         stats={[
           { label: 'Billed', value: compact(totals.billed) },

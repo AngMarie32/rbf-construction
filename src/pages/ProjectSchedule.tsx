@@ -116,7 +116,7 @@ export default function ProjectSchedule() {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, status')
+        .select('id, name, status').is('archived_at', null)
         .neq('status', 'Closed')
         .order('name');
 

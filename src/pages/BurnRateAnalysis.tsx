@@ -65,7 +65,7 @@ export default function BurnRateAnalysis() {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, contract_value, start_date, due_date, status')
+        .select('id, name, contract_value, start_date, due_date, status').is('archived_at', null)
         .order('name');
 
       if (error) throw error;

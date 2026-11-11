@@ -14,7 +14,7 @@ import { CustomReportBuilder } from '@/components/reports/CustomReportBuilder';
 import { AnalyticsReportBuilder } from '@/components/reports/AnalyticsReportBuilder';
 
 import { ProjectReport } from '@/components/reports/ProjectReport';
-import { buildFinancialAnalytics, buildLaborAnalytics, buildProjectAnalytics, type ATimeEntry } from '@/lib/analyticsData';
+import { buildFinancialAnalytics, buildLaborAnalytics, buildProjectAnalytics, isOpenJob, type ATimeEntry } from '@/lib/analyticsData';
 import { LaborReport } from '@/components/reports/LaborReport';
 import { exportToExcel, exportToPDF, exportToCSV, ExportData } from '@/utils/reportExports';
 import { supabase } from '@/integrations/supabase/client';
@@ -84,12 +84,12 @@ export default function Analytics() {
       // Fetch actual data from database with all project information
       const [
         { data: projects },
-        { data: expenses },
-        { data: billing },
-        { data: changeOrders },
-        { data: timeEntries }
+        { data: allExpenses },
+        { data: allBilling },
+        { data: allChangeOrders },
+        { data: allTimeEntries }
       ] = await Promise.all([
-        supabase.from('projects').select('*'),
+        supabase.from('projects').select('*').is('archived_at', null),
         supabase.from('expenses').select('*'),
         supabase.from('project_billing').select('*'),
         supabase.from('change_orders').select('*'),
@@ -97,13 +97,19 @@ export default function Analytics() {
       ]);
 
       // Set projects data and extract field leaders
-      const projectsData = sortProjectsOpenFirst(projects || []);
+      // Analytics covers open jobs only: Active and On Hold (not Planning, Completed or Closed).
+      const projectsData = sortProjectsOpenFirst((projects || []).filter((p) => isOpenJob(p.status)));
+      const openIds = new Set(projectsData.map((p) => p.id));
+      const expenses = (allExpenses || []).filter((e) => openIds.has(e.project_id));
+      const billing = (allBilling || []).filter((b) => openIds.has(b.project_id));
+      const changeOrders = (allChangeOrders || []).filter((c) => openIds.has(c.project_id));
+      const timeEntries = (allTimeEntries || []).filter((t) => openIds.has(t.project_id));
       setProjects(projectsData);
       fetchFieldLeaders(projectsData);
 
       // Calculate expenses by project
       const expensesByProject: Record<string, number> = {};
-      (expenses || []).forEach(expense => {
+      expenses.forEach(expense => {
         if (!expensesByProject[expense.project_id]) {
           expensesByProject[expense.project_id] = 0;
         }
@@ -114,7 +120,7 @@ export default function Analytics() {
       // Calculate billing by project
       const billedByProject: Record<string, number> = {};
       const receivedByProject: Record<string, number> = {};
-      (billing || []).forEach(bill => {
+      billing.forEach(bill => {
         if (!billedByProject[bill.project_id]) {
           billedByProject[bill.project_id] = 0;
           receivedByProject[bill.project_id] = 0;
@@ -127,9 +133,9 @@ export default function Analytics() {
 
       // Every tab is built from stored records (see src/lib/analyticsData.ts).
       setReportData({
-        project: buildProjectAnalytics(projectsData, expenses || [], changeOrders || []),
-        financial: buildFinancialAnalytics(projectsData, expenses || [], billing || []),
-        labor: buildLaborAnalytics((timeEntries || []) as ATimeEntry[], projectsData),
+        project: buildProjectAnalytics(projectsData, expenses, changeOrders),
+        financial: buildFinancialAnalytics(projectsData, expenses, billing),
+        labor: buildLaborAnalytics(timeEntries as ATimeEntry[], projectsData),
       });
 
     } catch (error) {

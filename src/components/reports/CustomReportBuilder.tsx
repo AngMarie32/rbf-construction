@@ -157,7 +157,7 @@ export function CustomReportBuilder({ onClose }: CustomReportBuilderProps) {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, client, status')
+        .select('id, name, client, status').is('archived_at', null)
         .order('name');
 
       if (error) throw error;
@@ -212,7 +212,7 @@ export function CustomReportBuilder({ onClose }: CustomReportBuilderProps) {
 
   const fetchData = async (dataSourceId: string) => {
     if (dataSourceId === 'projects') {
-      let query = supabase.from('projects').select('*');
+      let query = supabase.from('projects').select('*').is('archived_at', null);
       
       if (report.includeProjectFilter && report.selectedProjects.length > 0) {
         query = query.in('id', report.selectedProjects);

@@ -23,6 +23,7 @@ export function ProjectReports({ data, actions }: { data: Data; actions?: React.
       <ReportToolbar>{actions}</ReportToolbar>
       <ReportDocument
         eyebrow="Project Performance Report"
+        chips={["Open jobs: Active and On Hold"]}
         title="Projects"
         stats={[
           { label: 'Open jobs', value: String(totals.open) },
@@ -32,7 +33,7 @@ export function ProjectReports({ data, actions }: { data: Data; actions?: React.
         <Section eyebrow="Overview" title="Performance at a glance">
           <KpiGrid
             items={[
-              { label: 'All projects', value: String(totals.projects), sub: `${totals.open} open`, icon: Building2, accent: 'bg-blue-600' },
+              { label: 'Open jobs', value: String(totals.open), sub: `${statusDistribution.map((d) => `${d.value} ${d.name}`).join(' · ')}`, icon: Building2, accent: 'bg-blue-600' },
               { label: 'Open contract value', value: compact(totals.contract), sub: 'Original contracts', icon: DollarSign, accent: 'bg-indigo-500' },
               { label: 'Approved change orders', value: compact(totals.approvedCO), sub: 'Added to contracts', icon: GitPullRequestArrow, accent: 'bg-emerald-500' },
               { label: 'Average complete', value: `${totals.avgComplete.toFixed(0)}%`, sub: 'Across open jobs', icon: Gauge, accent: 'bg-orange-500' },

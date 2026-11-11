@@ -114,7 +114,7 @@ export default function Dashboard() {
     try {
       const { data: projects, error } = await supabase
         .from('projects')
-        .select('id, status, contract_value, name, completion_percentage, due_date, client, address');
+        .select('id, status, contract_value, name, completion_percentage, due_date, client, address').is('archived_at', null);
       if (error) throw error;
 
       const open = (projects || []).filter((p) => p.status !== 'Completed' && p.status !== 'Closed');

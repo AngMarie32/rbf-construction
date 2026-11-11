@@ -99,7 +99,7 @@ export default function WeeklyReports() {
     setLoading(true);
     const [{ data: s }, { data: p }] = await Promise.all([
       supabase.from('weekly_report_subscriptions').select('*').order('created_at', { ascending: false }),
-      supabase.from('projects').select('id,name, status').order('name'),
+      supabase.from('projects').select('id,name, status').is('archived_at', null).order('name'),
     ]);
     setSubs((s as any) || []);
     setProjects(sortProjectsOpenFirst((p as { id: string; name: string; status: string }[]) || []));

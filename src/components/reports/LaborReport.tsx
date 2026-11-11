@@ -30,7 +30,8 @@ export function LaborReport({ data, actions }: { data: Data; actions?: React.Rea
     return (
       <div className="space-y-4">
         <ReportToolbar>{actions}</ReportToolbar>
-        <ReportDocument eyebrow="Labor Report" title="Crew hours and labor cost">
+        <ReportDocument eyebrow="Labor Report"
+        chips={["Open jobs: Active and On Hold"]} title="Crew hours and labor cost">
           <EmptyNote>
             No time entries yet. Log crew hours on the <Link to="/labor-costs" className="font-medium text-blue-600 hover:underline">Labor Costs</Link> page and this report fills in automatically.
           </EmptyNote>
@@ -46,6 +47,7 @@ export function LaborReport({ data, actions }: { data: Data; actions?: React.Rea
       <ReportToolbar>{actions}</ReportToolbar>
       <ReportDocument
         eyebrow="Labor Report"
+        chips={["Open jobs: Active and On Hold"]}
         title="Crew hours and labor cost"
         stats={[
           { label: 'Hours', value: Math.round(totals.hours).toLocaleString() },

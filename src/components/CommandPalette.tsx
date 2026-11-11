@@ -83,7 +83,7 @@ export function CommandPalette() {
     if (!open || projects.length > 0) return;
     supabase
       .from('projects')
-      .select('id, name, status')
+      .select('id, name, status').is('archived_at', null)
       .order('name')
       .then(({ data }) => setProjects(sortProjectsOpenFirst(data || [])));
   }, [open, projects.length]);

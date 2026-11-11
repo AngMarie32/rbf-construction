@@ -59,7 +59,7 @@ export function EnhancedProposalDialog({
   const [projects, setProjects] = useState<any[]>([]);
 
   useEffect(() => {
-    supabase.from('projects').select('id, name, status').then(({ data }) => {
+    supabase.from('projects').select('id, name, status').is('archived_at', null).then(({ data }) => {
       setProjects(sortProjectsOpenFirst((data as any[]) || []));
     });
   }, []);

@@ -214,6 +214,7 @@ export const ProjectReport: React.FC<ProjectReportProps> = ({ projects, totalExp
               <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{companyName}</h1>
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 <span className="rounded-full bg-white/10 px-3 py-1">Generated {format(new Date(), 'MMMM d, yyyy')}</span>
+                <span className="rounded-full bg-white/10 px-3 py-1">Open jobs: Active and On Hold</span>
                 {selectedStatus !== 'all' && <span className="rounded-full bg-white/10 px-3 py-1">Status: {selectedStatus}</span>}
                 {selectedFieldLeader !== 'all' && <span className="rounded-full bg-white/10 px-3 py-1">Field leader: {selectedFieldLeader}</span>}
                 {dateRange?.from && dateRange?.to && (

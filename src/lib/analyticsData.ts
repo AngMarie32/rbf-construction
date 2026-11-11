@@ -32,7 +32,9 @@ export interface ATimeEntry {
 }
 
 const n = (v: unknown) => Number(v) || 0;
-const OPEN = (s?: string | null) => !['completed', 'closed'].includes((s || '').toLowerCase());
+/** Jobs that are under way: Active or On Hold. Planning, Completed and Closed are excluded. */
+export const isOpenJob = (s?: string | null) => ['active', 'on hold'].includes((s || '').toLowerCase());
+const OPEN = isOpenJob;
 
 /** Last `count` calendar months ending with the current month, oldest first. */
 export function monthBuckets(count = 12, today = new Date()) {

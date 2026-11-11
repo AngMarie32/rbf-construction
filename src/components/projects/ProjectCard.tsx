@@ -151,7 +151,7 @@ export function ProjectCard({
   const handleCardClick = () => navigate(`/projects/${project.id}`);
 
   const handleDelete = () => {
-    if (onDelete && confirm('Are you sure you want to delete this project?')) {
+    if (onDelete && confirm(`Delete "${project.name}" permanently?\n\nIts expenses, billing, change orders, schedule, time entries and permits are deleted too. Documents are kept but unlinked.\n\nTo just hide a finished job, use Archive instead.`)) {
       onDelete(project.id);
     }
   };
