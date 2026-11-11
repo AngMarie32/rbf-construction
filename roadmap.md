@@ -8,4 +8,5 @@
 - [x] Estimate → Bid Planner lines with own cost + markup; New project from estimate; Bid Templates page
 - [x] Upload cost spreadsheet (like 10.6.26.xlsx) with per-line project dropdown → expenses
 - [x] Cost Database quick access: top of sidebar (Quick Access), buttons on Bid Estimator / Bid Planner, command palette entries
+- [x] Documents: working metadata editing and immediate deletion from list and grid views
 
