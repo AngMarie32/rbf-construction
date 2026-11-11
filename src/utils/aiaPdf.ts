@@ -41,6 +41,8 @@ export interface PayAppDoc {
   distribution?: { owner?: boolean; architect?: boolean; contractor?: boolean; field?: boolean; other?: boolean };
   lines: PayAppLine[];
   settings: PayAppSettings;
+  /** Project contingency (from the project's contingency settings); shown as its own G703 row. */
+  contingency?: number;
 }
 
 /** "2026-11-01" -> "11/01/2026" without the UTC off-by-one-day shift. */
@@ -509,19 +511,25 @@ function drawG703(pdf: jsPDF, d: PayAppDoc, startPage: number, totalPages: numbe
         $(lineRetainage(l, d.settings)),
       ])
     );
+  // Contingency row, as on the original form (skipped if the SOV already has a contingency line)
+  const hasContingencyLine = d.lines.some((l) => /contingency/i.test(`${l.category || ''} ${l.description || ''}`));
+  const cont = hasContingencyLine ? 0 : Math.max(0, Number(d.contingency) || 0);
+  if (cont > 0)
+    drawRow(['C', 'Contingency', $(cont), $(0), $(cont), $(0), $(0), $(0), $(0), '0.00%', $(cont), $(0)], { fill: [239, 246, 255] });
+  const contractTotal = t.sovTotal + cont;
   drawRow(
     [
       '',
       'GRAND TOTALS',
-      $(t.scheduled),
+      $(t.scheduled + cont),
       $(t.netChangeOrders),
-      $(t.sovTotal),
+      $(contractTotal),
       $(d.lines.reduce((a, l) => a + (Number(l.previous) || 0), 0)),
       $(t.thisPeriod),
       $(t.stored),
       $(t.completedAndStored),
-      `${(t.sovTotal ? (t.completedAndStored / t.sovTotal) * 100 : 0).toFixed(2)}%`,
-      $(t.sovTotal - t.completedAndStored),
+      `${(contractTotal ? (t.completedAndStored / contractTotal) * 100 : 0).toFixed(2)}%`,
+      $(contractTotal - t.completedAndStored),
       $(t.totalRetainage),
     ],
     { bold: true, fill: [229, 231, 235], spanAB: true }
