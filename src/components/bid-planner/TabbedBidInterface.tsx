@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calculator, FileText, Settings } from 'lucide-react';
+import { ArrowRight, Calculator, FileText, Settings } from 'lucide-react';
 import { Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -13,6 +13,7 @@ import { BidTemplateSelector } from './BidTemplateSelector';
 import { BidCreationView } from './BidCreationView';
 import { BidSettings } from './BidSettings';
 import BlueprintAnalyzer from '@/pages/BlueprintAnalyzer';
+import { createProposalFromBid } from '@/utils/proposalWorkflow';
 
 interface TabbedBidInterfaceProps {
   projectId: string;
@@ -36,6 +37,7 @@ export function TabbedBidInterface({
   const [activeTab, setActiveTab] = useState('create');
   const navigate = useNavigate();
   const [copying, setCopying] = useState(false);
+  const [creatingProposal, setCreatingProposal] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
   const handleCopyToProject = async (targetId: string) => {
@@ -185,8 +187,17 @@ export function TabbedBidInterface({
     }
   };
 
-  const handleCreateProposal = () => {
-    navigate('/proposals');
+  const handleCreateProposal = async () => {
+    setCreatingProposal(true);
+    try {
+      await createProposalFromBid(projectId, bidItems);
+      toast.success('Proposal created from this bid');
+      navigate(`/proposals?project=${projectId}`);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create proposal from bid');
+    } finally {
+      setCreatingProposal(false);
+    }
   };
 
   return (
@@ -263,6 +274,13 @@ export function TabbedBidInterface({
           <BidSettings projectId={projectId} />
         </TabsContent>
       </Tabs>
+      <div className="flex flex-col items-end gap-1 border-t pt-4">
+        <Button onClick={handleCreateProposal} disabled={creatingProposal || !bidItems.length}>
+          {creatingProposal ? 'Creating proposal…' : 'Generate Proposal from Bid'}
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+        <p className="text-xs text-muted-foreground">Creates a draft with your quantities, markup, and bid lines.</p>
+      </div>
     </div>
   );
 }

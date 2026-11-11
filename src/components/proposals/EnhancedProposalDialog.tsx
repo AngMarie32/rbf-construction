@@ -11,6 +11,7 @@ import { Plus, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
+import { syncProposalToSov } from '@/utils/proposalWorkflow';
 
 interface ProposalItem {
   id: string;
@@ -27,6 +28,7 @@ interface EnhancedProposalDialogProps {
   proposal?: any;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  defaultProjectId?: string;
 }
 
 export function EnhancedProposalDialog({ 
@@ -34,7 +36,8 @@ export function EnhancedProposalDialog({
   trigger, 
   proposal, 
   open: controlledOpen, 
-  onOpenChange 
+  onOpenChange,
+  defaultProjectId,
 }: EnhancedProposalDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -174,7 +177,12 @@ export function EnhancedProposalDialog({
       if (error) throw error;
 
       if (projectId !== 'none' && saved?.id) {
-        const n = await syncProposalToPayApp(saved.id, projectId, proposalItems);
+        const n = await syncProposalToSov({
+          id: saved.id,
+          project_id: projectId,
+          project_name: formData.projectName,
+          proposal_items: proposalItems,
+        });
         if (n > 0) toast.success(`${n} payment application line(s) synced to the project`);
       }
 
@@ -187,50 +195,6 @@ export function EnhancedProposalDialog({
     } finally {
       setLoading(false);
     }
-  };
-
-  const syncProposalToPayApp = async (proposalId: string, pid: string, items: ProposalItem[]) => {
-    const lines = items.filter(i => i.description.trim() || i.total);
-    const { data: existing, error: exErr } = await (supabase as any)
-      .from('sov_items')
-      .select('id, item_number, total_completed_and_stored, project_id')
-      .eq('source_proposal_id' as any, proposalId)
-      .order('item_number');
-    if (exErr) throw exErr;
-    const rows = (existing || []) as any[];
-    // If the proposal moved to a different project, remove untouched lines from the old one
-    const sameProject = rows.filter(r => r.project_id === pid);
-    for (const r of rows.filter(r => r.project_id !== pid)) {
-      if (!Number(r.total_completed_and_stored)) await supabase.from('sov_items').delete().eq('id', r.id);
-    }
-    const { count } = await supabase.from('sov_items').select('id', { count: 'exact', head: true }).eq('project_id', pid);
-    let next = (count || 0) + 1;
-    for (let i = 0; i < lines.length; i++) {
-      const l = lines[i];
-      const fields = {
-        category: 'Proposal',
-        subcategory: formData.projectName,
-        description: l.description || `Line ${i + 1}`,
-        scheduled_value: Math.round(Number(l.total || 0) * 100) / 100,
-      };
-      if (sameProject[i]) {
-        const { error: uErr } = await supabase.from('sov_items').update(fields).eq('id', sameProject[i].id);
-        if (uErr) throw uErr;
-      } else {
-        const { error: iErr } = await supabase.from('sov_items').insert({
-          ...fields,
-          project_id: pid,
-          item_number: String(next++).padStart(3, '0'),
-          source_proposal_id: proposalId,
-        } as any);
-        if (iErr) throw iErr;
-      }
-    }
-    for (const r of sameProject.slice(lines.length)) {
-      if (!Number(r.total_completed_and_stored)) await supabase.from('sov_items').delete().eq('id', r.id);
-    }
-    await supabase.from('proposals').update({ sov_synced_at: new Date().toISOString() } as any).eq('id', proposalId);
-    return lines.length;
   };
 
   const defaultTrigger = (
