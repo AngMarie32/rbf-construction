@@ -1,4 +1,5 @@
 import { WorkflowStepper } from '@/components/workflow/WorkflowStepper';
+import { ExportMenu } from '@/components/ui/export-menu';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -224,7 +225,17 @@ export default function EstimateDashboard() {
   return (
     <Layout title={est.name}>
       <div className="space-y-4">
-        <WorkflowStepper projectId={undefined} />
+        <WorkflowStepper
+          projectId={est.project_id || undefined}
+          next={{
+            label: est.project_id ? 'Send to Bid Planner' : 'Create project and send to Bid Planner',
+            description: est.project_id
+              ? 'Copies the estimate lines into the linked project\'s bid, where you can adjust quantities and markup.'
+              : 'Creates a project from this estimate and copies its lines into the bid.',
+            onClick: () => setBpMode(est.project_id ? 'existing' : 'new'),
+          }}
+          alternatives={[{ label: 'Skip to Schedule of Values', description: 'Use the estimate lines as billing lines now.', onClick: () => setSovOpen(true) }]}
+        />
         <Card className="p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -255,11 +266,7 @@ export default function EstimateDashboard() {
                 New project from estimate
               </Button>
               <Button size="sm" variant="outline" onClick={() => setBpMode('existing')}>
-                Send to Bid Planner
-              </Button>
-              <Button size="sm" onClick={() => setSovOpen(true)}>
-                <ListChecks className="mr-2 h-4 w-4" />
-                Send to schedule of values
+                Send to another project
               </Button>
               {est.sov_project_id && (
                 <>
@@ -283,18 +290,18 @@ export default function EstimateDashboard() {
                   Cost Database
                 </Link>
               </Button>
-              <Button variant="outline" size="sm" onClick={() => download(estimateCsv(lines), `${est.name}.csv`, 'text/csv')}>
-
-                <Download className="mr-2 h-4 w-4" />
-                Export CSV
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => download(JSON.stringify({ estimate: est, lines, subs, flags, bids, totals }, null, 2), `${est.name}.json`, 'application/json')}
-              >
-                Export JSON
-              </Button>
+              <ExportMenu
+                triggerClassName="h-9"
+                options={[
+                  { label: 'Estimate lines (CSV)', hint: 'For Excel', format: 'csv', onSelect: () => download(estimateCsv(lines), `${est.name}.csv`, 'text/csv') },
+                  {
+                    label: 'Full estimate data (JSON)',
+                    hint: 'Backup or hand-off to other software',
+                    format: 'json',
+                    onSelect: () => download(JSON.stringify({ estimate: est, lines, subs, flags, bids, totals }, null, 2), `${est.name}.json`, 'application/json'),
+                  },
+                ]}
+              />
               <Button variant="outline" size="sm" onClick={resetOverrides}>
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Reset overrides

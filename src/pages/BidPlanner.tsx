@@ -2,12 +2,14 @@ import { WorkflowStepper } from '@/components/workflow/WorkflowStepper';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calculator, Target, Building2, Plus, Download, FileUp, Database, LayoutTemplate, ListChecks, Layers, DollarSign } from 'lucide-react';
 import { PageHero, heroButton } from '@/components/ui/page-hero';
+import { ExportMenu, downloadCsv } from '@/components/ui/export-menu';
+import { createProposalFromBid, sendBidToSov } from '@/utils/proposalWorkflow';
 import { AccentStat } from '@/components/ui/accent-stat';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,6 +29,25 @@ export default function BidPlanner() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const navigate = useNavigate();
+
+  const exportBidCsv = () => {
+    const p = projects.find((x) => x.id === selectedProject);
+    downloadCsv(
+      `bid-${(p?.name || 'project').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+      ['Section', 'Subsection', 'Description', 'Quantity', 'Unit', 'Unit cost', 'Markup %', 'Amount'],
+      bidItems.map((i) => [
+        i.category,
+        i.subcategory || '',
+        i.description,
+        i.quantity,
+        i.unit || '',
+        Number(i.unit_cost || 0).toFixed(2),
+        Number(i.markup_pct || 0),
+        ((Number(i.unit_cost) || 0) * (Number(i.quantity) || 0) * (1 + (Number(i.markup_pct) || 0) / 100)).toFixed(2),
+      ])
+    );
+  };
 
   useEffect(() => {
     fetchProjects();
@@ -129,7 +150,7 @@ export default function BidPlanner() {
   };
 
   const project = projects.find((p) => p.id === selectedProject);
-  const bidTotal = bidItems.reduce((sum, item) => sum + (Number(item.unit_cost) || 0) * (Number(item.quantity) || 0), 0);
+  const bidTotal = bidItems.reduce((sum, item) => sum + (Number(item.unit_cost) || 0) * (Number(item.quantity) || 0) * (1 + (Number(item.markup_pct) || 0) / 100), 0);
   const sectionCount = new Set(bidItems.map((i) => i.category).filter(Boolean)).size;
   const contract = Number(project?.contract_value) || 0;
   const money0 = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -149,9 +170,13 @@ export default function BidPlanner() {
                 </button>
               )}
               {selectedProject && bidItems.length > 0 && (
-                <button type="button" className={heroButton} onClick={handleExportReport}>
-                  <Download className="h-4 w-4" /> Export PDF
-                </button>
+                <ExportMenu
+                  variant="hero"
+                  options={[
+                    { label: 'Bid report (PDF)', hint: 'Sections, line detail and totals', format: 'pdf', onSelect: handleExportReport },
+                    { label: 'Bid lines (CSV)', hint: 'For Excel', format: 'csv', onSelect: exportBidCsv },
+                  ]}
+                />
               )}
               <Link to="/bid-templates" className={heroButton}>
                 <LayoutTemplate className="h-4 w-4" /> Templates
@@ -194,7 +219,47 @@ export default function BidPlanner() {
           </div>
         </PageHero>
 
-        <WorkflowStepper projectId={selectedProject} />
+        <WorkflowStepper
+          projectId={selectedProject}
+          next={
+            selectedProject
+              ? {
+                  label: 'Create proposal from this bid',
+                  description: `Starts a draft proposal for ${project?.name || 'this project'} with all ${bidItems.length} bid lines, quantities and markup filled in.`,
+                  disabled: !bidItems.length,
+                  disabledReason: 'Add at least one bid line, then turn the bid into a proposal in one click.',
+                  onClick: async () => {
+                    try {
+                      await createProposalFromBid(selectedProject, bidItems);
+                      toast.success('Draft proposal created from this bid');
+                      navigate(`/proposals?project=${selectedProject}`);
+                    } catch (e: any) {
+                      toast.error(e.message || 'Could not create the proposal');
+                    }
+                  },
+                }
+              : undefined
+          }
+          alternatives={
+            selectedProject && bidItems.length
+              ? [
+                  {
+                    label: 'Skip proposal, send to Schedule of Values',
+                    description: 'Use the bid lines as billing lines now. Unbilled lines are replaced; billed ones are kept.',
+                    onClick: async () => {
+                      try {
+                        const r = await sendBidToSov(selectedProject);
+                        toast.success(`Sent ${r.added} line${r.added === 1 ? '' : 's'} to the Schedule of Values`);
+                        navigate(`/schedule-of-values?project=${selectedProject}`);
+                      } catch (e: any) {
+                        toast.error(e.message || 'Could not send the bid to the Schedule of Values');
+                      }
+                    },
+                  },
+                ]
+              : []
+          }
+        />
 
         {selectedProject && (
           <ImportTakeoffDialog
@@ -213,7 +278,7 @@ export default function BidPlanner() {
             <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               <AccentStat label="Bid lines" value={bidItems.length} icon={ListChecks} accent="blue" />
               <AccentStat label="Sections" value={sectionCount} icon={Layers} accent="indigo" />
-              <AccentStat label="Bid total" value={money0(bidTotal)} icon={DollarSign} accent="orange" hint="Quantity × unit cost" />
+              <AccentStat label="Bid total" value={money0(bidTotal)} icon={DollarSign} accent="orange" hint="Incl. markup" />
               <AccentStat
                 label="vs. contract value"
                 value={contract ? money0(contract - bidTotal) : '—'}

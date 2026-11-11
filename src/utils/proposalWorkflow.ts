@@ -128,3 +128,73 @@ export async function syncProposalToSov(proposal: ProposalForSov) {
   if (syncedError) throw syncedError;
   return lines.length;
 }
+
+const hasProgress = (row: any) =>
+  (Number(row.previous_applications) || 0) + (Number(row.this_period) || 0) + (Number(row.materials_stored) || 0) > 0;
+
+/** How many SOV lines a project already has, and how many have billed progress. */
+export async function sovLineCounts(projectId: string) {
+  const { data, error } = await supabase
+    .from('sov_items')
+    .select('id, previous_applications, this_period, materials_stored')
+    .eq('project_id', projectId);
+  if (error) throw error;
+  const rows = data || [];
+  return { total: rows.length, billed: rows.filter(hasProgress).length };
+}
+
+/**
+ * Turn the project's saved bid lines into Schedule of Values lines.
+ * With `replace`, lines that have no billed progress are removed first, so
+ * re-sending an updated bid doesn't create duplicates; billed lines are kept.
+ */
+export async function sendBidToSov(projectId: string, { replace = true }: { replace?: boolean } = {}) {
+  const { data: bid, error: bidError } = await supabase
+    .from('bid_items')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('category');
+  if (bidError) throw bidError;
+  const lines = (bid || []).filter((b: any) => String(b.description || '').trim() || Number(b.unit_cost));
+  if (!lines.length) throw new Error('Save at least one bid line before sending it to the Schedule of Values.');
+
+  const { data: existing, error: existingError } = await supabase
+    .from('sov_items')
+    .select('id, item_number, previous_applications, this_period, materials_stored')
+    .eq('project_id', projectId);
+  if (existingError) throw existingError;
+
+  let keep = existing || [];
+  if (replace) {
+    const removable = keep.filter((r) => !hasProgress(r)).map((r) => r.id);
+    if (removable.length) {
+      const { error } = await supabase.from('sov_items').delete().in('id', removable);
+      if (error) throw error;
+    }
+    keep = keep.filter(hasProgress);
+  }
+
+  let next = Math.max(0, ...keep.map((r) => parseInt(r.item_number, 10) || 0)) + 1;
+  const rows = lines.map((b: any) => ({
+    project_id: projectId,
+    item_number: String(next++).padStart(3, '0'),
+    category: b.category || 'General',
+    subcategory: b.subcategory || null,
+    description: b.description || b.category || 'Bid line',
+    scheduled_value:
+      Math.round(
+        (b.total != null && Number(b.total)
+          ? Number(b.total)
+          : (Number(b.unit_cost) || 0) * (Number(b.quantity) || 1) * (1 + (Number(b.markup_pct) || 0) / 100)) * 100
+      ) / 100,
+    previous_applications: 0,
+    this_period: 0,
+    materials_stored: 0,
+    percent_complete: 0,
+    change_orders: 0,
+    retainage_percentage: 10,
+  }));
+  const { error } = await supabase.from('sov_items').insert(rows);
+  if (error) throw error;
+  return { added: rows.length, kept: keep.length };
+}

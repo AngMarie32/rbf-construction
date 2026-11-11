@@ -12,9 +12,11 @@ interface ProposalViewModalProps {
   proposal: Proposal | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Download the client-ready PDF (falls back to a text file). */
+  onDownload?: () => void;
 }
 
-export function ProposalViewModal({ proposal, open, onOpenChange }: ProposalViewModalProps) {
+export function ProposalViewModal({ proposal, open, onOpenChange, onDownload }: ProposalViewModalProps) {
   // Don't render anything if proposal is null
   if (!proposal) {
     return null;
@@ -211,9 +213,9 @@ Thank you for considering our proposal. We look forward to working with you.
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
-            <Button onClick={downloadProposal} className="flex-1">
+            <Button onClick={onDownload || downloadProposal} className="flex-1">
               <Download className="w-4 h-4 mr-2" />
-              Download Proposal
+              Download PDF
             </Button>
             <Button variant="outline" className="flex-1">
               <Mail className="w-4 h-4 mr-2" />
