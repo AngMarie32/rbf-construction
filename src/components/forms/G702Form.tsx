@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Settings } from 'lucide-react';
+import { Settings, Printer } from 'lucide-react';
 import { G702Builder } from './G702Builder';
 import { G702Document } from './G702Document';
 import { G703Document } from './G703Document';
@@ -49,7 +49,16 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
   const [project, setProject] = useState<Project | null>(null);
   const [sovItems, setSovItems] = useState<SOVItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeDocument, setActiveDocument] = useState<'g702' | 'g703' | 'builder'>('builder');
+  // ?doc=g702|g703 opens a form directly; &print=1 opens the print dialog once it has rendered.
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialDoc = urlParams.get('doc');
+  const [activeDocument, setActiveDocument] = useState<'g702' | 'g703' | 'builder'>(initialDoc === 'g702' || initialDoc === 'g703' ? initialDoc : 'builder');
+  useEffect(() => {
+    if (urlParams.get('print') !== '1' || activeDocument === 'builder') return;
+    const t = setTimeout(() => window.print(), 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [calculatedTotals, setCalculatedTotals] = useState<any>(null);
   
   const [formData, setFormData] = useState({
@@ -507,6 +516,12 @@ export function G702Form({ projectId, applicationId, onSave }: G702FormProps) {
         >
           G703 - Continuation Sheet
         </Button>
+        {activeDocument !== 'builder' && (
+          <Button variant="outline" className="ml-auto" onClick={() => window.print()}>
+            <Printer className="w-4 h-4 mr-2" />
+            Print / Save as PDF
+          </Button>
+        )}
       </div>
 
       {/* Builder View */}
