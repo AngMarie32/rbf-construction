@@ -4,18 +4,13 @@ import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Calculator, 
-  Target,
-  Building2,
-  HelpCircle,
-  Plus,
-  Download
-} from 'lucide-react';
+import { Calculator, Target, Building2, Plus, Download, FileUp, Database, LayoutTemplate, ListChecks, Layers, DollarSign } from 'lucide-react';
+import { PageHero, heroButton } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { TabbedBidInterface } from '@/components/bid-planner/TabbedBidInterface';
@@ -132,140 +127,129 @@ export default function BidPlanner() {
     setSelectedProject(projectId);
   };
 
-  if (loading) {
-    return (
-      <Layout title="Bid Planner" subtitle="Create and manage construction bids">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </Layout>
-    );
-  }
+  const project = projects.find((p) => p.id === selectedProject);
+  const bidTotal = bidItems.reduce((sum, item) => sum + (Number(item.unit_cost) || 0) * (Number(item.quantity) || 0), 0);
+  const sectionCount = new Set(bidItems.map((i) => i.category).filter(Boolean)).size;
+  const contract = Number(project?.contract_value) || 0;
+  const money0 = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
   return (
-    <Layout title="Bid Planner" subtitle="Create and manage construction bids">
-      <div className="space-y-8">
-        <WorkflowStepper projectId={selectedProject} />
-        {/* Project Selection */}
-        <Card className="border-2 border-dashed border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="w-5 h-5 text-primary" />
-              Project Selection
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-4 items-center">
+    <Layout hideTitle title="Bid Planner" subtitle="Create and manage construction bids">
+      <div className="space-y-6">
+        <PageHero
+          eyebrow="Bidding"
+          title={project ? project.name : 'Bid Planner'}
+          subtitle={project ? 'Build the bid line by line, from templates, blueprints or a takeoff file.' : 'Pick a project to build a detailed, line-by-line bid.'}
+          actions={
+            <>
+              {selectedProject && (
+                <button type="button" className={heroButton} onClick={() => setImportOpen(true)}>
+                  <FileUp className="h-4 w-4" /> Import CAD / takeoff
+                </button>
+              )}
+              {selectedProject && bidItems.length > 0 && (
+                <button type="button" className={heroButton} onClick={handleExportReport}>
+                  <Download className="h-4 w-4" /> Export PDF
+                </button>
+              )}
+              <Link to="/bid-templates" className={heroButton}>
+                <LayoutTemplate className="h-4 w-4" /> Templates
+              </Link>
+              <Link to="/cost-database" className={heroButton}>
+                <Database className="h-4 w-4" /> Cost database
+              </Link>
+            </>
+          }
+          stats={
+            project
+              ? [
+                  { label: 'Bid total', value: money0(bidTotal) },
+                  { label: 'Contract value', value: contract ? money0(contract) : '—' },
+                ]
+              : []
+          }
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            <Target className="h-4 w-4 text-orange-300" />
+            {loading ? (
+              <Skeleton className="h-10 w-full max-w-md bg-white/10" />
+            ) : (
               <Select value={selectedProject} onValueChange={handleProjectSelect}>
-                <SelectTrigger className="w-full max-w-md bg-background">
+                <SelectTrigger className="w-full max-w-md border-white/15 bg-white/10 text-white [&>span]:truncate">
                   <SelectValue placeholder="Choose a project for bid planning" />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      <div className="flex items-center justify-between w-full">
-                        <span>{project.name}</span>
-                        <Badge variant="outline" className="ml-2">
-                          {project.status}
-                        </Badge>
-                      </div>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      <span className="flex items-center gap-2">
+                        <span>{p.name}</span>
+                        <span className="text-xs text-muted-foreground">{p.status}</span>
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {selectedProject && (
-                <Button variant="outline" onClick={() => setImportOpen(true)}>Import CAD / takeoff file</Button>
-              )}
-              <Button variant="outline" asChild>
-                <Link to="/cost-database">Cost Database</Link>
-              </Button>
-
-            </div>
-            {selectedProject && (
-              <ImportTakeoffDialog
-                open={importOpen}
-                onOpenChange={setImportOpen}
-                projectId={selectedProject}
-                onDone={() => { fetchBidItems(); setReloadKey((k) => k + 1); }}
-              />
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </PageHero>
 
-        {selectedProject ? (
-          <TabbedBidInterface
-            key={`${selectedProject}-${reloadKey}`}
+        <WorkflowStepper projectId={selectedProject} />
+
+        {selectedProject && (
+          <ImportTakeoffDialog
+            open={importOpen}
+            onOpenChange={setImportOpen}
             projectId={selectedProject}
-            bidItems={bidItems}
-            onItemsChange={setBidItems}
-            onExportReport={handleExportReport}
-            projects={projects}
-            onProjectChange={handleProjectSelect}
+            onDone={() => {
+              fetchBidItems();
+              setReloadKey((k) => k + 1);
+            }}
           />
-        ) : (
-          <Card className="border-2 border-dashed border-border">
-            <CardContent className="text-center py-16">
-              <Calculator className="w-20 h-20 text-muted-foreground/50 mx-auto mb-6" />
-              <h3 className="text-xl font-semibold text-foreground mb-3">Bid Planning</h3>
-              <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                Select a project above to start creating detailed construction bids with accurate cost estimates and formatting.
-              </p>
-              {projects.length === 0 && (
-                <div className="mt-6">
-                  <p className="text-muted-foreground/70 mb-4">No projects found. Create a project first to start bid planning.</p>
-                  <Button onClick={() => window.location.href = '/projects'} variant="outline">
-                    <Building2 className="w-4 h-4 mr-2" />
-                    Go to Projects
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         )}
 
-        {/* Quick Start Guide */}
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-800">
-              <HelpCircle className="w-5 h-5" />
-              Quick Start Guide - Bid Planner
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="bg-card p-4 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target className="w-4 h-4 text-blue-600" />
-                  <h4 className="font-semibold text-blue-800">1. Select Project</h4>
-                </div>
-                <p className="text-sm text-blue-700">Choose an existing project from the dropdown above to begin bid planning.</p>
-              </div>
-              
-              <div className="bg-card p-4 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Plus className="w-4 h-4 text-blue-600" />
-                  <h4 className="font-semibold text-blue-800">2. Add Bid Items</h4>
-                </div>
-                <p className="text-sm text-blue-700">Use templates, import from images, or create custom bid items with quantities and costs.</p>
-              </div>
-              
-              <div className="bg-card p-4 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Download className="w-4 h-4 text-blue-600" />
-                  <h4 className="font-semibold text-blue-800">3. Export Bid</h4>
-                </div>
-                <p className="text-sm text-blue-700">Generate professional PDF bid documents ready for client presentation.</p>
-              </div>
+        {selectedProject ? (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+              <AccentStat label="Bid lines" value={bidItems.length} icon={ListChecks} accent="blue" />
+              <AccentStat label="Sections" value={sectionCount} icon={Layers} accent="indigo" />
+              <AccentStat label="Bid total" value={money0(bidTotal)} icon={DollarSign} accent="orange" hint="Quantity × unit cost" />
+              <AccentStat
+                label="vs. contract value"
+                value={contract ? money0(contract - bidTotal) : '—'}
+                tone={contract ? (contract - bidTotal >= 0 ? 'good' : 'bad') : undefined}
+                accent="emerald"
+                hint={contract ? (contract - bidTotal >= 0 ? 'Room under the contract' : 'Bid is over the contract') : 'No contract value on the project'}
+              />
             </div>
-          </CardContent>
-        </Card>
 
-        <EnhancedBidDialog
-          open={createDialogOpen}
-          onOpenChange={setCreateDialogOpen}
-          onBidCreated={fetchBidItems}
-          projects={projects}
-        />
+            <TabbedBidInterface
+              key={`${selectedProject}-${reloadKey}`}
+              projectId={selectedProject}
+              bidItems={bidItems}
+              onItemsChange={setBidItems}
+              onExportReport={handleExportReport}
+              projects={projects}
+              onProjectChange={handleProjectSelect}
+            />
+          </>
+        ) : !loading && projects.length === 0 ? (
+          <EmptyState
+            icon={Building2}
+            title="Create a project first"
+            description="Bids are built per project. Add the job on the Projects page, then come back here to price it."
+            action={{ label: 'Go to Projects', to: '/projects', icon: Building2 }}
+          />
+        ) : (
+          <EmptyState
+            icon={Calculator}
+            title="Pick a project to start the bid"
+            description="Choose a project in the banner above. You can add lines by hand, pull in a saved template, read quantities from blueprints, or import a CAD takeoff."
+            secondaryAction={{ label: 'Manage templates', to: '/bid-templates' }}
+            steps={['Select the project', 'Add bid items from templates, blueprints or by hand', 'Export the PDF or turn it into a proposal']}
+          />
+        )}
+
+        <EnhancedBidDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} onBidCreated={fetchBidItems} projects={projects} />
       </div>
     </Layout>
   );

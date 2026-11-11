@@ -1,20 +1,10 @@
 import { WorkflowStepper } from '@/components/workflow/WorkflowStepper';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Plus, 
-  FileText, 
-  Download,
-  Eye,
-  Edit,
-  Trash2
-} from 'lucide-react';
+import { Plus, FileText, Download, Eye, Pencil, Trash2, FileSignature, Send, CheckCircle2, Trophy, PenLine } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { EnhancedProposalDialog } from '@/components/proposals/EnhancedProposalDialog';
@@ -23,6 +13,23 @@ import { ProposalViewModal } from '@/components/proposals/ProposalViewModal';
 import { generateProfessionalProposalPDF } from '@/utils/proposalPdfExport';
 import { format } from 'date-fns';
 import { SendForSignatureButton } from '@/components/esign/SendForSignatureButton';
+import { cn } from '@/lib/utils';
+import { PageHero, heroButton, heroButtonPrimary } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+type ProposalStatus = 'Draft' | 'Sent' | 'Viewed' | 'Approved' | 'Rejected';
 
 interface Proposal {
   id: string;
@@ -30,19 +37,33 @@ interface Proposal {
   client: string;
   scope?: string;
   created_at: string;
-  status: 'Draft' | 'Sent' | 'Viewed' | 'Approved' | 'Rejected';
+  status: ProposalStatus;
   amount: number;
   raw?: any;
 }
 
+const STATUS_OPTIONS: ProposalStatus[] = ['Draft', 'Sent', 'Viewed', 'Approved', 'Rejected'];
+
+const STATUS_STYLE: Record<ProposalStatus, string> = {
+  Draft: 'bg-slate-500/10 text-slate-700 ring-slate-500/20 dark:text-slate-300',
+  Sent: 'bg-blue-500/10 text-blue-700 ring-blue-500/20 dark:text-blue-300',
+  Viewed: 'bg-indigo-500/10 text-indigo-700 ring-indigo-500/20 dark:text-indigo-300',
+  Approved: 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-300',
+  Rejected: 'bg-rose-500/10 text-rose-700 ring-rose-500/20 dark:text-rose-300',
+};
+
+const money0 = (n: number) =>
+  (Number(n) || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
 export default function Proposals() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<'all' | ProposalStatus>('all');
   const [newProposalOpen, setNewProposalOpen] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Proposal | null>(null);
 
   useEffect(() => {
     fetchProposals();
@@ -50,38 +71,55 @@ export default function Proposals() {
 
   const fetchProposals = async () => {
     try {
-      const { data, error } = await supabase
-        .from('proposals')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+      setLoading(true);
+      const { data, error } = await supabase.from('proposals').select('*').order('created_at', { ascending: false });
       if (error) throw error;
-      
-      // Map database fields to component interface and ensure status type safety
-      const mappedData = (data || []).map(item => ({
-        id: item.id,
-        project_name: item.project_name,
-        client: item.client,
-        scope: item.scope,
-        created_at: item.created_at,
-        status: (item.status as 'Draft' | 'Sent' | 'Viewed' | 'Approved' | 'Rejected') || 'Draft',
-        amount: item.amount,
-        raw: item,
-      }));
-      
-      setProposals(mappedData);
+      setProposals(
+        (data || []).map((item) => ({
+          id: item.id,
+          project_name: item.project_name || 'Untitled',
+          client: item.client || '',
+          scope: item.scope,
+          created_at: item.created_at,
+          status: (STATUS_OPTIONS.includes(item.status as ProposalStatus) ? item.status : 'Draft') as ProposalStatus,
+          amount: Number(item.amount) || 0,
+          raw: item,
+        }))
+      );
     } catch (error) {
       console.error('Error fetching proposals:', error);
       toast.error('Failed to load proposals');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const filteredProposals = proposals.filter(proposal => {
-    const searchMatch = proposal.project_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        proposal.client.toLowerCase().includes(searchQuery.toLowerCase());
-    const statusMatch = statusFilter === 'all' ? true : proposal.status === statusFilter;
-    return searchMatch && statusMatch;
-  });
+  const stats = useMemo(() => {
+    const by = (s: ProposalStatus[]) => proposals.filter((p) => s.includes(p.status));
+    const sum = (list: Proposal[]) => list.reduce((acc, p) => acc + p.amount, 0);
+    const approved = by(['Approved']);
+    const rejected = by(['Rejected']);
+    const pending = by(['Sent', 'Viewed']);
+    const decided = approved.length + rejected.length;
+    return {
+      drafts: by(['Draft']).length,
+      pending: pending.length,
+      pendingValue: sum(pending),
+      approved: approved.length,
+      approvedValue: sum(approved),
+      winRate: decided ? Math.round((approved.length / decided) * 100) : null,
+    };
+  }, [proposals]);
+
+  const filteredProposals = useMemo(
+    () => (statusFilter === 'all' ? proposals : proposals.filter((p) => p.status === statusFilter)),
+    [proposals, statusFilter]
+  );
+
+  const openNew = () => {
+    setSelectedProposal(null);
+    setNewProposalOpen(true);
+  };
 
   const handleViewProposal = (proposal: Proposal) => {
     setSelectedProposal(proposal);
@@ -93,12 +131,18 @@ export default function Proposals() {
     setNewProposalOpen(true);
   };
 
-  const handleDeleteProposal = (proposal: Proposal) => {
-    // Implement delete logic here
-    toast.success(`Proposal "${proposal.project_name}" deleted successfully`);
+  const deleteProposal = async (proposal: Proposal) => {
+    const { error } = await supabase.from('proposals').delete().eq('id', proposal.id);
+    if (error) {
+      console.error('Error deleting proposal:', error);
+      toast.error(`Couldn't delete the proposal: ${error.message}`);
+      return;
+    }
+    setProposals((prev) => prev.filter((p) => p.id !== proposal.id));
+    toast.success(`Proposal "${proposal.project_name}" deleted`);
   };
 
-  const handleExportProposalPDF = async (proposal: Proposal) => {
+  const handleExportProposalPDF = async (proposal: Proposal, quiet = false) => {
     try {
       await generateProfessionalProposalPDF({
         projectName: proposal.project_name,
@@ -108,7 +152,7 @@ export default function Proposals() {
         createdAt: new Date(proposal.created_at),
         scope: proposal.scope || undefined,
       });
-      toast.success('Proposal PDF exported successfully');
+      if (!quiet) toast.success('Proposal PDF exported');
     } catch (error) {
       console.error('Error exporting proposal PDF:', error);
       toast.error('Failed to export proposal PDF');
@@ -120,10 +164,8 @@ export default function Proposals() {
       toast.error('No proposals to export');
       return;
     }
-    for (const proposal of filteredProposals) {
-      await handleExportProposalPDF(proposal);
-    }
-    toast.success(`Exported ${filteredProposals.length} proposal(s)`);
+    for (const proposal of filteredProposals) await handleExportProposalPDF(proposal, true);
+    toast.success(`Exported ${filteredProposals.length} proposal PDF${filteredProposals.length === 1 ? '' : 's'}`);
   };
 
   const handleProposalCreated = () => {
@@ -132,18 +174,9 @@ export default function Proposals() {
     setSelectedProposal(null);
   };
 
-  // Map proposal to expected format for ProposalViewModal
   const mapProposalForModal = (proposal: Proposal | null) => {
     if (!proposal) return null;
-    
-    // Map status to match ProposalViewModal's expected type
-    let modalStatus: 'Draft' | 'Sent' | 'Approved' | 'Rejected' = 'Draft';
-    if (proposal.status === 'Draft' || proposal.status === 'Sent' || proposal.status === 'Approved' || proposal.status === 'Rejected') {
-      modalStatus = proposal.status;
-    } else if (proposal.status === 'Viewed') {
-      modalStatus = 'Sent'; // Map 'Viewed' to 'Sent' for the modal
-    }
-    
+    const modalStatus: 'Draft' | 'Sent' | 'Approved' | 'Rejected' = proposal.status === 'Viewed' ? 'Sent' : proposal.status;
     return {
       id: proposal.id,
       projectName: proposal.project_name,
@@ -151,206 +184,233 @@ export default function Proposals() {
       scope: proposal.scope || '',
       createdAt: new Date(proposal.created_at),
       status: modalStatus,
-      amount: proposal.amount
+      amount: proposal.amount,
     };
   };
 
-  const statusOptions = ['Draft', 'Sent', 'Viewed', 'Approved', 'Rejected'];
+  const columns: DataTableColumn<Proposal>[] = [
+    {
+      id: 'project',
+      header: 'Project',
+      value: (p) => p.project_name,
+      cell: (p) => (
+        <div className="min-w-0">
+          <p className="truncate font-medium">{p.project_name}</p>
+          {p.scope && <p className="max-w-xs truncate text-xs text-muted-foreground">{p.scope}</p>}
+        </div>
+      ),
+    },
+    { id: 'client', header: 'Client', value: (p) => p.client, cell: (p) => p.client || <span className="text-muted-foreground">—</span> },
+    {
+      id: 'date',
+      header: 'Created',
+      value: (p) => new Date(p.created_at),
+      cell: (p) => <span className="whitespace-nowrap">{format(new Date(p.created_at), 'MMM d, yyyy')}</span>,
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      value: (p) => p.status,
+      cell: (p) => (
+        <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset', STATUS_STYLE[p.status])}>
+          {p.status}
+        </span>
+      ),
+    },
+    {
+      id: 'amount',
+      header: 'Amount',
+      align: 'right',
+      value: (p) => p.amount,
+      cell: (p) => <span className="font-semibold tabular-nums">{money0(p.amount)}</span>,
+    },
+    {
+      id: 'actions',
+      header: '',
+      align: 'right',
+      noExport: true,
+      cell: (p) => (
+        <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="View" onClick={() => handleViewProposal(p)}>
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Download PDF" onClick={() => handleExportProposalPDF(p)}>
+            <Download className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" onClick={() => handleEditProposal(p)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <SendForSignatureButton
+            source="proposal"
+            sourceId={p.id}
+            title={`Proposal – ${p.project_name}`}
+            company={p.client}
+            documentType="Proposal"
+            iconOnly
+          />
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Delete" onClick={() => setConfirmDelete(p)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <Layout hideTitle title="Proposals" subtitle="Create and manage project proposals">
       <div className="space-y-6">
+        <PageHero
+          eyebrow="Bidding"
+          title="Proposals"
+          subtitle="Send professional proposals, collect signatures and track which bids you win."
+          actions={
+            <>
+              <button type="button" className={heroButtonPrimary} onClick={openNew}>
+                <Plus className="h-4 w-4" /> New proposal
+              </button>
+              <button type="button" className={heroButton} onClick={() => setTemplateDialogOpen(true)}>
+                <FileText className="h-4 w-4" /> Templates
+              </button>
+              <button type="button" className={heroButton} onClick={handleExportAll}>
+                <Download className="h-4 w-4" /> Export PDFs
+              </button>
+            </>
+          }
+          stats={[
+            { label: 'Out for decision', value: loading ? '…' : money0(stats.pendingValue), tone: stats.pendingValue ? 'warn' : undefined },
+            { label: 'Won', value: loading ? '…' : money0(stats.approvedValue), tone: stats.approvedValue ? 'good' : undefined },
+            { label: 'Win rate', value: loading ? '…' : stats.winRate == null ? '—' : `${stats.winRate}%` },
+          ]}
+        />
+
         <WorkflowStepper projectId={undefined} />
-        {/* Enhanced Header with Quick Guide */}
-        <div className="bg-card rounded-lg p-6 border border-border shadow-sm">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Project Proposals</h1>
-                <p className="text-gray-600">Create professional proposals and track client responses</p>
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={() => setNewProposalOpen(true)} className="bg-green-600 hover:bg-green-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Proposal
-                </Button>
-                <Button variant="outline" onClick={() => setTemplateDialogOpen(true)}>
-                  <FileText className="w-4 h-4 mr-2" />
-                  Templates
-                </Button>
-                <Button variant="outline" onClick={handleExportAll}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export All
-                </Button>
-              </div>
-            </div>
 
-          </div>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <AccentStat label="Total proposals" value={proposals.length} icon={FileSignature} accent="blue" loading={loading} hint="All time" />
+          <AccentStat label="Drafts" value={stats.drafts} icon={PenLine} accent="slate" loading={loading} hint="Not sent yet" />
+          <AccentStat
+            label="Awaiting response"
+            value={stats.pending}
+            icon={Send}
+            accent="amber"
+            tone={stats.pending ? 'warn' : undefined}
+            loading={loading}
+            hint={`${money0(stats.pendingValue)} sent or viewed`}
+          />
+          <AccentStat
+            label="Approved"
+            value={stats.approved}
+            icon={stats.approved ? Trophy : CheckCircle2}
+            accent="emerald"
+            tone={stats.approved ? 'good' : undefined}
+            loading={loading}
+            hint={`${money0(stats.approvedValue)} won`}
+          />
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Total Proposals</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{proposals.length}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Approved Proposals</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{proposals.filter(p => p.status === 'Approved').length}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending Proposals</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{proposals.filter(p => p.status === 'Sent' || p.status === 'Viewed').length}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters and Actions */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex flex-wrap gap-2">
-            <Input
-              type="search"
-              placeholder="Search proposals..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by status" />
+        <DataTable
+          columns={columns}
+          rows={filteredProposals}
+          totalCount={proposals.length}
+          getRowId={(p) => p.id}
+          loading={loading}
+          searchPlaceholder="Search project or client…"
+          exportFilename="proposals"
+          initialSort={{ id: 'date', desc: true }}
+          onRowClick={handleViewProposal}
+          filters={
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+              <SelectTrigger className="w-full sm:w-44">
+                <SelectValue placeholder="All statuses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {statusOptions.map(status => (
-                  <SelectItem key={status} value={status}>{status}</SelectItem>
+                <SelectItem value="all">All statuses</SelectItem>
+                {STATUS_OPTIONS.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s} ({proposals.filter((p) => p.status === s).length})
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          {/* Add more filter options here if needed */}
-        </div>
-
-        {/* Proposal List */}
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Project Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Client
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Amount
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredProposals.map((proposal) => (
-                <tr key={proposal.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">{proposal.project_name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{proposal.client}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{format(new Date(proposal.created_at), 'PPP')}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Badge
-                      className={
-                        proposal.status === 'Approved'
-                          ? 'bg-green-500 text-white'
-                          : proposal.status === 'Rejected'
-                          ? 'bg-red-500 text-white'
-                          : 'bg-yellow-500 text-gray-800'
-                      }
-                    >
-                      {proposal.status}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">${proposal.amount.toLocaleString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleViewProposal(proposal)}>
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleExportProposalPDF(proposal)}>
-                        <Download className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleEditProposal(proposal)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <SendForSignatureButton
-                        source="proposal"
-                        sourceId={proposal.id}
-                        title={`Proposal – ${proposal.project_name}`}
-                        company={proposal.client}
-                        documentType="Proposal"
-                        iconOnly
-                      />
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteProposal(proposal)}>
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+          }
+          empty={
+            proposals.length ? (
+              <EmptyState
+                icon={FileSignature}
+                title="No proposals match"
+                description="Try a different search or status."
+                filtered
+                onClearFilters={() => setStatusFilter('all')}
+              />
+            ) : (
+              <EmptyState
+                icon={FileSignature}
+                title="No proposals yet"
+                description="Turn a bid into a client-ready proposal, send it for e-signature and track whether you win the job."
+                action={{ label: 'New proposal', onClick: openNew, icon: Plus }}
+                secondaryAction={{ label: 'Open Bid Planner', to: '/bid-planner' }}
+                steps={['Price the job in the Bid Estimator or Bid Planner', 'Create the proposal and download the PDF', 'Send it for signature and mark the result']}
+              />
+            )
+          }
+        />
       </div>
 
-      {/* Dialogs */}
       <EnhancedProposalDialog
         open={newProposalOpen}
-        onOpenChange={setNewProposalOpen}
-        proposal={selectedProposal ? {
-          id: selectedProposal.id,
-          projectName: selectedProposal.project_name,
-          client: selectedProposal.client,
-          scope: selectedProposal.scope,
-          amount: selectedProposal.amount,
-          status: selectedProposal.status === 'Viewed' ? 'Sent' : selectedProposal.status,
-          clientAddress: selectedProposal.raw?.client_address,
-          clientPhone: selectedProposal.raw?.client_phone,
-          clientEmail: selectedProposal.raw?.client_email,
-          projectAddress: selectedProposal.raw?.project_address,
-          validDays: selectedProposal.raw?.valid_days,
-          notes: selectedProposal.raw?.notes,
-          proposalItems: selectedProposal.raw?.proposal_items,
-          projectId: selectedProposal.raw?.project_id,
-        } : null}
+        onOpenChange={(o) => {
+          setNewProposalOpen(o);
+          if (!o) setSelectedProposal(null);
+        }}
+        proposal={
+          selectedProposal
+            ? {
+                id: selectedProposal.id,
+                projectName: selectedProposal.project_name,
+                client: selectedProposal.client,
+                scope: selectedProposal.scope,
+                amount: selectedProposal.amount,
+                status: selectedProposal.status === 'Viewed' ? 'Sent' : selectedProposal.status,
+                clientAddress: selectedProposal.raw?.client_address,
+                clientPhone: selectedProposal.raw?.client_phone,
+                clientEmail: selectedProposal.raw?.client_email,
+                projectAddress: selectedProposal.raw?.project_address,
+                validDays: selectedProposal.raw?.valid_days,
+                notes: selectedProposal.raw?.notes,
+                proposalItems: selectedProposal.raw?.proposal_items,
+                projectId: selectedProposal.raw?.project_id,
+              }
+            : null
+        }
         onProposalCreated={handleProposalCreated}
       />
 
-      <ProposalTemplateDialog
-        open={templateDialogOpen}
-        onOpenChange={setTemplateDialogOpen}
-        onTemplateSelect={() => {}}
-      />
+      <ProposalTemplateDialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen} onTemplateSelect={() => {}} />
 
-      <ProposalViewModal
-        open={viewModalOpen}
-        onOpenChange={setViewModalOpen}
-        proposal={mapProposalForModal(selectedProposal)}
-      />
+      <ProposalViewModal open={viewModalOpen} onOpenChange={setViewModalOpen} proposal={mapProposalForModal(selectedProposal)} />
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this proposal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{confirmDelete?.project_name}"{confirmDelete?.client ? ` for ${confirmDelete.client}` : ''} will be permanently removed. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (confirmDelete) deleteProposal(confirmDelete);
+                setConfirmDelete(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }
