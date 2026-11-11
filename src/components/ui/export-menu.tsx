@@ -16,7 +16,7 @@ export interface ExportOption {
   /** Short note under the label, e.g. "Client-ready PDF". */
   hint?: string;
   format?: 'pdf' | 'csv' | 'json';
-  onSelect: () => void | Promise<void>;
+  onSelect: () => unknown;
   disabled?: boolean;
 }
 

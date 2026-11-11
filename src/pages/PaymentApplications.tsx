@@ -480,8 +480,8 @@ export default function PaymentApplications() {
                         <Button size="sm" onClick={() => handleEditApplication(app)}>
                           <Eye className="w-4 h-4" /> Open
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => navigate(`/payment-applications/edit/${selectedProject}/${app.id}?doc=g702&print=1`)}>
-                          <Printer className="w-4 h-4" /> Print G702
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/payment-applications/edit/${selectedProject}/${app.id}?export=package`)}>
+                          <Printer className="w-4 h-4" /> G702 / G703 PDF
                         </Button>
                         <SendForSignatureButton
                           source="invoice"
