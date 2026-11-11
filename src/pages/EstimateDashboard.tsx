@@ -228,11 +228,9 @@ export default function EstimateDashboard() {
         <WorkflowStepper
           projectId={est.project_id || undefined}
           next={{
-            label: est.project_id ? 'Send to Bid Planner' : 'Create project and send to Bid Planner',
-            description: est.project_id
-              ? 'Copies the estimate lines into the linked project\'s bid, where you can adjust quantities and markup.'
-              : 'Creates a project from this estimate and copies its lines into the bid.',
-            onClick: () => setBpMode(est.project_id ? 'existing' : 'new'),
+            label: 'Send to Bid Planner',
+            description: 'Copies the estimate lines into a project\'s bid. Link it to an existing project or create a new one.',
+            onClick: () => setBpMode('existing'),
           }}
           alternatives={[{ label: 'Skip to Schedule of Values', description: 'Use the estimate lines as billing lines now.', onClick: () => setSovOpen(true) }]}
         />
@@ -261,13 +259,6 @@ export default function EstimateDashboard() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button size="sm" onClick={() => setBpMode('new')}>
-                <Plus className="mr-2 h-4 w-4" />
-                New project from estimate
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setBpMode('existing')}>
-                Send to another project
-              </Button>
               {est.sov_project_id && (
                 <>
                   <Button variant="outline" size="sm" asChild>
