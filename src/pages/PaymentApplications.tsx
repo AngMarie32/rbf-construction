@@ -7,7 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Eye, Download, Delete, FileText, DollarSign, Calendar, HelpCircle, CheckSquare, Upload, FileSignature } from 'lucide-react';
+import { Plus, Eye, FileText, DollarSign, CheckSquare, FileSignature, Printer, Trash2, Clock } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -285,294 +287,254 @@ export default function PaymentApplications() {
     fetchApplications();
   };
 
-  // Calculate stats
-  const totalApplications = applications.length;
-  const totalRequested = applications.reduce((sum, app) => sum + (app.current_payment_due || 0), 0);
+  // ---- Summary (latest application carries the running totals) ----
   const latestApplication = applications[0];
+  const contractToDate = latestApplication?.contract_sum_to_date || latestApplication?.original_contract_sum || 0;
+  const completedToDate = latestApplication?.total_completed_and_stored || 0;
+  const retainageHeld = latestApplication?.total_retainage || 0;
+  const totalRequested = applications.reduce((sum, app) => sum + (app.current_payment_due || 0), 0);
+  const paidApps = applications.filter((a) => a.payment_status === 'paid');
+  const paidTotal = paidApps.reduce((sum, a) => sum + (a.current_payment_due || 0), 0);
+  const unpaidTotal = totalRequested - paidTotal;
+  const pctComplete = contractToDate > 0 ? Math.min(100, (completedToDate / contractToDate) * 100) : 0;
+  const money = (n: number) => `$${Math.round(n || 0).toLocaleString()}`;
 
-  const selectedProjectData = projects.find(p => p.id === selectedProject);
+  const selectedProjectData = projects.find((p) => p.id === selectedProject);
+
+  const appState = (app: PaymentApplication) => {
+    const w = waiverSummaries[app.id] || { received: 0, total: 0, allCleared: false };
+    if (app.payment_status === 'paid') return { label: 'Paid', tone: 'success' as const, w };
+    if (w.total > 0 && !w.allCleared) return { label: 'Waivers pending', tone: 'warning' as const, w };
+    return { label: 'Awaiting payment', tone: 'info' as const, w };
+  };
+
+  const projectPicker = (
+    <Select value={selectedProject} onValueChange={setSelectedProject}>
+      <SelectTrigger className="w-72">
+        <SelectValue placeholder="Choose a project" />
+      </SelectTrigger>
+      <SelectContent>
+        {projects.map((project) => (
+          <SelectItem key={project.id} value={project.id}>
+            <span className="flex items-center gap-2">
+              {project.name}
+              <span className="text-xs text-muted-foreground">{project.status}</span>
+            </span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 
   if (loading && !selectedProject) {
     return (
-      <Layout title="Payment Applications" subtitle="Streamline billing with G702/G703 forms">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <Layout title="Payment Applications" subtitle="AIA G702 / G703 billing for each job">
+        <div className="space-y-4">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-64 w-full" />
         </div>
       </Layout>
     );
   }
 
   return (
-    <Layout title="Payment Applications" subtitle="Streamline billing with G702/G703 forms">
+    <Layout
+      title="Payment Applications"
+      subtitle="AIA G702 / G703 billing for each job"
+      actions={
+        <>
+          {projectPicker}
+          <Button onClick={handleNewApplication} disabled={!selectedProject}>
+            <Plus className="w-4 h-4" /> New application
+          </Button>
+        </>
+      }
+    >
       <div className="space-y-6">
         <WorkflowStepper projectId={selectedProject} />
-        {/* Project Selection */}
-        <Card className="bg-card border border-green-300">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-green-800">
-              <FileText className="w-5 h-5" />
-              Project Selection
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger className="w-full max-w-md">
-                <SelectValue placeholder="Select a project" />
-              </SelectTrigger>
-              <SelectContent>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    <div className="flex items-center gap-2">
-                      <span>{project.name}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {project.status}
-                      </Badge>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
 
-        {selectedProject && (
+        {!selectedProject ? (
+          <EmptyState
+            icon={FileText}
+            title="Choose a project"
+            description="Pick a job at the top right to see its payment applications."
+          />
+        ) : (
           <>
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-card border border-blue-300">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-blue-600 font-medium">Total Applications</p>
-                      <p className="text-2xl font-bold text-blue-900">{totalApplications}</p>
-                      <p className="text-xs text-blue-500">Payment applications submitted</p>
-                    </div>
-                    <FileText className="w-8 h-8 text-blue-600" />
+            {/* Contract summary band */}
+            <Card className="overflow-hidden p-0">
+              <div className="relative overflow-hidden bg-[hsl(222_47%_13%)] px-6 py-6 text-white">
+                <div aria-hidden className="absolute -right-20 -top-20 h-60 w-60 rounded-full bg-orange-500/25 blur-3xl" />
+                <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">Billing summary</p>
+                    <h2 className="mt-1 font-display text-2xl font-extrabold tracking-tight">{selectedProjectData?.name}</h2>
+                    <p className="mt-1 text-sm text-white/60">
+                      {applications.length === 0
+                        ? 'No applications yet'
+                        : `${applications.length} application${applications.length === 1 ? '' : 's'} · latest #${latestApplication.application_number}, period ending ${format(new Date(latestApplication.period_to), 'MMM d, yyyy')}`}
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-card border border-green-300">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-green-600 font-medium">Total Requested</p>
-                      <p className="text-2xl font-bold text-green-900">${totalRequested.toLocaleString()}</p>
-                      <p className="text-xs text-green-500">Cumulative payment requests</p>
+                  <div className="w-full max-w-md">
+                    <div className="flex justify-between text-xs text-white/70">
+                      <span>Completed & stored to date</span>
+                      <span className="font-semibold text-white">{pctComplete.toFixed(0)}% of contract</span>
                     </div>
-                    <DollarSign className="w-8 h-8 text-green-600" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-card border border-orange-300">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-orange-600 font-medium">Latest Application</p>
-                      <p className="text-2xl font-bold text-orange-900">
-                        {latestApplication ? `#${latestApplication.application_number}` : 'None'}
-                      </p>
-                      <p className="text-xs text-orange-500">
-                        {latestApplication ? format(new Date(latestApplication.period_to), 'MMM dd, yyyy') : 'No applications'}
-                      </p>
+                    <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/15">
+                      <div className="h-full rounded-full bg-gradient-to-r from-orange-400 to-amber-300" style={{ width: `${pctComplete}%` }} />
                     </div>
-                    <Calendar className="w-8 h-8 text-orange-600" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Payment Applications */}
-            <Card className="bg-card">
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Payment Applications
-                  </CardTitle>
-                  <div className="flex gap-2">
-                    <Button onClick={handleNewApplication} >
-                      <Plus className="w-4 h-4 mr-2" />
-                      New Application
-                    </Button>
-                    <Button variant="outline">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export G702/G703
-                    </Button>
+                    <div className="mt-1.5 flex justify-between text-xs text-white/60">
+                      <span>{money(completedToDate)}</span>
+                      <span>{money(contractToDate)}</span>
+                    </div>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                {applications.length > 0 ? (
-                  <div className="space-y-4 p-6">
-                    {applications.map((app) => (
-                      <Card key={app.id} className="bg-card border-l-4 border-l-blue-500">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-4 mb-2">
-                                <h3 className="font-semibold text-lg">Application #{app.application_number}</h3>
-                                <Badge className="bg-green-100 text-green-800 border-green-300">
-                                  Period Ending: {format(new Date(app.period_to), 'MMM dd, yyyy')}
-                                </Badge>
-                              </div>
-                              <div className="grid grid-cols-4 gap-4 text-sm">
-                                <div>
-                                  <p className="text-muted-foreground">CONTRACT SUM</p>
-                                  <p className="font-semibold text-lg">${app.original_contract_sum.toLocaleString()}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">WORK COMPLETED</p>
-                                  <p className="font-semibold text-lg text-green-600">${(app.total_completed_and_stored || 0).toLocaleString()}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">LESS RETAINAGE</p>
-                                  <p className="font-semibold text-lg text-red-600">${(app.total_retainage || 0).toLocaleString()}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">PAYMENT DUE</p>
-                                  <p className="font-semibold text-lg text-blue-600">${app.current_payment_due.toLocaleString()}</p>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditApplication(app)}
-                              >
-                                <Eye className="w-4 h-4 mr-1" />
-                                View
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                              >
-                                <Download className="w-4 h-4 mr-1" />
-                                Export
-                              </Button>
-                              <SendForSignatureButton
-                                source="invoice"
-                                sourceId={app.id}
-                                projectId={app.project_id}
-                                title={`Payment Application #${app.application_number} – ${app.projects?.name || ''}`.trim()}
-                                company={app.projects?.client}
-                                paymentAppNumber={app.application_number}
-                                documentType="Payment Application"
-                                variant="outline"
-                                size="sm"
-                              />
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setWaiverApp(app)}
-                                title="Generate lien waiver"
-                              >
-                                <FileSignature className="w-4 h-4 mr-1" />
-                                Lien Waiver
-                              </Button>
-                              {(() => {
-                                const s = waiverSummaries[app.id] || { received: 0, total: 0, allCleared: false };
-                                return (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setTrackerApp(app)}
-                                    title="Track lien waivers"
-                                  >
-                                    <ShieldAlert className={`w-4 h-4 mr-1 ${s.total === 0 ? 'text-muted-foreground' : s.allCleared ? 'text-emerald-600' : 'text-yellow-600'}`} />
-                                    Waivers {s.total > 0 ? `(${s.received}/${s.total})` : ''}
-                                  </Button>
-                                );
-                              })()}
-                              {app.payment_status === 'paid' ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleMarkUnpaid(app)}
-                                  className="text-emerald-700 border-emerald-300"
-                                  title={app.paid_at ? `Paid on ${format(new Date(app.paid_at), 'MMM d, yyyy')}` : 'Paid'}
-                                >
-                                  <CheckCircle2 className="w-4 h-4 mr-1" /> Paid
-                                </Button>
-                              ) : (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleMarkPaid(app)}
-                                  disabled={!(waiverSummaries[app.id]?.allCleared)}
-                                  title={(waiverSummaries[app.id]?.allCleared)
-                                    ? 'Mark this application as paid'
-                                    : 'All lien waivers must be received before marking paid'}
-                                >
-                                  <CheckCircle2 className="w-4 h-4 mr-1" /> Mark Paid
-                                </Button>
-                              )}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteApplication(app.id, app.application_number)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Delete className="w-4 h-4 mr-1" />
-                                Delete
-                              </Button>
+              </div>
+              <div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-3 sm:divide-y-0 lg:grid-cols-5">
+                {[
+                  { label: 'Contract sum to date', value: money(contractToDate), sub: 'Incl. change orders', icon: DollarSign },
+                  { label: 'Requested to date', value: money(totalRequested), sub: `${applications.length} application${applications.length === 1 ? '' : 's'}`, icon: FileText },
+                  { label: 'Paid', value: money(paidTotal), sub: `${paidApps.length} paid`, icon: CheckCircle2, tone: 'text-emerald-600 dark:text-emerald-400' },
+                  { label: 'Awaiting payment', value: money(unpaidTotal), sub: `${applications.length - paidApps.length} open`, icon: Clock, tone: unpaidTotal > 0 ? 'text-amber-600 dark:text-amber-400' : '' },
+                  { label: 'Retainage held', value: money(retainageHeld), sub: 'Bill at closeout', icon: ShieldAlert },
+                ].map((k) => (
+                  <div key={k.label} className="p-4">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{k.label}</span>
+                      <k.icon className="h-4 w-4" />
+                    </div>
+                    <p className={`mt-1.5 text-xl font-bold tabular-nums ${k.tone || ''}`}>{k.value}</p>
+                    <p className="text-xs text-muted-foreground">{k.sub}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Applications */}
+            {loading ? (
+              <div className="space-y-3">{[0, 1].map((i) => <Skeleton key={i} className="h-36 w-full rounded-xl" />)}</div>
+            ) : applications.length === 0 ? (
+              <EmptyState
+                icon={FileText}
+                title="Create the first pay application"
+                description="Bill the owner each period from your Schedule of Values. Each application builds the G702 summary and G703 continuation sheet, tracks retainage and collects lien waivers before you mark it paid."
+                action={{ label: 'Create first application', onClick: handleNewApplication }}
+                secondaryAction={{ label: 'Set up Schedule of Values', icon: CheckSquare, to: `/schedule-of-values?project=${selectedProject}` }}
+                steps={['Set up the Schedule of Values', 'Enter work completed this period', 'Send for signature, collect waivers, mark paid']}
+              />
+            ) : (
+              <div className="space-y-3">
+                {applications.map((app) => {
+                  const st = appState(app);
+                  const appPct = (app.contract_sum_to_date || app.original_contract_sum) > 0
+                    ? Math.min(100, ((app.total_completed_and_stored || 0) / (app.contract_sum_to_date || app.original_contract_sum)) * 100)
+                    : 0;
+                  return (
+                    <Card key={app.id} className="p-0 overflow-hidden">
+                      <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center">
+                        {/* Number + period */}
+                        <div className="flex items-center gap-4 lg:w-64 lg:shrink-0">
+                          <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            <span className="text-[10px] font-semibold uppercase leading-none">App</span>
+                            <span className="font-display text-xl font-extrabold leading-tight">#{app.application_number}</span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs text-muted-foreground">Period ending</p>
+                            <p className="font-semibold">{format(new Date(app.period_to), 'MMM d, yyyy')}</p>
+                            <Badge variant={st.tone} className="mt-1">{st.label}</Badge>
+                          </div>
+                        </div>
+
+                        {/* Amounts */}
+                        <div className="grid flex-1 grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Contract sum</p>
+                            <p className="font-semibold tabular-nums">{money(app.contract_sum_to_date || app.original_contract_sum)}</p>
+                            {app.net_change_by_change_orders ? (
+                              <p className="text-xs text-muted-foreground">{app.net_change_by_change_orders > 0 ? '+' : ''}{money(app.net_change_by_change_orders)} COs</p>
+                            ) : null}
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Completed & stored</p>
+                            <p className="font-semibold tabular-nums">{money(app.total_completed_and_stored || 0)}</p>
+                            <div className="mt-1 h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+                              <div className="h-full rounded-full bg-primary" style={{ width: `${appPct}%` }} />
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <FileText className="w-12 h-12 text-muted-foreground/70 mx-auto mb-4" />
-                    <p className="text-muted-foreground mb-4">No payment applications found for this project.</p>
-                    <Button onClick={handleNewApplication} >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create First Application
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Retainage</p>
+                            <p className="font-semibold tabular-nums">{money(app.total_retainage || 0)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Payment due</p>
+                            <p className="font-display text-xl font-bold tabular-nums text-primary">{money(app.current_payment_due)}</p>
+                            {app.payment_status === 'paid' && app.paid_at && (
+                              <p className="text-xs text-emerald-600 dark:text-emerald-400">Paid {format(new Date(app.paid_at), 'MMM d')}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
 
-            {/* Quick Start Guide */}
-            <Card className="bg-card border border-green-300">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-green-800">
-                  <HelpCircle className="w-5 h-5" />
-                  Quick Start Guide - Payment Applications
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="bg-card p-4 rounded-lg border border-green-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CheckSquare className="w-4 h-4 text-green-600" />
-                      <h4 className="font-semibold text-green-800">1. Set Up SOV</h4>
-                    </div>
-                    <p className="text-sm text-green-700">Create a Schedule of Values (SOV) for your project with line items and values.</p>
-                  </div>
-                  
-                  <div className="bg-card p-4 rounded-lg border border-green-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Plus className="w-4 h-4 text-green-600" />
-                      <h4 className="font-semibold text-green-800">2. Create Application</h4>
-                    </div>
-                    <p className="text-sm text-green-700">Generate G702/G703 payment applications based on work completed for each period.</p>
-                  </div>
-                  
-                  <div className="bg-card p-4 rounded-lg border border-green-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Upload className="w-4 h-4 text-green-600" />
-                      <h4 className="font-semibold text-green-800">3. Submit & Track</h4>
-                    </div>
-                    <p className="text-sm text-green-700">Export professional PDF forms and track payment status throughout the project.</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                      {/* Actions */}
+                      <div className="flex flex-wrap items-center gap-2 border-t bg-muted/30 px-5 py-3">
+                        <Button size="sm" onClick={() => handleEditApplication(app)}>
+                          <Eye className="w-4 h-4" /> Open
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/payment-applications/edit/${selectedProject}/${app.id}?doc=g702&print=1`)}>
+                          <Printer className="w-4 h-4" /> Print G702
+                        </Button>
+                        <SendForSignatureButton
+                          source="invoice"
+                          sourceId={app.id}
+                          projectId={app.project_id}
+                          title={`Payment Application #${app.application_number} – ${app.projects?.name || ''}`.trim()}
+                          company={app.projects?.client}
+                          paymentAppNumber={app.application_number}
+                          documentType="Payment Application"
+                          variant="outline"
+                          size="sm"
+                        />
+                        <Button size="sm" variant="outline" onClick={() => setWaiverApp(app)} title="Generate a lien waiver">
+                          <FileSignature className="w-4 h-4" /> Lien waiver
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setTrackerApp(app)} title="Track lien waivers">
+                          <ShieldAlert className={`w-4 h-4 ${st.w.total === 0 ? 'text-muted-foreground' : st.w.allCleared ? 'text-emerald-600' : 'text-amber-600'}`} />
+                          Waivers {st.w.total > 0 ? `${st.w.received}/${st.w.total}` : ''}
+                        </Button>
+                        <div className="ml-auto flex items-center gap-2">
+                          {app.payment_status === 'paid' ? (
+                            <Button size="sm" variant="ghost" onClick={() => handleMarkUnpaid(app)} title="Mark as not paid">
+                              Undo paid
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleMarkPaid(app)}
+                              disabled={!st.w.allCleared}
+                              title={st.w.allCleared ? 'Mark this application as paid' : 'All lien waivers must be received before marking paid'}
+                              className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400"
+                            >
+                              <CheckCircle2 className="w-4 h-4" /> Mark paid
+                            </Button>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-9 w-9 text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteApplication(app.id, app.application_number)}
+                            aria-label={`Delete application #${app.application_number}`}
+                            title="Delete (newest application first)"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
       </div>

@@ -30,6 +30,8 @@ import { EditSubcontractorDialog } from '@/components/subcontractors/EditSubcont
 import { AddSubcontractorDialog } from '@/components/subcontractors/AddSubcontractorDialog';
 import { DocumentIssues } from '@/components/subcontractors/DocumentIssues';
 import { SendForSignatureButton } from '@/components/esign/SendForSignatureButton';
+import { SubcontractorScorecardDialog, StarRating, SCORE_CRITERIA, type Scorecard } from '@/components/subcontractors/SubcontractorScorecardDialog';
+import { Trophy, Star as StarIcon } from 'lucide-react';
 
 interface Subcontractor {
   id: string;
@@ -49,6 +51,7 @@ interface Subcontractor {
   insurance_expiry: string | null;
   travel_radius: number | null;
   region: string | null;
+  scorecard?: Scorecard | null;
 }
 
 type SortField = 'company' | 'name' | 'specialties' | 'region' | 'insurance_expiry' | 'w9_on_file';
@@ -58,6 +61,7 @@ export default function Subcontractors() {
   const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
   const [filteredSubcontractors, setFilteredSubcontractors] = useState<Subcontractor[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [ratingSub, setRatingSub] = useState<Subcontractor | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
   const [selectedRegion, setSelectedRegion] = useState<string>('All');
@@ -254,7 +258,51 @@ export default function Subcontractors() {
     return days < 0 ? 'expired' : days <= 30 ? 'soon' : 'ok';
   };
 
+  // Rank = position by overall rating among rated subs (1 = best). Unrated subs have no rank.
+  const rankById: Record<string, number> = {};
+  [...subcontractors]
+    .filter((x) => x.rating != null && x.rating > 0)
+    .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    .forEach((x, i, arr) => {
+      // ties share a rank
+      rankById[x.id] = i > 0 && arr[i - 1].rating === x.rating ? rankById[arr[i - 1].id] : i + 1;
+    });
+
+  const topByTrade = (() => {
+    const groups: Record<string, Subcontractor[]> = {};
+    subcontractors.forEach((x) => {
+      if (!x.rating) return;
+      (x.specialties?.length ? x.specialties : ['General']).forEach((t) => (groups[t] ||= []).push(x));
+    });
+    return Object.entries(groups)
+      .map(([trade, list]) => ({ trade, list: list.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 3) }))
+      .sort((a, b) => (b.list[0]?.rating || 0) - (a.list[0]?.rating || 0));
+  })();
+
   const subColumns: DataTableColumn<Subcontractor>[] = [
+    {
+      id: 'rank',
+      header: 'Rank',
+      value: (r) => r.rating ?? null,
+      cell: (r) => (
+        <div className="flex items-center gap-3 whitespace-nowrap">
+          <span
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+              rankById[r.id] === 1 ? 'bg-amber-400 text-amber-950' : rankById[r.id] === 2 ? 'bg-slate-300 text-slate-900' : rankById[r.id] === 3 ? 'bg-orange-300 text-orange-950' : 'bg-muted text-muted-foreground'
+            }`}
+            title={rankById[r.id] ? `Ranked #${rankById[r.id]}` : 'Not rated yet'}
+          >
+            {rankById[r.id] ? `#${rankById[r.id]}` : '—'}
+          </span>
+          <button type="button" onClick={() => setRatingSub(r)} className="group text-left" title="Rate this subcontractor">
+            <StarRating value={r.rating} />
+            <span className="block text-xs text-muted-foreground group-hover:text-primary">
+              {r.rating ? `${Number(r.rating).toFixed(1)} · Re-rate` : 'Rate'}
+            </span>
+          </button>
+        </div>
+      ),
+    },
     {
       id: 'company',
       header: 'Company',
@@ -331,8 +379,46 @@ export default function Subcontractors() {
   ];
 
   return (
-    <Layout title="Subcontractors" subtitle="Manage your network of subcontractors">
+    <Layout title="Subcontractors" subtitle="Your sub network, ranked by how they perform on your jobs">
       <div className="space-y-6">
+        {topByTrade.length > 0 ? (
+          <Card className="p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <Trophy className="h-4 w-4 text-amber-500" />
+              <h2 className="font-semibold">Top subs by trade</h2>
+              <span className="text-xs text-muted-foreground">Based on your ratings</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {topByTrade.slice(0, 8).map(({ trade, list }) => (
+                <div key={trade} className="rounded-xl border p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{trade}</p>
+                  <ol className="space-y-1.5">
+                    {list.map((x, i) => (
+                      <li key={x.id} className="flex items-center justify-between gap-2 text-sm">
+                        <button type="button" onClick={() => setRatingSub(x)} className="flex min-w-0 items-center gap-2 text-left hover:text-primary">
+                          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${i === 0 ? 'bg-amber-400 text-amber-950' : 'bg-muted text-muted-foreground'}`}>{i + 1}</span>
+                          <span className="truncate">{x.company || x.name}</span>
+                        </button>
+                        <span className="flex shrink-0 items-center gap-1 text-xs font-semibold tabular-nums">
+                          <StarIcon className="h-3 w-3 fill-amber-400 text-amber-400" />
+                          {Number(x.rating).toFixed(1)}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ))}
+            </div>
+          </Card>
+        ) : subcontractors.length > 0 ? (
+          <Card className="flex flex-wrap items-center gap-3 p-4 text-sm">
+            <Trophy className="h-5 w-5 text-amber-500" />
+            <span className="flex-1">
+              <strong>Rank your subs.</strong> Click <em>Rate</em> next to a subcontractor to score them on {SCORE_CRITERIA.map((c) => c.label.toLowerCase()).join(', ')}. The best rise to the top.
+            </span>
+          </Card>
+        ) : null}
+
         {/* Controls */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 flex-1">
@@ -443,7 +529,7 @@ export default function Subcontractors() {
             getRowId={(r) => r.id}
             searchable={false}
             exportFilename="subcontractors"
-            initialSort={{ id: 'company' }}
+            initialSort={{ id: 'rank', desc: true }}
             empty={
               <EmptyState
                 icon={Users}
@@ -529,6 +615,7 @@ export default function Subcontractors() {
           />
         )}
       </div>
+      <SubcontractorScorecardDialog sub={ratingSub} onOpenChange={(o) => !o && setRatingSub(null)} onSaved={fetchSubcontractors} />
     </Layout>
   );
 }
