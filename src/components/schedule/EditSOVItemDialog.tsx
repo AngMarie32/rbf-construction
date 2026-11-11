@@ -23,7 +23,6 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
     category: '',
     subcategory: '',
     scheduled_value: '',
-    work_completed_to_date: '',
     materials_stored: '',
     retainage_percentage: '0',
     this_period: '',
@@ -38,7 +37,6 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
         category: sovItem.category || '',
         subcategory: sovItem.subcategory || '',
         scheduled_value: sovItem.scheduled_value?.toString() || '',
-        work_completed_to_date: sovItem.work_completed_to_date?.toString() || '0',
         materials_stored: sovItem.materials_stored?.toString() || '0',
         retainage_percentage: sovItem.retainage_percentage?.toString() || '0',
         this_period: sovItem.this_period?.toString() || '0',
@@ -58,13 +56,17 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
         category: formData.category || sovItem.category,
         subcategory: formData.subcategory || null,
         scheduled_value: parseFloat(formData.scheduled_value) || 0,
-        work_completed_to_date: parseFloat(formData.work_completed_to_date) || 0,
         materials_stored: parseFloat(formData.materials_stored) || 0,
         retainage_percentage: parseFloat(formData.retainage_percentage) || 0,
         this_period: parseFloat(formData.this_period) || 0,
         previous_applications: parseFloat(formData.previous_applications) || 0,
         updated_at: new Date().toISOString()
-      };
+      } as any;
+      // Keep the stored totals in step with what was entered (work_completed_to_date is not a column).
+      const completed = updateData.previous_applications + updateData.this_period + updateData.materials_stored;
+      const contract = updateData.scheduled_value + (Number(sovItem.change_orders) || 0);
+      updateData.total_completed_and_stored = completed;
+      updateData.percent_complete = contract > 0 ? Math.min(100, (completed / contract) * 100) : 0;
 
       console.log('Updating SOV item with data:', updateData);
 

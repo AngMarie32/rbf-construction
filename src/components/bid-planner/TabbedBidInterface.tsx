@@ -274,13 +274,6 @@ export function TabbedBidInterface({
           <BidSettings projectId={projectId} />
         </TabsContent>
       </Tabs>
-      <div className="flex flex-col items-end gap-1 border-t pt-4">
-        <Button onClick={handleCreateProposal} disabled={creatingProposal || !bidItems.length}>
-          {creatingProposal ? 'Creating proposal…' : 'Generate Proposal from Bid'}
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-        <p className="text-xs text-muted-foreground">Creates a draft with your quantities, markup, and bid lines.</p>
-      </div>
     </div>
   );
 }

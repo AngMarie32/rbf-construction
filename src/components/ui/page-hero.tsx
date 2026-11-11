@@ -61,5 +61,5 @@ export function PageHero({
 }
 
 /** Glass-style button for use on the PageHero. */
-export const heroButton = 'inline-flex h-9 items-center gap-2 rounded-lg bg-white/10 px-3 text-sm font-medium text-white ring-1 ring-inset ring-white/15 transition-colors hover:bg-white/20';
+export const heroButton = 'inline-flex h-9 items-center gap-2 rounded-lg bg-white/10 px-3 text-sm font-medium text-white ring-1 ring-inset ring-white/15 transition-colors hover:bg-white/20 disabled:pointer-events-none disabled:opacity-50';
 export const heroButtonPrimary = 'inline-flex h-9 items-center gap-2 rounded-lg bg-orange-500 px-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-600';

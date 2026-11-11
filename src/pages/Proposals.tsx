@@ -1,10 +1,14 @@
 import { WorkflowStepper } from '@/components/workflow/WorkflowStepper';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, FileText, Download, Eye, Pencil, Trash2, FileSignature, Send, CheckCircle2, Trophy, PenLine } from 'lucide-react';
+import { Plus, FileText, Download, Eye, Pencil, Trash2, FileSignature, Send, CheckCircle2, Trophy, PenLine, MoreHorizontal, ListChecks } from 'lucide-react';
+import { ExportMenu, downloadCsv } from '@/components/ui/export-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { syncProposalToSov } from '@/utils/proposalWorkflow';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { EnhancedProposalDialog } from '@/components/proposals/EnhancedProposalDialog';
@@ -64,6 +68,9 @@ export default function Proposals() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Proposal | null>(null);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const projectParam = searchParams.get('project');
 
   useEffect(() => {
     fetchProposals();
@@ -110,6 +117,37 @@ export default function Proposals() {
       winRate: decided ? Math.round((approved.length / decided) * 100) : null,
     };
   }, [proposals]);
+
+  const sendToSov = async (p: Proposal) => {
+    const projectId = p.raw?.project_id;
+    if (!projectId) {
+      toast.error('Link this proposal to a project first (Edit → Project), then send it to the Schedule of Values.');
+      return;
+    }
+    try {
+      const n = await syncProposalToSov({ id: p.id, project_id: projectId, project_name: p.project_name, proposal_items: p.raw?.proposal_items });
+      if (p.status !== 'Approved') await supabase.from('proposals').update({ status: 'Approved' }).eq('id', p.id);
+      toast.success(`Sent ${n} line${n === 1 ? '' : 's'} to the Schedule of Values`);
+      navigate(`/schedule-of-values?project=${projectId}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Could not send the proposal to the Schedule of Values');
+    }
+  };
+
+  // The proposal the "next step" bar acts on: newest approved (else newest) proposal tied to a project,
+  // preferring the project we arrived with.
+  const nextCandidate = useMemo(() => {
+    const linked = proposals.filter((p) => p.raw?.project_id && Array.isArray(p.raw?.proposal_items) && p.raw.proposal_items.length);
+    const pool = projectParam ? linked.filter((p) => p.raw.project_id === projectParam) : linked;
+    return pool.find((p) => p.status === 'Approved') || pool.find((p) => p.status !== 'Rejected') || null;
+  }, [proposals, projectParam]);
+
+  const exportCsv = () =>
+    downloadCsv(
+      'proposals',
+      ['Project', 'Client', 'Created', 'Status', 'Amount'],
+      filteredProposals.map((p) => [p.project_name, p.client, format(new Date(p.created_at), 'yyyy-MM-dd'), p.status, p.amount.toFixed(2)])
+    );
 
   const filteredProposals = useMemo(
     () => (statusFilter === 'all' ? proposals : proposals.filter((p) => p.status === statusFilter)),
@@ -242,9 +280,6 @@ export default function Proposals() {
           <Button variant="ghost" size="icon" className="h-8 w-8" title="View" onClick={() => handleViewProposal(p)}>
             <Eye className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="Download PDF" onClick={() => handleExportProposalPDF(p)}>
-            <Download className="h-4 w-4" />
-          </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" onClick={() => handleEditProposal(p)}>
             <Pencil className="h-4 w-4" />
           </Button>
@@ -256,9 +291,26 @@ export default function Proposals() {
             documentType="Proposal"
             iconOnly
           />
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Delete" onClick={() => setConfirmDelete(p)}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" title="More">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuItem onSelect={() => handleExportProposalPDF(p)}>
+                <Download className="mr-2 h-4 w-4" /> Download PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => sendToSov(p)} disabled={!p.raw?.project_id}>
+                <ListChecks className="mr-2 h-4 w-4" />
+                {p.raw?.project_id ? 'Send to Schedule of Values' : 'Send to SOV (link a project first)'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setConfirmDelete(p)} className="text-destructive focus:text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       ),
     },
@@ -279,9 +331,6 @@ export default function Proposals() {
               <button type="button" className={heroButton} onClick={() => setTemplateDialogOpen(true)}>
                 <FileText className="h-4 w-4" /> Templates
               </button>
-              <button type="button" className={heroButton} onClick={handleExportAll}>
-                <Download className="h-4 w-4" /> Export PDFs
-              </button>
             </>
           }
           stats={[
@@ -291,7 +340,18 @@ export default function Proposals() {
           ]}
         />
 
-        <WorkflowStepper projectId={undefined} />
+        <WorkflowStepper
+          projectId={projectParam || nextCandidate?.raw?.project_id}
+          next={{
+            label: nextCandidate ? `Send "${nextCandidate.project_name}" to Schedule of Values` : 'Send approved proposal to Schedule of Values',
+            description: nextCandidate
+              ? `Turns its ${nextCandidate.raw.proposal_items.length} priced line${nextCandidate.raw.proposal_items.length === 1 ? '' : 's'} into billing lines${nextCandidate.status === 'Approved' ? '' : ' and marks it Approved'}. Lines already billed are never changed.`
+              : '',
+            disabled: !nextCandidate,
+            disabledReason: 'Create a proposal linked to a project (for example from the Bid Planner), then send it on once the client approves.',
+            onClick: () => (nextCandidate ? sendToSov(nextCandidate) : undefined),
+          }}
+        />
 
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <AccentStat label="Total proposals" value={proposals.length} icon={FileSignature} accent="blue" loading={loading} hint="All time" />
@@ -323,7 +383,20 @@ export default function Proposals() {
           getRowId={(p) => p.id}
           loading={loading}
           searchPlaceholder="Search project or client…"
-          exportFilename="proposals"
+          toolbarEnd={
+            <ExportMenu
+              options={[
+                { label: 'Proposal list (CSV)', hint: 'Rows shown, for Excel', format: 'csv', disabled: !filteredProposals.length, onSelect: exportCsv },
+                {
+                  label: `PDFs of shown proposals (${filteredProposals.length})`,
+                  hint: 'One client-ready PDF each',
+                  format: 'pdf',
+                  disabled: !filteredProposals.length,
+                  onSelect: handleExportAll,
+                },
+              ]}
+            />
+          }
           initialSort={{ id: 'date', desc: true }}
           onRowClick={handleViewProposal}
           filters={
@@ -395,7 +468,12 @@ export default function Proposals() {
 
       <ProposalTemplateDialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen} onTemplateSelect={() => {}} />
 
-      <ProposalViewModal open={viewModalOpen} onOpenChange={setViewModalOpen} proposal={mapProposalForModal(selectedProposal)} />
+      <ProposalViewModal
+        open={viewModalOpen}
+        onOpenChange={setViewModalOpen}
+        proposal={mapProposalForModal(selectedProposal)}
+        onDownload={selectedProposal ? () => handleExportProposalPDF(selectedProposal) : undefined}
+      />
 
       <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
         <AlertDialogContent>

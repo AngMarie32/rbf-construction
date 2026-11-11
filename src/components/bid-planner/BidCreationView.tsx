@@ -626,18 +626,6 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExportToSOV}>
-                Export to SOV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setShowProposalDialog(true)}>
-                Create Proposal PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportToProposal}>
-                Export to Proposals
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportToPDF}>
-                Export to PDF
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleDeleteBid} className="text-red-600">
                 <Trash2 className="w-4 h-4 mr-2" />
                 Delete All Bid Items
