@@ -63,7 +63,7 @@ export function NewBillingDialog({ open, onOpenChange, onBillingCreated }: NewBi
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, status')
+        .select('id, name, status').is('archived_at', null)
         .order('name');
 
       if (error) throw error;

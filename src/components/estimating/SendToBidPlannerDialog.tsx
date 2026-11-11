@@ -67,7 +67,7 @@ export function SendToBidPlannerDialog({
     if (mode === 'existing') {
       supabase
         .from('projects')
-        .select('id, name, status')
+        .select('id, name, status').is('archived_at', null)
         .order('name')
         .then(({ data }) => setProjects(sortProjectsOpenFirst(data || [])));
     }

@@ -53,7 +53,7 @@ export default function BidPlanner() {
       
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, status, contract_value')
+        .select('id, name, status, contract_value').is('archived_at', null)
         .order('name');
 
       if (error) {

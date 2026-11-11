@@ -40,7 +40,7 @@ export function ProjectSelector({
       
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, status')
+        .select('id, name, status').is('archived_at', null)
         .order('name');
 
       if (error) {

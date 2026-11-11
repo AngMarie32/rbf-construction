@@ -46,7 +46,7 @@ export default function Permits() {
         .from('permits')
         .select('*, projects(name), permit_inspections(*)')
         .order('created_at', { ascending: false }),
-      supabase.from('projects').select('id, name, status'),
+      supabase.from('projects').select('id, name, status').is('archived_at', null),
     ]);
     if (error) {
       console.error(error);

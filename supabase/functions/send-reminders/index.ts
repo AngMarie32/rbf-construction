@@ -29,7 +29,7 @@ async function buildReminders(admin: any): Promise<Reminder[]> {
       .not('due_date', 'is', null).lte('due_date', iso(new Date(today.getTime() - RULES.invoiceOverdueDays * DAY))),
     admin.from('subcontractors').select('id, name, company, insurance_expiry')
       .not('insurance_expiry', 'is', null).lte('insurance_expiry', iso(new Date(today.getTime() + RULES.insuranceWarningDays * DAY))),
-    admin.from('projects').select('id, name, status'),
+    admin.from('projects').select('id, name, status').is('archived_at', null),
     admin.from('expenses').select('project_id, amount, date'),
     admin.from('permit_inspections').select('id, inspection_type, scheduled_date, scheduled_time, permits(permit_type, permit_number, project_id)')
       .eq('result', 'Scheduled').gte('scheduled_date', iso(today)).lte('scheduled_date', iso(new Date(today.getTime() + DAY))),
@@ -45,6 +45,7 @@ async function buildReminders(admin: any): Promise<Reminder[]> {
   }
 
   for (const b of billing.data || []) {
+    if (!name[b.project_id]) continue; // archived or deleted job
     const owed = (b.billed_amount || 0) - (b.paid_amount || 0);
     if (owed <= 0.005) continue;
     const days = Math.floor((today.getTime() - new Date(b.due_date).getTime()) / DAY);
@@ -63,11 +64,13 @@ async function buildReminders(admin: any): Promise<Reminder[]> {
 
   for (const i of inspections.data || []) {
     const pm = i.permits as any;
+    if (!pm || !name[pm.project_id]) continue; // archived or deleted job
     const isToday = i.scheduled_date === iso(today);
     out.push({ severity: isToday ? 'high' : 'medium', group: 'Inspections', title: `${i.inspection_type} inspection ${isToday ? 'today' : 'tomorrow'}${i.scheduled_time ? ` (${i.scheduled_time})` : ''}`, detail: `${pm ? name[pm.project_id] || 'Unknown job' : 'Unknown job'}${pm ? ` · ${pm.permit_type} permit${pm.permit_number ? ` #${pm.permit_number}` : ''}` : ''}`, path: pm ? `/permits?project=${pm.project_id}` : '/permits' });
   }
 
   for (const p of permits.data || []) {
+    if (!name[p.project_id]) continue; // archived or deleted job
     if (['Expired', 'Rejected'].includes(p.status)) continue;
     const days = Math.ceil((new Date(p.expiration_date).getTime() - today.getTime()) / DAY);
     if (days < 0 || days > RULES.permitWarningDays) continue;

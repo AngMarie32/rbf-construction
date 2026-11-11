@@ -81,7 +81,7 @@ export function ScanReceiptDialog({ onExpenseCreated, defaultProjectId, triggerL
     if (!open) return;
     supabase
       .from('projects')
-      .select('id, name, client, address, status')
+      .select('id, name, client, address, status').is('archived_at', null)
       .then(({ data }) => setProjects(sortProjectsOpenFirst(data || [])));
   }, [open]);
 

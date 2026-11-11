@@ -94,7 +94,7 @@ export default function ScheduleOfValues() {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, client, status')
+        .select('id, name, client, status').is('archived_at', null)
         .order('name');
 
       if (error) throw error;

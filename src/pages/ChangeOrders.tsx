@@ -55,7 +55,7 @@ export default function ChangeOrders() {
     fetchChangeOrders();
     supabase
       .from('projects')
-      .select('id, name, status')
+      .select('id, name, status').is('archived_at', null)
       .then(({ data }) => setProjects(sortProjectsOpenFirst(data || [])));
   }, []);
 

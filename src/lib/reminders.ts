@@ -46,7 +46,7 @@ export async function fetchReminders(today = new Date()): Promise<Reminder[]> {
       .select('id, name, company, insurance_expiry')
       .not('insurance_expiry', 'is', null)
       .lte('insurance_expiry', insuranceCutoff),
-    supabase.from('projects').select('id, name, status'),
+    supabase.from('projects').select('id, name, status').is('archived_at', null),
     supabase.from('expenses').select('project_id, amount, date'),
     (supabase as any)
       .from('permit_inspections')
@@ -71,6 +71,7 @@ export async function fetchReminders(today = new Date()): Promise<Reminder[]> {
 
   // 1) Invoices unpaid 30+ days past due
   (billingRes.data || []).forEach((b) => {
+    if (!projectName[b.project_id]) return; // archived or deleted job
     const owed = (b.billed_amount || 0) - (b.paid_amount || 0);
     if (owed <= 0.005 || !b.due_date) return;
     const days = Math.floor((today.getTime() - new Date(b.due_date).getTime()) / DAY);
@@ -100,6 +101,8 @@ export async function fetchReminders(today = new Date()): Promise<Reminder[]> {
 
   // 3) Permit inspections today or tomorrow
   (inspectionsRes.data || []).forEach((i) => {
+    const pj = (i.permits as unknown as { project_id?: string } | null)?.project_id;
+    if (!pj || !projectName[pj]) return; // archived or deleted job
     const pm = i.permits as unknown as { permit_type: string; permit_number: string | null; project_id: string } | null;
     const isToday = i.scheduled_date === iso(today);
     out.push({
@@ -114,6 +117,7 @@ export async function fetchReminders(today = new Date()): Promise<Reminder[]> {
 
   // 4) Permits expiring within 2 weeks
   (permitsRes.data || []).forEach((p) => {
+    if (!projectName[p.project_id]) return; // archived or deleted job
     if (!p.expiration_date || ['Expired', 'Rejected'].includes(p.status)) return;
     const days = Math.ceil((new Date(p.expiration_date).getTime() - today.getTime()) / DAY);
     if (days < 0 || days > REMINDER_RULES.permitWarningDays) return;

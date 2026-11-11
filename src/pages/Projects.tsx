@@ -176,77 +176,61 @@ export default function Projects() {
     }
   };
 
+  /** Tables that hang off a project. Only needed until the cascade migration is applied. */
+  const PROJECT_CHILD_TABLES = [
+    'project_billing', 'expenses', 'sov_items', 'tasks', 'equipment_reservations', 'project_subcontractors',
+    'burn_records', 'budget_alerts', 'budget_forecasts', 'budget_variances', 'equipment_usage_logs',
+    'change_orders', 'invoices', 'payment_applications_g702', 'payment_app_lien_waivers', 'bid_items',
+    'bid_packages', 'subcontractor_groups', 'time_entries', 'permits', 'daily_logs', 'rfis', 'submittals', 'commitments',
+  ] as const;
+  const PROJECT_DETACH: [string, string][] = [
+    ['documents', 'project_id'], ['calendar_events', 'project_id'], ['equipment', 'project_assignment_id'],
+    ['proposals', 'project_id'], ['estimates', 'project_id'], ['profiles', 'project_id'],
+  ];
+
+  const deleteProjectRow = async (projectId: string) => {
+    const { data, error } = await supabase.from('projects').delete().eq('id', projectId).select('id');
+    return { deleted: (data || []).length > 0, error };
+  };
+
   const handleDeleteProject = async (projectId: string) => {
+    const name = projects.find((p) => p.id === projectId)?.name || 'This project';
     try {
-      console.log('Deleting project:', projectId);
-      
-      const { error: billingLineItemsError } = await supabase
-        .from('billing_line_items')
-        .delete()
-        .eq('billing_id', projectId);
-      
-      const { error: projectBillingError } = await supabase
-        .from('project_billing')
-        .delete()
-        .eq('project_id', projectId);
-      
-      const { error: expensesError } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('project_id', projectId);
-      
-      const { error: sovItemsError } = await supabase
-        .from('sov_items')
-        .delete()
-        .eq('project_id', projectId);
-      
-      const { error: tasksError } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('project_id', projectId);
-      
-      const { error: equipmentReservationsError } = await supabase
-        .from('equipment_reservations')
-        .delete()
-        .eq('project_id', projectId);
-      
-      const { error: projectSubcontractorsError } = await supabase
-        .from('project_subcontractors')
-        .delete()
-        .eq('project_id', projectId);
-      
-      const { error: burnRecordsError } = await supabase
-        .from('burn_records')
-        .delete()
-        .eq('project_id', projectId);
-      
-      const { error: budgetAlertsError } = await supabase
-        .from('budget_alerts')
-        .delete()
-        .eq('project_id', projectId);
-      
-      const { error: budgetForecastsError } = await supabase
-        .from('budget_forecasts')
-        .delete()
-        .eq('project_id', projectId);
-      
-      const { error: budgetVariancesError } = await supabase
-        .from('budget_variances')
-        .delete()
-        .eq('project_id', projectId);
+      let { deleted, error } = await deleteProjectRow(projectId);
 
-      const { error: projectError } = await supabase
-        .from('projects')
-        .delete()
-        .eq('id', projectId);
-
-      if (projectError) {
-        console.error('Error deleting project:', projectError);
-        throw projectError;
+      // 23503 = other records still point at the project. Clear them and retry.
+      if (error?.code === '23503') {
+        const { data: bills } = await supabase.from('project_billing').select('id').eq('project_id', projectId);
+        const billIds = (bills || []).map((b) => b.id);
+        if (billIds.length) await supabase.from('billing_line_items').delete().in('billing_id', billIds);
+        for (const [table, col] of PROJECT_DETACH) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await supabase.from(table as any).update({ [col]: null } as any).eq(col, projectId);
+        }
+        for (const table of PROJECT_CHILD_TABLES) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await supabase.from(table as any).delete().eq('project_id', projectId);
+        }
+        ({ deleted, error } = await deleteProjectRow(projectId));
       }
 
-      setProjects(prev => prev.filter(p => p.id !== projectId));
-      toast.success('Project deleted successfully');
+      if (error) {
+        console.error('Error deleting project:', error);
+        const blocker = error.code === '23503' ? /on table "(\w+)"/.exec(error.details || error.message)?.[1] : null;
+        toast.error(
+          blocker
+            ? `${name} still has records in "${blocker.replace(/_/g, ' ')}" that block deleting it. Archive it instead, or ask an admin to apply the latest database update.`
+            : `Could not delete ${name}: ${error.message}`
+        );
+        return;
+      }
+      if (!deleted) {
+        toast.error(`${name} was not deleted. Your account may not have permission to delete projects; archive it instead.`);
+        return;
+      }
+
+      setProjects((prev) => prev.filter((p) => p.id !== projectId));
+      toast.success(`${name} deleted`);
     } catch (error) {
       console.error('Error deleting project:', error);
       toast.error('Failed to delete project. Please try again.');
