@@ -48,7 +48,7 @@ export default function BidPlanner() {
       
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, status, contract_value').is('archived_at', null)
+        .select('id, name, status, contract_value, client, address, project_code').is('archived_at', null)
         .order('name');
 
       if (error) {
@@ -108,8 +108,9 @@ export default function BidPlanner() {
         companyPhone: companyData?.company_phone || '',
         companyEmail: companyData?.company_email || '',
         logoUrl: companyData?.logo_url || '',
+        projectAddress: selectedProjectData?.address || '',
+        projectCode: selectedProjectData?.project_code || '',
         bidItems: bidItems,
-        totalAmount: bidItems.reduce((sum, item) => sum + ((item.unit_cost || 0) * (item.quantity || 0)), 0)
       };
 
       const { generateBidReport } = await import('@/utils/pdfExport');
