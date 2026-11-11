@@ -1,14 +1,19 @@
 import { WorkflowStepper } from '@/components/workflow/WorkflowStepper';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Upload, Loader2, FileText, X, Trash2, Search, CloudUpload } from 'lucide-react';
+import { Upload, Loader2, FileText, X, Trash2, CloudUpload, Database, ClipboardList, Calculator, Sparkles, TrendingUp, Ruler, ArrowRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { PageHero, heroButton, heroButtonPrimary } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompanies } from '@/contexts/CompanyContext';
 import { currency, rollup, EstimateLine } from '@/utils/estimateMath';
@@ -38,6 +43,9 @@ export default function Estimating() {
   const { selectedIds } = useCompanies();
   const companyId = selectedIds.length === 1 ? selectedIds[0] : null;
   const fileRef = useRef<HTMLInputElement>(null);
+  const uploadRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [confirmDelete, setConfirmDelete] = useState<EstimateRow | null>(null);
 
   const [rows, setRows] = useState<EstimateRow[]>([]);
   const [totals, setTotals] = useState<Record<string, number>>({});
@@ -48,13 +56,13 @@ export default function Estimating() {
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState('');
-  const [search, setSearch] = useState('');
   const [dragging, setDragging] = useState(false);
 
   const load = useCallback(async () => {
     let q = supabase.from('estimates').select('*').order('created_at', { ascending: false }).limit(50);
     if (companyId) q = q.eq('company_id', companyId);
     const { data } = await q;
+    setLoading(false);
     const list = (data || []) as EstimateRow[];
     setRows(list);
 
@@ -112,14 +120,6 @@ export default function Estimating() {
     }
     return parts;
   }, [files]);
-
-  const filteredRows = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return rows;
-    return rows.filter((r) =>
-      [r.name, r.location].filter(Boolean).some((v) => String(v).toLowerCase().includes(term))
-    );
-  }, [rows, search]);
 
   const run = async () => {
     if (!files.length) return toast.error('Add at least one plan file first.');
@@ -313,165 +313,311 @@ export default function Estimating() {
   };
 
   const remove = async (id: string) => {
-    await supabase.from('estimates').delete().eq('id', id);
+    const { error } = await supabase.from('estimates').delete().eq('id', id);
+    if (error) return toast.error(`Couldn't delete the estimate: ${error.message}`);
+    toast.success('Estimate deleted');
     load();
   };
 
+  const stats = useMemo(() => {
+    const values = rows.map((r) => totals[r.id] ?? 0);
+    const pipeline = values.reduce((s, v) => s + v, 0);
+    const withArea = rows.filter((r) => r.area_sf > 0 && (totals[r.id] ?? 0) > 0);
+    const perSf = withArea.length
+      ? withArea.reduce((s, r) => s + (totals[r.id] ?? 0), 0) / withArea.reduce((s, r) => s + r.area_sf, 0)
+      : null;
+    const thirty = Date.now() - 30 * 86400000;
+    return {
+      pipeline,
+      perSf,
+      recent: rows.filter((r) => new Date(r.created_at).getTime() >= thirty).length,
+      largest: values.length ? Math.max(...values) : 0,
+    };
+  }, [rows, totals]);
+
+  const columns: DataTableColumn<EstimateRow>[] = [
+    {
+      id: 'name',
+      header: 'Estimate',
+      value: (r) => r.name,
+      cell: (r) => (
+        <div className="min-w-0">
+          <p className="truncate font-medium">{r.name}</p>
+          {r.location && <p className="truncate text-xs text-muted-foreground">{r.location}</p>}
+        </div>
+      ),
+    },
+    {
+      id: 'area',
+      header: 'Area',
+      align: 'right',
+      value: (r) => r.area_sf || 0,
+      cell: (r) => (r.area_sf ? <span className="tabular-nums">{r.area_sf.toLocaleString()} SF</span> : <span className="text-muted-foreground">—</span>),
+    },
+    {
+      id: 'persf',
+      header: '$ / SF',
+      align: 'right',
+      value: (r) => (r.area_sf ? (totals[r.id] ?? 0) / r.area_sf : null),
+      cell: (r) =>
+        r.area_sf && totals[r.id] ? (
+          <span className="tabular-nums text-muted-foreground">{currency((totals[r.id] ?? 0) / r.area_sf)}</span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      value: (r) => r.status,
+      cell: (r) => (
+        <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium capitalize text-muted-foreground">
+          {r.status || 'draft'}
+        </span>
+      ),
+    },
+    {
+      id: 'created',
+      header: 'Created',
+      value: (r) => new Date(r.created_at),
+      cell: (r) => <span className="whitespace-nowrap">{new Date(r.created_at).toLocaleDateString()}</span>,
+    },
+    {
+      id: 'bid',
+      header: 'Recommended bid',
+      align: 'right',
+      value: (r) => totals[r.id] ?? 0,
+      cell: (r) => <span className="font-semibold tabular-nums">{currency(totals[r.id] ?? 0)}</span>,
+    },
+    {
+      id: 'actions',
+      header: '',
+      align: 'right',
+      noExport: true,
+      cell: (r) => (
+        <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button variant="ghost" size="sm" className="h-8" onClick={() => navigate(`/estimating/${r.id}`)}>
+            Open <ArrowRight className="ml-1 h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Delete" onClick={() => setConfirmDelete(r)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <Layout title="Bid Estimator">
+    <Layout hideTitle title="Bid Estimator">
       <div className="space-y-6">
+        <PageHero
+          eyebrow="Bidding"
+          title="Bid Estimator"
+          subtitle="Upload the plans for a should-cost baseline priced from your cost database."
+          actions={
+            <>
+              <button type="button" className={heroButtonPrimary} onClick={() => uploadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                <CloudUpload className="h-4 w-4" /> Upload plans
+              </button>
+              <Link to="/cost-database" className={heroButton}>
+                <Database className="h-4 w-4" /> Cost database
+              </Link>
+              <Link to="/bid-planner" className={heroButton}>
+                <ClipboardList className="h-4 w-4" /> Bid Planner
+              </Link>
+            </>
+          }
+          stats={[
+            { label: 'Estimates', value: loading ? '…' : rows.length },
+            { label: 'Total estimated', value: loading ? '…' : currency(stats.pipeline) },
+            { label: 'Average $ / SF', value: loading ? '…' : stats.perSf == null ? '—' : currency(stats.perSf) },
+          ]}
+        />
+
         <WorkflowStepper projectId={undefined} />
-        <Card className="p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="text-lg font-semibold">Start from the plans</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Upload the permit or construction set (PDF or images), plus any specifications and schedules. The estimate is
-                built as an independent should-cost baseline before any subcontractor bid is considered.
-              </p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => navigate('/cost-database')}>
-              Cost Database
-            </Button>
-          </div>
 
-
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
-            <div>
-              <Label>Project name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Read from the drawings if blank" />
-            </div>
-            <div>
-              <Label>Location</Label>
-              <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City, State" />
-            </div>
-            <div>
-              <Label>Building area (SF)</Label>
-              <Input value={areaSf} onChange={(e) => setAreaSf(e.target.value)} type="number" placeholder="0" />
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <Label>Estimator notes / context</Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Known scope, owner-supplied items, schedule constraints, what the set is missing…"
-            />
-          </div>
-
-          <input
-            ref={fileRef}
-            type="file"
-            multiple
-            accept=".pdf,image/*"
-            className="hidden"
-            onChange={(e) => {
-              addFiles(e.target.files);
-              e.target.value = '';
-            }}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <AccentStat label="Estimates" value={rows.length} icon={Calculator} accent="blue" loading={loading} hint={companyId ? 'This company' : 'All selected companies'} />
+          <AccentStat label="Built in last 30 days" value={stats.recent} icon={Sparkles} accent="indigo" loading={loading} hint="From uploaded plan sets" />
+          <AccentStat label="Largest estimate" value={currency(stats.largest)} icon={TrendingUp} accent="orange" loading={loading} hint="Recommended bid" />
+          <AccentStat
+            label="Average $ / SF"
+            value={stats.perSf == null ? '—' : currency(stats.perSf)}
+            icon={Ruler}
+            accent="emerald"
+            loading={loading}
+            hint="Estimates with a building area"
           />
+        </div>
 
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => fileRef.current?.click()}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragging(false);
-              addFiles(e.dataTransfer.files);
-            }}
-            className={`mt-4 flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-8 text-center transition-colors ${
-              dragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-muted-foreground/50'
-            } ${busy ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-          >
-            <CloudUpload className="h-8 w-8 text-muted-foreground" />
-            <span className="mt-2 text-sm font-medium">
-              {dragging ? 'Drop the plan files here' : 'Drag plan files here, or click to browse'}
-            </span>
-            <span className="mt-1 text-xs text-muted-foreground">
-              PDF or images · up to 12 MB per file · large sets are analyzed in parts automatically
-            </span>
-          </button>
-
-          {files.length > 0 && (
-            <div className="mt-3 space-y-2">
-              <div className="flex flex-wrap gap-2">
-                {files.map((f, i) => (
-                  <Badge key={i} variant="secondary" className="gap-2">
-                    <FileText className="h-3 w-3" />
-                    {f.name}
-                    <span className="text-muted-foreground">{fmtSize(f.size)}</span>
-                    <button onClick={() => setFiles(files.filter((_, j) => j !== i))} disabled={busy}>
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
+        <Card ref={uploadRef} className="scroll-mt-20 overflow-hidden">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b bg-muted/30 px-6 py-4">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                <Sparkles className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <h2 className="font-semibold">Build an estimate from the plans</h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Upload the permit or construction set (PDF or images), plus any specs and schedules. Fields left blank are read from the drawings.
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {files.length} file{files.length === 1 ? '' : 's'} · {fmtSize(totalBytes)} total
-                {partCount > 1 ? ` · will be analyzed in ${partCount} parts and merged` : ''}
-              </p>
             </div>
-          )}
-
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <Button onClick={run} disabled={busy || !files.length}>
-              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-              Build estimate
-            </Button>
-            {stage && <span className="text-sm text-muted-foreground">{stage}</span>}
           </div>
-        </Card>
 
-        <Card className="p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold">Estimates</h2>
-            {rows.length > 0 && (
-              <div className="relative w-full max-w-xs">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  className="pl-8"
-                  placeholder="Search by name or location…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
+          <div className="space-y-4 p-6">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <Label>Project name</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Read from the drawings if blank" />
+              </div>
+              <div>
+                <Label>Location</Label>
+                <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City, State" />
+              </div>
+              <div>
+                <Label>Building area (SF)</Label>
+                <Input value={areaSf} onChange={(e) => setAreaSf(e.target.value)} type="number" placeholder="0" />
+              </div>
+            </div>
+
+            <div>
+              <Label>Estimator notes / context</Label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+                placeholder="Known scope, owner-supplied items, schedule constraints, what the set is missing…"
+              />
+            </div>
+
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              accept=".pdf,image/*"
+              className="hidden"
+              onChange={(e) => {
+                addFiles(e.target.files);
+                e.target.value = '';
+              }}
+            />
+
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => fileRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                addFiles(e.dataTransfer.files);
+              }}
+              className={cn(
+                'flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors',
+                dragging ? 'border-orange-500 bg-orange-500/5' : 'border-muted-foreground/25 hover:border-orange-500/50 hover:bg-muted/40',
+                busy ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+              )}
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <CloudUpload className="h-6 w-6 text-muted-foreground" />
+              </span>
+              <span className="mt-3 text-sm font-medium">{dragging ? 'Drop the plan files here' : 'Drag plan files here, or click to browse'}</span>
+              <span className="mt-1 text-xs text-muted-foreground">PDF or images · up to 12 MB per file · large sets are analyzed in parts automatically</span>
+            </button>
+
+            {files.length > 0 && (
+              <div className="space-y-2">
+                <div className="divide-y rounded-lg border">
+                  {files.map((f, i) => (
+                    <div key={i} className="flex items-center gap-3 px-3 py-2 text-sm">
+                      <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                      <span className="text-xs tabular-nums text-muted-foreground">{fmtSize(f.size)}</span>
+                      <button
+                        type="button"
+                        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                        onClick={() => setFiles(files.filter((_, j) => j !== i))}
+                        disabled={busy}
+                        aria-label={`Remove ${f.name}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {files.length} file{files.length === 1 ? '' : 's'} · {fmtSize(totalBytes)} total
+                  {partCount > 1 ? ` · will be analyzed in ${partCount} parts and merged` : ''}
+                </p>
               </div>
             )}
-          </div>
-          {!rows.length && <p className="mt-2 text-sm text-muted-foreground">Nothing yet — upload a plan set above.</p>}
-          {rows.length > 0 && !filteredRows.length && (
-            <p className="mt-2 text-sm text-muted-foreground">No estimates match “{search}”.</p>
-          )}
-          <div className="mt-4 space-y-2">
-            {filteredRows.map((r) => (
-              <div key={r.id} className="flex items-center gap-4 rounded-md border p-3">
-                <button className="flex-1 text-left" onClick={() => navigate(`/estimating/${r.id}`)}>
-                  <div className="font-medium">{r.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {[r.location, r.area_sf ? `${r.area_sf.toLocaleString()} SF` : null, new Date(r.created_at).toLocaleDateString()]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </div>
-                </button>
-                <div className="text-right">
-                  <div className="text-xs text-muted-foreground">Recommended bid</div>
-                  <div className="font-semibold tabular-nums">{currency(totals[r.id] ?? 0)}</div>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => remove(r.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={run} disabled={busy || !files.length} className="bg-orange-500 text-white hover:bg-orange-600">
+                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                Build estimate
+              </Button>
+              {stage && (
+                <span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  {stage}
+                </span>
+              )}
+            </div>
           </div>
         </Card>
+
+        <div>
+          <h2 className="mb-3 font-semibold">Estimates</h2>
+          <DataTable
+            columns={columns}
+            rows={rows}
+            getRowId={(r) => r.id}
+            loading={loading}
+            searchPlaceholder="Search by name or location…"
+            exportFilename="estimates"
+            initialSort={{ id: 'created', desc: true }}
+            onRowClick={(r) => navigate(`/estimating/${r.id}`)}
+            empty={
+              <EmptyState
+                icon={Calculator}
+                title="No estimates yet"
+                description="Upload a plan set above. The estimator reads the drawings, prices the scope from your cost database and gives you a recommended bid."
+                action={{ label: 'Upload plans', onClick: () => fileRef.current?.click(), icon: CloudUpload }}
+                secondaryAction={{ label: 'Set up cost database', to: '/cost-database' }}
+              />
+            }
+          />
+        </div>
       </div>
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this estimate?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{confirmDelete?.name}" and all of its cost lines will be permanently removed. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (confirmDelete) remove(confirmDelete.id);
+                setConfirmDelete(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }
