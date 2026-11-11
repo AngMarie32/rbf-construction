@@ -86,11 +86,12 @@ export class DocKit {
   M = 16;
   y = 0;
   private company: Company;
-  private docTitle: string;
-  private docRef: string;
+  docTitle: string;
+  docRef: string;
 
-  constructor(company: Company, docTitle: string, docRef = '') {
-    this.pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  constructor(company: Company, docTitle: string, docRef = '', orientation: 'portrait' | 'landscape' = 'portrait') {
+    this.pdf = new jsPDF({ orientation, unit: 'mm', format: 'letter' });
+    if (orientation === 'landscape') this.M = 12;
     this.W = this.pdf.internal.pageSize.getWidth();
     this.H = this.pdf.internal.pageSize.getHeight();
     this.company = company;
@@ -125,56 +126,62 @@ export class DocKit {
     this.pdf.setLineWidth(w);
   }
 
-  /** Full letterhead on page 1: navy band with company details and the document title. */
-  letterhead(meta: { label: string; value: string }[]) {
+  /**
+   * Letterhead on page 1: navy band with company details and the document title.
+   * `compact` is a shorter band for one-page forms (G702 / G703).
+   */
+  letterhead(meta: { label: string; value: string }[], { compact = false }: { compact?: boolean } = {}) {
     const { pdf, W, M } = this;
-    const bandH = 34;
+    const bandH = compact ? 22 : 34;
     this.fill(COLORS.navy);
     pdf.rect(0, 0, W, bandH, 'F');
     this.fill(COLORS.orange);
-    pdf.rect(0, bandH, W, 1.4, 'F');
+    pdf.rect(0, bandH, W, compact ? 1 : 1.4, 'F');
 
     let textX = M;
     if (this.company.logo) {
       try {
         const props = pdf.getImageProperties(this.company.logo);
-        const h = 20;
-        const w = Math.min(44, (props.width / props.height) * h);
+        const h = compact ? 14 : 20;
+        const w = Math.min(compact ? 32 : 44, (props.width / props.height) * h);
+        const top = (bandH - h) / 2;
         // white tile so dark logos stay visible on the navy band
         this.fill([255, 255, 255]);
-        pdf.roundedRect(M, 7, w + 4, h + 0, 1.5, 1.5, 'F');
-        pdf.addImage(this.company.logo, 'PNG', M + 2, 7, w, h);
-        textX = M + w + 9;
+        pdf.roundedRect(M, top, w + 4, h, 1.5, 1.5, 'F');
+        pdf.addImage(this.company.logo, 'PNG', M + 2, top, w, h);
+        textX = M + w + 8;
       } catch {
         textX = M;
       }
     }
-    this.font(15, 'bold', [255, 255, 255]);
-    pdf.text(this.company.name, textX, 15);
-    this.font(8.5, 'normal', [203, 213, 225]);
+    const nameY = compact ? 9.5 : 15;
+    this.font(compact ? 12 : 15, 'bold', [255, 255, 255]);
+    pdf.text(this.company.name, textX, nameY);
+    this.font(compact ? 7.5 : 8.5, 'normal', [203, 213, 225]);
     const contact = [this.company.address, [this.company.phone, this.company.email].filter(Boolean).join('  ·  ')].filter(Boolean);
-    contact.forEach((line, i) => pdf.text(line, textX, 21 + i * 4.4));
+    contact.forEach((line, i) => pdf.text(line, textX, nameY + (compact ? 4.6 : 6) + i * (compact ? 3.6 : 4.4)));
 
-    this.font(18, 'bold', [255, 255, 255]);
-    pdf.text(this.docTitle.toUpperCase(), W - M, 16, { align: 'right' });
-    this.font(8.5, 'normal', [251, 191, 140]);
-    if (this.docRef) pdf.text(this.docRef, W - M, 22, { align: 'right' });
+    this.font(compact ? 14 : 18, 'bold', [255, 255, 255]);
+    pdf.text(this.docTitle.toUpperCase(), W - M, compact ? 10.5 : 16, { align: 'right' });
+    this.font(compact ? 7.5 : 8.5, 'normal', [251, 191, 140]);
+    if (this.docRef) pdf.text(this.docRef, W - M, compact ? 16 : 22, { align: 'right' });
 
     // Meta strip (date, valid until, number …)
-    this.y = bandH + 8;
+    this.y = bandH + (compact ? 6 : 8);
     if (meta.length) {
       const colW = this.contentWidth / meta.length;
       meta.forEach((m, i) => {
         const x = M + i * colW;
-        this.font(7, 'bold', COLORS.muted);
+        this.font(compact ? 6.5 : 7, 'bold', COLORS.muted);
         pdf.text(m.label.toUpperCase(), x, this.y);
-        this.font(10, 'bold', COLORS.ink);
-        pdf.text(m.value, x, this.y + 5);
+        this.font(compact ? 9 : 10, 'bold', COLORS.ink);
+        const v = pdf.splitTextToSize(m.value || '—', colW - 3)[0] as string;
+        pdf.text(v, x, this.y + (compact ? 4.4 : 5));
       });
-      this.y += 10;
+      this.y += compact ? 8 : 10;
       this.stroke(COLORS.line);
       pdf.line(M, this.y, W - M, this.y);
-      this.y += 7;
+      this.y += compact ? 5 : 7;
     }
   }
 
@@ -275,23 +282,28 @@ export class DocKit {
   }
 
   /** Table with a navy header row repeated on every page and zebra striping. */
-  table(columns: Column[], rows: Cell[][], opts: { sectionRows?: Set<number>; subtotalRows?: Set<number> } = {}) {
+  table(columns: Column[], rows: Cell[][], opts: { sectionRows?: Set<number>; subtotalRows?: Set<number>; fontSize?: number } = {}) {
     const { pdf, M } = this;
     const total = columns.reduce((s, c) => s + c.width, 0);
     const widths = columns.map((c) => (c.width / total) * this.contentWidth);
     const xs = widths.map((_, i) => M + widths.slice(0, i).reduce((s, v) => s + v, 0));
     const pad = 2.4;
-    const lh = 4;
+    const fs = opts.fontSize ?? 8.5;
+    const lh = fs * 0.47;
 
+    const headerFs = Math.min(7.5, fs - 0.8);
+    this.font(headerFs, 'bold');
+    const headLines = columns.map((c, i) => pdf.splitTextToSize(c.header.toUpperCase(), widths[i] - pad * 2) as string[]);
+    const headH = Math.max(...headLines.map((l) => l.length)) * (headerFs * 0.42) + 4.2;
     const drawHeader = () => {
       this.fill(COLORS.navy);
-      pdf.rect(M, this.y, this.contentWidth, 7.5, 'F');
-      this.font(7.5, 'bold', [255, 255, 255]);
+      pdf.rect(M, this.y, this.contentWidth, headH, 'F');
+      this.font(headerFs, 'bold', [255, 255, 255]);
       columns.forEach((c, i) => {
         const tx = c.align === 'right' ? xs[i] + widths[i] - pad : c.align === 'center' ? xs[i] + widths[i] / 2 : xs[i] + pad;
-        pdf.text(c.header.toUpperCase(), tx, this.y + 4.9, { align: c.align || 'left' });
+        headLines[i].forEach((line, li) => pdf.text(line, tx, this.y + 3.9 + li * headerFs * 0.42, { align: c.align || 'left' }));
       });
-      this.y += 7.5;
+      this.y += headH;
     };
 
     this.ensure(16);
@@ -317,9 +329,9 @@ export class DocKit {
         return;
       }
 
-      this.font(8.5, 'normal');
+      this.font(fs, 'normal');
       const wrapped = cells.map((c, i) => (pdf.splitTextToSize(c.text || '', widths[i] - pad * 2) as string[]));
-      const h = Math.max(...wrapped.map((w) => w.length)) * lh + 3;
+      const h = Math.max(...wrapped.map((w) => w.length)) * lh + 2.6;
       if (this.y + h > this.bottom) {
         this.newPage();
         drawHeader();
@@ -333,9 +345,9 @@ export class DocKit {
       }
       cells.forEach((c, i) => {
         const col = columns[i];
-        this.font(8.5, c.bold || isSubtotal ? 'bold' : 'normal', c.color || COLORS.ink);
+        this.font(fs, c.bold || isSubtotal ? 'bold' : 'normal', c.color || COLORS.ink);
         const tx = col.align === 'right' ? xs[i] + widths[i] - pad : col.align === 'center' ? xs[i] + widths[i] / 2 : xs[i] + pad;
-        wrapped[i].forEach((line, li) => pdf.text(line, tx, this.y + 4.3 + li * lh, { align: col.align || 'left' }));
+        wrapped[i].forEach((line, li) => pdf.text(line, tx, this.y + lh + 0.6 + li * lh, { align: col.align || 'left' }));
       });
       this.y += h;
       if (!isSubtotal) zebra = !zebra;
@@ -403,8 +415,22 @@ export class DocKit {
     this.y += 40;
   }
 
+  /** Footer on every page, then return the file (for upload or e-signature). */
+  output(): Blob {
+    this.footers();
+    return this.pdf.output('blob');
+  }
+
   /** Footer on every page, then download. */
   save(filename: string) {
+    this.footers();
+    this.pdf.save(filename);
+  }
+
+  private footered = false;
+  private footers() {
+    if (this.footered) return;
+    this.footered = true;
     const { pdf, W, H, M } = this;
     const count = pdf.getNumberOfPages();
     for (let i = 1; i <= count; i++) {
@@ -415,6 +441,5 @@ export class DocKit {
       pdf.text([this.company.name, this.company.phone, this.company.email].filter(Boolean).join('  ·  '), M, H - 7.5);
       pdf.text(`Page ${i} of ${count}`, W - M, H - 7.5, { align: 'right' });
     }
-    pdf.save(filename);
   }
 }
