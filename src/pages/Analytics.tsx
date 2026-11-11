@@ -14,6 +14,7 @@ import { CustomReportBuilder } from '@/components/reports/CustomReportBuilder';
 import { AnalyticsReportBuilder } from '@/components/reports/AnalyticsReportBuilder';
 
 import { ProjectReport } from '@/components/reports/ProjectReport';
+import { buildFinancialAnalytics, buildLaborAnalytics, buildProjectAnalytics, type ATimeEntry } from '@/lib/analyticsData';
 import { LaborReport } from '@/components/reports/LaborReport';
 import { exportToExcel, exportToPDF, exportToCSV, ExportData } from '@/utils/reportExports';
 import { supabase } from '@/integrations/supabase/client';
@@ -85,12 +86,14 @@ export default function Analytics() {
         { data: projects },
         { data: expenses },
         { data: billing },
-        { data: changeOrders }
+        { data: changeOrders },
+        { data: timeEntries }
       ] = await Promise.all([
         supabase.from('projects').select('*'),
         supabase.from('expenses').select('*'),
         supabase.from('project_billing').select('*'),
-        supabase.from('change_orders').select('*')
+        supabase.from('change_orders').select('*'),
+        supabase.from('time_entries').select('project_id, work_date, employee_name, trade, regular_hours, overtime_hours, hourly_rate, ot_multiplier, burden_percent, total_cost')
       ]);
 
       // Set projects data and extract field leaders
@@ -122,108 +125,11 @@ export default function Analytics() {
       setTotalBilled(billedByProject);
       setTotalReceived(receivedByProject);
 
-      // Calculate enhanced financial data
-      const totalRevenue = (billing || []).reduce((sum, bill) => sum + (Number(bill.billed_amount) || 0), 0);
-      const totalExpensesSum = (expenses || []).reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
-      const totalProfit = totalRevenue - totalExpensesSum;
-      const totalContractValue = projectsData.reduce((sum, p) => sum + (p.contract_value || 0), 0);
-
-      const monthlyRevenue = [
-        { month: 'Jan', revenue: totalRevenue * 0.15, costs: totalExpensesSum * 0.15, profit: totalProfit * 0.15 },
-        { month: 'Feb', revenue: totalRevenue * 0.18, costs: totalExpensesSum * 0.18, profit: totalProfit * 0.18 },
-        { month: 'Mar', revenue: totalRevenue * 0.16, costs: totalExpensesSum * 0.16, profit: totalProfit * 0.16 },
-        { month: 'Apr', revenue: totalRevenue * 0.20, costs: totalExpensesSum * 0.20, profit: totalProfit * 0.20 },
-        { month: 'May', revenue: totalRevenue * 0.17, costs: totalExpensesSum * 0.17, profit: totalProfit * 0.17 },
-        { month: 'Jun', revenue: totalRevenue * 0.14, costs: totalExpensesSum * 0.14, profit: totalProfit * 0.14 }
-      ];
-
-      const projectStatus = [
-        { name: 'Planning', value: projectsData.filter(p => p.status === 'Planning').length },
-        { name: 'Open', value: projectsData.filter(p => p.status === 'Open').length },
-        { name: 'Closed', value: projectsData.filter(p => p.status === 'Closed').length }
-      ];
-
-      const budgetPerformance = projectsData.slice(0, 6).map(project => ({
-        projectName: project.name.length > 20 ? project.name.substring(0, 20) + '...' : project.name,
-        budgeted: project.contract_value || 0,
-        actual: (expensesByProject[project.id] || 0),
-        variance: (project.contract_value || 0) - (expensesByProject[project.id] || 0),
-        completion: project.completion_percentage || 0
-      }));
-
-      const timelinePerformance = projectsData.slice(0, 5).map(project => ({
-        projectName: project.name,
-        fieldLeader: project.field_leader || 'Unassigned',
-        daysVariance: Math.floor(Math.random() * 20) - 10,
-        onTime: Math.random() > 0.3,
-        startDate: project.start_date,
-        dueDate: project.due_date,
-        completion: project.completion_percentage || 0
-      }));
-
-      const changeOrderImpact = [
-        { month: 'Jan', changeOrderValue: (changeOrders || []).filter(co => co.date?.includes('2024-01')).reduce((sum, co) => sum + (co.amount || 0), 0) },
-        { month: 'Feb', changeOrderValue: (changeOrders || []).filter(co => co.date?.includes('2024-02')).reduce((sum, co) => sum + (co.amount || 0), 0) },
-        { month: 'Mar', changeOrderValue: (changeOrders || []).filter(co => co.date?.includes('2024-03')).reduce((sum, co) => sum + (co.amount || 0), 0) },
-        { month: 'Apr', changeOrderValue: (changeOrders || []).filter(co => co.date?.includes('2024-04')).reduce((sum, co) => sum + (co.amount || 0), 0) },
-        { month: 'May', changeOrderValue: (changeOrders || []).filter(co => co.date?.includes('2024-05')).reduce((sum, co) => sum + (co.amount || 0), 0) },
-        { month: 'Jun', changeOrderValue: (changeOrders || []).filter(co => co.date?.includes('2024-06')).reduce((sum, co) => sum + (co.amount || 0), 0) }
-      ];
-
-      const revenueRecognition = monthlyRevenue.map(item => ({
-        month: item.month,
-        recognized: item.revenue * 0.8,
-        deferred: item.revenue * 0.2,
-        outstanding: item.revenue - (item.revenue * 0.8)
-      }));
-
-      const profitLossByProject = projectsData.slice(0, 6).map(project => ({
-        projectName: project.name.length > 15 ? project.name.substring(0, 15) + '...' : project.name,
-        revenue: billedByProject[project.id] || 0,
-        costs: expensesByProject[project.id] || 0,
-        profit: (billedByProject[project.id] || 0) - (expensesByProject[project.id] || 0),
-        margin: billedByProject[project.id] > 0 ? (((billedByProject[project.id] || 0) - (expensesByProject[project.id] || 0)) / (billedByProject[project.id] || 0)) * 100 : 0
-      }));
-
-      const cashFlowProjection = [
-        { month: 'Jul', inflow: totalRevenue * 0.15, outflow: totalExpensesSum * 0.15, net: (totalRevenue - totalExpensesSum) * 0.15 },
-        { month: 'Aug', inflow: totalRevenue * 0.17, outflow: totalExpensesSum * 0.17, net: (totalRevenue - totalExpensesSum) * 0.17 },
-        { month: 'Sep', inflow: totalRevenue * 0.14, outflow: totalExpensesSum * 0.14, net: (totalRevenue - totalExpensesSum) * 0.14 },
-        { month: 'Oct', inflow: totalRevenue * 0.19, outflow: totalExpensesSum * 0.19, net: (totalRevenue - totalExpensesSum) * 0.19 },
-        { month: 'Nov', inflow: totalRevenue * 0.16, outflow: totalExpensesSum * 0.16, net: (totalRevenue - totalExpensesSum) * 0.16 },
-        { month: 'Dec', inflow: totalRevenue * 0.19, outflow: totalExpensesSum * 0.19, net: (totalRevenue - totalExpensesSum) * 0.19 }
-      ];
-
+      // Every tab is built from stored records (see src/lib/analyticsData.ts).
       setReportData({
-        project: {
-          projectStatus,
-          budgetPerformance,
-          timelinePerformance,
-          changeOrderImpact,
-          totalProjects: projectsData.length,
-          activeProjects: projectsData.filter(p => p.status === 'Open').length,
-          completedProjects: projectsData.filter(p => p.status === 'Closed').length,
-          totalContractValue: totalContractValue
-        },
-        financial: {
-          revenueRecognition,
-          profitLossByProject,
-          cashFlowProjection,
-          totalRevenue,
-          totalExpenses: totalExpensesSum,
-          totalProfit,
-          profitMargin: totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0,
-          outstandingReceivables: Object.values(billedByProject).reduce((sum, val) => sum + val, 0) - Object.values(receivedByProject).reduce((sum, val) => sum + val, 0)
-        },
-        labor: {
-          totalExpenses: totalExpensesSum,
-          expensesByCategory: expenses?.reduce((acc: any, exp: any) => {
-            if (!acc[exp.category]) acc[exp.category] = 0;
-            acc[exp.category] += Number(exp.amount) || 0;
-            return acc;
-          }, {}),
-          expensesByProject: expensesByProject
-        }
+        project: buildProjectAnalytics(projectsData, expenses || [], changeOrders || []),
+        financial: buildFinancialAnalytics(projectsData, expenses || [], billing || []),
+        labor: buildLaborAnalytics((timeEntries || []) as ATimeEntry[], projectsData),
       });
 
     } catch (error) {
@@ -246,7 +152,7 @@ export default function Analytics() {
 
     const exportData: ExportData = {
       title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`,
-      data: Object.values(data).flat(),
+      data: data.exportRows || [],
       metadata: {
         dateRange: dateRange?.from && dateRange?.to 
           ? `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`
@@ -417,24 +323,15 @@ export default function Analytics() {
           </TabsContent>
 
           <TabsContent value="project" className="space-y-4">
-            <div className="flex justify-end">
-              <ExportMenu onExport={(fmt) => handleExportReport('project', fmt)} />
-            </div>
-            {reportData.project && <ProjectReports data={reportData.project} />}
+            {reportData.project && <ProjectReports data={reportData.project} actions={<ExportMenu onExport={(fmt) => handleExportReport('project', fmt)} />} />}
           </TabsContent>
 
           <TabsContent value="financial" className="space-y-4">
-            <div className="flex justify-end">
-              <ExportMenu onExport={(fmt) => handleExportReport('financial', fmt)} />
-            </div>
-            {reportData.financial && <FinancialReports data={reportData.financial} />}
+            {reportData.financial && <FinancialReports data={reportData.financial} actions={<ExportMenu onExport={(fmt) => handleExportReport('financial', fmt)} />} />}
           </TabsContent>
 
           <TabsContent value="labor" className="space-y-4">
-            <div className="flex justify-end">
-              <ExportMenu onExport={(fmt) => handleExportReport('labor', fmt)} />
-            </div>
-            {reportData.labor && <LaborReport data={reportData.labor} />}
+            {reportData.labor && <LaborReport data={reportData.labor} actions={<ExportMenu onExport={(fmt) => handleExportReport('labor', fmt)} />} />}
           </TabsContent>
 
           <TabsContent value="builder" className="space-y-4">

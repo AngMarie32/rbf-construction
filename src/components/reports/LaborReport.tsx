@@ -1,242 +1,145 @@
+import type React from 'react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Line, ComposedChart } from 'recharts';
+import { Users, DollarSign, Clock, Timer, Building2, Gauge } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import type { buildLaborAnalytics } from '@/lib/analyticsData';
+import { CHART, ChartTooltip, EmptyNote, KpiGrid, Legend, Panel, ReportDocument, ReportTable, ReportToolbar, Section, axisProps, compact, hours, money } from './ReportKit';
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Users, DollarSign, TrendingUp, Calendar } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+type Data = ReturnType<typeof buildLaborAnalytics>;
 
-interface LaborReportProps {
-  data: {
-    totalExpenses: number;
-    expensesByCategory: Record<string, number>;
-    expensesByProject: Record<string, number>;
-  };
+/** Tooltip for the monthly chart: hours lines in hours, the cost line in dollars. */
+function LaborTip({ active, payload, label }: { active?: boolean; payload?: { name?: string; value?: number; color?: string }[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-lg">
+      <p className="mb-1 font-semibold text-slate-900">{label}</p>
+      {payload.map((p) => (
+        <p key={p.name} className="flex items-center gap-2 text-slate-600">
+          <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
+          {p.name}: <span className="font-semibold tabular-nums text-slate-900">{p.name === 'Labor cost' ? money(Number(p.value)) : `${Number(p.value).toFixed(1)} h`}</span>
+        </p>
+      ))}
+    </div>
+  );
 }
 
-export function LaborReport({ data }: LaborReportProps) {
-  const categoryData = Object.entries(data.expensesByCategory || {}).map(([category, amount]) => ({
-    category,
-    amount,
-    percentage: ((amount / data.totalExpenses) * 100).toFixed(1)
-  }));
+export function LaborReport({ data, actions }: { data: Data; actions?: React.ReactNode }) {
+  const { monthly, byProject, byTrade, byPerson, totals } = data;
 
-  const projectData = Object.entries(data.expensesByProject || {}).slice(0, 10).map(([projectId, amount]) => ({
-    project: `Project ${projectId.slice(-6)}`,
-    amount,
-    percentage: ((amount / data.totalExpenses) * 100).toFixed(1)
-  }));
+  if (totals.hours === 0) {
+    return (
+      <div className="space-y-4">
+        <ReportToolbar>{actions}</ReportToolbar>
+        <ReportDocument eyebrow="Labor Report" title="Crew hours and labor cost">
+          <EmptyNote>
+            No time entries yet. Log crew hours on the <Link to="/labor-costs" className="font-medium text-blue-600 hover:underline">Labor Costs</Link> page and this report fills in automatically.
+          </EmptyNote>
+        </ReportDocument>
+      </div>
+    );
+  }
 
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
+  const maxTrade = byTrade[0]?.cost || 1;
 
   return (
-    <div className="space-y-8">
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-600">Total Labor Costs</p>
-                <p className="text-2xl font-bold text-blue-900">
-                  ${data.totalExpenses?.toLocaleString() || 0}
-                </p>
-              </div>
-              <div className="bg-blue-500 p-3 rounded-full">
-                <DollarSign className="w-6 h-6 text-white" />
-              </div>
+    <div className="space-y-4">
+      <ReportToolbar>{actions}</ReportToolbar>
+      <ReportDocument
+        eyebrow="Labor Report"
+        title="Crew hours and labor cost"
+        stats={[
+          { label: 'Hours', value: Math.round(totals.hours).toLocaleString() },
+          { label: 'Labor cost', value: compact(totals.cost) },
+        ]}
+      >
+        <Section eyebrow="Overview" title="Labor at a glance">
+          <KpiGrid
+            items={[
+              { label: 'Labor cost', value: compact(totals.cost), sub: 'Incl. overtime and burden', icon: DollarSign, accent: 'bg-blue-600' },
+              { label: 'Hours worked', value: Math.round(totals.hours).toLocaleString(), sub: `${Math.round(totals.hours - totals.otHours).toLocaleString()} regular`, icon: Clock, accent: 'bg-indigo-500' },
+              { label: 'Overtime', value: `${totals.otShare.toFixed(1)}%`, sub: `${Math.round(totals.otHours).toLocaleString()} OT hours`, icon: Timer, accent: 'bg-amber-500', tone: totals.otShare > 15 ? 'bad' : undefined },
+              { label: 'Blended cost per hour', value: `$${totals.blendedRate.toFixed(2)}`, sub: 'Total cost ÷ hours', icon: Gauge, accent: 'bg-emerald-500' },
+              { label: 'People', value: String(totals.people), sub: 'With logged hours', icon: Users, accent: 'bg-orange-500' },
+              { label: 'Jobs', value: String(totals.jobs), sub: 'With labor charged', icon: Building2, accent: 'bg-rose-500' },
+            ]}
+          />
+        </Section>
+
+        <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr] print:grid-cols-1">
+          <Panel title="Hours and labor cost by month" note="Last 12 months">
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={monthly} margin={{ top: 4, right: 4, left: -4, bottom: 0 }}>
+                  <CartesianGrid vertical={false} stroke={CHART.grid} />
+                  <XAxis dataKey="month" {...axisProps} />
+                  <YAxis yAxisId="h" {...axisProps} width={44} />
+                  <YAxis yAxisId="c" orientation="right" {...axisProps} tickFormatter={compact} width={56} />
+                  <Tooltip content={<LaborTip />} cursor={{ fill: '#f1f5f9' }} />
+                  <Bar yAxisId="h" dataKey="regular" name="Regular hours" stackId="h" fill={CHART.blue} barSize={16} />
+                  <Bar yAxisId="h" dataKey="overtime" name="Overtime hours" stackId="h" fill={CHART.amber} radius={[4, 4, 0, 0]} barSize={16} />
+                  <Line yAxisId="c" dataKey="cost" name="Labor cost" type="linear" stroke={CHART.emerald} strokeWidth={2.5} dot={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
             </div>
-          </CardContent>
-        </Card>
+            <Legend items={[{ label: 'Regular hours', color: CHART.blue }, { label: 'Overtime hours', color: CHART.amber }, { label: 'Labor cost (right axis)', color: CHART.emerald }]} />
+          </Panel>
 
-        <Card className="">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-600">Active Projects</p>
-                <p className="text-2xl font-bold text-green-900">
-                  {Object.keys(data.expensesByProject || {}).length}
-                </p>
-              </div>
-              <div className="bg-green-500 p-3 rounded-full">
-                <Users className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-orange-600">Avg Cost per Project</p>
-                <p className="text-2xl font-bold text-orange-900">
-                  ${Math.round(data.totalExpenses / Math.max(Object.keys(data.expensesByProject || {}).length, 1)).toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-orange-500 p-3 rounded-full">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-purple-600">Top Category</p>
-                <p className="text-lg font-bold text-purple-900">
-                  {categoryData.length > 0 ? categoryData.sort((a, b) => b.amount - a.amount)[0].category : 'N/A'}
-                </p>
-              </div>
-              <div className="bg-purple-500 p-3 rounded-full">
-                <Calendar className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Expenses by Category */}
-        <Card className="">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
-              <div className="bg-blue-500 p-2 rounded-lg">
-                <Users className="w-5 h-5 text-white" />
-              </div>
-              Labor Costs by Category
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={categoryData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="category" 
-                  stroke="#6b7280"
-                  fontSize={12}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                />
-                <YAxis stroke="#6b7280" fontSize={12} />
-                <Tooltip 
-                  formatter={(value: any) => [`$${value.toLocaleString()}`, 'Amount']}
-                  labelStyle={{ color: '#374151' }}
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                  }}
-                />
-                <Bar dataKey="amount" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Expenses by Project (Pie Chart) */}
-        <Card className="">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
-              <div className="bg-green-500 p-2 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-white" />
-              </div>
-              Project Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={projectData.slice(0, 6)}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ project, percentage }) => `${project} (${percentage}%)`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="amount"
-                >
-                  {projectData.slice(0, 6).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value: any) => [`$${value.toLocaleString()}`, 'Amount']}
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Detailed Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Category Breakdown */}
-        <Card className="">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold text-foreground">Category Breakdown</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {categoryData.sort((a, b) => b.amount - a.amount).map((item, index) => (
-                <div key={item.category} className="flex items-center justify-between p-3 bg-muted/40 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div 
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                    />
-                    <span className="font-medium text-foreground">{item.category}</span>
+          <Panel title="Labor cost by trade">
+            <ul className="space-y-3 text-sm">
+              {byTrade.slice(0, 8).map((t) => (
+                <li key={t.name}>
+                  <div className="flex justify-between">
+                    <span className="font-medium">{t.name}</span>
+                    <span className="tabular-nums font-semibold">{money(t.cost)}</span>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-foreground">${item.amount.toLocaleString()}</div>
-                    <Badge variant="secondary" className="text-xs">
-                      {item.percentage}%
-                    </Badge>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full bg-blue-600" style={{ width: `${(t.cost / maxTrade) * 100}%` }} />
                   </div>
-                </div>
+                  <p className="mt-0.5 text-xs text-slate-500">{hours(t.hours)} · {t.people} {t.people === 1 ? 'person' : 'people'} · ${t.rate.toFixed(2)}/h</p>
+                </li>
               ))}
-            </div>
-          </CardContent>
-        </Card>
+            </ul>
+          </Panel>
+        </div>
 
-        {/* Top Projects */}
-        <Card className="">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold text-foreground">Top Projects by Cost</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {projectData.sort((a, b) => b.amount - a.amount).slice(0, 8).map((item, index) => (
-                <div key={item.project} className="flex items-center justify-between p-3 bg-muted/40 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
-                      {index + 1}
-                    </div>
-                    <span className="font-medium text-foreground">{item.project}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-foreground">${item.amount.toLocaleString()}</div>
-                    <Badge variant="outline" className="text-xs">
-                      {item.percentage}%
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+        <Section eyebrow="By job" title="Labor charged to each job">
+          <Panel title="Labor cost by job" note="Top 10">
+            <div style={{ height: Math.max(160, byProject.slice(0, 10).length * 34) }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={byProject.slice(0, 10)} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid horizontal={false} stroke={CHART.grid} />
+                  <XAxis type="number" {...axisProps} tickFormatter={compact} />
+                  <YAxis type="category" dataKey="name" width={170} {...axisProps} tick={{ fontSize: 11, fill: '#334155' }} />
+                  <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f1f5f9' }} />
+                  <Bar dataKey="cost" name="Labor cost" fill={CHART.indigo} radius={[0, 4, 4, 0]} barSize={14} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </Panel>
+        </Section>
+
+        <Section eyebrow="By person" title="Crew hours" note="Most hours first">
+          <ReportTable
+            rows={[...byPerson].sort((a, b) => b.hours - a.hours)}
+            columns={[
+              { header: 'Person', className: 'w-[30%]', cell: (r) => <span className="font-semibold">{r.name}</span> },
+              { header: 'Hours', align: 'right', cell: (r) => r.hours.toFixed(1) },
+              { header: 'Overtime', align: 'right', cell: (r) => <span className={r.hours > 0 && r.ot / r.hours > 0.15 ? 'font-semibold text-amber-600' : ''}>{r.ot.toFixed(1)}</span> },
+              { header: 'Cost / hour', align: 'right', cell: (r) => `$${r.rate.toFixed(2)}` },
+              { header: 'Labor cost', align: 'right', cell: (r) => <span className="font-semibold">{money(r.cost)}</span> },
+            ]}
+            footer={
+              <tr>
+                <td className="px-4 py-3">Total · {totals.people} people</td>
+                <td className="px-4 py-3 text-right tabular-nums">{totals.hours.toFixed(1)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{totals.otHours.toFixed(1)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">${totals.blendedRate.toFixed(2)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{money(totals.cost)}</td>
+              </tr>
+            }
+          />
+        </Section>
+      </ReportDocument>
     </div>
   );
 }
