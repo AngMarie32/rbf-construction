@@ -558,9 +558,13 @@ export function BidCreationView({ projectId, selectedTemplate, onItemsChange, sh
           quantity: item.quantity,
           unit: item.unit,
           unit_cost: item.unit_cost,
+          markup_pct: (item as any).markup_pct,
           total: item.total
         })),
-        totalAmount: bidItems.reduce((sum, item) => sum + (item.total || 0), 0)
+        totalAmount: bidItems.reduce((sum, item) => sum + (item.total || 0), 0),
+        contingencyAmount: calculateContingencyAmount(),
+        projectAddress: (project as any)?.address || '',
+        projectCode: (project as any)?.project_code || '',
       };
 
       const { generateBidReport } = await import('@/utils/pdfExport');

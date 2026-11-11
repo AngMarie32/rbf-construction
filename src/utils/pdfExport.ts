@@ -234,79 +234,92 @@ export const exportToCSV = (data: { title: string; data: any[] }) => {
 
 export const generateBidReport = async (exportData: any) => {
   try {
-    const reportElement = document.createElement('div');
-    reportElement.id = 'bid-report';
-    reportElement.style.position = 'absolute';
-    reportElement.style.left = '-9999px';
-    reportElement.style.background = 'white';
-    reportElement.style.padding = '60px';
-    reportElement.style.width = '800px';
-    reportElement.style.fontFamily = 'Arial, sans-serif';
-    
-    reportElement.innerHTML = `
-      <div style="text-align: center; margin-bottom: 20px;">
-        <h1 style="font-size: 16px; font-weight: bold; color: #1f2937; margin-bottom: 6px;">BID REPORT</h1>
-        <div style="width: 100%; height: 1px; background-color: #3b82f6; margin: 8px 0;"></div>
-      </div>
+    const { DocKit, loadCompany, usd, fmtDate, fileSlug } = await import('./pdfDocKit');
+    const company = await loadCompany();
+    const items: any[] = exportData.bidItems || [];
+    const lineTotal = (i: any) =>
+      i.total != null && Number(i.total)
+        ? Number(i.total)
+        : (Number(i.unit_cost) || 0) * (Number(i.quantity) || 0) * (1 + (Number(i.markup_pct) || 0) / 100);
 
-      <div style="margin-bottom: 20px;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-          <div>
-            <h3 style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 8px;">PROJECT INFORMATION</h3>
-            <table style="width: 100%; font-size: 10px;">
-              <tr><td style="padding: 4px 0; font-weight: bold;">Project Name:</td><td style="padding: 4px 0;">${exportData.projectName}</td></tr>
-              <tr><td style="padding: 4px 0; font-weight: bold;">Client:</td><td style="padding: 4px 0;">${exportData.client}</td></tr>
-              <tr><td style="padding: 4px 0; font-weight: bold;">Date:</td><td style="padding: 4px 0;">${exportData.date}</td></tr>
-            </table>
-          </div>
-          <div>
-            <h3 style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 8px;">BID SUMMARY</h3>
-            <table style="width: 100%; font-size: 10px;">
-              <tr><td style="padding: 4px 0; font-weight: bold;">Total Items:</td><td style="padding: 4px 0; text-align: right;">${exportData.bidItems.length}</td></tr>
-              <tr><td style="padding: 4px 0; font-weight: bold;">Total Amount:</td><td style="padding: 4px 0; text-align: right;">$${exportData.totalAmount.toLocaleString()}</td></tr>
-            </table>
-          </div>
-        </div>
-      </div>
+    // Group by section (category), keeping first-seen order
+    const groups = new Map<string, any[]>();
+    items.forEach((i) => {
+      const key = (i.category || 'General').trim() || 'General';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(i);
+    });
+    const subtotal = items.reduce((s, i) => s + lineTotal(i), 0);
+    const contingency = Number(exportData.contingencyAmount) || 0;
+    const grand = subtotal + contingency;
 
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 10px;">
-        <thead>
-          <tr style="background-color: #f8fafc;">
-            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-weight: bold;">Category</th>
-            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-weight: bold;">Description</th>
-            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">Qty</th>
-            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">Unit</th>
-            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">Unit Cost</th>
-            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right; font-weight: bold;">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${exportData.bidItems.map((item: any) => `
-            <tr>
-              <td style="border: 1px solid #d1d5db; padding: 6px;">${item.category || 'N/A'}</td>
-              <td style="border: 1px solid #d1d5db; padding: 6px;">${item.description || 'N/A'}</td>
-              <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${item.quantity || 0}</td>
-              <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${item.unit || 'each'}</td>
-              <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${(item.unit_cost || 0).toLocaleString()}</td>
-              <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">$${((item.unit_cost || 0) * (item.quantity || 0)).toLocaleString()}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-        <tfoot>
-          <tr style="background-color: #f8fafc; font-weight: bold;">
-            <td colspan="5" style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">TOTAL:</td>
-            <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">$${exportData.totalAmount.toLocaleString()}</td>
-          </tr>
-        </tfoot>
-      </table>
-    `;
+    const doc = new DocKit(company, 'Bid Report', exportData.projectCode ? `Job ${exportData.projectCode}` : '');
+    doc.letterhead([
+      { label: 'Date', value: fmtDate(new Date()) },
+      { label: 'Line items', value: String(items.length) },
+      { label: 'Sections', value: String(groups.size) },
+      { label: 'Bid total', value: usd(grand, false) },
+    ]);
+    doc.infoBoxes([
+      { title: 'Project', lines: [exportData.projectName || 'Project', exportData.projectAddress] },
+      { title: 'Client', lines: [exportData.client && exportData.client !== 'N/A' ? exportData.client : 'Not specified'] },
+    ]);
 
-    document.body.appendChild(reportElement);
-    
-    await exportToPDF('bid-report', `Bid-Report-${exportData.projectName?.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`);
-    
-    document.body.removeChild(reportElement);
-    
+    doc.heading('Summary by section');
+    const names = Array.from(groups.keys());
+    doc.table(
+      [
+        { header: 'Section', width: 52 },
+        { header: 'Lines', width: 12, align: 'right' },
+        { header: 'Share', width: 14, align: 'right' },
+        { header: 'Amount', width: 22, align: 'right' },
+      ],
+      names.map((n) => {
+        const amt = groups.get(n)!.reduce((s, i) => s + lineTotal(i), 0);
+        return [n, String(groups.get(n)!.length), subtotal ? `${((amt / subtotal) * 100).toFixed(1)}%` : '—', { text: usd(amt), bold: true }];
+      })
+    );
+
+    doc.heading('Bid detail');
+    const rows: any[] = [];
+    const sectionRows = new Set<number>();
+    const subtotalRows = new Set<number>();
+    names.forEach((n) => {
+      sectionRows.add(rows.length);
+      rows.push([n]);
+      const list = groups.get(n)!;
+      list.forEach((i) => {
+        rows.push([
+          [i.description || '—', i.subcategory ? `(${i.subcategory})` : ''].filter(Boolean).join(' '),
+          (Number(i.quantity) || 0).toLocaleString('en-US', { maximumFractionDigits: 3 }),
+          i.unit || 'ea',
+          usd(Number(i.unit_cost) || 0),
+          Number(i.markup_pct) ? `${Number(i.markup_pct)}%` : '—',
+          { text: usd(lineTotal(i)) },
+        ]);
+      });
+      subtotalRows.add(rows.length);
+      rows.push([`${n} subtotal`, '', '', '', '', usd(list.reduce((s, i) => s + lineTotal(i), 0))]);
+    });
+    doc.table(
+      [
+        { header: 'Description', width: 46 },
+        { header: 'Qty', width: 10, align: 'right' },
+        { header: 'Unit', width: 9, align: 'center' },
+        { header: 'Unit cost', width: 14, align: 'right' },
+        { header: 'Markup', width: 9, align: 'right' },
+        { header: 'Amount', width: 16, align: 'right' },
+      ],
+      rows,
+      { sectionRows, subtotalRows }
+    );
+
+    const lines = [{ label: 'Subtotal', value: usd(subtotal) }];
+    if (contingency) lines.push({ label: 'Contingency', value: usd(contingency) });
+    lines.push({ label: 'Bid total', value: usd(grand) });
+    doc.totals(lines);
+
+    doc.save(`bid-report-${fileSlug(exportData.projectName)}-${new Date().toISOString().split('T')[0]}.pdf`);
     return true;
   } catch (error) {
     console.error('Error generating bid report:', error);

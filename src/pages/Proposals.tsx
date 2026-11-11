@@ -151,6 +151,14 @@ export default function Proposals() {
         status: proposal.status,
         createdAt: new Date(proposal.created_at),
         scope: proposal.scope || undefined,
+        id: proposal.id,
+        clientAddress: proposal.raw?.client_address || undefined,
+        clientPhone: proposal.raw?.client_phone || undefined,
+        clientEmail: proposal.raw?.client_email || undefined,
+        projectAddress: proposal.raw?.project_address || undefined,
+        validDays: proposal.raw?.valid_days || undefined,
+        notes: proposal.raw?.notes || undefined,
+        proposalItems: Array.isArray(proposal.raw?.proposal_items) ? proposal.raw.proposal_items : undefined,
       });
       if (!quiet) toast.success('Proposal PDF exported');
     } catch (error) {
