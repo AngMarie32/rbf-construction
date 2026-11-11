@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { ChevronDown, ChevronsLeft, ChevronsRight, HardHat, FolderKanban } from 'lucide-react';
+import { ChevronDown, ChevronsLeft, ChevronsRight, FolderKanban } from 'lucide-react';
 import { getRecentProjects, onRecentProjectsChange, type RecentProject } from '@/utils/recentProjects';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { navGroups, isActivePath } from './navigation';
@@ -89,9 +89,9 @@ export function Sidebar({ onNavigate, mobile = false }: SidebarProps) {
             className="flex items-center gap-3 min-w-0"
             aria-label="Go to dashboard"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-orange-600 text-white shadow-lg shadow-orange-500/30">
-              <HardHat className="h-5 w-5" />
-            </span>
+            {collapsed && (
+              <span className="font-display text-sm font-extrabold tracking-tight text-sidebar-foreground">RBF</span>
+            )}
             {!collapsed && (
               <span className="flex flex-col leading-tight text-left">
                 <span className="font-display font-extrabold text-[15px] text-sidebar-foreground tracking-tight">RBF Construction</span>
