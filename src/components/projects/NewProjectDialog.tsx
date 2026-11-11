@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { saveWithStatus } from '@/lib/projectStatus';
 
 interface NewProjectDialogProps {
   onProjectCreated: () => void;
@@ -23,7 +24,7 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
     name: '',
     type: '',
     contractValue: '',
-    status: 'Planning' as 'Planning' | 'Open' | 'Closed',
+    status: 'Planning' as string,
     startDate: undefined as Date | undefined,
     dueDate: undefined as Date | undefined,
     address: '',
@@ -41,22 +42,22 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('projects')
-        .insert({
-          name: formData.name,
-          type: formData.type || 'General',
-          contract_value: formData.contractValue ? parseFloat(formData.contractValue) : 0,
-          status: formData.status,
-          start_date: formData.startDate ? format(formData.startDate, 'yyyy-MM-dd') : null,
-          due_date: formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : null,
-          address: formData.address || null,
-          project_code: formData.projectCode || null,
-          client: formData.client || null,
-          field_leader: formData.fieldLeader || null,
-        });
-
-      if (error) throw error;
+      const row = {
+        name: formData.name,
+        type: formData.type || 'General',
+        contract_value: formData.contractValue ? parseFloat(formData.contractValue) : 0,
+        start_date: formData.startDate ? format(formData.startDate, 'yyyy-MM-dd') : null,
+        due_date: formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : null,
+        address: formData.address || null,
+        project_code: formData.projectCode || null,
+        client: formData.client || null,
+        field_leader: formData.fieldLeader || null,
+      };
+      const problem = await saveWithStatus(formData.status, (status) => supabase.from('projects').insert({ ...row, status }));
+      if (problem) {
+        toast.error(`Couldn't create the project: ${problem}`);
+        return;
+      }
 
       toast.success('Project created successfully');
       setOpen(false);
@@ -176,14 +177,14 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
 
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value: 'Planning' | 'Open' | 'Closed') => setFormData({ ...formData, status: value })}>
+              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Planning">Planning</SelectItem>
-                  <SelectItem value="Open">Open</SelectItem>
-                  <SelectItem value="Closed">Closed</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="On Hold">On Hold</SelectItem>
                 </SelectContent>
               </Select>
             </div>
