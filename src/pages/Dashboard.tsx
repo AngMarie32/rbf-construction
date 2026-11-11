@@ -27,6 +27,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, differenceInCalendarDays } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { PageHero, heroButton, heroButtonPrimary } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { fetchReminders, type Reminder } from '@/lib/reminders';
+import { monthBuckets } from '@/lib/analyticsData';
+import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { ShieldAlert, ClipboardCheck, FileCheck, TrendingUp } from 'lucide-react';
 
 interface ProjectSummary {
   id: string;
@@ -100,6 +106,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [openProjects, setOpenProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [trend, setTrend] = useState<{ month: string; billed: number; received: number; costs: number }[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
   const [financialFilter, setFinancialFilter] = useState<FinancialFilter>({
     type: 'year',
     value: new Date().getFullYear().toString(),
@@ -109,6 +117,34 @@ export default function Dashboard() {
     fetchDashboardData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [financialFilter]);
+
+  // Last 6 months of billing and costs for open jobs (real dates, independent of the period filter).
+  useEffect(() => {
+    if (openProjects.length === 0) {
+      setTrend([]);
+      return;
+    }
+    const ids = openProjects.map((p) => p.id);
+    const months = monthBuckets(6);
+    const start = `${months[0].key}-01`;
+    Promise.all([
+      supabase.from('project_billing').select('project_id, billed_amount, paid_amount, billing_period_end').in('project_id', ids).gte('billing_period_end', start),
+      supabase.from('expenses').select('project_id, amount, date').in('project_id', ids).gte('date', start),
+    ]).then(([b, e]) => {
+      setTrend(
+        months.map((m) => ({
+          month: m.label,
+          billed: (b.data || []).filter((r) => (r.billing_period_end || '').startsWith(m.key)).reduce((s, r) => s + (r.billed_amount || 0), 0),
+          received: (b.data || []).filter((r) => (r.billing_period_end || '').startsWith(m.key)).reduce((s, r) => s + (r.paid_amount || 0), 0),
+          costs: (e.data || []).filter((r) => (r.date || '').startsWith(m.key)).reduce((s, r) => s + (r.amount || 0), 0),
+        }))
+      );
+    });
+  }, [openProjects]);
+
+  useEffect(() => {
+    fetchReminders().then(setReminders).catch(() => setReminders([]));
+  }, []);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -210,8 +246,21 @@ export default function Dashboard() {
     if (summary.pending > 0) {
       items.unshift({ key: 'pending', icon: Clock, tone: 'text-amber-600 dark:text-amber-400 bg-amber-500/10', title: `${money(summary.pending)} in expenses waiting for approval`, detail: 'Review and approve so job costs stay accurate', to: '/expenses' });
     }
-    return items.slice(0, 6);
-  }, [openProjects, summary.pending]);
+    const ICON = { insurance_expired: ShieldAlert, insurance_expiring: ShieldAlert, inspection_soon: ClipboardCheck, permit_expiring: FileCheck, cost_spike: TrendingUp } as const;
+    reminders
+      .filter((r) => r.kind in ICON)
+      .forEach((r) =>
+        items.push({
+          key: r.id,
+          icon: ICON[r.kind as keyof typeof ICON],
+          tone: r.severity === 'high' ? 'text-red-600 dark:text-red-400 bg-red-500/10' : 'text-amber-600 dark:text-amber-400 bg-amber-500/10',
+          title: r.title,
+          detail: r.detail,
+          to: r.to,
+        })
+      );
+    return items.slice(0, 8);
+  }, [openProjects, summary.pending, reminders]);
 
   const kpis = [
     { label: 'Active jobs', value: String(summary.active), hint: `${openProjects.length} open in total`, icon: FolderKanban },
@@ -226,48 +275,84 @@ export default function Dashboard() {
   return (
     <Layout title="Dashboard" hideTitle>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">{format(new Date(), 'EEEE, MMMM d')}</p>
-            <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight">
-              {greeting()}{firstName ? `, ${firstName}` : ''}
-            </h1>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" asChild>
-              <Link to="/expenses"><Receipt className="mr-2 h-4 w-4" />Add expense</Link>
-            </Button>
-            <Button onClick={() => navigate('/projects')}>
-              <Plus className="mr-2 h-4 w-4" />New project
-            </Button>
-          </div>
-        </div>
+        <PageHero
+          eyebrow={format(new Date(), 'EEEE, MMMM d')}
+          title={`${greeting()}${firstName ? `, ${firstName}` : ''}`}
+          subtitle={loading ? 'Loading your jobs…' : `${summary.active} active job${summary.active === 1 ? '' : 's'} · ${attention.length ? `${attention.length} thing${attention.length === 1 ? '' : 's'} need attention` : 'nothing needs attention'}`}
+          actions={
+            <>
+              <button type="button" className={heroButtonPrimary} onClick={() => navigate('/projects')}>
+                <Plus className="h-4 w-4" /> New project
+              </button>
+              <Link to="/expenses" className={heroButton}><Receipt className="h-4 w-4" /> Add expense</Link>
+              <Link to="/billing" className={heroButton}><CreditCard className="h-4 w-4" /> New bill</Link>
+            </>
+          }
+          stats={[
+            { label: 'Owed to you', value: loading ? '…' : compactMoney(outstanding), tone: outstanding > 0 ? 'warn' : undefined },
+            { label: 'Left to bill', value: loading ? '…' : compactMoney(Math.max(0, summary.contract - summary.billed)) },
+            { label: 'Open contracts', value: loading ? '…' : compactMoney(summary.contract) },
+          ]}
+        />
 
-        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-          <div className="w-max"><FinancialDateFilter currentFilter={financialFilter} onFilterChange={setFinancialFilter} /></div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+            <div className="w-max"><FinancialDateFilter currentFilter={financialFilter} onFilterChange={setFinancialFilter} /></div>
+          </div>
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
           {kpis.map((k, i) => (
-            <Card key={k.label} className={cn('p-0', i === kpis.length - 1 && 'col-span-2 lg:col-span-1')}>
-              <CardContent className="p-4 sm:p-5">
-                <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
-                  <span>{k.label}</span>
-                  <k.icon className="h-4 w-4" />
-                </div>
-                {loading ? (
-                  <Skeleton className="mt-3 h-8 w-24" />
-                ) : (
-                  <div className={cn('mt-2 text-2xl font-bold tabular-nums tracking-tight', k.tone)}>{k.value}</div>
-                )}
-                <div className="mt-1 text-xs text-muted-foreground truncate">{loading ? ' ' : k.hint}</div>
-              </CardContent>
-            </Card>
+            <AccentStat
+              key={k.label}
+              label={k.label}
+              value={k.value}
+              hint={k.hint}
+              icon={k.icon}
+              accent={(['blue', 'indigo', 'emerald', 'amber', 'orange'] as const)[i]}
+              tone={k.tone ? 'warn' : undefined}
+              loading={loading}
+              className={i === kpis.length - 1 ? 'col-span-2 lg:col-span-1' : undefined}
+            />
           ))}
         </div>
         <p className="-mt-2 text-xs text-muted-foreground">Billing and cost figures for open jobs · {periodLabel(financialFilter)}</p>
+
+        <Card className="p-5">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-semibold">Billed vs costs, last 6 months</h2>
+            <p className="text-xs text-muted-foreground">Open jobs · billing by period end, costs by expense date</p>
+          </div>
+          {trend.every((t) => !t.billed && !t.costs && !t.received) ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">No billing or costs dated in the last 6 months.</p>
+          ) : (
+            <>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={trend} margin={{ top: 4, right: 4, left: -4, bottom: 0 }}>
+                    <CartesianGrid vertical={false} strokeOpacity={0.15} />
+                    <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={11} />
+                    <YAxis tickLine={false} axisLine={false} fontSize={11} tickFormatter={compactMoney} width={60} />
+                    <Tooltip
+                      formatter={(v: number, name: string) => [money(v), name]}
+                      contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                      cursor={{ fillOpacity: 0.06 }}
+                    />
+                    <Bar dataKey="billed" name="Billed" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={18} />
+                    <Bar dataKey="costs" name="Costs" fill="#f97316" radius={[4, 4, 0, 0]} barSize={18} />
+                    <Line dataKey="received" name="Received" type="linear" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-indigo-500" />Billed</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-orange-500" />Costs</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Received</span>
+              </div>
+            </>
+          )}
+        </Card>
 
         <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
           {/* Open projects */}
