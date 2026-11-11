@@ -39,7 +39,7 @@ const DIVISION_BY_GROUP: Record<string, string> = {
 export function SendToBidPlannerDialog({
   open,
   onOpenChange,
-  mode,
+  mode: initialMode,
   estimateId,
   estimateName,
   location,
@@ -59,19 +59,25 @@ export function SendToBidPlannerDialog({
   const [customMarkup, setCustomMarkup] = useState('10');
   const [replace, setReplace] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [mode, setMode] = useState<BidPlannerMode>(initialMode);
 
   useEffect(() => {
     if (!open) return;
     setName(estimateName);
     setProjectId(defaultProjectId || '');
-    if (mode === 'existing') {
-      supabase
-        .from('projects')
-        .select('id, name, status').is('archived_at', null)
-        .order('name')
-        .then(({ data }) => setProjects(sortProjectsOpenFirst(data || [])));
-    }
-  }, [open, mode, estimateName, defaultProjectId]);
+    setMode(initialMode);
+    supabase
+      .from('projects')
+      .select('id, name, status')
+      .is('archived_at', null)
+      .order('name')
+      .then(({ data }) => {
+        const list = sortProjectsOpenFirst(data || []);
+        setProjects(list);
+        // Nothing to link to yet: go straight to creating one.
+        if (!list.length) setMode('new');
+      });
+  }, [open, initialMode, estimateName, defaultProjectId]);
 
   const priced = useMemo(() => lines.filter((l) => lineAmount(l) !== 0), [lines]);
   const cost = priced.reduce((s, l) => s + lineAmount(l), 0);
@@ -149,8 +155,27 @@ export function SendToBidPlannerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{mode === 'new' ? 'New project from estimate' : 'Send to Bid Planner'}</DialogTitle>
+          <DialogTitle>Send to Bid Planner</DialogTitle>
         </DialogHeader>
+
+        <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-sm" role="tablist">
+          {(['existing', 'new'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="tab"
+              aria-selected={mode === m}
+              disabled={m === 'existing' && !projects.length}
+              onClick={() => setMode(m)}
+              className={
+                'rounded-md px-3 py-1.5 font-medium transition-colors disabled:opacity-50 ' +
+                (mode === m ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground')
+              }
+            >
+              {m === 'existing' ? 'Link to existing project' : 'Create new project'}
+            </button>
+          ))}
+        </div>
 
         <div className="space-y-4">
           {mode === 'new' ? (
@@ -161,7 +186,8 @@ export function SendToBidPlannerDialog({
               </div>
               <div>
                 <Label>Client</Label>
-                <Input value={client} onChange={(e) => setClient(e.target.value)} placeholder="Optional" />
+                <Input value={client} onChange={(e) => setClient(e.target.value)} placeholder="Who the job is for" />
+                <p className="mt-1 text-xs text-muted-foreground">Needed for the proposal. You can also add it later.</p>
               </div>
             </>
           ) : (

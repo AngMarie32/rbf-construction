@@ -33,7 +33,28 @@ export function proposalItemsFromBid(bidItems: any[]): WorkflowProposalItem[] {
     });
 }
 
-export async function createProposalFromBid(projectId: string, bidItems: any[]) {
+export interface ProposalContact {
+  client: string;
+  email?: string;
+  phone?: string;
+  clientAddress?: string;
+  projectAddress?: string;
+}
+
+export class MissingClientError extends Error {
+  project: { id: string; name: string; client: string | null; address: string | null };
+  constructor(project: MissingClientError['project']) {
+    super('This project has no client yet.');
+    this.name = 'MissingClientError';
+    this.project = project;
+  }
+}
+
+/**
+ * Create a draft proposal from the bid. Throws MissingClientError when the project has
+ * no client and none was given, so the caller can ask for it and call again with `contact`.
+ */
+export async function createProposalFromBid(projectId: string, bidItems: any[], contact?: ProposalContact) {
   const proposalItems = proposalItemsFromBid(bidItems);
   if (!proposalItems.length) throw new Error('Add at least one bid line before creating a proposal.');
 
@@ -43,15 +64,26 @@ export async function createProposalFromBid(projectId: string, bidItems: any[]) 
     .eq('id', projectId)
     .single();
   if (projectError) throw projectError;
-  if (!project.client) throw new Error('Add a client to this project before creating its proposal.');
+  const client = contact?.client?.trim() || project.client;
+  if (!client) throw new MissingClientError(project);
+  const projectAddress = contact?.projectAddress?.trim() || project.address;
+
+  // Save what was entered back to the project so the next step doesn't ask again.
+  const projectUpdate: Record<string, string> = {};
+  if (client !== project.client) projectUpdate.client = client;
+  if (projectAddress && projectAddress !== project.address) projectUpdate.address = projectAddress;
+  if (Object.keys(projectUpdate).length) await supabase.from('projects').update(projectUpdate).eq('id', projectId);
 
   const { data, error } = await supabase
     .from('proposals')
     .insert({
       project_id: projectId,
       project_name: project.name,
-      client: project.client,
-      project_address: project.address,
+      client,
+      project_address: projectAddress,
+      client_email: contact?.email?.trim() || null,
+      client_phone: contact?.phone?.trim() || null,
+      client_address: contact?.clientAddress?.trim() || null,
       amount: proposalItems.reduce((sum, item) => sum + item.total, 0),
       status: 'Draft',
       valid_days: 30,

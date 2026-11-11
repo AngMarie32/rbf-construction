@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calculator, Target, Building2, Plus, Download, FileUp, Database, LayoutTemplate, ListChecks, Layers, DollarSign } from 'lucide-react';
 import { PageHero, heroButton } from '@/components/ui/page-hero';
 import { ExportMenu, downloadCsv } from '@/components/ui/export-menu';
-import { createProposalFromBid, sendBidToSov } from '@/utils/proposalWorkflow';
+import { createProposalFromBid, sendBidToSov, MissingClientError, type ProposalContact } from '@/utils/proposalWorkflow';
+import { ClientInfoDialog } from '@/components/proposals/ClientInfoDialog';
 import { AccentStat } from '@/components/ui/accent-stat';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,6 +31,22 @@ export default function BidPlanner() {
   const [importOpen, setImportOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const navigate = useNavigate();
+  const [askClient, setAskClient] = useState<{ name: string; address: string | null } | null>(null);
+
+  const makeProposal = async (contact?: ProposalContact) => {
+    try {
+      await createProposalFromBid(selectedProject, bidItems, contact);
+      setAskClient(null);
+      toast.success('Draft proposal created from this bid');
+      navigate(`/proposals?project=${selectedProject}`);
+    } catch (e: any) {
+      if (e instanceof MissingClientError) {
+        setAskClient({ name: e.project.name, address: e.project.address });
+        return;
+      }
+      toast.error(e.message || 'Could not create the proposal');
+    }
+  };
 
   const exportBidCsv = () => {
     const p = projects.find((x) => x.id === selectedProject);
@@ -228,15 +245,7 @@ export default function BidPlanner() {
                   description: `Starts a draft proposal for ${project?.name || 'this project'} with all ${bidItems.length} bid lines, quantities and markup filled in.`,
                   disabled: !bidItems.length,
                   disabledReason: 'Add at least one bid line, then turn the bid into a proposal in one click.',
-                  onClick: async () => {
-                    try {
-                      await createProposalFromBid(selectedProject, bidItems);
-                      toast.success('Draft proposal created from this bid');
-                      navigate(`/proposals?project=${selectedProject}`);
-                    } catch (e: any) {
-                      toast.error(e.message || 'Could not create the proposal');
-                    }
-                  },
+                  onClick: () => makeProposal(),
                 }
               : undefined
           }
@@ -314,6 +323,14 @@ export default function BidPlanner() {
             steps={['Select the project', 'Add bid items from templates, blueprints or by hand', 'Export the PDF or turn it into a proposal']}
           />
         )}
+
+        <ClientInfoDialog
+          open={!!askClient}
+          onOpenChange={(o) => !o && setAskClient(null)}
+          projectName={askClient?.name || 'This project'}
+          defaults={{ projectAddress: askClient?.address || '' }}
+          onSubmit={(c) => makeProposal(c)}
+        />
 
         <EnhancedBidDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} onBidCreated={fetchBidItems} projects={projects} />
       </div>
