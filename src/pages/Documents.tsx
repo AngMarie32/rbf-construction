@@ -5,6 +5,7 @@ import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Layout } from '@/components/layout/Layout';
 import { FolderSidebar } from '@/components/documents/FolderSidebar';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
+import { DocumentEditDialog, type DocumentEditValues } from '@/components/documents/DocumentEditDialog';
 import { DocumentPreviewDialog } from '@/components/documents/DocumentPreviewDialog';
 import { DocumentVersionDialog } from '@/components/documents/DocumentVersionDialog';
 import { DocumentTemplatesDialog } from '@/components/documents/DocumentTemplatesDialog';
@@ -64,6 +65,9 @@ export default function Documents() {
   const [selectedFolder, setSelectedFolder] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [documentToEdit, setDocumentToEdit] = useState<Document | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
   const [showVersionDialog, setShowVersionDialog] = useState(false);
