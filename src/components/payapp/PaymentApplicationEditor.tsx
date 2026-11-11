@@ -270,6 +270,10 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
     signedDate: form.signature ? form.applicationDate : null,
     lines,
     settings,
+    contingency: (() => {
+      const v = Number(project?.contingency_value) || 0;
+      return project?.contingency_type === 'percentage' ? (totals.scheduled * v) / 100 : v;
+    })(),
   });
 
   // Opened from the list with ?export=g702|g703|package: download once loaded.
