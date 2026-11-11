@@ -5,6 +5,7 @@ import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Layout } from '@/components/layout/Layout';
 import { FolderSidebar } from '@/components/documents/FolderSidebar';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
+import { DocumentEditDialog, type DocumentEditValues } from '@/components/documents/DocumentEditDialog';
 import { DocumentPreviewDialog } from '@/components/documents/DocumentPreviewDialog';
 import { DocumentVersionDialog } from '@/components/documents/DocumentVersionDialog';
 import { DocumentTemplatesDialog } from '@/components/documents/DocumentTemplatesDialog';
@@ -64,6 +65,9 @@ export default function Documents() {
   const [selectedFolder, setSelectedFolder] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [documentToEdit, setDocumentToEdit] = useState<Document | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
   const [showVersionDialog, setShowVersionDialog] = useState(false);
@@ -181,21 +185,28 @@ export default function Documents() {
     }
   };
 
-  const deleteDocument = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this document?')) return;
-    
+  const deleteDocument = async (document: Document) => {
+    setDeletingId(document.id);
     try {
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from('documents')
-        .delete()
-        .eq('id', id);
+        .delete({ count: 'exact' })
+        .eq('id', document.id);
 
       if (error) throw error;
-      toast.success('Document deleted successfully');
-      await fetchDocuments();
+      if (count === 0) throw new Error('The document was not deleted. You may not have permission to delete it.');
+
+      setDocuments((current) => current.filter((item) => item.id !== document.id));
+      setFavoriteDocuments((current) => current.filter((id) => id !== document.id));
+      setArchivedDocuments((current) => current.filter((id) => id !== document.id));
+      if (previewDocument?.id === document.id) setShowPreviewDialog(false);
+      if (documentToEdit?.id === document.id) setShowEditDialog(false);
+      toast.success(`${document.name} deleted`);
     } catch (error) {
       console.error('Error deleting document:', error);
-      toast.error('Failed to delete document');
+      toast.error(error instanceof Error ? error.message : 'Failed to delete document');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -205,8 +216,33 @@ export default function Documents() {
   };
 
   const editDocument = (document: Document) => {
-    console.log('Editing document:', document.name);
-    toast.info(`Edit functionality for ${document.name} coming soon`);
+    setShowPreviewDialog(false);
+    setDocumentToEdit(document);
+    setShowEditDialog(true);
+  };
+
+  const updateDocument = async (values: DocumentEditValues) => {
+    if (!documentToEdit) return;
+
+    const { data, error } = await supabase
+      .from('documents')
+      .update({
+        name: values.name,
+        description: values.description || null,
+        category: values.category,
+        project_id: values.projectId,
+        tags: values.tags.length ? values.tags : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', documentToEdit.id)
+      .select('id')
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) throw new Error('The document was not updated. You may not have permission to edit it.');
+
+    toast.success('Document updated');
+    await fetchDocuments();
   };
 
   const downloadDocument = (document: Document) => {
@@ -361,8 +397,22 @@ export default function Documents() {
       align: 'right',
       cell: (d) => (
         <div className="flex justify-end gap-0.5">
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="Download" aria-label="Download" onClick={() => downloadDocument(d)}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Download" aria-label={`Download ${d.name}`} onClick={() => downloadDocument(d)}>
             <Download className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" aria-label={`Edit ${d.name}`} onClick={() => editDocument(d)}>
+            <Edit className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive"
+            title="Delete"
+            aria-label={`Delete ${d.name}`}
+            disabled={deletingId === d.id}
+            onClick={() => deleteDocument(d)}
+          >
+            <Trash2 className="w-4 h-4" />
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -379,7 +429,7 @@ export default function Documents() {
               <DropdownMenuItem onClick={() => toggleArchive(d.id)}>
                 <Archive className="w-4 h-4 mr-2" />{archivedDocuments.includes(d.id) ? 'Unarchive' : 'Archive'}
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive" onClick={() => deleteDocument(d.id)}>
+              <DropdownMenuItem className="text-destructive" onClick={() => deleteDocument(d)}>
                 <Trash2 className="w-4 h-4 mr-2" />Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -546,7 +596,7 @@ export default function Documents() {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem 
                                       className="text-red-600 cursor-pointer"
-                                      onClick={() => deleteDocument(document.id)}
+                                      onClick={() => deleteDocument(document)}
                                     >
                                       <Trash2 className="w-4 h-4 mr-2" />
                                       Delete
@@ -605,6 +655,14 @@ export default function Documents() {
         open={showUploadDialog}
         onOpenChange={setShowUploadDialog}
         onUpload={handleUpload}
+        projects={projects}
+      />
+
+      <DocumentEditDialog
+        document={documentToEdit}
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        onSave={updateDocument}
         projects={projects}
       />
 

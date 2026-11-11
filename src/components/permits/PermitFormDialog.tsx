@@ -83,8 +83,8 @@ export function PermitFormDialog({ open, onOpenChange, projects, permit, default
       notes: form.notes || null,
     };
     const { error } = permit
-      ? await supabase.from('permits').update(row).eq('id', permit.id)
-      : await supabase.from('permits').insert(row);
+      ? await (supabase as any).from('permits').update(row).eq('id', permit.id)
+      : await (supabase as any).from('permits').insert(row);
     setSaving(false);
     if (error) {
       console.error(error);

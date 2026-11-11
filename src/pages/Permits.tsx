@@ -42,7 +42,7 @@ export default function Permits() {
 
   const load = useCallback(async () => {
     const [{ data: p, error }, { data: proj }] = await Promise.all([
-      supabase
+      (supabase as any)
         .from('permits')
         .select('*, projects(name), permit_inspections(*)')
         .order('created_at', { ascending: false }),
@@ -97,7 +97,7 @@ export default function Permits() {
 
   const remove = async (p: Permit) => {
     if (!confirm(`Delete the ${p.permit_type} permit${p.permit_number ? ` #${p.permit_number}` : ''} and its inspections?`)) return;
-    const { error } = await supabase.from('permits').delete().eq('id', p.id);
+    const { error } = await (supabase as any).from('permits').delete().eq('id', p.id);
     if (error) return toast.error('Could not delete the permit.');
     toast.success('Permit deleted.');
     load();

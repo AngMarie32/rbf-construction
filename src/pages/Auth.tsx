@@ -34,6 +34,7 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
+  const [jokeIndex, setJokeIndex] = useState(() => Math.floor(Math.random() * JOKES.length));
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,7 +129,6 @@ export default function Auth() {
     </div>
   );
 
-  const [jokeIndex, setJokeIndex] = useState(() => Math.floor(Math.random() * JOKES.length));
   const joke = JOKES[jokeIndex];
   const nextJoke = () => setJokeIndex((i) => (i + 1 + Math.floor(Math.random() * (JOKES.length - 1))) % JOKES.length);
 

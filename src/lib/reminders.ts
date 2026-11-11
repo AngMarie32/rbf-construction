@@ -48,13 +48,13 @@ export async function fetchReminders(today = new Date()): Promise<Reminder[]> {
       .lte('insurance_expiry', insuranceCutoff),
     supabase.from('projects').select('id, name, status'),
     supabase.from('expenses').select('project_id, amount, date'),
-    supabase
+    (supabase as any)
       .from('permit_inspections')
       .select('id, inspection_type, scheduled_date, scheduled_time, result, permits(permit_type, permit_number, project_id)')
       .eq('result', 'Scheduled')
       .gte('scheduled_date', iso(today))
       .lte('scheduled_date', tomorrow),
-    supabase
+    (supabase as any)
       .from('permits')
       .select('id, project_id, permit_type, permit_number, expiration_date, status')
       .not('expiration_date', 'is', null)
