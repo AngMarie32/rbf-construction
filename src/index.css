@@ -440,3 +440,21 @@
     margin-top: 0.375rem;
   }
 }
+
+/* Printing a report: show only the report document, keep its colors */
+@media print {
+  @page { margin: 12mm; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body:has(.report-print) * { visibility: hidden; }
+  body:has(.report-print) .report-print,
+  body:has(.report-print) .report-print * { visibility: visible; }
+  body:has(.report-print) .report-print { position: absolute; left: 0; top: 0; width: 100%; }
+  html:has(.report-print), body:has(.report-print) { background: #fff !important; background-image: none !important; }
+  .report-print td, .report-print th { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+  .report-print { overflow: visible !important; }
+  .report-print td, .report-print td * { white-space: normal !important; }
+  .report-print td .w-28 { width: 3.5rem !important; }
+  .report-print table { table-layout: auto; width: 100% !important; }
+  .report-print tfoot { display: table-row-group; } /* print the total once, at the end */
+  .break-inside-avoid { break-inside: avoid; }
+}
