@@ -41,7 +41,7 @@ export function ProjectSelectionHeader({ selectedProjects, projects }: ProjectSe
   }
 
   return (
-    <Card className="bg-blue-50 border-blue-200">
+    <Card className="bg-blue-500/10 border-blue-500/30">
       <CardContent className="pt-6">
         <div className="text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
