@@ -1,3 +1,4 @@
+import { ProjectCombobox } from '@/components/ui/project-combobox';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 
 import { useState, useEffect } from 'react';
@@ -486,19 +487,14 @@ export default function ProjectBilling() {
                   <SelectItem value="paid">Paid</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={projectFilter} onValueChange={setProjectFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="All projects" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All projects</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <ProjectCombobox
+                className="w-full sm:w-60"
+                projects={projects as any}
+                value={projectFilter === 'all' ? '' : projectFilter}
+                onChange={(id) => setProjectFilter(id || 'all')}
+                placeholder="All projects (type to search)"
+                clearable
+              />
             </>
           }
           footer={(rows) =>
