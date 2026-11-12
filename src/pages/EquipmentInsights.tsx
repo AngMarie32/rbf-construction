@@ -22,17 +22,19 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  Area,
-  AreaChart,
   Bar,
-  BarChart,
+  ComposedChart,
+  Line,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
-import { Sparkles, Loader2, Upload } from 'lucide-react';
+import { Sparkles, Loader2, Upload, Truck, Wrench, Activity, Gauge, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { PageHero, heroButton, heroButtonPrimary } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FleetCostReport } from '@/components/equipment/FleetCostReport';
 import { RepairInvoiceImportDialog } from '@/components/equipment/RepairInvoiceImportDialog';
@@ -69,6 +71,12 @@ const currency = (n: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number.isFinite(n) ? n : 0);
+
+const money0 = (n: number) => (Number(n) || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+const monthLabel = (k: string) => {
+  const [y, m] = String(k).split('-').map(Number);
+  return y && m ? new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }) : String(k);
+};
 
 const RANGES = [
   { value: '6', label: 'Last 6 months' },
@@ -179,20 +187,24 @@ export default function EquipmentInsights() {
     const spend = scopedRepairs.reduce((s, r) => s + Number(r.cost || 0), 0);
     const fleetValue = equipment.reduce((s, eq) => s + Number(eq.value || 0), 0);
     const hours = equipment.reduce((s, eq) => s + Number(eq.total_hours_used || 0), 0);
+    const lifetime = repairs.reduce((s, r) => s + Number(r.cost || 0), 0);
     const flagged = rows.filter((r) => r.ratio >= 50).length;
     return {
       spend,
+      fleetValue,
       events: scopedRepairs.length,
-      perHour: hours > 0 ? spend / hours : 0,
+      // lifetime repairs over lifetime hours (period spend over lifetime hours understated it)
+      perHour: hours > 0 ? lifetime / hours : 0,
+      monitor: rows.filter((r) => r.ratio >= 25 && r.ratio < 50).length,
       pctOfFleet: fleetValue > 0 ? (spend / fleetValue) * 100 : 0,
       flagged,
     };
   }, [scopedRepairs, equipment, rows]);
 
   const healthBadge = (ratio: number) => {
-    if (ratio >= 50) return <Badge className="bg-yellow-500/15 text-yellow-600 border-0">Replace watch</Badge>;
-    if (ratio >= 25) return <Badge className="bg-yellow-500/15 text-yellow-600 border-0">Monitor</Badge>;
-    return <Badge className="bg-green-500/15 text-green-600 border-0">Healthy</Badge>;
+    if (ratio >= 50) return <Badge className="bg-rose-500/15 text-rose-600 dark:text-rose-400 border-0">Replace watch</Badge>;
+    if (ratio >= 25) return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-0">Monitor</Badge>;
+    return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0">Healthy</Badge>;
   };
 
   const runValuation = async (eq: Equipment) => {
@@ -264,7 +276,27 @@ export default function EquipmentInsights() {
   ];
 
   return (
-    <Layout title="Equipment Intelligence" subtitle="Repair history, cost trends and smart valuation">
+    <Layout hideTitle title="Equipment Intelligence">
+      <div className="space-y-6">
+      <PageHero
+        eyebrow="Equipment"
+        title="Equipment Intelligence"
+        subtitle="Repair history, cost per hour and when a unit costs more to keep than to replace."
+        actions={
+          <>
+            <button type="button" className={heroButtonPrimary} onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4" /> Import repair invoice
+            </button>
+            <Link to="/equipment" className={heroButton}>
+              <Truck className="h-4 w-4" /> Fleet
+            </Link>
+          </>
+        }
+        stats={[
+          { label: 'Repair spend', value: loading ? '…' : money0(totals.spend) },
+          { label: 'Replace watch', value: loading ? '…' : String(totals.flagged), tone: totals.flagged ? 'bad' : undefined },
+        ]}
+      />
       <Tabs value={tab} onValueChange={setTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -272,7 +304,7 @@ export default function EquipmentInsights() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-        <div className="flex flex-wrap items-center gap-3">
+        <Card className="flex flex-wrap items-center gap-3 p-4">
           <Select value={selectedId} onValueChange={setSelectedId}>
             <SelectTrigger className="w-64">
               <SelectValue placeholder="All equipment" />
@@ -321,75 +353,74 @@ export default function EquipmentInsights() {
             onChange={(e) => setSearch(e.target.value)}
             className="w-64"
           />
-          <Button variant="outline" onClick={() => setImportOpen(true)}>
-            <Upload className="mr-2 h-4 w-4" />
-            Import Repair Invoice
-          </Button>
+        </Card>
+
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <AccentStat label="Repair spend" value={currency(totals.spend)} icon={Wrench} accent="orange" loading={loading} hint={`${totals.pctOfFleet.toFixed(1)}% of fleet value`} />
+          <AccentStat label="Repair events" value={totals.events} icon={Activity} accent="indigo" loading={loading} hint={RANGES.find((r) => r.value === range)?.label} />
+          <AccentStat label="Repair cost / hour" value={currency(totals.perHour)} icon={Gauge} accent="blue" loading={loading} hint="Lifetime repairs ÷ hours used" />
+          <AccentStat
+            label="Replace watch"
+            value={totals.flagged}
+            icon={AlertTriangle}
+            accent="rose"
+            tone={totals.flagged ? 'bad' : undefined}
+            loading={loading}
+            hint={`${totals.monitor} more to monitor · repairs ≥ 50% of value`}
+          />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.4fr_1fr]">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-muted-foreground">Repair spend</CardTitle>
-            </CardHeader>
-            <CardContent className="text-2xl font-semibold">{currency(totals.spend)}</CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-muted-foreground">Repair events</CardTitle>
-            </CardHeader>
-            <CardContent className="text-2xl font-semibold">{totals.events}</CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-muted-foreground">Repair cost / hour</CardTitle>
-            </CardHeader>
-            <CardContent className="text-2xl font-semibold">{currency(totals.perHour)}</CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-muted-foreground">Replace-watch units</CardTitle>
-            </CardHeader>
-            <CardContent className="text-2xl font-semibold">{totals.flagged}</CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Repair cost over time</CardTitle>
+              <CardTitle className="text-base">Repair cost and frequency by month</CardTitle>
             </CardHeader>
             <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={monthlySeries}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: number) => currency(Number(v))} />
-                  <Area
-                    type="monotone"
-                    dataKey="cost"
-                    stroke="hsl(var(--primary))"
-                    fill="hsl(var(--primary) / 0.2)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {monthlySeries.length ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={monthlySeries} margin={{ left: 0, right: 8 }}>
+                    <CartesianGrid vertical={false} strokeOpacity={0.15} />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={monthLabel} />
+                    <YAxis yAxisId="c" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${Math.round(v / 1000)}k`} width={48} />
+                    <YAxis yAxisId="e" orientation="right" allowDecimals={false} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={28} />
+                    <Tooltip
+                      labelFormatter={monthLabel}
+                      formatter={(v: number, n: string) => (n === 'Repair cost' ? currency(Number(v)) : `${v} event${v === 1 ? '' : 's'}`)}
+                      contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                    />
+                    <Bar yAxisId="c" dataKey="cost" name="Repair cost" fill="#f97316" radius={[4, 4, 0, 0]} barSize={22} />
+                    <Line yAxisId="e" dataKey="events" name="Events" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 3 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="py-24 text-center text-sm text-muted-foreground">No repairs recorded in this period.</p>
+              )}
             </CardContent>
           </Card>
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Repair frequency by month</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Biggest repair spend</CardTitle>
             </CardHeader>
-            <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlySeries}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="events" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+            <CardContent className="space-y-3">
+              {rows.filter((r) => r.spend > 0).length === 0 && <p className="py-20 text-center text-sm text-muted-foreground">Nothing spent in this period.</p>}
+              {[...rows]
+                .filter((r) => r.spend > 0)
+                .sort((a, b) => b.spend - a.spend)
+                .slice(0, 6)
+                .map((r) => {
+                  const max = Math.max(...rows.map((x) => x.spend), 1);
+                  return (
+                    <button key={r.eq.id} type="button" className="block w-full text-left" onClick={() => setSelectedId(selectedId === r.eq.id ? 'all' : r.eq.id)}>
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <span className="truncate font-medium">{r.eq.name}</span>
+                        <span className="tabular-nums">{currency(r.spend)}</span>
+                      </div>
+                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div className={`h-full rounded-full ${r.ratio >= 50 ? 'bg-rose-500' : r.ratio >= 25 ? 'bg-amber-500' : 'bg-orange-500'}`} style={{ width: `${(r.spend / max) * 100}%` }} />
+                      </div>
+                    </button>
+                  );
+                })}
             </CardContent>
           </Card>
         </div>
@@ -456,6 +487,7 @@ export default function EquipmentInsights() {
           <FleetCostReport equipment={equipment as any} repairs={repairs} />
         </TabsContent>
       </Tabs>
+      </div>
 
       <RepairInvoiceImportDialog
         open={importOpen}
