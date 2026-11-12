@@ -1,3 +1,4 @@
+import { localDateISO } from '@/utils/dates';
 
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -18,6 +19,10 @@ interface CreateChangeOrderDialogProps {
   onOpenChange: (open: boolean) => void;
   projectId: string | null;
   onSave: () => void;
+  /** Edit an existing change order instead of creating one. */
+  changeOrder?: { id: string; project_id: string; number: string; description: string; amount: number; date: string; status: string } | null;
+  /** Pre-fill a new change order from a template. */
+  template?: { description: string; estimatedAmount: number } | null;
 }
 
 interface ChangeOrderTemplate {
@@ -33,12 +38,14 @@ export function CreateChangeOrderDialog({
   open, 
   onOpenChange, 
   projectId: fixedProjectId,
-  onSave
+  onSave,
+  changeOrder,
+  template,
 }: CreateChangeOrderDialogProps) {
   // When opened without a project (e.g. from the Change Orders page), let the user pick one.
   const [pickedProject, setPickedProject] = useState('');
   const [projectOptions, setProjectOptions] = useState<{ id: string; name: string; status?: string | null }[]>([]);
-  const projectId = fixedProjectId || pickedProject || null;
+  const projectId = changeOrder?.project_id || fixedProjectId || pickedProject || null;
 
   useEffect(() => {
     if (!open || fixedProjectId) return;
@@ -52,7 +59,7 @@ export function CreateChangeOrderDialog({
     number: '',
     description: '',
     amount: 0,
-    date: new Date().toISOString().split('T')[0],
+    date: localDateISO(),
     status: 'Draft'
   });
   const [loading, setLoading] = useState(false);
@@ -60,10 +67,25 @@ export function CreateChangeOrderDialog({
   const [selectedTemplate, setSelectedTemplate] = useState<ChangeOrderTemplate | null>(null);
 
   useEffect(() => {
-    if (open && projectId) {
+    if (!open) return;
+    if (changeOrder) {
+      setFormData({
+        number: changeOrder.number,
+        description: changeOrder.description,
+        amount: Number(changeOrder.amount) || 0,
+        date: (changeOrder.date || localDateISO()).slice(0, 10),
+        status: changeOrder.status || 'Draft',
+      });
+    } else if (template) {
+      setFormData((prev) => ({ ...prev, description: template.description, amount: template.estimatedAmount }));
+    }
+  }, [open, changeOrder, template]);
+
+  useEffect(() => {
+    if (open && projectId && !changeOrder) {
       generateNextNumber();
     }
-  }, [open, projectId]);
+  }, [open, projectId, changeOrder]);
 
   const generateNextNumber = async () => {
     try {
@@ -114,20 +136,21 @@ export function CreateChangeOrderDialog({
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('change_orders')
-        .insert({
-          project_id: projectId,
-          number: formData.number,
-          description: formData.description,
-          amount: formData.amount,
-          date: formData.date,
-          status: formData.status
-        });
+      const row = {
+        project_id: projectId,
+        number: formData.number,
+        description: formData.description,
+        amount: formData.amount,
+        date: formData.date,
+        status: formData.status,
+      };
+      const { error } = changeOrder
+        ? await supabase.from('change_orders').update(row).eq('id', changeOrder.id)
+        : await supabase.from('change_orders').insert(row);
 
       if (error) throw error;
 
-      toast.success('Change order created successfully');
+      toast.success(changeOrder ? 'Change order updated' : 'Change order created');
       onSave();
       onOpenChange(false);
       resetForm();
@@ -144,7 +167,7 @@ export function CreateChangeOrderDialog({
       number: '',
       description: '',
       amount: 0,
-      date: new Date().toISOString().split('T')[0],
+      date: localDateISO(),
       status: 'Draft'
     });
     setSelectedTemplate(null);
@@ -161,7 +184,7 @@ export function CreateChangeOrderDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5" />
-              Create New Change Order
+              {changeOrder ? `Edit change order #${changeOrder.number}` : "New change order"}
             </DialogTitle>
           </DialogHeader>
 
@@ -287,7 +310,7 @@ export function CreateChangeOrderDialog({
                 Cancel
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? 'Creating...' : 'Create Change Order'}
+                {loading ? 'Saving…' : changeOrder ? 'Save changes' : 'Create change order'}
               </Button>
             </div>
           </form>
