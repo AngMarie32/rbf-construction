@@ -17,6 +17,19 @@ import { formatDistanceToNow, format, isAfter, isBefore, startOfDay, endOfDay } 
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { PageHero, heroButtonPrimary } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { CheckCircle2, Clock, Send, AlertTriangle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function EsignDocuments() {
   const { data: envelopes = [], isLoading } = useEnvelopes();
@@ -31,6 +44,7 @@ export default function EsignDocuments() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [showArchived, setShowArchived] = useState(false);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  const [confirmDel, setConfirmDel] = useState<{ id: string; title: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -60,9 +74,46 @@ export default function EsignDocuments() {
     return matchQ && matchS && matchP && matchT && matchFrom && matchTo;
   });
 
+  const live = envelopes.filter((e) => !(e as any).archived_at);
+  const count = (...st: string[]) => live.filter((e) => st.includes(e.status)).length;
+  const waiting = count('sent', 'partially_signed');
+  const monthAgo = Date.now() - 30 * 86400000;
+  const doneMonth = live.filter((e) => e.status === 'completed' && new Date((e as any).completed_at || e.updated_at || e.created_at).getTime() >= monthAgo).length;
+  const problems = count('declined', 'expired');
+  const filtersOn = !!q || statusFilter !== 'all' || projectFilter !== 'all' || typeFilter !== 'all' || !!dateRange?.from;
+  const toggleStatus = (st: string) => setStatusFilter((cur) => (cur === st ? 'all' : st));
+
   return (
-    <Layout title="Documents" subtitle="All e-sign documents">
-      <div className="space-y-4">
+    <Layout hideTitle title="E-Sign Documents">
+      <div className="space-y-6">
+        <PageHero
+          eyebrow="E-Sign"
+          title="Sent documents"
+          subtitle="Everything you've sent for signature, where it stands, and who still has to sign."
+          actions={
+            <button type="button" className={heroButtonPrimary} onClick={() => navigate('/esign/new')}>
+              <Plus className="h-4 w-4" /> Send a document
+            </button>
+          }
+          stats={[
+            { label: 'Waiting on signatures', value: isLoading ? '…' : String(waiting) },
+            { label: 'Completed (30 days)', value: isLoading ? '…' : String(doneMonth) },
+          ]}
+        />
+
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {([
+            ['draft', 'Drafts', count('draft'), Clock, 'slate', 'Not sent yet'],
+            ['sent', 'Waiting', waiting, Send, 'blue', `${count('partially_signed')} partly signed`],
+            ['completed', 'Completed', count('completed'), CheckCircle2, 'emerald', `${doneMonth} in the last 30 days`],
+            ['declined', 'Declined / expired', problems, AlertTriangle, 'rose', problems ? 'Needs attention' : 'None'],
+          ] as const).map(([st, label, value, Icon, accent, hint]) => (
+            <button key={st} type="button" className={cn('rounded-xl text-left', statusFilter === st && 'ring-2 ring-primary')} onClick={() => toggleStatus(st)}>
+              <AccentStat label={label} value={value} icon={Icon} accent={accent} loading={isLoading} hint={hint} tone={st === 'declined' && problems ? 'bad' : undefined} />
+            </button>
+          ))}
+        </div>
+
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex flex-1 gap-2 flex-wrap">
             <div className="relative flex-1 max-w-md">
@@ -129,8 +180,24 @@ export default function EsignDocuments() {
               {showArchived ? 'Showing archived' : 'Archived'}
             </Button>
           </div>
-          <Button onClick={() => navigate('/esign/new')}><Plus className="h-4 w-4 mr-2" /> New Document</Button>
+          {filtersOn && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setQ('');
+                setStatusFilter('all');
+                setProjectFilter('all');
+                setTypeFilter('all');
+                setDateRange(undefined);
+              }}
+            >
+              <X className="mr-1 h-4 w-4" /> Clear filters
+            </Button>
+          )}
         </div>
+        <p className="text-sm text-muted-foreground">
+          {filtered.length} {showArchived ? 'archived ' : ''}document{filtered.length === 1 ? '' : 's'}
+        </p>
 
         <Card>
           {isLoading ? (
@@ -138,8 +205,9 @@ export default function EsignDocuments() {
           ) : filtered.length === 0 ? (
             <div className="p-12 text-center">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-              <p className="font-medium">No documents found</p>
-              <p className="text-sm text-muted-foreground">Try adjusting filters or create a new one.</p>
+              <p className="font-medium">{envelopes.length ? 'Nothing matches these filters' : 'Nothing sent for signature yet'}</p>
+              <p className="mb-4 text-sm text-muted-foreground">{envelopes.length ? 'Clear a filter to see more.' : 'Upload a PDF, add signers, and send it in a couple of minutes.'}</p>
+              {!envelopes.length && <Button onClick={() => navigate('/esign/new')}><Plus className="mr-2 h-4 w-4" /> Send a document</Button>}
             </div>
           ) : (
             <div className="divide-y">
@@ -166,7 +234,7 @@ export default function EsignDocuments() {
                     <Badge className={STATUS_COLORS[env.status]} variant="outline">{STATUS_LABELS[env.status]}</Badge>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" className="opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                        <Button size="icon" variant="ghost" className="opacity-60 group-hover:opacity-100" aria-label="More actions" onClick={(e) => e.stopPropagation()}>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -181,7 +249,7 @@ export default function EsignDocuments() {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={() => { if (confirm('Delete this document?')) del.mutate(env.id); }}
+                          onClick={() => setConfirmDel({ id: env.id, title: env.title })}
                         >
                           <Trash2 className="h-4 w-4 mr-2" /> Delete
                         </DropdownMenuItem>
@@ -194,6 +262,29 @@ export default function EsignDocuments() {
           )}
         </Card>
       </div>
+
+      <AlertDialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {confirmDel?.title}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The document, its signers and its signing history are removed. Signers' links stop working. Archive it instead to keep the record.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (confirmDel) del.mutate(confirmDel.id);
+                setConfirmDel(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }

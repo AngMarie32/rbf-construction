@@ -25,6 +25,18 @@ import { toast } from 'sonner';
 import { addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
 import { Task } from '@/types';
 import { ResourceLevelingManager } from '@/components/schedule/ResourceLevelingManager';
+import { PageHero, heroButton } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { AlertTriangle, CheckCircle2, ChevronDown, ListTodo, Wrench } from 'lucide-react';
+import { localDateISO } from '@/utils/dates';
+
+/** "2026-11-01" -> local midnight (new Date('2026-11-01') is UTC and shows a day early in the US). */
+const parseDay = (v: string | null | undefined) => {
+  if (!v) return new Date(NaN);
+  const [y, m, d] = v.slice(0, 10).split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+};
 import { WeatherScheduleAdjuster } from '@/components/schedule/WeatherScheduleAdjuster';
 
 interface Project {
@@ -128,7 +140,8 @@ export default function ProjectSchedule() {
       }));
 
       setProjects(projectsWithColors);
-      setSelectedProjects(projectsWithColors.map(p => p.id));
+      const wanted = new URLSearchParams(window.location.search).get('project');
+      setSelectedProjects(wanted && projectsWithColors.some((p) => p.id === wanted) ? [wanted] : projectsWithColors.map(p => p.id));
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');
@@ -149,8 +162,8 @@ export default function ProjectSchedule() {
         id: task.id,
         title: task.title,
         projectId: task.project_id,
-        startDate: new Date(task.start_date),
-        endDate: new Date(task.end_date),
+        startDate: parseDay(task.start_date),
+        endDate: parseDay(task.end_date),
         status: task.status as 'Not Started' | 'In Progress' | 'On Hold' | 'Completed' || 'Not Started',
         progress: task.progress || 0,
         dependencies: task.dependencies || []
@@ -171,8 +184,8 @@ export default function ProjectSchedule() {
       if (!task) return;
 
       const updateData: any = {};
-      if (updates.startDate) updateData.start_date = updates.startDate.toISOString().split('T')[0];
-      if (updates.endDate) updateData.end_date = updates.endDate.toISOString().split('T')[0];
+      if (updates.startDate) updateData.start_date = localDateISO(updates.startDate);
+      if (updates.endDate) updateData.end_date = localDateISO(updates.endDate);
       if (updates.status) updateData.status = updates.status;
       if (updates.progress !== undefined) updateData.progress = updates.progress;
       if (updates.dependencies) updateData.dependencies = updates.dependencies;
@@ -200,8 +213,8 @@ export default function ProjectSchedule() {
       // Update all tasks in parallel
       const updatePromises = updates.map(async ({ taskId, updates: taskUpdates }) => {
         const updateData: any = {};
-        if (taskUpdates.startDate) updateData.start_date = taskUpdates.startDate.toISOString().split('T')[0];
-        if (taskUpdates.endDate) updateData.end_date = taskUpdates.endDate.toISOString().split('T')[0];
+        if (taskUpdates.startDate) updateData.start_date = localDateISO(taskUpdates.startDate);
+        if (taskUpdates.endDate) updateData.end_date = localDateISO(taskUpdates.endDate);
         if (taskUpdates.status) updateData.status = taskUpdates.status;
         if (taskUpdates.progress !== undefined) updateData.progress = taskUpdates.progress;
         if (taskUpdates.dependencies) updateData.dependencies = taskUpdates.dependencies;
@@ -279,9 +292,77 @@ export default function ProjectSchedule() {
     return matchesProject && matchesSearch && withinDateRange;
   });
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const inScope = tasks.filter((t) => selectedProjects.includes(t.projectId));
+  const open = inScope.filter((t) => t.status !== 'Completed');
+  const overdue = open.filter((t) => t.endDate < today);
+  const weekEnd = addDays(today, 7);
+  const dueSoon = open.filter((t) => t.endDate >= today && t.endDate <= weekEnd);
+  const avgProgress = inScope.length ? Math.round(inScope.reduce((a, t) => a + (Number(t.progress) || 0), 0) / inScope.length) : 0;
+  const singleProject = selectedProjects.length === 1 ? projects.find((p) => p.id === selectedProjects[0]) : undefined;
+
   return (
-    <Layout title="Project Schedule" subtitle="Manage project timelines and tasks">
-      <div className="space-y-8">
+    <Layout hideTitle title="Project Schedule">
+      <div className="space-y-6">
+        <PageHero
+          eyebrow={singleProject ? singleProject.name : 'Project management'}
+          title="Project Schedule"
+          subtitle="Tasks, timelines and dependencies across your jobs, as a Gantt chart, board or calendar."
+          actions={
+            <>
+              <CreateTaskDialog projects={projects} tasks={tasks} onTaskCreated={fetchTasks} />
+              <button type="button" className={heroButton} onClick={() => setQuickPlannerOpen(true)}>
+                <Zap className="h-4 w-4" /> Quick planner
+              </button>
+              <button type="button" className={heroButton} onClick={() => setTemplateManagerOpen(true)}>
+                <FileText className="h-4 w-4" /> Templates
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className={heroButton}>
+                    <Wrench className="h-4 w-4" /> Adjust schedule <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-64">
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Move many tasks at once</DropdownMenuLabel>
+                  <DropdownMenuItem onSelect={() => setProjectDelayDialogOpen(true)}>
+                    <Clock className="mr-2 h-4 w-4" /> Push a project back (delay)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setWeatherAdjusterOpen(true)}>
+                    <CloudRain className="mr-2 h-4 w-4" /> Adjust for weather days
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setResourceLevelingOpen(true)}>
+                    <Users className="mr-2 h-4 w-4" /> Level crew workload
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <button type="button" className={heroButton} onClick={() => setExportDialogOpen(true)}>
+                <Download className="h-4 w-4" /> Export
+              </button>
+            </>
+          }
+          stats={[
+            { label: 'Average progress', value: loading ? '…' : `${avgProgress}%` },
+            { label: 'Overdue tasks', value: loading ? '…' : String(overdue.length), tone: overdue.length ? 'bad' : 'good' },
+          ]}
+        />
+
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <AccentStat label="Open tasks" value={open.length} icon={ListTodo} accent="blue" loading={loading} hint={`${inScope.length} total on ${selectedProjects.length} job${selectedProjects.length === 1 ? '' : 's'}`} />
+          <AccentStat label="In progress" value={inScope.filter((t) => t.status === 'In Progress').length} icon={Clock} accent="indigo" loading={loading} hint={`${inScope.filter((t) => t.status === 'On Hold').length} on hold`} />
+          <AccentStat label="Due in 7 days" value={dueSoon.length} icon={CalendarDays} accent="amber" tone={dueSoon.length ? 'warn' : undefined} loading={loading} hint="Not completed yet" />
+          <AccentStat
+            label="Overdue"
+            value={overdue.length}
+            icon={overdue.length ? AlertTriangle : CheckCircle2}
+            accent="rose"
+            tone={overdue.length ? 'bad' : 'good'}
+            loading={loading}
+            hint={overdue.length ? `Oldest: ${overdue.sort((a, b) => a.endDate.getTime() - b.endDate.getTime())[0].title}` : 'Nothing past its end date'}
+          />
+        </div>
+
         {/* Enhanced Filters & View Options */}
         <CollapsibleFilterSection
           projects={projects}
@@ -304,49 +385,9 @@ export default function ProjectSchedule() {
 
         {/* Main Schedule Interface */}
         <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>Project Schedule</CardTitle>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button 
-                  onClick={() => setProjectDelayDialogOpen(true)} 
-                  variant="outline"
-                  className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
-                >
-                  <Clock className="w-4 h-4 mr-2" />
-                  Project Delay
-                </Button>
-                <Button 
-                  onClick={() => setQuickPlannerOpen(true)} 
-                  variant="outline"
-                  className="bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
-                >
-                  <Zap className="w-4 h-4 mr-2" />
-                  Quick Planner
-                </Button>
-                <Button 
-                  onClick={() => setTemplateManagerOpen(true)} 
-                  variant="outline"
-                  className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  Templates
-                </Button>
-                <CreateTaskDialog 
-                  projects={projects}
-                  tasks={tasks}
-                  onTaskCreated={fetchTasks}
-                />
-                <Button onClick={() => setExportDialogOpen(true)} variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <Tabs defaultValue="gantt" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="flex h-auto w-full flex-wrap justify-start sm:w-auto">
                 <TabsTrigger value="gantt" className="flex items-center gap-2">
                   <BarChart3 className="w-4 h-4" />
                   Gantt Chart
@@ -361,7 +402,7 @@ export default function ProjectSchedule() {
                 </TabsTrigger>
                 <TabsTrigger value="critical" className="flex items-center gap-2">
                   <Target className="w-4 h-4" />
-                  Critical Path Analysis
+                  Critical path
                 </TabsTrigger>
               </TabsList>
 

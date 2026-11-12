@@ -1,3 +1,4 @@
+import { localDateISO } from '@/utils/dates';
 
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -88,8 +89,8 @@ export function CreateTaskDialog({
         .insert({
           title: title.trim(),
           project_id: projectId,
-          start_date: startDate.toISOString().split('T')[0],
-          end_date: endDate.toISOString().split('T')[0],
+          start_date: localDateISO(startDate),
+          end_date: localDateISO(endDate),
           status,
           progress,
           dependencies: selectedDependencies

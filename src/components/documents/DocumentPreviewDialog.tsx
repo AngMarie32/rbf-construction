@@ -1,10 +1,10 @@
-
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useEffect, useState } from 'react';
+import { format } from 'date-fns';
+import { Download, Edit, ExternalLink, FileText, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Eye, Download, Edit, FileText, Image, Film, Music } from 'lucide-react';
-import { format } from 'date-fns';
+import { documentUrl } from '@/lib/documentFiles';
 
 interface Document {
   id: string;
@@ -13,6 +13,8 @@ interface Document {
   category: string;
   mimeType?: string;
   fileSize?: number;
+  filePath?: string;
+  sourceType?: string | null;
   createdAt: Date;
   updatedAt: Date;
   tags?: string[];
@@ -26,132 +28,95 @@ interface DocumentPreviewDialogProps {
   onDownload: (document: Document) => void;
 }
 
-export function DocumentPreviewDialog({ 
-  document, 
-  open, 
-  onOpenChange, 
-  onEdit, 
-  onDownload 
-}: DocumentPreviewDialogProps) {
+const formatFileSize = (bytes?: number) => (!bytes ? '—' : bytes > 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
+
+/** Shows the real file: images and PDFs inline, anything else as a download. */
+export function DocumentPreviewDialog({ document, open, onOpenChange, onEdit, onDownload }: DocumentPreviewDialogProps) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!open || !document) return;
+    setUrl(null);
+    setFailed(false);
+    if (!document.filePath) return;
+    setLoading(true);
+    documentUrl(document)
+      .then(setUrl)
+      .catch(() => setFailed(true))
+      .finally(() => setLoading(false));
+  }, [open, document]);
+
   if (!document) return null;
-
-  const getFileIcon = (mimeType?: string) => {
-    if (!mimeType) return <FileText className="w-16 h-16 text-muted-foreground/70" />;
-    
-    if (mimeType.startsWith('image/')) return <Image className="w-16 h-16 text-blue-500" />;
-    if (mimeType.startsWith('video/')) return <Film className="w-16 h-16 text-red-500" />;
-    if (mimeType.startsWith('audio/')) return <Music className="w-16 h-16 text-green-500" />;
-    return <FileText className="w-16 h-16 text-muted-foreground/70" />;
-  };
-
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return 'Unknown size';
-    const kb = bytes / 1024;
-    const mb = kb / 1024;
-    if (mb > 1) return `${mb.toFixed(1)} MB`;
-    return `${kb.toFixed(1)} KB`;
-  };
-
-  const handleDownload = () => {
-    // Create a mock file download since we don't have actual file storage
-    const content = `Document: ${document.name}\nDescription: ${document.description || 'No description'}\nCategory: ${document.category}\nCreated: ${format(document.createdAt, 'yyyy-MM-dd HH:mm:ss')}`;
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = window.document.createElement('a');
-    a.href = url;
-    a.download = `${document.name}.txt`;
-    window.document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    window.document.body.removeChild(a);
-    onDownload(document);
-  };
+  const mime = document.mimeType || '';
+  const isImage = mime.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(document.filePath || '');
+  const isPdf = mime.includes('pdf') || /\.pdf$/i.test(document.filePath || '');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Eye className="w-5 h-5" />
-            Document Preview
-          </DialogTitle>
+          <DialogTitle className="pr-8">{document.name}</DialogTitle>
+          <DialogDescription>
+            {[document.category, formatFileSize(document.fileSize), `Added ${format(document.createdAt, 'MMM d, yyyy')}`].filter(Boolean).join(' · ')}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Document Header */}
-          <div className="flex items-start gap-4 p-4 bg-muted/40 rounded-lg">
-            <div className="flex-shrink-0">
-              {getFileIcon(document.mimeType)}
+        <div className="overflow-hidden rounded-lg border bg-muted/40">
+          {!document.filePath ? (
+            <div className="flex h-72 flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
+              <FileText className="h-10 w-10" />
+              <p className="font-medium text-foreground">No file attached</p>
+              <p className="text-sm">This record was saved without its file. Edit it or upload the document again.</p>
             </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-xl font-semibold truncate">{document.name}</h2>
-              {document.description && (
-                <p className="text-muted-foreground mt-1">{document.description}</p>
-              )}
-              <div className="flex flex-wrap gap-2 mt-3">
-                <Badge variant="secondary">{document.category}</Badge>
-                {document.tags?.map((tag) => (
-                  <Badge key={tag} variant="outline" className="text-xs">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
+          ) : loading ? (
+            <div className="flex h-72 items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          </div>
-
-          {/* Document Details */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <h3 className="font-semibold mb-2">File Information</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">File Size:</span>
-                  <span>{formatFileSize(document.fileSize)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Type:</span>
-                  <span>{document.mimeType || 'Unknown'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Created:</span>
-                  <span>{format(document.createdAt, 'MMM dd, yyyy HH:mm')}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Modified:</span>
-                  <span>{format(document.updatedAt, 'MMM dd, yyyy HH:mm')}</span>
-                </div>
-              </div>
+          ) : failed || !url ? (
+            <div className="flex h-72 flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
+              <FileText className="h-10 w-10" />
+              <p className="font-medium text-foreground">The file couldn't be opened</p>
+              <p className="text-sm">It may have been moved, or document storage isn't set up yet.</p>
             </div>
-          </div>
+          ) : isImage ? (
+            <img src={url} alt={document.name} className="mx-auto max-h-[65vh] object-contain" />
+          ) : isPdf ? (
+            <iframe src={url} title={document.name} className="h-[65vh] w-full bg-white" />
+          ) : (
+            <div className="flex h-72 flex-col items-center justify-center gap-3 p-6 text-center text-muted-foreground">
+              <FileText className="h-10 w-10" />
+              <p className="text-sm">No preview for this file type. Download it to open it.</p>
+            </div>
+          )}
+        </div>
 
-          {/* Preview Area */}
-          <div className="bg-muted rounded-lg p-8 text-center min-h-64">
-            {document.mimeType?.startsWith('image/') ? (
-              <div className="text-muted-foreground">
-                <Image className="w-24 h-24 mx-auto mb-4" />
-                <p>Image preview would appear here</p>
-                <p className="text-sm mt-2">Preview functionality requires file storage integration</p>
-              </div>
-            ) : (
-              <div className="text-muted-foreground">
-                <FileText className="w-24 h-24 mx-auto mb-4" />
-                <p>File preview not available</p>
-                <p className="text-sm mt-2">Download to view content</p>
-              </div>
-            )}
+        {document.description && <p className="text-sm text-muted-foreground">{document.description}</p>}
+        {!!document.tags?.length && (
+          <div className="flex flex-wrap gap-1">
+            {document.tags.map((t) => (
+              <Badge key={t} variant="outline">
+                {t}
+              </Badge>
+            ))}
           </div>
+        )}
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-4 border-t">
-            <Button onClick={handleDownload} className="flex-1">
-              <Download className="w-4 h-4 mr-2" />
-              Download
+        <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
+          <Button variant="outline" onClick={() => onEdit(document)}>
+            <Edit className="mr-2 h-4 w-4" /> Edit details
+          </Button>
+          {url && (
+            <Button variant="outline" asChild>
+              <a href={url} target="_blank" rel="noreferrer">
+                <ExternalLink className="mr-2 h-4 w-4" /> Open in new tab
+              </a>
             </Button>
-            <Button onClick={() => onEdit(document)} variant="outline" className="flex-1">
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Details
-            </Button>
-          </div>
+          )}
+          <Button onClick={() => onDownload(document)} disabled={!document.filePath}>
+            <Download className="mr-2 h-4 w-4" /> Download
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
