@@ -10,6 +10,7 @@ export interface CashFlowMonth {
   jobCosts: number; // project expenses + labor (outflow)
   loanOut: number; // loan principal disbursed (outflow)
   loanIn: number; // loan payments collected (inflow)
+  collections: number; // customer payments on job billing (inflow)
   outflow: number;
   inflow: number;
   net: number;
@@ -39,6 +40,11 @@ export interface CashFlowInputs {
   projectRepairs: boolean;
   /** Include an averaged equipment purchase allowance in projected months. */
   projectEquipment: boolean;
+  /**
+   * Customer payments on job billing: `paid` lands in the month it was received;
+   * `open` (billed, not yet paid) is expected in its due month, or next month if overdue.
+   */
+  collections?: { paid: { date: string | null; amount: number }[]; open: { due: string | null; amount: number }[] };
   /** Extra one-off planned outflows, keyed YYYY-MM. */
   planned?: Record<string, number>;
 }
@@ -96,6 +102,7 @@ export function buildCashFlow(input: CashFlowInputs): {
     jobCosts: 0,
     loanOut: 0,
     loanIn: 0,
+    collections: 0,
     outflow: 0,
     inflow: 0,
     net: 0,
@@ -126,6 +133,15 @@ export function buildCashFlow(input: CashFlowInputs): {
     if (dueKey && dueKey > currentKey) add(dueKey, 'loanIn', p.scheduled_amount);
   });
 
+  if (input.collections) {
+    const next = monthKey(new Date(now.getFullYear(), now.getMonth() + 1, 1));
+    input.collections.paid.forEach((c) => add(keyFromString(c.date), 'collections', c.amount));
+    input.collections.open.forEach((c) => {
+      const due = keyFromString(c.due);
+      add(due && due > currentKey ? due : next, 'collections', c.amount);
+    });
+  }
+
   const overheadMonthly = monthlyOverhead(input.overhead);
 
   // Trailing averages from actual history (exclude future months).
@@ -147,7 +163,7 @@ export function buildCashFlow(input: CashFlowInputs): {
     }
     const planned = input.planned?.[k] ?? 0;
     row.outflow = row.equipment + row.repairs + row.overhead + row.jobCosts + row.loanOut + planned;
-    row.inflow = row.loanIn;
+    row.inflow = row.loanIn + row.collections;
     row.net = row.inflow - row.outflow;
     cumulative += row.net;
     row.cumulative = cumulative;

@@ -22,6 +22,20 @@ import {
 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PageHero, heroButtonPrimary } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { CalendarClock, FileStack, MailCheck, MailWarning, MoreHorizontal } from 'lucide-react';
+import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { PDFDocument } from 'pdf-lib';
 
 const CATEGORIES = ['Progress', 'Final', 'Retainer', 'Reimbursable', 'Material', 'Service', 'Other'];
@@ -337,8 +351,18 @@ export default function InvoiceSender() {
     finally { setSending(false); }
   };
 
-  const remove = async (id: string, file_path: string) => {
-    if (!confirm('Delete this invoice permanently?')) return;
+  const [confirmAsk, setConfirmAsk] = useState<{ title: string; body: string; run: () => void } | null>(null);
+
+  const remove = (id: string, file_path: string) => {
+    const doc = invoices.find((x) => x.id === id);
+    setConfirmAsk({
+      title: 'Delete this document?',
+      body: `"${doc?.invoice_number || doc?.file_name || 'This document'}" and its file will be removed permanently. Its send history is kept.`,
+      run: () => doRemove(id, file_path),
+    });
+  };
+
+  const doRemove = async (id: string, file_path: string) => {
     await supabase.storage.from('bulk-invoices').remove([file_path]);
     await supabase.from('bulk_invoices').delete().eq('id', id);
     toast.success('Deleted'); load();
@@ -398,8 +422,14 @@ export default function InvoiceSender() {
     setNewFolderName(''); setNewFolderParent(null); setNewFolderOpen(false); load();
   };
 
-  const deleteFolder = async (id: string) => {
-    if (!confirm('Delete this folder and all its sub-folders? Invoices inside will become Unfiled.')) return;
+  const deleteFolder = (id: string) =>
+    setConfirmAsk({
+      title: `Delete the folder "${folderName(id)}"?`,
+      body: 'Its sub-folders are deleted too. Documents inside are kept and move to Unfiled.',
+      run: () => doDeleteFolder(id),
+    });
+
+  const doDeleteFolder = async (id: string) => {
     const descendants = new Set<string>([id]);
     let added = true;
     while (added) {
@@ -497,6 +527,26 @@ export default function InvoiceSender() {
     });
   };
 
+  const docStats = useMemo(() => {
+    const active = invoices.filter((i) => !i.archived_at);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const in7 = new Date(today.getTime() + 7 * 86400000);
+    const dueSoon = active.filter((i) => i.schedule_type === 'monthly' && i.next_send_date && new Date(`${i.next_send_date.slice(0, 10)}T00:00:00`) <= in7);
+    const latest = active.map((i) => latestSend(i.id)).filter(Boolean) as SendRow[];
+    const problems = latest.filter((x) => x.status === 'failed' || x.status === 'bounced').length;
+    const opened = latest.filter((x) => x.opened_at).length;
+    return {
+      active: active.length,
+      monthly: active.filter((i) => i.schedule_type === 'monthly').length,
+      dueSoon: dueSoon.length,
+      notSent: active.filter((i) => !latestSend(i.id)).length,
+      problems,
+      openRate: latest.length ? Math.round((opened / latest.length) * 100) : null,
+      amount: active.reduce((s, i) => s + (Number(i.amount) || 0), 0),
+    };
+  }, [invoices, sends]);
+
   const renderStatusBadges = (i: Invoice) => {
     const s = latestSend(i.id);
     if (!s) return <Badge variant="outline">Not sent</Badge>;
@@ -512,8 +562,31 @@ export default function InvoiceSender() {
   };
 
   return (
-    <Layout title="Document Sender" subtitle="Upload documents, organize in folders, send single or monthly.">
-      <div className="flex h-[calc(100vh-8rem)]">
+    <Layout hideTitle title="Document Sender">
+      <div className="space-y-6">
+      <PageHero
+        eyebrow="Quick access"
+        title="Document Sender"
+        subtitle="Upload invoices and documents, file them in folders, and email them once or every month with delivery tracking."
+        actions={
+          <button type="button" className={heroButtonPrimary} onClick={() => setUploadOpen(true)}>
+            <Upload className="h-4 w-4" /> Upload documents
+          </button>
+        }
+        stats={[
+          { label: 'Documents', value: loading ? '…' : String(docStats.active) },
+          { label: 'Monthly sends', value: loading ? '…' : String(docStats.monthly) },
+        ]}
+      />
+
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <AccentStat label="Not sent yet" value={docStats.notSent} icon={FileStack} accent="blue" loading={loading} hint={`$${Math.round(docStats.amount).toLocaleString()} across all documents`} />
+        <AccentStat label="Monthly sends due ≤ 7 days" value={docStats.dueSoon} icon={CalendarClock} accent="amber" tone={docStats.dueSoon ? 'warn' : undefined} loading={loading} hint={`${docStats.monthly} on a monthly schedule`} />
+        <AccentStat label="Opened" value={docStats.openRate == null ? '—' : `${docStats.openRate}%`} icon={MailCheck} accent="emerald" loading={loading} hint="Of documents sent" />
+        <AccentStat label="Failed or bounced" value={docStats.problems} icon={MailWarning} accent="rose" tone={docStats.problems ? 'bad' : undefined} loading={loading} hint="Check the email address" />
+      </div>
+
+      <div className="flex h-[calc(100vh-8rem)] min-h-[560px] overflow-hidden rounded-xl border bg-card">
         {/* Folders sidebar */}
         <aside className={cn("border-r shrink-0 transition-all duration-200 flex flex-col", foldersCollapsed ? "w-10" : "w-64")}>
           <div className="flex items-center justify-between p-2 border-b">
@@ -561,7 +634,7 @@ export default function InvoiceSender() {
           )}
         </aside>
 
-        <div className="flex-1 p-6 space-y-4 overflow-y-auto">
+        <div className="min-w-0 flex-1 space-y-4 overflow-y-auto p-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h2 className="text-lg font-semibold">
               {folderFilter === 'all' ? 'All Documents'
@@ -601,7 +674,6 @@ export default function InvoiceSender() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button onClick={() => setUploadOpen(true)}><Upload className="w-4 h-4 mr-2" />Upload Documents</Button>
             </div>
           </div>
 
@@ -639,12 +711,17 @@ export default function InvoiceSender() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Documents ({filtered.length})</CardTitle></CardHeader>
-            <CardContent>
+            <CardHeader className="pb-2"><CardTitle className="text-base">Documents ({filtered.length})</CardTitle></CardHeader>
+            <CardContent className="px-2 pb-2 sm:px-3">
               {loading ? (
                 <div className="text-center text-muted-foreground py-8">Loading…</div>
               ) : filtered.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8">No invoices here.</div>
+                <div className="py-12 text-center">
+                  <FileStack className="mx-auto h-8 w-8 text-muted-foreground" />
+                  <p className="mt-2 font-medium">No documents here</p>
+                  <p className="text-sm text-muted-foreground">Upload invoices or other documents, then send them now or on a monthly schedule.</p>
+                  <Button className="mt-4" onClick={() => setUploadOpen(true)}><Upload className="w-4 h-4 mr-2" />Upload documents</Button>
+                </div>
               ) : (
                 <Table>
                   <TableHeader>
@@ -654,12 +731,10 @@ export default function InvoiceSender() {
                       </TableHead>
                       <TableHead>Invoice</TableHead>
                       <TableHead>Project</TableHead>
-                      <TableHead>Folder</TableHead>
                       <TableHead>Recipient</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Schedule</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Last Sent</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -678,41 +753,55 @@ export default function InvoiceSender() {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm">{projectName(i.project_id)}</TableCell>
-                        <TableCell className="text-sm">{folderName(i.folder_id)}</TableCell>
+                        <TableCell className="text-sm">
+                          {projectName(i.project_id)}
+                          {folderFilter === 'all' && i.folder_id && <div className="text-xs text-muted-foreground">in {folderName(i.folder_id)}</div>}
+                        </TableCell>
                         <TableCell>
                           <div className="text-sm">{i.recipient_name}</div>
                           <div className="text-xs text-muted-foreground">{i.recipient_email}</div>
                         </TableCell>
-                        <TableCell>${Number(i.amount || 0).toFixed(2)}</TableCell>
+                        <TableCell className="tabular-nums">{i.amount != null ? `$${Number(i.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</TableCell>
                         <TableCell>
                           <Badge variant={i.schedule_type === 'monthly' ? 'default' : 'outline'}>
                             {i.schedule_type === 'monthly' ? 'Monthly' : 'One-time'}
                           </Badge>
                           {i.schedule_type === 'monthly' && i.next_send_date && (
-                            <div className="text-xs text-muted-foreground mt-1">Next: {i.next_send_date}</div>
+                            <div className="text-xs text-muted-foreground mt-1">Next: {new Date(`${i.next_send_date.slice(0, 10)}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                           )}
                         </TableCell>
-                        <TableCell>{renderStatusBadges(i)}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {i.last_sent_at ? new Date(i.last_sent_at).toLocaleString() : '—'}
-                          {i.send_count > 0 && <div>Sends: {i.send_count}</div>}
+                        <TableCell>
+                          {renderStatusBadges(i)}
+                          <div className="mt-1 text-xs text-muted-foreground">
+                          {i.last_sent_at ? new Date(i.last_sent_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'}
+                          {i.send_count > 1 && <span> · {i.send_count} sends</span>}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            <Button size="sm" variant="ghost" onClick={() => preview(i.file_path)} title="Preview"><Eye className="w-4 h-4" /></Button>
-                            <Button size="sm" variant="ghost" onClick={() => downloadFile(i.file_path, i.file_name)} title="Download"><Download className="w-4 h-4" /></Button>
-                            <Button size="sm" variant="ghost" onClick={() => setReplaceFor(i)} title="Replace file"><Upload className="w-4 h-4" /></Button>
-                            <Button size="sm" variant="ghost" onClick={() => setEditFor({ ...i })} title="Edit"><Pencil className="w-4 h-4" /></Button>
-                            {!i.archived_at ? (
-                              <>
-                                <Button size="sm" variant="default" disabled={sending} onClick={() => setPreviewSend({ ids: [i.id], combined: false })} title="Send"><Send className="w-4 h-4" /></Button>
-                                <Button size="sm" variant="ghost" onClick={() => setArchived(i.id, true)} title="Archive"><Archive className="w-4 h-4" /></Button>
-                              </>
-                            ) : (
-                              <Button size="sm" variant="ghost" onClick={() => setArchived(i.id, false)} title="Restore"><ArchiveRestore className="w-4 h-4" /></Button>
+                            {!i.archived_at && (
+                              <Button size="sm" disabled={sending} onClick={() => setPreviewSend({ ids: [i.id], combined: false })} title="Send">
+                                <Send className="w-4 h-4" />
+                              </Button>
                             )}
-                            <Button size="sm" variant="ghost" onClick={() => remove(i.id, i.file_path)} title="Delete"><Trash2 className="w-4 h-4" /></Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="sm" variant="ghost" aria-label="More actions"><MoreHorizontal className="w-4 h-4" /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem onClick={() => preview(i.file_path)}><Eye className="w-4 h-4 mr-2" />Preview</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => downloadFile(i.file_path, i.file_name)}><Download className="w-4 h-4 mr-2" />Download</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setEditFor({ ...i })}><Pencil className="w-4 h-4 mr-2" />Edit details</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setReplaceFor(i)}><Upload className="w-4 h-4 mr-2" />Replace file</DropdownMenuItem>
+                                {!i.archived_at ? (
+                                  <DropdownMenuItem onClick={() => setArchived(i.id, true)}><Archive className="w-4 h-4 mr-2" />Archive</DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem onClick={() => setArchived(i.id, false)}><ArchiveRestore className="w-4 h-4 mr-2" />Restore</DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => remove(i.id, i.file_path)}><Trash2 className="w-4 h-4 mr-2" />Delete</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1071,6 +1160,27 @@ export default function InvoiceSender() {
           </div>
         </DialogContent>
       </Dialog>
+      </div>
+      <AlertDialog open={!!confirmAsk} onOpenChange={(o) => !o && setConfirmAsk(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmAsk?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmAsk?.body}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                confirmAsk?.run();
+                setConfirmAsk(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }

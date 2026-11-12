@@ -14,7 +14,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Download, Edit, Trash2, Eye, TrendingUp, FileText, CheckCircle, XCircle, Paperclip, Clock } from 'lucide-react';
+import { Search, Download, Edit, Trash2, Eye, TrendingUp, FileText, CheckCircle, XCircle, Paperclip, Clock, Wallet, Hourglass, BadgeCheck, CalendarDays, FileUp } from 'lucide-react';
+import { PageHero, heroButton } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { CreateExpenseDialog } from '@/components/expenses/CreateExpenseDialog';
 import { EditExpenseDialog } from '@/components/expenses/EditExpenseDialog';
 import { BulkExpenseDialog } from '@/components/expenses/BulkExpenseDialog';
@@ -113,8 +126,11 @@ export default function Expenses() {
     }
   };
 
-  const handleDeleteExpense = async (expenseId: string) => {
-    if (!confirm('Are you sure you want to delete this expense?')) return;
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const handleDeleteExpense = (expenseId: string) => setConfirmDeleteId(expenseId);
+
+  const doDeleteExpense = async (expenseId: string) => {
 
     try {
       const { error } = await supabase
@@ -274,6 +290,25 @@ export default function Expenses() {
     return acc;
   }, { total: 0, paid: 0, approved: 0, pending: 0 });
 
+  const byCategory = Object.entries(
+    filteredExpenses.reduce<Record<string, number>>((acc, e) => ((acc[e.category || 'Other'] = (acc[e.category || 'Other'] || 0) + e.amount), acc), {})
+  )
+    .map(([name, amount]) => ({ name, amount }))
+    .sort((a, b) => b.amount - a.amount);
+  const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const now = new Date();
+  const thisMonth = monthKey(now);
+  const lastMonth = monthKey(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+  const monthTotal = (k: string) => expenses.filter((e) => String(e.date).slice(0, 7) === k && e.status !== 'Rejected').reduce((s, e) => s + e.amount, 0);
+  const spendThisMonth = monthTotal(thisMonth);
+  const spendLastMonth = monthTotal(lastMonth);
+  const monthDelta = spendLastMonth > 0 ? ((spendThisMonth - spendLastMonth) / spendLastMonth) * 100 : null;
+  const topVendors = Object.entries(
+    filteredExpenses.reduce<Record<string, number>>((acc, e) => (e.vendor ? ((acc[e.vendor] = (acc[e.vendor] || 0) + e.amount), acc) : acc), {})
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
   const categories = [...new Set(expenses.map(e => e.category))];
   const vendors = [...new Set(expenses.map(e => e.vendor).filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b));
 
@@ -354,6 +389,7 @@ export default function Expenses() {
   };
 
   const STATUSES = ['Pending Field Approval', 'Pending Office Approval', 'Approved', 'Paid', 'Rejected'];
+  const money0 = (n: number) => `$${Math.round(n || 0).toLocaleString()}`;
   const money2 = (n: number) => `$${(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const columns: DataTableColumn<Expense>[] = [
@@ -437,29 +473,115 @@ export default function Expenses() {
   const pendingCount = expenses.filter((e) => e.status.includes('Pending')).length;
 
   return (
-    <Layout
-      title="Expenses"
-      subtitle="Every dollar spent on a job: materials, subs, rentals and permits"
-      actions={
-        <>
-          <Button variant="outline" onClick={() => setVendorAnalysisOpen(true)}>
-            <TrendingUp className="w-4 h-4" /> Vendor analysis
-          </Button>
-          <BulkExpenseDialog onExpensesCreated={fetchExpenses} projects={projects} />
-          <ScanReceiptDialog onExpenseCreated={fetchExpenses} />
-          <CreateExpenseDialog onExpenseCreated={fetchExpenses} projects={projects} />
-        </>
-      }
-    >
+    <Layout hideTitle title="Expenses">
       <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {summaryCards.map((c) => (
-            <Card key={c.label} className="p-5">
-              <p className="text-sm text-muted-foreground">{c.label}</p>
-              <p className={`mt-2 text-2xl font-bold tabular-nums ${c.tone}`}>{money2(c.value)}</p>
-            </Card>
-          ))}
+        <PageHero
+          eyebrow="Financial"
+          title="Expenses"
+          subtitle="Every dollar spent on a job: materials, subs, rentals and permits."
+          actions={
+            <>
+              <CreateExpenseDialog onExpenseCreated={fetchExpenses} projects={projects} />
+              <span className="contents [&_button]:border-white/15 [&_button]:bg-white/10 [&_button]:text-white [&_button:hover]:bg-white/20">
+                <ScanReceiptDialog onExpenseCreated={fetchExpenses} />
+                <BulkExpenseDialog onExpensesCreated={fetchExpenses} projects={projects} />
+              </span>
+              <button type="button" className={heroButton} onClick={() => setImportOpen(true)}>
+                <FileUp className="h-4 w-4" /> Import
+              </button>
+              <button type="button" className={heroButton} onClick={() => setVendorAnalysisOpen(true)}>
+                <TrendingUp className="h-4 w-4" /> Vendor analysis
+              </button>
+            </>
+          }
+          stats={[
+            { label: 'This month', value: loading ? '…' : money0(spendThisMonth) },
+            { label: 'Waiting for approval', value: loading ? '…' : String(pendingCount), tone: pendingCount ? 'warn' : undefined },
+          ]}
+        />
+
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+          <AccentStat label="Total in view" value={money0(expenseSummary.total)} icon={Wallet} accent="blue" loading={loading} hint={`${filteredExpenses.length} expenses`} />
+          <AccentStat label="Paid" value={money0(expenseSummary.paid)} icon={BadgeCheck} accent="emerald" loading={loading} hint="Status: Paid" />
+          <AccentStat label="Approved, not paid" value={money0(expenseSummary.approved)} icon={CheckCircle} accent="indigo" loading={loading} hint="Ready to pay" />
+          <AccentStat
+            label="Waiting for approval"
+            value={money0(expenseSummary.pending)}
+            icon={Hourglass}
+            accent="amber"
+            tone={expenseSummary.pending ? 'warn' : undefined}
+            loading={loading}
+            hint={`${pendingCount} expense${pendingCount === 1 ? '' : 's'}`}
+          />
+          <AccentStat
+            label="Spent this month"
+            value={money0(spendThisMonth)}
+            icon={CalendarDays}
+            accent="orange"
+            delta={monthDelta}
+            loading={loading}
+            hint={`vs ${money0(spendLastMonth)} last month`}
+            className="col-span-2 lg:col-span-1"
+          />
         </div>
+
+        {byCategory.length > 0 && (
+          <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+            <Card className="p-5">
+              <div className="mb-3 flex items-baseline justify-between gap-2">
+                <p className="font-semibold">Spend by category</p>
+                <p className="text-xs text-muted-foreground">Click to filter</p>
+              </div>
+              <div className="space-y-2.5">
+                {byCategory.slice(0, 7).map((c) => (
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() => setCategoryFilter(categoryFilter === c.name ? 'all' : c.name)}
+                    className={cn('block w-full rounded-md px-1 text-left hover:bg-muted/50', categoryFilter === c.name && 'bg-muted')}
+                  >
+                    <div className="flex justify-between gap-2 text-sm">
+                      <span>{c.name}</span>
+                      <span className="tabular-nums">
+                        {money0(c.amount)} <span className="text-xs text-muted-foreground">{expenseSummary.total ? `${((c.amount / expenseSummary.total) * 100).toFixed(0)}%` : ''}</span>
+                      </span>
+                    </div>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-orange-500" style={{ width: `${(c.amount / (byCategory[0]?.amount || 1)) * 100}%` }} />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </Card>
+            <Card className="p-5">
+              <div className="mb-3 flex items-baseline justify-between gap-2">
+                <p className="font-semibold">Top vendors</p>
+                <button type="button" className="text-xs text-primary hover:underline" onClick={() => setVendorAnalysisOpen(true)}>
+                  Full analysis
+                </button>
+              </div>
+              {topVendors.length ? (
+                <ol className="space-y-2.5">
+                  {topVendors.map(([name, amt], i) => (
+                    <li key={name}>
+                      <button
+                        type="button"
+                        onClick={() => setVendorFilter(vendorFilter === name ? 'all' : name)}
+                        className={cn('flex w-full items-center gap-3 rounded-md px-1 py-0.5 text-left text-sm hover:bg-muted/50', vendorFilter === name && 'bg-muted')}
+                      >
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{i + 1}</span>
+                        <span className="flex-1 truncate">{name}</span>
+                        <span className="font-semibold tabular-nums">{money0(amt)}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="text-sm text-muted-foreground">No vendors on these expenses.</p>
+              )}
+            </Card>
+          </div>
+        )}
 
         {pendingCount > 0 && statusFilter === 'all' && (
           <button
@@ -556,12 +678,6 @@ export default function Expenses() {
                 <DropdownMenuItem onClick={() => handleExport('excel')}>Excel (.xlsx)</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExport('pdf')}>PDF</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExport('csv')}>CSV</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <div className="w-full">
-                    <ImportExpensesDialog onExpensesImported={fetchExpenses} projects={projects} />
-                  </div>
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           }
@@ -583,6 +699,36 @@ export default function Expenses() {
             />
           }
         />
+
+        {importOpen && (
+          <ImportExpensesDialog onExpensesImported={fetchExpenses} projects={projects} open={importOpen} onOpenChange={setImportOpen} />
+        )}
+
+        <AlertDialog open={!!confirmDeleteId} onOpenChange={(o) => !o && setConfirmDeleteId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {(() => {
+                  const e = expenses.find((x) => x.id === confirmDeleteId);
+                  return e ? `"${e.description}" (${money2(e.amount)}) will be removed and job costs will update.` : '';
+                })()}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  if (confirmDeleteId) doDeleteExpense(confirmDeleteId);
+                  setConfirmDeleteId(null);
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Dialogs */}
         {editingExpense && (
