@@ -81,7 +81,7 @@ export const navGroups: NavGroup[] = [
     label: 'Admin',
     items: [
       { name: 'Settings', href: '/settings', icon: Settings },
-      { name: 'Weekly Reports', href: '/weekly-reports', icon: CalendarClock },
+      { name: 'Scheduled Reports', href: '/weekly-reports', icon: CalendarClock },
     ],
   },
 ];

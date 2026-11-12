@@ -12,7 +12,12 @@ import { ProjectSelectionHeader } from '@/components/burn-analysis/ProjectSelect
 import { EnhancedBurnAnalyticsEngine, EnhancedBurnData, CategoryAnalysis, MilestoneAnalysis } from '@/utils/enhancedBurnAnalytics';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Info, Settings, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Info, Settings, TrendingUp, Wallet, Flame, Gauge, Target, CalendarClock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { PageHero, heroButton } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { isOpenJob } from '@/lib/analyticsData';
+import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -32,7 +37,8 @@ export default function BurnRateAnalysis() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [burnData, setBurnData] = useState<EnhancedBurnData[]>([]);
-  const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryAnalysis[]>([]);
+  const [allCategories, setAllCategories] = useState<CategoryAnalysis[]>([]);
+  const navigate = useNavigate();
   const [milestones, setMilestones] = useState<MilestoneAnalysis[]>([]);
   const [hasDetailedBudgets, setHasDetailedBudgets] = useState(false);
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
@@ -70,10 +76,10 @@ export default function BurnRateAnalysis() {
 
       if (error) throw error;
       setProjects(sortProjectsOpenFirst(data || []));
-      
+
       // Select active projects by default
       const activeProjects = (data || [])
-        .filter(p => p.status === 'Open')
+        .filter(p => isOpenJob(p.status))
         .map(p => p.id);
       setSelectedProjects(activeProjects.slice(0, 4));
     } catch (error) {
@@ -86,7 +92,7 @@ export default function BurnRateAnalysis() {
   const fetchEnhancedBurnAnalysisData = async () => {
     try {
       setLoading(true);
-      
+
       // Use the enhanced analytics engine
       const [burnAnalysisData, categoryAnalysisData, milestoneData] = await Promise.all([
         EnhancedBurnAnalyticsEngine.calculateEnhancedBurnData(selectedProjects, dateRange),
@@ -96,19 +102,12 @@ export default function BurnRateAnalysis() {
 
       setBurnData(burnAnalysisData);
       setMilestones(milestoneData);
-      
+
       // Check if we have real budget data
       const hasRealBudgetData = categoryAnalysisData.some(cat => cat.hasRealData && cat.plannedBudget > 0);
       setHasDetailedBudgets(hasRealBudgetData);
-      
-      // Filter categories
-      const filteredCategories = categoryAnalysisData.filter(cat => 
-        costCategories === 'All' || cat.category === costCategories
-      ).filter(cat =>
-        searchTerm === '' || cat.category.toLowerCase().includes(searchTerm.toLowerCase())
-      );
 
-      setCategoryBreakdown(filteredCategories);
+      setAllCategories(categoryAnalysisData);
 
       // Calculate enhanced summary stats
       const selectedProjectsData = projects.filter(p => selectedProjects.includes(p.id));
@@ -116,7 +115,9 @@ export default function BurnRateAnalysis() {
       const totalActualSpend = categoryAnalysisData.reduce((sum, cat) => sum + cat.actualSpend, 0);
       const remainingBudget = totalBudget - totalActualSpend;
       const budgetPercentage = totalBudget > 0 ? (totalActualSpend / totalBudget) * 100 : 0;
-      const monthlyBurnRate = totalActualSpend / Math.max(1, new Date().getMonth() + 1);
+      const starts = selectedProjectsData.map((p) => (p.start_date ? new Date(`${p.start_date.slice(0, 10)}T00:00:00`).getTime() : NaN)).filter((t) => !Number.isNaN(t));
+      const monthsRunning = starts.length ? Math.max(1, (Date.now() - Math.min(...starts)) / (86400000 * 30.44)) : 1;
+      const monthlyBurnRate = totalActualSpend / monthsRunning;
 
       // Get latest EVM metrics
       const latestBurnData = burnAnalysisData[burnAnalysisData.length - 1];
@@ -130,7 +131,7 @@ export default function BurnRateAnalysis() {
         remainingBudget,
         monthlyBurnRate,
         budgetPercentage,
-        monthlyChange: Math.random() * 10 - 5, // This would come from historical data
+        monthlyChange: 0,
         schedulePerformanceIndex: spi,
         costPerformanceIndex: cpi,
         estimateAtCompletion: eac
@@ -143,9 +144,15 @@ export default function BurnRateAnalysis() {
     }
   };
 
-  const handleSetupBudgets = () => {
-    console.log('Navigate to budget setup');
-  };
+  // Category budgets are estimated from the contract; task schedules come from Project Schedule.
+  const handleSetupBudgets = () => navigate(selectedProjects.length === 1 ? `/project-schedule?project=${selectedProjects[0]}` : '/project-schedule');
+
+  const categoryBreakdown = allCategories
+    .filter((cat) => costCategories === 'All' || cat.category === costCategories)
+    .filter((cat) => searchTerm === '' || cat.category.toLowerCase().includes(searchTerm.toLowerCase()));
+  const money0 = (n: number) => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n || 0)).toLocaleString()}`;
+  const healthy = summaryStats.schedulePerformanceIndex >= 0.9 && summaryStats.costPerformanceIndex >= 0.9;
+  const monthsLeft = summaryStats.monthlyBurnRate > 0 ? summaryStats.remainingBudget / summaryStats.monthlyBurnRate : null;
 
   const handleExportPDF = () => {
     exportToPDF('burn-analysis-content', 'enhanced-burn-rate-analysis.pdf');
@@ -172,7 +179,7 @@ export default function BurnRateAnalysis() {
 
   if (loading && selectedProjects.length === 0) {
     return (
-      <Layout title="Enhanced Burn Analysis" subtitle="Advanced project spending analysis with Earned Value Management">
+      <Layout hideTitle title="Burn Analysis">
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
         </div>
@@ -181,15 +188,34 @@ export default function BurnRateAnalysis() {
   }
 
   return (
-    <Layout title="Enhanced Burn Analysis" subtitle="Advanced project spending analysis with Earned Value Management">
+    <Layout hideTitle title="Burn Analysis">
       <div id="burn-analysis-content" className="space-y-6">
+        <PageHero
+          eyebrow="Financial"
+          title="Burn Analysis"
+          subtitle="How fast each job is spending its budget, and whether cost and schedule are on track."
+          actions={
+            <button type="button" className={heroButton} onClick={handleExportCSV} disabled={!categoryBreakdown.length}>
+              Export CSV
+            </button>
+          }
+          stats={
+            selectedProjects.length
+              ? [
+                  { label: 'Budget used', value: loading ? '…' : `${summaryStats.budgetPercentage.toFixed(0)}%`, tone: summaryStats.budgetPercentage > 100 ? 'bad' : undefined },
+                  { label: 'Health', value: loading ? '…' : healthy ? 'On track' : 'At risk', tone: healthy ? 'good' : 'bad' },
+                ]
+              : []
+          }
+        />
+
         {/* Filters */}
         <BurnAnalysisFilters
           projects={projects}
           selectedProjects={selectedProjects}
           onProjectToggle={(projectId) => {
-            setSelectedProjects(prev => 
-              prev.includes(projectId) 
+            setSelectedProjects(prev =>
+              prev.includes(projectId)
                 ? prev.filter(id => id !== projectId)
                 : [...prev, projectId]
             );
@@ -210,7 +236,7 @@ export default function BurnRateAnalysis() {
         />
 
         {/* Project Selection Header */}
-        <ProjectSelectionHeader 
+        <ProjectSelectionHeader
           selectedProjects={selectedProjects}
           projects={projects}
         />
@@ -219,81 +245,65 @@ export default function BurnRateAnalysis() {
           <>
             {/* Budget Setup Alert */}
             {!hasDetailedBudgets && (
-              <Alert className="border-amber-200 bg-amber-50">
-                <Info className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-amber-800">
+              <Alert className="border-amber-500/30 bg-amber-500/10">
+                <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <AlertDescription className="text-amber-900 dark:text-amber-200">
                   <div className="flex items-center justify-between">
                     <span>
-                      Enhanced burn analysis works best with detailed budget allocations. 
-                      Set up category budgets and task schedules for full EVM capabilities.
+                      Category budgets are estimated from the contract value. Add tasks with dates and progress in Project Schedule
+                      so schedule performance reflects real progress.
                     </span>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={handleSetupBudgets}
                       className="ml-4"
                     >
-                      <Settings className="w-4 h-4 mr-1" />
-                      Setup Budgets
+                      <CalendarClock className="w-4 h-4 mr-1" />
+                      Open Project Schedule
                     </Button>
                   </div>
                 </AlertDescription>
               </Alert>
             )}
 
-            {/* Enhanced Summary Stats */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  Enhanced Performance Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <div className="text-blue-600 text-sm font-medium">Schedule Performance</div>
-                    <div className={`text-2xl font-bold ${summaryStats.schedulePerformanceIndex >= 1 ? 'text-green-600' : 'text-red-600'}`}>
-                      {summaryStats.schedulePerformanceIndex.toFixed(2)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">SPI (Target: ≥1.0)</div>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <div className="text-green-600 text-sm font-medium">Cost Performance</div>
-                    <div className={`text-2xl font-bold ${summaryStats.costPerformanceIndex >= 1 ? 'text-green-600' : 'text-red-600'}`}>
-                      {summaryStats.costPerformanceIndex.toFixed(2)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">CPI (Target: ≥1.0)</div>
-                  </div>
-                  <div className="bg-purple-50 p-4 rounded-lg">
-                    <div className="text-purple-600 text-sm font-medium">Forecast at Completion</div>
-                    <div className="text-2xl font-bold text-foreground">
-                      ${summaryStats.estimateAtCompletion.toLocaleString()}
-                    </div>
-                    <div className={`text-xs ${summaryStats.estimateAtCompletion <= summaryStats.totalBudget ? 'text-green-600' : 'text-red-600'}`}>
-                      {summaryStats.estimateAtCompletion <= summaryStats.totalBudget ? 'Under Budget' : 'Over Budget'}
-                    </div>
-                  </div>
-                  <div className="bg-orange-50 p-4 rounded-lg">
-                    <div className="text-orange-600 text-sm font-medium">Project Health</div>
-                    <div className="text-2xl font-bold">
-                      {summaryStats.schedulePerformanceIndex >= 0.9 && summaryStats.costPerformanceIndex >= 0.9 ? 
-                        <span className="text-green-600">Healthy</span> : 
-                        <span className="text-red-600">At Risk</span>
-                      }
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Based on SPI & CPI
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6">
+              <AccentStat label="Budget" value={money0(summaryStats.totalBudget)} icon={Wallet} accent="blue" loading={loading} hint={`${selectedProjects.length} job${selectedProjects.length === 1 ? '' : 's'}`} />
+              <AccentStat label="Spent" value={money0(summaryStats.actualSpend)} icon={Flame} accent="orange" loading={loading} hint={`${summaryStats.budgetPercentage.toFixed(1)}% of budget`} />
+              <AccentStat
+                label="Remaining"
+                value={money0(summaryStats.remainingBudget)}
+                icon={Target}
+                accent="emerald"
+                tone={summaryStats.remainingBudget < 0 ? 'bad' : undefined}
+                loading={loading}
+                hint={monthsLeft == null ? '—' : monthsLeft < 0 ? 'Over budget' : `≈ ${monthsLeft.toFixed(1)} months at this pace`}
+              />
+              <AccentStat label="Burn per month" value={money0(summaryStats.monthlyBurnRate)} icon={TrendingUp} accent="indigo" loading={loading} hint="Average since the jobs started" />
+              <AccentStat
+                label="Cost performance (CPI)"
+                value={summaryStats.costPerformanceIndex.toFixed(2)}
+                icon={Gauge}
+                accent="amber"
+                tone={summaryStats.costPerformanceIndex >= 1 ? 'good' : summaryStats.costPerformanceIndex < 0.9 ? 'bad' : 'warn'}
+                loading={loading}
+                hint="≥ 1.00 means under budget for work done"
+              />
+              <AccentStat
+                label="Forecast at completion"
+                value={money0(summaryStats.estimateAtCompletion)}
+                icon={AlertTriangle}
+                accent="rose"
+                tone={summaryStats.estimateAtCompletion > summaryStats.totalBudget ? 'bad' : 'good'}
+                loading={loading}
+                hint={`SPI ${summaryStats.schedulePerformanceIndex.toFixed(2)} · ${summaryStats.estimateAtCompletion > summaryStats.totalBudget ? `${money0(summaryStats.estimateAtCompletion - summaryStats.totalBudget)} over` : 'within budget'}`}
+              />
+            </div>
 
             <Tabs defaultValue="analysis" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="analysis">EVM Analysis</TabsTrigger>
-                <TabsTrigger value="categories">Category Breakdown</TabsTrigger>
+              <TabsList>
+                <TabsTrigger value="analysis">Spending vs plan</TabsTrigger>
+                <TabsTrigger value="categories">By category</TabsTrigger>
                 <TabsTrigger value="milestones">Milestones</TabsTrigger>
               </TabsList>
 

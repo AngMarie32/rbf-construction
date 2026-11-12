@@ -155,25 +155,25 @@ export function EnhancedBurnChart({ burnData, onExport, loading = false }: Enhan
         
         {/* Performance Summary */}
         <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div className="bg-blue-50 p-3 rounded-lg">
+          <div className="bg-blue-500/10 p-3 rounded-lg">
             <div className="text-blue-600 font-medium">Schedule Variance</div>
             <div className={`text-lg font-bold ${latestData?.scheduleVariance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               ${latestData?.scheduleVariance.toLocaleString() || 0}
             </div>
           </div>
-          <div className="bg-green-50 p-3 rounded-lg">
+          <div className="bg-green-500/10 p-3 rounded-lg">
             <div className="text-green-600 font-medium">Cost Variance</div>
             <div className={`text-lg font-bold ${latestData?.costVariance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               ${latestData?.costVariance.toLocaleString() || 0}
             </div>
           </div>
-          <div className="bg-orange-50 p-3 rounded-lg">
+          <div className="bg-orange-500/10 p-3 rounded-lg">
             <div className="text-orange-600 font-medium">Forecast Variance</div>
             <div className={`text-lg font-bold ${(latestData?.estimateAtCompletion || 0) <= (latestData?.budgetAtCompletion || 0) ? 'text-green-600' : 'text-red-600'}`}>
               ${((latestData?.estimateAtCompletion || 0) - (latestData?.budgetAtCompletion || 0)).toLocaleString()}
             </div>
           </div>
-          <div className="bg-purple-50 p-3 rounded-lg">
+          <div className="bg-purple-500/10 p-3 rounded-lg">
             <div className="text-purple-600 font-medium">Project Health</div>
             <div className="flex items-center gap-1">
               {spi >= 0.9 && cpi >= 0.9 ? (

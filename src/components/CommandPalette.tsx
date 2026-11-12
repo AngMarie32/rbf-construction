@@ -53,7 +53,7 @@ const NAV_ITEMS: { name: string; href: string; group: string }[] = [
   { name: 'QuickBooks Export', href: '/quickbooks-export', group: 'Pages' },
   { name: 'Report Import', href: '/report-import', group: 'Pages' },
   { name: 'Schedule of Values', href: '/schedule-of-values', group: 'Pages' },
-  { name: 'Weekly Reports', href: '/weekly-reports', group: 'Pages' },
+  { name: 'Scheduled Reports', href: '/weekly-reports', group: 'Pages' },
   { name: 'Settings', href: '/settings', group: 'Pages' },
 ];
 
