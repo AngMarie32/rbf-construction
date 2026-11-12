@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { localDateISO } from '@/utils/dates';
+import { ProjectCombobox } from '@/components/ui/project-combobox';
 
 interface CreateExpenseDialogProps {
   onExpenseCreated: () => void;
@@ -39,7 +41,7 @@ export function CreateExpenseDialog({ onExpenseCreated, projects }: CreateExpens
     description: '',
     category: '',
     amount: '',
-    date: new Date().toISOString().split('T')[0],
+    date: localDateISO(new Date()),
     vendor: '',
     receipt_number: ''
   });
@@ -58,7 +60,8 @@ export function CreateExpenseDialog({ onExpenseCreated, projects }: CreateExpens
         .from('expenses')
         .insert([{
           project_id: formData.project_id,
-          description: formData.description || null,
+          // The database requires a description; build one when the field is left blank.
+          description: formData.description.trim() || [formData.category, formData.vendor.trim()].filter(Boolean).join(' – ') || 'Expense',
           category: formData.category,
           amount: parseFloat(formData.amount),
           date: formData.date,
@@ -77,13 +80,14 @@ export function CreateExpenseDialog({ onExpenseCreated, projects }: CreateExpens
         description: '',
         category: '',
         amount: '',
-        date: new Date().toISOString().split('T')[0],
+        date: localDateISO(new Date()),
         vendor: '',
         receipt_number: ''
       });
     } catch (error) {
       console.error('Error creating expense:', error);
-      toast.error('Failed to create expense');
+      const msg = (error as any)?.message || '';
+      toast.error(msg ? `The expense wasn't saved: ${msg}` : 'Failed to create expense');
     } finally {
       setLoading(false);
     }
@@ -105,18 +109,7 @@ export function CreateExpenseDialog({ onExpenseCreated, projects }: CreateExpens
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
               <Label htmlFor="project">Project *</Label>
-              <Select value={formData.project_id} onValueChange={(value) => setFormData({...formData, project_id: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select project" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <ProjectCombobox id="project" projects={projects} value={formData.project_id} onChange={(value) => setFormData({ ...formData, project_id: value })} placeholder="Type to search projects…" />
             </div>
 
             <div>

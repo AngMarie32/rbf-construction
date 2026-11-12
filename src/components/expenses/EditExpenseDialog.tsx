@@ -89,7 +89,7 @@ export function EditExpenseDialog({ expense, projects, onExpenseUpdated, onClose
         .from('expenses')
         .update({
           project_id: formData.project_id,
-          description: formData.description || null,
+          description: formData.description?.trim() || [formData.category, formData.vendor?.trim()].filter(Boolean).join(' – ') || 'Expense',
           category: formData.category,
           amount: parseFloat(formData.amount),
           date: formData.date,
@@ -106,7 +106,7 @@ export function EditExpenseDialog({ expense, projects, onExpenseUpdated, onClose
       onClose();
     } catch (error) {
       console.error('Error updating expense:', error);
-      toast.error('Failed to update expense');
+      toast.error((error as any)?.message ? `The expense wasn't saved: ${(error as any).message}` : 'Failed to update expense');
     } finally {
       setLoading(false);
     }
