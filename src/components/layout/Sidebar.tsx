@@ -4,7 +4,8 @@ import { cn } from '@/lib/utils';
 import { ChevronDown, ChevronsLeft, ChevronsRight, FolderKanban } from 'lucide-react';
 import { getRecentProjects, onRecentProjectsChange, type RecentProject } from '@/utils/recentProjects';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { navGroups, isActivePath } from './navigation';
+import { navGroups as allNavGroups, isActivePath } from './navigation';
+import { useHiddenNav } from '@/hooks/useHiddenNav';
 
 interface SidebarProps {
   onNavigate?: (path: string) => void;
@@ -37,6 +38,10 @@ export function Sidebar({ onNavigate, mobile = false }: SidebarProps) {
   const navigate = useNavigate();
   const [collapsedPref, setCollapsedPref] = useState<boolean>(() => readStorage(COLLAPSE_KEY, false));
   const collapsed = !mobile && collapsedPref;
+  const hiddenNav = useHiddenNav();
+  const navGroups = allNavGroups
+    .map((g) => ({ ...g, items: g.items.filter((i) => !hiddenNav.includes(i.href)) }))
+    .filter((g) => g.items.length > 0);
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
     readStorage(GROUPS_KEY, { Overview: true, 'Quick Access': true })

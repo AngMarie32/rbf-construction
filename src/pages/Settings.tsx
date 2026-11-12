@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, User, Mail, Upload, Landmark } from 'lucide-react';
+import { Building, User, Mail, Upload, Landmark, PanelLeft } from 'lucide-react';
+import { MenuVisibilitySettings } from '@/components/settings/MenuVisibilitySettings';
+import { useCompanies } from '@/contexts/CompanyContext';
 import { BondingSettings } from '@/components/settings/BondingSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -14,6 +16,7 @@ import { EmailSettings } from '@/components/profile/EmailSettings';
 import { ProfileSettings } from '@/components/profile/ProfileSettings';
 
 const Settings = () => {
+  const { isAdmin } = useCompanies();
   const [companySettings, setCompanySettings] = useState({
     company_name: '',
     company_address: '',
@@ -213,7 +216,7 @@ const Settings = () => {
     <Layout title="Settings" subtitle="Manage your application preferences and company information">
       <div className="max-w-4xl mx-auto space-y-6">
         <Tabs defaultValue={new URLSearchParams(window.location.search).get('tab') || 'company'} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="flex h-auto w-full flex-wrap justify-start">
             <TabsTrigger value="company" className="flex items-center gap-2">
               <Building className="w-4 h-4" />
               Company
@@ -230,7 +233,19 @@ const Settings = () => {
               <Mail className="w-4 h-4" />
               Email
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="menu" className="flex items-center gap-2">
+                <PanelLeft className="w-4 h-4" />
+                Menu
+              </TabsTrigger>
+            )}
           </TabsList>
+
+          {isAdmin && (
+            <TabsContent value="menu">
+              <MenuVisibilitySettings />
+            </TabsContent>
+          )}
 
           <TabsContent value="company">
             <Card>
