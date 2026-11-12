@@ -7,9 +7,7 @@ import { FolderSidebar } from '@/components/documents/FolderSidebar';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
 import { DocumentEditDialog, type DocumentEditValues } from '@/components/documents/DocumentEditDialog';
 import { DocumentPreviewDialog } from '@/components/documents/DocumentPreviewDialog';
-import { DocumentVersionDialog } from '@/components/documents/DocumentVersionDialog';
 import { DocumentTemplatesDialog } from '@/components/documents/DocumentTemplatesDialog';
-import { DocumentCollaborationDialog } from '@/components/documents/DocumentCollaborationDialog';
 import { DocumentFilters } from '@/components/documents/DocumentFilters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,13 +15,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Upload, 
-  FileText, 
-  MoreHorizontal, 
-  Download, 
-  Edit, 
-  Trash2, 
+import {
+  Upload,
+  FileText,
+  MoreHorizontal,
+  Download,
+  Edit,
+  Trash2,
   Eye,
   Users,
   Clock,
@@ -37,6 +35,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { PageHero, heroButton, heroButtonPrimary } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { FileWarning } from 'lucide-react';
+import { DOCUMENTS_BUCKET, bucketFor, documentUrl, safeFileName } from '@/lib/documentFiles';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Document {
   id: string;
@@ -51,6 +63,7 @@ interface Document {
   tags?: string[];
   createdAt: Date;
   updatedAt: Date;
+  sourceType?: string | null;
 }
 
 interface Project {
@@ -68,6 +81,7 @@ export default function Documents() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [documentToEdit, setDocumentToEdit] = useState<Document | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Document | null>(null);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
   const [showVersionDialog, setShowVersionDialog] = useState(false);
@@ -77,7 +91,7 @@ export default function Documents() {
   const [collaborationDocument, setCollaborationDocument] = useState<Document | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [activeTab, setActiveTab] = useState('all');
-  
+
   // Advanced filter states
   const [advancedFilters, setAdvancedFilters] = useState({
     selectedCategory: 'all',
@@ -93,7 +107,7 @@ export default function Documents() {
   const [archivedDocuments, setArchivedDocuments] = useState<string[]>([]);
 
   const availableTags = ['urgent', 'review', 'approved', 'pending', 'contract', 'safety', 'inspection'];
-  const uploaders = ['John Smith', 'Sarah Johnson', 'Mike Davis', 'Lisa Chen'];
+  const uploaders: string[] = [];
 
   useEffect(() => {
     fetchDocuments();
@@ -120,7 +134,7 @@ export default function Documents() {
     try {
       setLoading(true);
       console.log('Fetching documents...');
-      
+
       const { data, error } = await supabase
         .from('documents')
         .select('*')
@@ -145,10 +159,16 @@ export default function Documents() {
         description: doc.description,
         tags: doc.tags || [],
         createdAt: new Date(doc.created_at),
-        updatedAt: new Date(doc.updated_at)
+        updatedAt: new Date(doc.updated_at),
+        sourceType: doc.source_type,
       }));
 
       setDocuments(mappedDocuments);
+      // Favorites and archive are stored on the record (falls back to this session if the column isn't there yet)
+      if ((data || []).some((d: any) => 'is_favorite' in d)) {
+        setFavoriteDocuments((data || []).filter((d: any) => d.is_favorite).map((d: any) => d.id));
+        setArchivedDocuments((data || []).filter((d: any) => d.archived_at).map((d: any) => d.id));
+      }
     } catch (error) {
       console.error('Error fetching documents:', error);
       toast.error('Failed to load documents');
@@ -158,30 +178,42 @@ export default function Documents() {
   };
 
   const handleUpload = async (documentData: any) => {
+    const file: File | undefined = documentData.file;
     try {
-      console.log('Uploading document:', documentData);
-      
-      const { error } = await supabase
-        .from('documents')
-        .insert({
-          name: documentData.name,
-          description: documentData.description || null,
-          category: documentData.folder || 'general',
-          project_id: documentData.project_id || null,
-          tags: documentData.tags.length > 0 ? documentData.tags : null,
-          is_current_version: true
-        });
-
+      const { data: auth } = await supabase.auth.getUser();
+      let filePath: string | null = null;
+      if (file) {
+        filePath = `${documentData.project_id || 'general'}/${Date.now()}-${safeFileName(file.name)}`;
+        const { error: upErr } = await supabase.storage.from(DOCUMENTS_BUCKET).upload(filePath, file, { contentType: file.type || undefined });
+        if (upErr) {
+          throw new Error(
+            /bucket/i.test(upErr.message)
+              ? 'Document storage is not set up yet. Ask an admin to run the "project documents storage" database update.'
+              : `The file didn't upload: ${upErr.message}`
+          );
+        }
+      }
+      const { error } = await supabase.from('documents').insert({
+        name: documentData.name,
+        description: documentData.description || null,
+        category: documentData.folder || 'general',
+        project_id: documentData.project_id || null,
+        tags: documentData.tags.length > 0 ? documentData.tags : null,
+        file_path: filePath,
+        file_size: file?.size ?? null,
+        mime_type: file?.type || null,
+        uploaded_by: auth?.user?.id ?? null,
+        is_current_version: true,
+      });
       if (error) {
-        console.error('Error inserting document:', error);
+        if (filePath) await supabase.storage.from(DOCUMENTS_BUCKET).remove([filePath]);
         throw error;
       }
-      
-      toast.success('Document uploaded successfully');
-      await fetchDocuments(); // Refresh the document list
+      toast.success(`${documentData.name} uploaded`);
+      await fetchDocuments();
     } catch (error) {
       console.error('Error uploading document:', error);
-      toast.error('Failed to upload document');
+      toast.error(error instanceof Error ? error.message : 'Failed to upload document');
     }
   };
 
@@ -195,6 +227,9 @@ export default function Documents() {
 
       if (error) throw error;
       if (count === 0) throw new Error('The document was not deleted. You may not have permission to delete it.');
+      if (document.filePath && bucketFor(document) === DOCUMENTS_BUCKET) {
+        await supabase.storage.from(DOCUMENTS_BUCKET).remove([document.filePath]);
+      }
 
       setDocuments((current) => current.filter((item) => item.id !== document.id));
       setFavoriteDocuments((current) => current.filter((id) => id !== document.id));
@@ -245,9 +280,24 @@ export default function Documents() {
     await fetchDocuments();
   };
 
-  const downloadDocument = (document: Document) => {
-    console.log('Downloading document:', document.name);
-    toast.success(`Downloaded ${document.name}`);
+  const downloadDocument = async (document: Document) => {
+    if (!document.filePath) {
+      toast.error(`${document.name} has no file attached. Upload it again to keep a copy.`);
+      return;
+    }
+    try {
+      const ext = document.filePath.match(/\.[a-z0-9]+$/i)?.[0] || '';
+      const url = await documentUrl(document, { download: /\.[a-z0-9]+$/i.test(document.name) ? document.name : `${document.name}${ext}` });
+      if (!url) return;
+      const a = window.document.createElement('a');
+      a.href = url;
+      a.rel = 'noopener';
+      window.document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e: any) {
+      toast.error(`Couldn't download ${document.name}: ${e.message || 'file not found'}`);
+    }
   };
 
   const showVersionHistory = (document: Document) => {
@@ -260,26 +310,32 @@ export default function Documents() {
     setShowCollaborationDialog(true);
   };
 
+  const persist = async (documentId: string, patch: Record<string, unknown>) => {
+    const { error } = await supabase.from('documents').update(patch as any).eq('id', documentId);
+    if (error && /column|schema cache/i.test(error.message)) {
+      toast.message('Saved for this session only', { description: 'Favorites and archive need the "project documents storage" database update to be remembered.' });
+    } else if (error) {
+      toast.error(error.message);
+    }
+  };
+
   const toggleFavorite = (documentId: string) => {
-    setFavoriteDocuments(prev => 
-      prev.includes(documentId) 
-        ? prev.filter(id => id !== documentId)
-        : [...prev, documentId]
-    );
+    const on = !favoriteDocuments.includes(documentId);
+    setFavoriteDocuments((prev) => (on ? [...prev, documentId] : prev.filter((id) => id !== documentId)));
+    persist(documentId, { is_favorite: on });
   };
 
   const toggleArchive = (documentId: string) => {
-    setArchivedDocuments(prev => 
-      prev.includes(documentId) 
-        ? prev.filter(id => id !== documentId)
-        : [...prev, documentId]
-    );
+    const on = !archivedDocuments.includes(documentId);
+    setArchivedDocuments((prev) => (on ? [...prev, documentId] : prev.filter((id) => id !== documentId)));
+    persist(documentId, { archived_at: on ? new Date().toISOString() : null });
+    toast.success(on ? 'Archived' : 'Restored');
   };
 
   const handleUseTemplate = (template: any) => {
-    console.log('Using template:', template.name);
-    toast.success(`Created document from template: ${template.name}`);
     setShowTemplatesDialog(false);
+    setShowUploadDialog(true);
+    toast.message(`Upload your filled-in "${template.name}"`, { description: 'Templates are starting points. Fill one in, then upload it here.' });
   };
 
   const clearAllFilters = () => {
@@ -300,8 +356,8 @@ export default function Documents() {
     let filtered = documents.filter(doc => {
       const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            (doc.description && doc.description.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      const matchesFolder = selectedFolder === 'all' || 
+
+      const matchesFolder = selectedFolder === 'all' ||
                            doc.category.toLowerCase().replace(/\s+/g, '-') === selectedFolder;
 
       const matchesCategory = advancedFilters.selectedCategory === 'all' ||
@@ -317,10 +373,10 @@ export default function Documents() {
       const matchesDateRange = (!advancedFilters.dateRange.from || doc.createdAt >= advancedFilters.dateRange.from) &&
                               (!advancedFilters.dateRange.to || doc.createdAt <= advancedFilters.dateRange.to);
 
-      const matchesFileType = advancedFilters.fileType === 'all' || 
+      const matchesFileType = advancedFilters.fileType === 'all' ||
                              (doc.mimeType && getFileTypeCategory(doc.mimeType) === advancedFilters.fileType);
 
-      return matchesSearch && matchesFolder && matchesCategory && matchesProject && 
+      return matchesSearch && matchesFolder && matchesCategory && matchesProject &&
              matchesTags && matchesDateRange && matchesFileType;
     });
 
@@ -351,6 +407,17 @@ export default function Documents() {
   };
 
   const filteredDocuments = getFilteredDocuments();
+  const docStats = (() => {
+    const active = documents.filter((d) => !archivedDocuments.includes(d.id));
+    const weekAgo = Date.now() - 7 * 86400000;
+    return {
+      active: active.length,
+      bytes: active.reduce((s, d) => s + (d.fileSize || 0), 0),
+      week: active.filter((d) => d.createdAt.getTime() >= weekAgo).length,
+      noFile: active.filter((d) => !d.filePath).length,
+      projects: new Set(active.map((d) => d.projectId).filter(Boolean)).size,
+    };
+  })();
 
 
   const projectName = (id?: string) => (id ? projects.find((p) => p.id === id)?.name || 'Unknown' : 'General');
@@ -389,7 +456,13 @@ export default function Documents() {
         </div>
       ),
     },
-    { id: 'size', header: 'Size', align: 'right', value: (d) => d.fileSize || 0, cell: (d) => <span className="text-muted-foreground">{fileSize(d.fileSize)}</span> },
+    {
+      id: 'size',
+      header: 'Size',
+      align: 'right',
+      value: (d) => d.fileSize || 0,
+      cell: (d) => (d.filePath ? <span className="text-muted-foreground">{fileSize(d.fileSize)}</span> : <Badge variant="warning">No file</Badge>),
+    },
     { id: 'created', header: 'Added', value: (d) => d.createdAt, cell: (d) => <span className="whitespace-nowrap">{format(d.createdAt, 'MMM d, yyyy')}</span> },
     {
       id: 'actions',
@@ -410,7 +483,7 @@ export default function Documents() {
             title="Delete"
             aria-label={`Delete ${d.name}`}
             disabled={deletingId === d.id}
-            onClick={() => deleteDocument(d)}
+            onClick={() => setConfirmDelete(d)}
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -421,15 +494,14 @@ export default function Documents() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => viewDocument(d)}><Eye className="w-4 h-4 mr-2" />Preview</DropdownMenuItem>
               <DropdownMenuItem onClick={() => editDocument(d)}><Edit className="w-4 h-4 mr-2" />Edit</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => showVersionHistory(d)}><Clock className="w-4 h-4 mr-2" />Versions</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => showCollaboration(d)}><Users className="w-4 h-4 mr-2" />Share</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadDocument(d)}><Download className="w-4 h-4 mr-2" />Download</DropdownMenuItem>
               <DropdownMenuItem onClick={() => toggleFavorite(d.id)}>
                 <Star className="w-4 h-4 mr-2" />{favoriteDocuments.includes(d.id) ? 'Remove from favorites' : 'Add to favorites'}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => toggleArchive(d.id)}>
                 <Archive className="w-4 h-4 mr-2" />{archivedDocuments.includes(d.id) ? 'Unarchive' : 'Archive'}
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive" onClick={() => deleteDocument(d)}>
+              <DropdownMenuItem className="text-destructive" onClick={() => setConfirmDelete(d)}>
                 <Trash2 className="w-4 h-4 mr-2" />Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -440,34 +512,56 @@ export default function Documents() {
   ];
 
   return (
-    <Layout hideTitle title="Document Management" subtitle="Store, organize, and share project documents">
-      <div className="flex h-[calc(100vh-200px)]">
-        <FolderSidebar 
+    <Layout hideTitle title="Documents">
+      <div className="space-y-6">
+      <PageHero
+        eyebrow="Project management"
+        title="Documents"
+        subtitle="Contracts, drawings, permits, insurance and photos, filed by project so the office and the field see the latest version."
+        actions={
+          <>
+            <button type="button" className={heroButtonPrimary} onClick={() => setShowUploadDialog(true)}>
+              <Upload className="h-4 w-4" /> Upload document
+            </button>
+            <button type="button" className={heroButton} onClick={() => setShowTemplatesDialog(true)}>
+              <FileText className="h-4 w-4" /> Templates
+            </button>
+          </>
+        }
+        stats={[
+          { label: 'Documents', value: loading ? '…' : String(docStats.active) },
+          { label: 'Storage used', value: loading ? '…' : fileSize(docStats.bytes) },
+        ]}
+      />
+
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <AccentStat label="Documents" value={docStats.active} icon={FileText} accent="blue" loading={loading} hint={`${docStats.projects} project${docStats.projects === 1 ? '' : 's'}`} />
+        <AccentStat label="Added this week" value={docStats.week} icon={Upload} accent="emerald" loading={loading} hint="Last 7 days" />
+        <button type="button" className="rounded-xl text-left" onClick={() => setActiveTab(activeTab === 'favorites' ? 'all' : 'favorites')}>
+          <AccentStat label="Favorites" value={favoriteDocuments.length} icon={Star} accent="amber" loading={loading} hint="Click to show" />
+        </button>
+        <AccentStat
+          label="Missing a file"
+          value={docStats.noFile}
+          icon={FileWarning}
+          accent="rose"
+          tone={docStats.noFile ? 'warn' : undefined}
+          loading={loading}
+          hint="Saved before uploads stored files"
+        />
+      </div>
+
+      <div className="flex h-[calc(100vh-200px)] min-h-[560px] overflow-hidden rounded-xl border bg-card">
+        <FolderSidebar
           selectedFolder={selectedFolder}
           onFolderSelect={setSelectedFolder}
           documentCount={documents.length}
         />
-        
-        <div className="flex-1 p-6 overflow-hidden flex flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-bold">
-                {selectedFolder === 'all' ? 'All Documents' : 
-                 selectedFolder.charAt(0).toUpperCase() + selectedFolder.slice(1).replace('-', ' ')}
-              </h1>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Button variant="outline" onClick={() => setShowTemplatesDialog(true)}>
-                <FileText className="w-4 h-4 mr-2" />
-                Templates
-              </Button>
-              <Button onClick={() => setShowUploadDialog(true)}>
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Document
-              </Button>
-            </div>
-          </div>
+
+        <div className="flex-1 min-w-0 p-4 sm:p-6 overflow-hidden flex flex-col">
+          <h2 className="mb-4 text-lg font-semibold">
+            {selectedFolder === 'all' ? 'All documents' : selectedFolder.charAt(0).toUpperCase() + selectedFolder.slice(1).replace('-', ' ')}
+          </h2>
 
           {/* Enhanced Filters */}
           <div className="mb-6">
@@ -594,9 +688,9 @@ export default function Documents() {
                                       <Star className="w-4 h-4 mr-2" />
                                       {favoriteDocuments.includes(document.id) ? 'Remove Favorite' : 'Add Favorite'}
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem 
+                                    <DropdownMenuItem
                                       className="text-red-600 cursor-pointer"
-                                      onClick={() => deleteDocument(document)}
+                                      onClick={() => setConfirmDelete(document)}
                                     >
                                       <Trash2 className="w-4 h-4 mr-2" />
                                       Delete
@@ -605,20 +699,20 @@ export default function Documents() {
                                 </DropdownMenu>
                               </div>
                             </div>
-                            
+
                             <h3 className="font-semibold text-sm mb-2 line-clamp-2">{document.name}</h3>
-                            
+
                             {document.description && (
                               <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
                                 {document.description}
                               </p>
                             )}
-                            
+
                             <div className="space-y-2">
                               <Badge variant="secondary" className="text-xs">
                                 {document.category}
                               </Badge>
-                              
+
                               {document.tags && document.tags.length > 0 && (
                                 <div className="flex flex-wrap gap-1">
                                   {document.tags.slice(0, 2).map((tag) => (
@@ -633,7 +727,7 @@ export default function Documents() {
                                   )}
                                 </div>
                               )}
-                              
+
                               <div className="text-xs text-muted-foreground">
                                 {format(document.createdAt, "MMM dd, yyyy")}
                               </div>
@@ -648,6 +742,8 @@ export default function Documents() {
             </Card>
           </div>
         </div>
+      </div>
+
       </div>
 
       {/* Dialogs */}
@@ -674,36 +770,32 @@ export default function Documents() {
         onDownload={downloadDocument}
       />
 
-      <DocumentVersionDialog
-        open={showVersionDialog}
-        onOpenChange={setShowVersionDialog}
-        documentName={versionDocument?.name || ''}
-        versions={[]} // Removed mock versions
-        onUploadNewVersion={() => toast.info('Upload new version functionality coming soon')}
-        onRestoreVersion={(versionId) => toast.success('Version restored successfully')}
-        onDownloadVersion={(versionId) => toast.success('Version downloaded')}
-        onPreviewVersion={(versionId) => toast.info('Version preview opened')}
-      />
-
       <DocumentTemplatesDialog
         open={showTemplatesDialog}
         onOpenChange={setShowTemplatesDialog}
         onUseTemplate={handleUseTemplate}
       />
 
-      <DocumentCollaborationDialog
-        open={showCollaborationDialog}
-        onOpenChange={setShowCollaborationDialog}
-        documentName={collaborationDocument?.name || ''}
-        collaborators={[]} // Removed mock collaborators
-        comments={[]} // Removed mock comments
-        activities={[]} // Removed mock activities
-        onAddCollaborator={(email, role) => toast.success(`Added ${email} as ${role}`)}
-        onRemoveCollaborator={(id) => toast.success('Collaborator removed')}
-        onUpdateRole={(id, role) => toast.success(`Role updated to ${role}`)}
-        onAddComment={(content) => toast.success('Comment added')}
-        onResolveComment={(id) => toast.success('Comment resolved')}
-      />
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {confirmDelete?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>The record and its file are removed permanently. To keep it out of the way instead, archive it.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (confirmDelete) deleteDocument(confirmDelete);
+                setConfirmDelete(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }
