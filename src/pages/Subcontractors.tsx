@@ -31,7 +31,19 @@ import { AddSubcontractorDialog } from '@/components/subcontractors/AddSubcontra
 import { DocumentIssues } from '@/components/subcontractors/DocumentIssues';
 import { SendForSignatureButton } from '@/components/esign/SendForSignatureButton';
 import { SubcontractorScorecardDialog, StarRating, SCORE_CRITERIA, type Scorecard } from '@/components/subcontractors/SubcontractorScorecardDialog';
-import { Trophy, Star as StarIcon } from 'lucide-react';
+import { Star as StarIcon, ShieldAlert, FileWarning, Search, Wrench, List, LayoutGrid, X, Trash2 } from 'lucide-react';
+import { PageHero, heroButton } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Subcontractor {
   id: string;
@@ -69,6 +81,9 @@ export default function Subcontractors() {
   const [editingSubcontractor, setEditingSubcontractor] = useState<Subcontractor | null>(null);
   const [showDocumentIssues, setShowDocumentIssues] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [minRating, setMinRating] = useState<'any' | '4' | '3' | 'unrated'>('any');
+  const [compliance, setCompliance] = useState<'all' | 'compliant' | 'expired' | 'soon' | 'noins' | 'now9'>('all');
+  const [confirmDelete, setConfirmDelete] = useState<Subcontractor | null>(null);
   
   // Sorting state
   const [sortField, setSortField] = useState<SortField | null>(null);
@@ -212,9 +227,6 @@ export default function Subcontractors() {
   };
 
   const deleteSubcontractor = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this subcontractor?')) {
-      return;
-    }
 
     try {
       const { error } = await supabase
@@ -237,15 +249,18 @@ export default function Subcontractors() {
     setSelectedStatus('All');
     setSelectedSpecialties([]);
     setSelectedRegion('All');
+    setMinRating('any');
+    setCompliance('all');
     setSortField(null);
     setSortDirection(null);
   };
 
-  const hasActiveFilters = searchTerm || selectedStatus !== 'All' || selectedSpecialties.length > 0 || selectedRegion !== 'All';
+  const hasActiveFilters =
+    searchTerm || selectedStatus !== 'All' || selectedSpecialties.length > 0 || selectedRegion !== 'All' || minRating !== 'any' || compliance !== 'all';
 
   if (showDocumentIssues) {
     return (
-      <Layout title="Document Issues" subtitle="Manage subcontractor document compliance">
+      <Layout title="Document Issues" subtitle="Subcontractor insurance and W-9 compliance">
         <DocumentIssues onBack={() => setShowDocumentIssues(false)} />
       </Layout>
     );
@@ -254,7 +269,7 @@ export default function Subcontractors() {
 
   const insuranceState = (d: string | null) => {
     if (!d) return null;
-    const days = Math.ceil((new Date(d).getTime() - Date.now()) / 86400000);
+    const days = Math.ceil((new Date(`${d.slice(0, 10)}T00:00:00`).getTime() - Date.now()) / 86400000);
     return days < 0 ? 'expired' : days <= 30 ? 'soon' : 'ok';
   };
 
@@ -268,16 +283,43 @@ export default function Subcontractors() {
       rankById[x.id] = i > 0 && arr[i - 1].rating === x.rating ? rankById[arr[i - 1].id] : i + 1;
     });
 
-  const topByTrade = (() => {
-    const groups: Record<string, Subcontractor[]> = {};
-    subcontractors.forEach((x) => {
-      if (!x.rating) return;
-      (x.specialties?.length ? x.specialties : ['General']).forEach((t) => (groups[t] ||= []).push(x));
-    });
-    return Object.entries(groups)
-      .map(([trade, list]) => ({ trade, list: list.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 3) }))
-      .sort((a, b) => (b.list[0]?.rating || 0) - (a.list[0]?.rating || 0));
-  })();
+  const insOf = (x: Subcontractor) => insuranceState(x.insurance_expiry);
+  const rows = filteredSubcontractors.filter((x) => {
+    const r = Number(x.rating) || 0;
+    if (minRating === 'unrated' && r) return false;
+    if ((minRating === '4' && r < 4) || (minRating === '3' && r < 3)) return false;
+    if (compliance === 'compliant' && !(insOf(x) && insOf(x) !== 'expired' && x.w9_on_file)) return false;
+    if (compliance === 'expired' && insOf(x) !== 'expired') return false;
+    if (compliance === 'soon' && insOf(x) !== 'soon') return false;
+    if (compliance === 'noins' && insOf(x)) return false;
+    if (compliance === 'now9' && x.w9_on_file) return false;
+    return true;
+  });
+  const stats = {
+    active: subcontractors.filter((x) => x.status === 'Active').length,
+    rated: subcontractors.filter((x) => x.rating).length,
+    avg: (() => {
+      const r = subcontractors.filter((x) => x.rating);
+      return r.length ? r.reduce((a, x) => a + Number(x.rating), 0) / r.length : null;
+    })(),
+    insIssues: subcontractors.filter((x) => insOf(x) !== 'ok').length,
+    expired: subcontractors.filter((x) => insOf(x) === 'expired').length,
+    noW9: subcontractors.filter((x) => !x.w9_on_file).length,
+  };
+  const chips: { label: string; clear: () => void }[] = [
+    ...(selectedStatus !== 'All' ? [{ label: `Status: ${selectedStatus}`, clear: () => setSelectedStatus('All') }] : []),
+    ...(selectedRegion !== 'All' ? [{ label: `Region: ${selectedRegion}`, clear: () => setSelectedRegion('All') }] : []),
+    ...selectedSpecialties.map((t) => ({ label: t, clear: () => setSelectedSpecialties((l) => l.filter((x) => x !== t)) })),
+    ...(minRating !== 'any' ? [{ label: minRating === 'unrated' ? 'Not rated yet' : `${minRating}+ stars`, clear: () => setMinRating('any') }] : []),
+    ...(compliance !== 'all'
+      ? [
+          {
+            label: { compliant: 'Compliant', expired: 'Insurance expired', soon: 'Insurance expiring ≤ 30 days', noins: 'No insurance on file', now9: 'Missing W-9' }[compliance],
+            clear: () => setCompliance('all'),
+          },
+        ]
+      : []),
+  ];
 
   const subColumns: DataTableColumn<Subcontractor>[] = [
     {
@@ -342,7 +384,7 @@ export default function Subcontractors() {
       cell: (r) => {
         const st = insuranceState(r.insurance_expiry);
         if (!st) return <Badge variant="warning">Missing</Badge>;
-        const label = format(new Date(r.insurance_expiry as string), 'MMM d, yyyy');
+        const label = format(new Date(`${(r.insurance_expiry as string).slice(0, 10)}T00:00:00`), 'MMM d, yyyy');
         return st === 'expired' ? <Badge variant="destructive">Expired {label}</Badge>
           : st === 'soon' ? <Badge variant="warning">Expires {label}</Badge>
           : <span className="text-sm">{label}</span>;
@@ -370,8 +412,8 @@ export default function Subcontractors() {
             size="sm"
             iconOnly
           />
-          <Button size="sm" variant="ghost" onClick={() => deleteSubcontractor(r.id)} className="text-destructive hover:text-destructive">
-            Delete
+          <Button size="icon" variant="ghost" onClick={() => setConfirmDelete(r)} className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Delete">
+            <Trash2 className="w-4 h-4" />
           </Button>
         </div>
       ),
@@ -379,152 +421,179 @@ export default function Subcontractors() {
   ];
 
   return (
-    <Layout title="Subcontractors" subtitle="Your sub network, ranked by how they perform on your jobs">
+    <Layout hideTitle title="Subcontractors">
       <div className="space-y-6">
-        {topByTrade.length > 0 ? (
-          <Card className="p-5">
-            <div className="mb-4 flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-amber-500" />
-              <h2 className="font-semibold">Top subs by trade</h2>
-              <span className="text-xs text-muted-foreground">Based on your ratings</span>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {topByTrade.slice(0, 8).map(({ trade, list }) => (
-                <div key={trade} className="rounded-xl border p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{trade}</p>
-                  <ol className="space-y-1.5">
-                    {list.map((x, i) => (
-                      <li key={x.id} className="flex items-center justify-between gap-2 text-sm">
-                        <button type="button" onClick={() => setRatingSub(x)} className="flex min-w-0 items-center gap-2 text-left hover:text-primary">
-                          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${i === 0 ? 'bg-amber-400 text-amber-950' : 'bg-muted text-muted-foreground'}`}>{i + 1}</span>
-                          <span className="truncate">{x.company || x.name}</span>
-                        </button>
-                        <span className="flex shrink-0 items-center gap-1 text-xs font-semibold tabular-nums">
-                          <StarIcon className="h-3 w-3 fill-amber-400 text-amber-400" />
-                          {Number(x.rating).toFixed(1)}
-                        </span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              ))}
-            </div>
-          </Card>
-        ) : subcontractors.length > 0 ? (
-          <Card className="flex flex-wrap items-center gap-3 p-4 text-sm">
-            <Trophy className="h-5 w-5 text-amber-500" />
-            <span className="flex-1">
-              <strong>Rank your subs.</strong> Click <em>Rate</em> next to a subcontractor to score them on {SCORE_CRITERIA.map((c) => c.label.toLowerCase()).join(', ')}. The best rise to the top.
-            </span>
-          </Card>
-        ) : null}
+        <PageHero
+          eyebrow="Project management"
+          title="Subcontractors"
+          subtitle="Your sub network: trades, ratings, insurance and W-9s in one place."
+          actions={
+            <>
+              <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
+              <button type="button" className={heroButton} onClick={() => setShowDocumentIssues(true)}>
+                <ShieldAlert className="h-4 w-4" /> Document issues
+              </button>
+            </>
+          }
+          stats={[
+            { label: 'Active subs', value: loading ? '…' : String(stats.active) },
+            { label: 'Average rating', value: loading ? '…' : stats.avg == null ? '—' : `${stats.avg.toFixed(1)} ★` },
+          ]}
+        />
 
-        {/* Controls */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 flex-1">
-            <Input
-              type="search"
-              placeholder="Search subcontractors..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <button type="button" className="rounded-xl text-left" onClick={() => setMinRating(minRating === 'unrated' ? 'any' : 'unrated')}>
+            <AccentStat label="Subcontractors" value={subcontractors.length} icon={Users} accent="blue" loading={loading} hint={`${subcontractors.length - stats.rated} not rated yet`} />
+          </button>
+          <button type="button" className="rounded-xl text-left" onClick={() => setMinRating(minRating === '4' ? 'any' : '4')}>
+            <AccentStat label="Rated 4★ and up" value={subcontractors.filter((x) => Number(x.rating) >= 4).length} icon={StarIcon} accent="amber" loading={loading} hint="Click to filter" />
+          </button>
+          <button type="button" className="rounded-xl text-left" onClick={() => setCompliance(compliance === 'expired' ? 'all' : 'expired')}>
+            <AccentStat
+              label="Insurance issues"
+              value={stats.insIssues}
+              icon={ShieldAlert}
+              accent="rose"
+              tone={stats.expired ? 'bad' : stats.insIssues ? 'warn' : undefined}
+              loading={loading}
+              hint={`${stats.expired} expired · rest expiring or missing`}
             />
-          </div>
+          </button>
+          <button type="button" className="rounded-xl text-left" onClick={() => setCompliance(compliance === 'now9' ? 'all' : 'now9')}>
+            <AccentStat label="Missing W-9" value={stats.noW9} icon={FileWarning} accent="orange" tone={stats.noW9 ? 'warn' : undefined} loading={loading} hint="Needed before you pay them" />
+          </button>
+        </div>
 
-          <div className="flex items-center flex-wrap gap-2">
-            <AddSubcontractorDialog onSubcontractorCreated={fetchSubcontractors} />
-            
+        {/* Filters */}
+        <Card className="space-y-3 p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full sm:w-64">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input type="search" placeholder="Search name, company, trade, phone…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
+            </div>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Wrench className="h-4 w-4" /> Trades {selectedSpecialties.length > 0 && <Badge variant="secondary">{selectedSpecialties.length}</Badge>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-2" align="start">
+                <div className="max-h-72 space-y-0.5 overflow-y-auto">
+                  {specialties.map((specialty) => {
+                    const n = subcontractors.filter((x) => x.specialties?.includes(specialty)).length;
+                    const on = selectedSpecialties.includes(specialty);
+                    return (
+                      <label key={specialty} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted">
+                        <Checkbox
+                          checked={on}
+                          onCheckedChange={(c) => setSelectedSpecialties(c ? [...selectedSpecialties, specialty] : selectedSpecialties.filter((x) => x !== specialty))}
+                        />
+                        <span className="flex-1">{specialty}</span>
+                        <span className="text-xs text-muted-foreground">{n}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {selectedSpecialties.length > 0 && (
+                  <Button variant="ghost" size="sm" className="mt-1 w-full" onClick={() => setSelectedSpecialties([])}>
+                    Clear trades
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
+
+            <Select value={minRating} onValueChange={(v) => setMinRating(v as typeof minRating)}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="any">Any rating</SelectItem>
+                <SelectItem value="4">4★ and up</SelectItem>
+                <SelectItem value="3">3★ and up</SelectItem>
+                <SelectItem value="unrated">Not rated yet</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={compliance} onValueChange={(v) => setCompliance(v as typeof compliance)}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any compliance</SelectItem>
+                <SelectItem value="compliant">Compliant (insured + W-9)</SelectItem>
+                <SelectItem value="expired">Insurance expired</SelectItem>
+                <SelectItem value="soon">Insurance expiring ≤ 30 days</SelectItem>
+                <SelectItem value="noins">No insurance on file</SelectItem>
+                <SelectItem value="now9">Missing W-9</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="All">All Statuses</SelectItem>
+                <SelectItem value="All">All statuses</SelectItem>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Inactive">Inactive</SelectItem>
                 <SelectItem value="Suspended">Suspended</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Region" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Regions</SelectItem>
-                {regions.map(region => (
-                  <SelectItem key={region} value={region}>{region}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Users className="w-4 h-4 mr-2" />
-                  Specialties {selectedSpecialties.length > 0 && `(${selectedSpecialties.length})`}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56 p-2" align="end">
-                <div className="space-y-1">
-                  <div className="font-medium text-sm mb-2">Filter Specialties</div>
-                  {specialties.map((specialty) => (
-                    <div
-                      key={specialty}
-                      className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer"
-                      onClick={() => {
-                        if (selectedSpecialties.includes(specialty)) {
-                          setSelectedSpecialties(selectedSpecialties.filter((s) => s !== specialty));
-                        } else {
-                          setSelectedSpecialties([...selectedSpecialties, specialty]);
-                        }
-                      }}
-                    >
-                      <span className="text-sm">{specialty}</span>
-                      <Checkbox
-                        checked={selectedSpecialties.includes(specialty)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedSpecialties([...selectedSpecialties, specialty]);
-                          } else {
-                            setSelectedSpecialties(selectedSpecialties.filter((s) => s !== specialty));
-                          }
-                        }}
-                      />
-                    </div>
+            {regions.length > 0 && (
+              <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Region" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All regions</SelectItem>
+                  {regions.map((region) => (
+                    <SelectItem key={region} value={region}>
+                      {region}
+                    </SelectItem>
                   ))}
-                  {selectedSpecialties.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full mt-2"
-                      onClick={() => setSelectedSpecialties([])}
-                    >
-                      Clear All
-                    </Button>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters}>
-                Clear Filters
-              </Button>
+                </SelectContent>
+              </Select>
             )}
 
-            <Switch id="list-view" checked={viewMode === 'list'} onCheckedChange={(checked) => setViewMode(checked ? 'list' : 'grid')} />
-            <Label htmlFor="list-view" className="text-sm">
-              {viewMode === 'list' ? 'List View' : 'Grid View'}
-            </Label>
+            <div className="ml-auto flex rounded-lg bg-muted p-1">
+              <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setViewMode('list')} aria-label="List view">
+                <List className="h-4 w-4" />
+              </Button>
+              <Button variant={viewMode === 'grid' ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setViewMode('grid')} aria-label="Card view">
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </div>
+
+          {(chips.length > 0 || searchTerm) && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted-foreground">
+                {rows.length} of {subcontractors.length} shown
+              </span>
+              {chips.map((c) => (
+                <button
+                  key={c.label}
+                  type="button"
+                  onClick={c.clear}
+                  className="inline-flex items-center gap-1 rounded-full bg-orange-500/10 px-2.5 py-0.5 text-xs font-medium text-orange-700 hover:bg-orange-500/20 dark:text-orange-300"
+                >
+                  {c.label} <X className="h-3 w-3" />
+                </button>
+              ))}
+              <button type="button" className="text-xs text-muted-foreground underline hover:text-foreground" onClick={clearFilters}>
+                Clear all
+              </button>
+            </div>
+          )}
+        </Card>
 
         {/* Subcontractors Content */}
         {viewMode === 'list' ? (
           <DataTable
             columns={subColumns}
-            rows={filteredSubcontractors}
+            rows={rows}
             totalCount={subcontractors.length}
             getRowId={(r) => r.id}
             searchable={false}
@@ -541,7 +610,7 @@ export default function Subcontractors() {
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredSubcontractors.map((subcontractor) => (
+            {rows.map((subcontractor) => (
               <Card key={subcontractor.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-center">
@@ -616,6 +685,26 @@ export default function Subcontractors() {
         )}
       </div>
       <SubcontractorScorecardDialog sub={ratingSub} onOpenChange={(o) => !o && setRatingSub(null)} onSaved={fetchSubcontractors} />
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {confirmDelete?.company || confirmDelete?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>Their contact info, rating and documents will be removed. To keep the history, set their status to Inactive instead.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (confirmDelete) deleteSubcontractor(confirmDelete.id);
+                setConfirmDelete(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }
