@@ -6,12 +6,20 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { StockPhotoCredits } from '@/components/equipment/StockPhotoCredits';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
-import { 
-  Plus, 
-  AlertTriangle,
-  Grid3X3,
-  List
-} from 'lucide-react';
+import { AlertTriangle, Grid3X3, List, Truck, Wrench, Calculator, Cpu, CheckCircle2, Activity, DollarSign } from 'lucide-react';
+import { PageHero, heroButton } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { EquipmentCard } from '@/components/equipment/EquipmentCard';
 import { EquipmentFilters } from '@/components/equipment/EquipmentFilters';
 import { BulkOperationsToolbar } from '@/components/equipment/BulkOperationsToolbar';
@@ -38,6 +46,7 @@ export default function Equipment() {
   const navigate = useNavigate();
   const {
     equipment,
+    allEquipment,
     loading,
     selectedItems,
     filters,
@@ -63,6 +72,8 @@ export default function Equipment() {
   
   const [selectedEstimatorEquipment, setSelectedEstimatorEquipment] = useState<EstimatorItem[]>([]);
   const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([]);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [serviceDue, setServiceDue] = useState<{ overdue: number; soon: number }>({ overdue: 0, soon: 0 });
   
   const locations = Array.from(new Set(
     equipment.map(eq => eq.location).filter(Boolean)
@@ -70,6 +81,26 @@ export default function Equipment() {
 
   useEffect(() => {
     fetchProjects();
+    // Upcoming service from the latest maintenance entry per unit
+    supabase
+      .from('maintenance_logs')
+      .select('equipment_id, date, next_due')
+      .order('date', { ascending: false })
+      .then(({ data }) => {
+        const latest = new Map<string, string | null>();
+        (data || []).forEach((r: any) => !latest.has(r.equipment_id) && latest.set(r.equipment_id, r.next_due));
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let overdue = 0;
+        let soon = 0;
+        latest.forEach((due) => {
+          if (!due) return;
+          const days = (new Date(`${due.slice(0, 10)}T00:00:00`).getTime() - today.getTime()) / 86400000;
+          if (days < 0) overdue++;
+          else if (days <= 14) soon++;
+        });
+        setServiceDue({ overdue, soon });
+      });
   }, []);
 
   const fetchProjects = async () => {
@@ -124,20 +155,18 @@ export default function Equipment() {
     );
   };
 
-  const handleSaveEstimate = () => {
-    toast.success('Estimate saved successfully');
-  };
-
-  const handleExportEstimate = () => {
-    toast.success('Estimate exported successfully');
-  };
+  // The estimator panel saves/exports and shows its own confirmation.
+  const handleSaveEstimate = () => {};
+  const handleExportEstimate = () => {};
 
   const handleCloseEstimator = () => {
     setEstimatorOpen(false);
   };
 
-  const handleBulkDelete = async () => {
-    if (confirm(`Are you sure you want to delete ${selectedItems.length} equipment items?`)) {
+  const handleBulkDelete = () => setConfirmBulkDelete(true);
+
+  const doBulkDelete = async () => {
+    {
       try {
         await Promise.all(selectedItems.map(id => EquipmentService.deleteEquipment(id)));
         await fetchEquipment();
@@ -151,8 +180,22 @@ export default function Equipment() {
   };
 
   const handleBulkMaintenance = () => {
-    toast.info('Bulk maintenance scheduling coming soon');
+    if (selectedItems.length === 1) {
+      const eq = allEquipment.find((e) => e.id === selectedItems[0]);
+      if (eq) return handleMaintenanceClick(eq);
+    }
+    setMaintenanceViewOpen(true);
   };
+
+  const fleet = {
+    total: allEquipment.length,
+    available: allEquipment.filter((e) => e.status === 'Available').length,
+    inUse: allEquipment.filter((e) => e.status === 'In Use').length,
+    shop: allEquipment.filter((e) => e.status === 'Maintenance').length,
+    value: allEquipment.reduce((s, e) => s + (Number(e.value) || 0), 0),
+  };
+  const utilization = fleet.total ? Math.round((fleet.inUse / fleet.total) * 100) : 0;
+  const money0 = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
   const handleExportPDF = () => {
     exportEquipmentToPDF({
@@ -192,52 +235,76 @@ export default function Equipment() {
   }
 
   return (
-    <Layout title="Equipment" subtitle="Manage equipment and maintenance">
+    <Layout hideTitle title="Equipment">
       <div className="flex">
         <div className={`transition-all duration-300 ${estimatorOpen ? 'mr-96' : 'mr-0'} flex-1`}>
           <div className="space-y-6">
-            {/* Header */}
-            <div className="flex justify-between items-center">
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline"
-                  onClick={() => setMaintenanceViewOpen(true)}
+            <PageHero
+              eyebrow="Equipment"
+              title="Fleet"
+              subtitle="Machines, trucks and tools: where they are, what they cost to run, and when they need service."
+              actions={
+                <>
+                  <NewEquipmentDialog onEquipmentCreated={fetchEquipment} />
+                  <BulkEquipmentDialog onEquipmentCreated={fetchEquipment} />
+                  <button type="button" className={heroButton} onClick={() => setMaintenanceViewOpen(true)}>
+                    <Wrench className="h-4 w-4" /> Maintenance
+                  </button>
+                  <button type="button" className={heroButton} onClick={() => setEstimatorOpen(true)}>
+                    <Calculator className="h-4 w-4" /> Estimator
+                  </button>
+                  <button type="button" className={heroButton} onClick={() => navigate('/equipment-insights')}>
+                    <Cpu className="h-4 w-4" /> Intelligence
+                  </button>
+                </>
+              }
+              stats={[
+                { label: 'Fleet value', value: money0(fleet.value) },
+                { label: 'In use', value: `${utilization}%` },
+              ]}
+            />
+
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+              {(
+                [
+                  { key: 'all', label: 'Units', value: fleet.total, icon: Truck, accent: 'blue', hint: 'Show all' },
+                  { key: 'Available', label: 'Available', value: fleet.available, icon: CheckCircle2, accent: 'emerald', hint: 'Ready to assign' },
+                  { key: 'In Use', label: 'In use', value: fleet.inUse, icon: Activity, accent: 'indigo', hint: `${utilization}% utilization` },
+                  { key: 'Maintenance', label: 'In the shop', value: fleet.shop, icon: Wrench, accent: 'amber', hint: 'Status: Maintenance' },
+                ] as const
+              ).map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => updateFilters({ status: filters.status === c.key ? 'all' : c.key })}
+                  className={cn('rounded-xl text-left transition-shadow hover:shadow-md', filters.status === c.key && c.key !== 'all' && 'ring-2 ring-orange-500')}
                 >
-                  Maintenance
+                  <AccentStat label={c.label} value={c.value} icon={c.icon} accent={c.accent} hint={c.hint} />
+                </button>
+              ))}
+              <button type="button" onClick={() => setMaintenanceViewOpen(true)} className="col-span-2 rounded-xl text-left transition-shadow hover:shadow-md lg:col-span-1">
+                <AccentStat
+                  label="Service due"
+                  value={serviceDue.overdue + serviceDue.soon}
+                  icon={AlertTriangle}
+                  accent="rose"
+                  tone={serviceDue.overdue ? 'bad' : serviceDue.soon ? 'warn' : undefined}
+                  hint={serviceDue.overdue ? `${serviceDue.overdue} overdue · ${serviceDue.soon} in 14 days` : `${serviceDue.soon} in the next 14 days`}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                {equipment.length === fleet.total ? `${fleet.total} units` : `${equipment.length} of ${fleet.total} units match the filters`}
+              </p>
+              <div className="flex rounded-lg bg-muted p-1">
+                <Button variant={viewMode === 'grid' ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setViewMode('grid')} aria-label="Grid view">
+                  <Grid3X3 className="h-4 w-4" />
                 </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => setEstimatorOpen(true)}
-                >
-                  Equipment Estimator
+                <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setViewMode('list')} aria-label="List view">
+                  <List className="h-4 w-4" />
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => navigate('/equipment-insights')}
-                >
-                  Cost Intelligence
-                </Button>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <div className="flex border rounded">
-                  <Button
-                    variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('grid')}
-                  >
-                    <Grid3X3 className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === 'list' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('list')}
-                  >
-                    <List className="w-4 h-4" />
-                  </Button>
-                </div>
-                <BulkEquipmentDialog onEquipmentCreated={fetchEquipment} />
-                <NewEquipmentDialog onEquipmentCreated={fetchEquipment} />
               </div>
             </div>
 
@@ -311,6 +378,27 @@ export default function Equipment() {
           />
         )}
       </div>
+
+      <AlertDialog open={confirmBulkDelete} onOpenChange={setConfirmBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedItems.length} unit{selectedItems.length === 1 ? '' : 's'}?</AlertDialogTitle>
+            <AlertDialogDescription>The selected equipment and its history will be removed. This can't be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setConfirmBulkDelete(false);
+                doBulkDelete();
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Dialogs */}
       {selectedEquipment && (

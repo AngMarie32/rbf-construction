@@ -145,6 +145,7 @@ export function useEquipment() {
 
   return {
     equipment: filteredEquipment,
+    allEquipment: equipment,
     loading,
     selectedItems,
     filters,

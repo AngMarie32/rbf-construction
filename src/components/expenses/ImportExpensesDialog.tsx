@@ -12,10 +12,16 @@ import { toast } from 'sonner';
 interface ImportExpensesDialogProps {
   onExpensesImported: () => void;
   projects: Array<{ id: string; name: string }>;
+  /** Controlled mode: open from outside and hide the built-in trigger button. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function ImportExpensesDialog({ onExpensesImported, projects }: ImportExpensesDialogProps) {
-  const [open, setOpen] = useState(false);
+export function ImportExpensesDialog({ onExpensesImported, projects, open: openProp, onOpenChange }: ImportExpensesDialogProps) {
+  const [openState, setOpenState] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? !!openProp : openState;
+  const setOpen = (v: boolean) => (controlled ? onOpenChange?.(v) : setOpenState(v));
   const [loading, setLoading] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
@@ -77,10 +83,12 @@ export function ImportExpensesDialog({ onExpensesImported, projects }: ImportExp
 
   return (
     <>
-      <Button onClick={() => setOpen(true)} variant="outline">
-        <Image className="w-4 h-4 mr-2" />
-        Import from Images
-      </Button>
+      {!controlled && (
+        <Button onClick={() => setOpen(true)} variant="outline">
+          <Image className="w-4 h-4 mr-2" />
+          Import from Images
+        </Button>
+      )}
       
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">

@@ -27,6 +27,10 @@ import {
   YAxis,
 } from 'recharts';
 import { toast } from 'sonner';
+import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Landmark, Wallet, Wrench } from 'lucide-react';
+import { PageHero } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { cn } from '@/lib/utils';
 import { buildCashFlow, CashFlowMonth } from '@/utils/cashFlowMath';
 import { OverheadFrequency } from '@/utils/overheadMath';
 
@@ -50,6 +54,8 @@ export default function CashFlow() {
   const [projectRepairs, setProjectRepairs] = useState(true);
   const [projectEquipment, setProjectEquipment] = useState(false);
   const [projectJobCosts, setProjectJobCosts] = useState(true);
+  const [includeCollections, setIncludeCollections] = useState(true);
+  const [collections, setCollections] = useState<{ paid: { date: string | null; amount: number }[]; open: { due: string | null; amount: number }[] }>({ paid: [], open: [] });
   const [jobCosts, setJobCosts] = useState<{ date: string | null; amount: number }[]>([]);
   const [projectCosts, setProjectCosts] = useState<{ projectId: string; date: string | null; amount: number }[]>([]);
   const [projectNames, setProjectNames] = useState<Record<string, string>>({});
@@ -101,6 +107,24 @@ export default function CashFlow() {
         pageAll('expenses', 'project_id, date, amount'),
         pageAll('time_entries', 'project_id, work_date, total_cost'),
       ]);
+      // Customer payments on job billing
+      const bills: any[] = [];
+      for (let i = 0; i < projectIds.length; i += 200) {
+        const { data, error } = await supabase
+          .from('project_billing')
+          .select('billed_amount, paid_amount, payment_date, invoice_date, billing_period_end, due_date')
+          .in('project_id', projectIds.slice(i, i + 200));
+        if (error) throw error;
+        bills.push(...(data ?? []));
+      }
+      setCollections({
+        paid: bills
+          .filter((b) => Number(b.paid_amount) > 0)
+          .map((b) => ({ date: b.payment_date || b.invoice_date || b.billing_period_end, amount: Number(b.paid_amount) || 0 })),
+        open: bills
+          .map((b) => ({ due: b.due_date, amount: Math.max(0, (Number(b.billed_amount) || 0) - (Number(b.paid_amount) || 0)) }))
+          .filter((b) => b.amount > 0),
+      });
       setJobCosts([
         ...exRows.map((e) => ({ date: e.date, amount: Number(e.amount) || 0 })),
         ...teRows.map((t) => ({ date: t.work_date, amount: Number(t.total_cost) || 0 })),
@@ -227,8 +251,11 @@ export default function CashFlow() {
         loanPayments,
         projectRepairs,
         projectEquipment,
+        collections: includeCollections ? collections : undefined,
       }),
     [
+      includeCollections,
+      collections,
       historyMonths,
       projectMonths,
       startingCash,
@@ -250,20 +277,25 @@ export default function CashFlow() {
   const projectedIn = projected.reduce((s, r) => s + r.inflow, 0);
   const shortfall = lowestCash && lowestCash.cumulative < 0 ? Math.abs(lowestCash.cumulative) : 0;
 
-  const kpi = (label: string, value: string, hint?: string) => (
-    <Card className="p-4">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-1 text-2xl font-display font-semibold">{value}</div>
-      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
-    </Card>
-  );
+  const money0 = (n: number) => (Number(n) || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+  const endCash = rows.length ? rows[rows.length - 1].cumulative : startingCash;
+  const openAR = collections.open.reduce((s, c) => s + c.amount, 0);
 
   return (
-    <Layout title="Cash Flow">
+    <Layout hideTitle title="Cash Flow">
       <div className="space-y-6">
+        <PageHero
+          eyebrow="Portfolio"
+          title="Cash Flow"
+          subtitle="Money in and out by month, and where cash on hand is heading."
+          stats={[
+            { label: `Cash in ${projectMonths} months`, value: loading ? '…' : money0(endCash), tone: endCash < 0 ? 'bad' : 'good' },
+            { label: 'Lowest point', value: loading ? '…' : money0(lowestCash ? lowestCash.cumulative : startingCash), tone: shortfall > 0 ? 'bad' : undefined },
+          ]}
+        />
         {/* Controls */}
         <Card className="p-4">
-          <div className="grid gap-4 md:grid-cols-6">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
             <div className="space-y-1.5">
               <Label>History</Label>
               <Select value={String(historyMonths)} onValueChange={(v) => setHistoryMonths(Number(v))}>
@@ -305,6 +337,12 @@ export default function CashFlow() {
               />
             </div>
             <div className="flex items-center gap-3 pt-6">
+              <Switch checked={includeCollections} onCheckedChange={setIncludeCollections} id="pc" />
+              <Label htmlFor="pc" className="cursor-pointer">
+                Customer payments
+              </Label>
+            </div>
+            <div className="flex items-center gap-3 pt-6">
               <Switch checked={projectRepairs} onCheckedChange={setProjectRepairs} id="pr" />
               <Label htmlFor="pr" className="cursor-pointer">
                 Project repair spend
@@ -326,23 +364,33 @@ export default function CashFlow() {
         </Card>
 
         {/* KPIs */}
-        <div className="grid gap-4 md:grid-cols-4">
-          {kpi('Operating cost', money(overheadMonthly), 'per month from overhead')}
-          {kpi('Avg repair spend', money(avgRepairs), 'monthly average')}
-          {kpi(
-            `Cash needed (next ${projectMonths}m)`,
-            money(projectedNeed),
-            `${money(projectedIn)} expected in`
-          )}
-          {kpi(
-            shortfall > 0 ? 'Projected shortfall' : 'Lowest projected cash',
-            money(lowestCash ? lowestCash.cumulative : 0),
-            lowestCash ? `in ${lowestCash.label}` : '—'
-          )}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+          <AccentStat
+            label={`Expected in (${projectMonths} mo)`}
+            value={money0(projectedIn)}
+            icon={ArrowDownLeft}
+            accent="emerald"
+            loading={loading}
+            hint={includeCollections ? `${money0(openAR)} still owed by customers` : 'Customer payments off'}
+          />
+          <AccentStat label={`Going out (${projectMonths} mo)`} value={money0(projectedNeed)} icon={ArrowUpRight} accent="orange" loading={loading} hint="Projected costs" />
+          <AccentStat label="Operating cost / mo" value={money0(overheadMonthly)} icon={Wallet} accent="indigo" loading={loading} hint="From Operating Costs" />
+          <AccentStat label="Avg repair spend / mo" value={money0(avgRepairs)} icon={Wrench} accent="slate" loading={loading} hint="Trailing average" />
+          <AccentStat
+            label={shortfall > 0 ? 'Projected shortfall' : 'Lowest projected cash'}
+            value={money0(lowestCash ? lowestCash.cumulative : 0)}
+            icon={shortfall > 0 ? AlertTriangle : Landmark}
+            accent={shortfall > 0 ? 'rose' : 'emerald'}
+            tone={shortfall > 0 ? 'bad' : undefined}
+            loading={loading}
+            hint={lowestCash ? `in ${lowestCash.label}` : '—'}
+            className="col-span-2 lg:col-span-1"
+          />
         </div>
 
         {shortfall > 0 && (
-          <Card className="p-4 bg-yellow-500/10">
+          <Card className="flex items-start gap-3 border-rose-500/30 bg-rose-500/10 p-4">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
             <div className="text-sm">
               Cash runs short by <strong>{money(shortfall)}</strong> around{' '}
               <strong>{lowestCash?.label}</strong>. Raise starting cash, delay equipment purchases, or
@@ -354,7 +402,10 @@ export default function CashFlow() {
         {/* Chart */}
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-display font-semibold">Money in and out by month</h2>
+            <div>
+              <h2 className="font-display font-semibold">Money in and out by month</h2>
+              <p className="text-xs text-muted-foreground">Bars on the left of each month are money in; shaded rows below are projections.</p>
+            </div>
             <Badge variant="secondary">
               {loading ? 'Loading…' : `${rows.length} months`}
             </Badge>
@@ -376,13 +427,14 @@ export default function CashFlow() {
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <ReferenceLine y={0} stroke="hsl(var(--border))" />
-              <Bar dataKey="equipment" name="Equipment deposits" stackId="out" fill="hsl(var(--muted-foreground))" />
-              <Bar dataKey="jobCosts" name="Job costs" stackId="out" fill="hsl(var(--secondary-foreground))" fillOpacity={0.5} />
-              <Bar dataKey="repairs" name="Repairs" stackId="out" fill="hsl(var(--destructive))" />
-              <Bar dataKey="overhead" name="Operating costs" stackId="out" fill="hsl(var(--primary))" fillOpacity={0.55} />
-              <Bar dataKey="loanOut" name="Loans issued" stackId="out" fill="hsl(var(--accent-foreground))" fillOpacity={0.4} />
-              <Bar dataKey="loanIn" name="Loan payments in" stackId="in" fill="hsl(var(--primary))" />
-              <Line type="monotone" dataKey="cumulative" name="Cash on hand" stroke="hsl(var(--foreground))" strokeWidth={2} dot={false} />
+              <Bar dataKey="collections" name="Customer payments" stackId="in" fill="#10b981" />
+              <Bar dataKey="loanIn" name="Loan payments in" stackId="in" fill="#34d399" />
+              <Bar dataKey="jobCosts" name="Job costs" stackId="out" fill="#f97316" />
+              <Bar dataKey="overhead" name="Operating costs" stackId="out" fill="#6366f1" />
+              <Bar dataKey="repairs" name="Repairs" stackId="out" fill="#e11d48" />
+              <Bar dataKey="equipment" name="Equipment" stackId="out" fill="#94a3b8" />
+              <Bar dataKey="loanOut" name="Loans issued" stackId="out" fill="#f59e0b" />
+              <Line type="monotone" dataKey="cumulative" name="Cash on hand" stroke="#2563eb" strokeWidth={2.5} dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </Card>
@@ -393,6 +445,7 @@ export default function CashFlow() {
             <thead>
               <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="p-3">Month</th>
+                <th className="p-3 text-right">Customer payments</th>
                 <th className="p-3 text-right">Equipment</th>
                 <th className="p-3 text-right">Job costs</th>
                 <th className="p-3 text-right">Repairs</th>
@@ -414,6 +467,7 @@ export default function CashFlow() {
                       </span>
                     )}
                   </td>
+                  <td className="p-3 text-right text-emerald-700 dark:text-emerald-400">{money(r.collections)}</td>
                   <td className="p-3 text-right">{money(r.equipment)}</td>
                   <td className="p-3 text-right">{money(r.jobCosts)}</td>
                   <td className="p-3 text-right">{money(r.repairs)}</td>
@@ -423,7 +477,7 @@ export default function CashFlow() {
                   <td className={`p-3 text-right ${r.net < 0 ? 'text-destructive' : ''}`}>
                     {money(r.net)}
                   </td>
-                  <td className={`p-3 text-right font-medium ${r.cumulative < 0 ? 'text-destructive' : ''}`}>
+                  <td className={cn('p-3 text-right font-medium', r.cumulative < 0 && 'text-destructive')}>
                     {money(r.cumulative)}
                   </td>
                 </tr>
@@ -432,10 +486,11 @@ export default function CashFlow() {
             <tfoot>
               <tr className="font-semibold">
                 <td className="p-3">Total</td>
+                <td className="p-3 text-right text-emerald-700 dark:text-emerald-400">In {money(totals.inflow)}</td>
                 <td className="p-3 text-right" colSpan={5}>
                   Out {money(totals.outflow)}
                 </td>
-                <td className="p-3 text-right">{money(totals.inflow)}</td>
+                <td className="p-3 text-right">{money(rows.reduce((a, r) => a + r.loanIn, 0))}</td>
                 <td className="p-3 text-right">{money(totals.net)}</td>
                 <td className="p-3 text-right">
                   {money(rows.length ? rows[rows.length - 1].cumulative : startingCash)}
