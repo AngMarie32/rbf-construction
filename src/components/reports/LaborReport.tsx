@@ -23,7 +23,7 @@ function LaborTip({ active, payload, label }: { active?: boolean; payload?: { na
   );
 }
 
-export function LaborReport({ data, actions }: { data: Data; actions?: React.ReactNode }) {
+export function LaborReport({ data, actions, chips }: { data: Data; actions?: React.ReactNode; chips?: string[] }) {
   const { monthly, byProject, byTrade, byPerson, totals } = data;
 
   if (totals.hours === 0) {
@@ -31,7 +31,7 @@ export function LaborReport({ data, actions }: { data: Data; actions?: React.Rea
       <div className="space-y-4">
         <ReportToolbar>{actions}</ReportToolbar>
         <ReportDocument eyebrow="Labor Report"
-        chips={["Open jobs: Active and On Hold"]} title="Crew hours and labor cost">
+        chips={chips ?? ["Open jobs: Active and On Hold"]} title="Crew hours and labor cost">
           <EmptyNote>
             No time entries yet. Log crew hours on the <Link to="/labor-costs" className="font-medium text-blue-600 hover:underline">Labor Costs</Link> page and this report fills in automatically.
           </EmptyNote>
@@ -47,7 +47,7 @@ export function LaborReport({ data, actions }: { data: Data; actions?: React.Rea
       <ReportToolbar>{actions}</ReportToolbar>
       <ReportDocument
         eyebrow="Labor Report"
-        chips={["Open jobs: Active and On Hold"]}
+        chips={chips ?? ["Open jobs: Active and On Hold"]}
         title="Crew hours and labor cost"
         stats={[
           { label: 'Hours', value: Math.round(totals.hours).toLocaleString() },

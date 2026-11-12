@@ -42,6 +42,8 @@ interface ProjectReportProps {
   totalExpenses: Record<string, number>;
   totalBilled: Record<string, number>;
   totalReceived: Record<string, number>;
+  /** Filter labels shown in the report header. */
+  chips?: string[];
 }
 
 // The report is a printable document, so it always uses light "paper" colors, even in dark mode.
@@ -63,11 +65,11 @@ const compact = (n: number) => {
   return money(n);
 };
 const pct = (part: number, whole: number) => (whole > 0 ? (part / whole) * 100 : 0);
-const safeDate = (d?: string) => (d ? format(new Date(d), 'MMM d, yyyy') : '—');
+const safeDate = (d?: string) => (d ? format(new Date(d.length <= 10 ? `${d}T00:00:00` : d), 'MMM d, yyyy') : '—');
 
 const PENDING_STATUSES = ['Pending Field Approval', 'Pending Office Approval'];
 
-export const ProjectReport: React.FC<ProjectReportProps> = ({ projects, totalExpenses, totalBilled, totalReceived }) => {
+export const ProjectReport: React.FC<ProjectReportProps> = ({ projects, totalExpenses, totalBilled, totalReceived, chips }) => {
   const [selectedFieldLeader, setSelectedFieldLeader] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [companyInfo, setCompanyInfo] = useState<{ company_name?: string; address?: string; phone?: string; email?: string } | null>(null);
@@ -160,40 +162,11 @@ export const ProjectReport: React.FC<ProjectReportProps> = ({ projects, totalExp
 
   return (
     <div className="space-y-6">
-      {/* Controls (hidden when printing) */}
-      <Card className="p-4 print:hidden">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Start date between</label>
-              <DatePickerWithRange date={dateRange} onDateChange={setDateRange} className="w-64" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Status</label>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-40"><SelectValue placeholder="All statuses" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  {statuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Field leader</label>
-              <Select value={selectedFieldLeader} onValueChange={setSelectedFieldLeader}>
-                <SelectTrigger className="w-48"><SelectValue placeholder="All field leaders" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All field leaders</SelectItem>
-                  {fieldLeaders.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <Button onClick={() => window.print()}>
-            <Printer className="h-4 w-4" /> Print / Save as PDF
-          </Button>
-        </div>
-      </Card>
+      <div className="flex justify-end print:hidden">
+        <Button onClick={() => window.print()}>
+          <Printer className="h-4 w-4" /> Print / Save as PDF
+        </Button>
+      </div>
 
       {/* The report document */}
       <article
@@ -214,7 +187,9 @@ export const ProjectReport: React.FC<ProjectReportProps> = ({ projects, totalExp
               <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{companyName}</h1>
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 <span className="rounded-full bg-white/10 px-3 py-1">Generated {format(new Date(), 'MMMM d, yyyy')}</span>
-                <span className="rounded-full bg-white/10 px-3 py-1">Open jobs: Active and On Hold</span>
+                {(chips ?? ['Open jobs: Active and On Hold']).map((c) => (
+                  <span key={c} className="rounded-full bg-white/10 px-3 py-1">{c}</span>
+                ))}
                 {selectedStatus !== 'all' && <span className="rounded-full bg-white/10 px-3 py-1">Status: {selectedStatus}</span>}
                 {selectedFieldLeader !== 'all' && <span className="rounded-full bg-white/10 px-3 py-1">Field leader: {selectedFieldLeader}</span>}
                 {dateRange?.from && dateRange?.to && (

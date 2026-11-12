@@ -34,6 +34,7 @@ import { ScanReceiptDialog } from '@/components/expenses/ScanReceiptDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BurnAnalysisTab } from '@/components/projects/BurnAnalysisTab';
+import { SafetyMeetingsTab } from '@/components/projects/SafetyMeetingsTab';
 import { EditProjectDialog } from '@/components/projects/EditProjectDialog';
 import { ProjectScheduleTab } from '@/components/projects/ProjectScheduleTab';
 import { ProjectNextSteps } from '@/components/projects/ProjectNextSteps';
@@ -392,6 +393,7 @@ export default function ProjectDetail() {
               <TabsTrigger value="payment-apps">Pay Apps</TabsTrigger>
               <TabsTrigger value="documents">Documents{documents.length ? ` (${documents.length})` : ''}</TabsTrigger>
               <TabsTrigger value="burn-analysis">Burn Analysis</TabsTrigger>
+              <TabsTrigger value="safety">Safety</TabsTrigger>
             </TabsList>
           </div>
 
@@ -618,6 +620,10 @@ export default function ProjectDetail() {
 
           <TabsContent value="burn-analysis">
             <BurnAnalysisTab projectId={pid} />
+          </TabsContent>
+
+          <TabsContent value="safety">
+            <SafetyMeetingsTab projectId={pid} project={project} />
           </TabsContent>
         </Tabs>
       </div>

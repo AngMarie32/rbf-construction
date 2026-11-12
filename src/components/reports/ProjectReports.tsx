@@ -14,7 +14,7 @@ const STATE = {
   'on-track': { label: 'On track', chip: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' },
 } as const;
 
-export function ProjectReports({ data, actions }: { data: Data; actions?: React.ReactNode }) {
+export function ProjectReports({ data, actions, chips }: { data: Data; actions?: React.ReactNode; chips?: string[] }) {
   const { statusDistribution, budget, schedule, coByMonth, totals } = data;
   const coTotal = coByMonth.reduce((s, m) => s + m.approved + m.pending, 0);
 
@@ -23,7 +23,7 @@ export function ProjectReports({ data, actions }: { data: Data; actions?: React.
       <ReportToolbar>{actions}</ReportToolbar>
       <ReportDocument
         eyebrow="Project Performance Report"
-        chips={["Open jobs: Active and On Hold"]}
+        chips={chips ?? ["Open jobs: Active and On Hold"]}
         title="Projects"
         stats={[
           { label: 'Open jobs', value: String(totals.open) },

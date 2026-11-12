@@ -6,7 +6,7 @@ import { CHART, SERIES, ChartTooltip, EmptyNote, KpiGrid, Legend, Panel, ReportD
 
 type Data = ReturnType<typeof buildFinancialAnalytics>;
 
-export function FinancialReports({ data, actions }: { data: Data; actions?: React.ReactNode }) {
+export function FinancialReports({ data, actions, chips }: { data: Data; actions?: React.ReactNode; chips?: string[] }) {
   const { monthly, cumulative, byProject, costByCategory, totals } = data;
   const hasMonthly = monthly.some((m) => m.billed || m.costs || m.received);
   const catTotal = costByCategory.reduce((s, c) => s + c.value, 0);
@@ -16,7 +16,7 @@ export function FinancialReports({ data, actions }: { data: Data; actions?: Reac
       <ReportToolbar>{actions}</ReportToolbar>
       <ReportDocument
         eyebrow="Financial Report"
-        chips={["Open jobs: Active and On Hold"]}
+        chips={chips ?? ["Open jobs: Active and On Hold"]}
         title="Money in and out"
         stats={[
           { label: 'Billed', value: compact(totals.billed) },
