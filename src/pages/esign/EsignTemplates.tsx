@@ -1,3 +1,5 @@
+import { PageHero, heroButton } from '@/components/ui/page-hero';
+import { ArrowLeft } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import {
   useTemplates, useDeleteTemplate, useUpdateTemplate,
@@ -54,7 +56,19 @@ export default function EsignTemplates() {
   };
 
   return (
-    <Layout title="Templates" subtitle="Pre-built and custom e-sign templates">
+    <Layout hideTitle title="Templates">
+      <div className="mb-6">
+        <PageHero
+          eyebrow="E-Sign"
+          title="Templates"
+          subtitle="Saved, marked-up PDFs with signature fields already placed. Start a new document from one in a click."
+          actions={
+            <button type="button" className={heroButton} onClick={() => navigate('/esign')}>
+              <ArrowLeft className="h-4 w-4" /> E-Sign home
+            </button>
+          }
+        />
+      </div>
       <div className="space-y-4">
         <div className="flex justify-end">
           <Dialog open={typesOpen} onOpenChange={setTypesOpen}>

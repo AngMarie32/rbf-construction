@@ -158,6 +158,10 @@ export default function Analytics() {
       scoped.filter((p) => p.status !== 'Closed' || (!range.from && !range.to) || active.has(p.id) || inRange(p.due_date))
     );
     const end = range.to && range.to < new Date() ? range.to : new Date();
+    // Monthly charts span the selected period (all time: last 12 months), capped at 36 bars.
+    const monthCount = range.from
+      ? Math.min(36, Math.max(1, (end.getFullYear() - range.from.getFullYear()) * 12 + end.getMonth() - range.from.getMonth() + 1))
+      : 12;
 
     const sumBy = (rows: any[], key: string) =>
       rows.reduce<Record<string, number>>((a, r) => ((a[r.project_id] = (a[r.project_id] || 0) + (Number(r[key]) || 0)), a), {});
@@ -170,9 +174,9 @@ export default function Analytics() {
       totalExpenses,
       totalBilled,
       totalReceived,
-      project: buildProjectAnalytics(projects, expenses, changeOrders, end),
-      financial: buildFinancialAnalytics(projects, expenses, billing, end),
-      labor: buildLaborAnalytics(timeEntries, projects, end),
+      project: buildProjectAnalytics(projects, expenses, changeOrders, end, monthCount),
+      financial: buildFinancialAnalytics(projects, expenses, billing, end, monthCount),
+      labor: buildLaborAnalytics(timeEntries, projects, end, monthCount),
       snapshotRows: projects.map((p) => ({
         Job: p.name,
         Client: p.client || '',
@@ -184,6 +188,7 @@ export default function Analytics() {
         Costs: totalExpenses[p.id] || 0,
         '% complete': Number(p.completion_percentage) || 0,
       })),
+      monthCount,
       counts: { jobs: projects.length, expenses: expenses.length, billing: billing.length, hours: timeEntries.length },
     };
   }, [raw, range, scope, leader]);
@@ -236,6 +241,21 @@ export default function Analytics() {
   };
 
   const fin = view?.financial.totals as any;
+  const shortWord: Record<Period, string> = {
+    ytd: 'year to date',
+    'this-month': 'this month',
+    'last-month': 'last month',
+    '12m': 'in the last 12 months',
+    'last-year': `in ${new Date().getFullYear() - 1}`,
+    all: 'to date',
+    custom: range.from ? 'in the period' : 'to date',
+  };
+  const trendTitle = !range.from
+    ? 'Last 12 months'
+    : view && view.monthCount === 1
+      ? `${format(range.from, 'MMMM yyyy')}`
+      : `${format(range.from, 'MMM yyyy')} – ${format(range.to && range.to < new Date() ? range.to : new Date(), 'MMM yyyy')}${view && view.monthCount >= 36 ? ' (last 36 months)' : ''}`;
+  const periodText = { label: `${PERIODS[period]}: ${periodLabel}`, short: shortWord[period], trend: trendTitle };
   const chips = [SCOPES[scope], `${PERIODS[period]}: ${periodLabel}`, ...(leader === 'all' ? [] : [`Field leader: ${leader}`])];
 
   return (
@@ -351,11 +371,11 @@ export default function Analytics() {
         ) : tab === 'snapshot' ? (
           <ProjectReport projects={view.projects} totalExpenses={view.totalExpenses} totalBilled={view.totalBilled} totalReceived={view.totalReceived} chips={chips} />
         ) : tab === 'project' ? (
-          <ProjectReports data={view.project} chips={chips} />
+          <ProjectReports data={view.project} chips={chips} periodText={periodText} />
         ) : tab === 'financial' ? (
-          <FinancialReports data={view.financial} chips={chips} />
+          <FinancialReports data={view.financial} chips={chips} periodText={periodText} />
         ) : tab === 'labor' ? (
-          <LaborReport data={view.labor} chips={chips} />
+          <LaborReport data={view.labor} chips={chips} periodText={periodText} />
         ) : (
           <AnalyticsReportBuilder />
         )}

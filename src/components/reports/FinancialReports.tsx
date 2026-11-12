@@ -6,7 +6,7 @@ import { CHART, SERIES, ChartTooltip, EmptyNote, KpiGrid, Legend, Panel, ReportD
 
 type Data = ReturnType<typeof buildFinancialAnalytics>;
 
-export function FinancialReports({ data, actions, chips }: { data: Data; actions?: React.ReactNode; chips?: string[] }) {
+export function FinancialReports({ data, actions, chips, periodText = { label: 'To date', short: 'to date', trend: 'Last 12 months' } }: { data: Data; actions?: React.ReactNode; chips?: string[]; periodText?: { label: string; short: string; trend: string } }) {
   const { monthly, cumulative, byProject, costByCategory, totals } = data;
   const hasMonthly = monthly.some((m) => m.billed || m.costs || m.received);
   const catTotal = costByCategory.reduce((s, c) => s + c.value, 0);
@@ -26,19 +26,19 @@ export function FinancialReports({ data, actions, chips }: { data: Data; actions
         <Section eyebrow="Overview" title="Financial summary">
           <KpiGrid
             items={[
-              { label: 'Billed to date', value: compact(totals.billed), sub: 'All billing records', icon: CreditCard, accent: 'bg-indigo-500' },
+              { label: `Billed ${periodText.short}`, value: compact(totals.billed), sub: `Billing dated ${periodText.short === 'to date' ? 'any time' : periodText.short}`, icon: CreditCard, accent: 'bg-indigo-500' },
               { label: 'Received', value: compact(totals.received), sub: totals.collectRate == null ? 'Nothing billed yet' : `${totals.collectRate.toFixed(0)}% of billed collected`, icon: Wallet, accent: 'bg-emerald-500' },
               { label: 'Owed to you', value: compact(totals.owed), sub: 'Billed, not yet paid', icon: Clock, accent: 'bg-amber-500' },
-              { label: 'Costs to date', value: compact(totals.costs), sub: 'All recorded expenses', icon: Receipt, accent: 'bg-orange-500' },
-              { label: 'Gross profit on billed', value: compact(totals.profit), sub: 'Billed minus costs', icon: TrendingUp, accent: 'bg-blue-600', tone: totals.profit < 0 ? 'bad' : 'good' },
-              { label: 'Avg. monthly net cash', value: compact(totals.avgMonthlyNet), sub: 'Received − costs, last 3 months', icon: Percent, accent: 'bg-rose-500', tone: totals.avgMonthlyNet < 0 ? 'bad' : 'good' },
+              { label: `Costs ${periodText.short}`, value: compact(totals.costs), sub: `Expenses dated ${periodText.short === 'to date' ? 'any time' : periodText.short}`, icon: Receipt, accent: 'bg-orange-500' },
+              { label: 'Gross profit on billed', value: compact(totals.profit), sub: `Billed minus costs, ${periodText.short}`, icon: TrendingUp, accent: 'bg-blue-600', tone: totals.profit < 0 ? 'bad' : 'good' },
+              { label: 'Avg. monthly net cash', value: compact(totals.avgMonthlyNet), sub: 'Received − costs, last 3 months of the period', icon: Percent, accent: 'bg-rose-500', tone: totals.avgMonthlyNet < 0 ? 'bad' : 'good' },
             ]}
           />
         </Section>
 
-        <Section eyebrow="Trend" title="Last 12 months" note="Billing is dated by its billing period end; costs by expense date">
+        <Section eyebrow="Trend" title={periodText.trend} note="Billing is dated by its billing period end; costs by expense date">
           {!hasMonthly ? (
-            <EmptyNote>No billing or expenses dated in the last 12 months.</EmptyNote>
+            <EmptyNote>No billing or expenses dated in this period ({periodText.label}).</EmptyNote>
           ) : (
             <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr] print:grid-cols-1">
               <Panel title="Billed, received and costs by month">
@@ -121,9 +121,9 @@ export function FinancialReports({ data, actions, chips }: { data: Data; actions
           )}
         </Section>
 
-        <Section eyebrow="Costs" title="Where the money goes" note="All recorded expenses by category" className="break-inside-avoid">
+        <Section eyebrow="Costs" title="Where the money goes" note={`Expenses by category, ${periodText.short}`} className="break-inside-avoid">
           {costByCategory.length === 0 ? (
-            <EmptyNote>No expenses recorded yet.</EmptyNote>
+            <EmptyNote>No expenses in this period.</EmptyNote>
           ) : (
             <Panel title={`${money(catTotal)} across ${costByCategory.length} categories`}>
               <div className="flex flex-col items-center gap-6 sm:flex-row">

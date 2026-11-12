@@ -1,3 +1,5 @@
+import { PageHero, heroButton } from '@/components/ui/page-hero';
+import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -66,7 +68,19 @@ export default function EsignMySignature() {
   };
 
   return (
-    <Layout title="My Signature" subtitle="Save your default name and signature for one-click signing">
+    <Layout hideTitle title="My signature">
+      <div className="mb-6">
+        <PageHero
+          eyebrow="E-Sign"
+          title="My signature"
+          subtitle="Save your name and signature once, then sign documents sent to you in one click."
+          actions={
+            <button type="button" className={heroButton} onClick={() => navigate('/esign')}>
+              <ArrowLeft className="h-4 w-4" /> E-Sign home
+            </button>
+          }
+        />
+      </div>
       <div className="max-w-2xl mx-auto space-y-4">
         <Card className="p-6 space-y-4">
           <div>
