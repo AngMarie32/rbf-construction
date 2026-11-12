@@ -1,3 +1,4 @@
+import { normalizeProjectStatus } from '@/lib/projectStatus';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
@@ -129,18 +130,19 @@ export default function ProjectSchedule() {
       const { data, error } = await supabase
         .from('projects')
         .select('id, name, status').is('archived_at', null)
-        .neq('status', 'Closed')
         .order('name');
 
       if (error) throw error;
 
-      const projectsWithColors = sortProjectsOpenFirst(data || []).map((project, index) => ({
+      // Only active jobs appear in the schedule filter (a ?project= link to another job still opens it).
+      const wanted = new URLSearchParams(window.location.search).get('project');
+      const activeOnly = (data || []).filter((p: any) => normalizeProjectStatus(p.status) === 'Active' || p.id === wanted);
+      const projectsWithColors = sortProjectsOpenFirst(activeOnly).map((project, index) => ({
         ...project,
         color: `hsl(${(index * 137.5) % 360}, 70%, 50%)`
       }));
 
       setProjects(projectsWithColors);
-      const wanted = new URLSearchParams(window.location.search).get('project');
       setSelectedProjects(wanted && projectsWithColors.some((p) => p.id === wanted) ? [wanted] : projectsWithColors.map(p => p.id));
     } catch (error) {
       console.error('Error fetching projects:', error);

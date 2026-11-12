@@ -27,8 +27,14 @@ function publish(list: string[]) {
 }
 
 async function load() {
-  const { data, error } = await supabase.from('company_settings').select('id, hidden_nav_items').limit(1).maybeSingle();
-  if (!error) publish(((data as any)?.hidden_nav_items as string[] | null) || []);
+  // There can be more than one company_settings row; read them all and use the newest list.
+  const { data, error } = await supabase.from('company_settings').select('*');
+  if (error || !data) return;
+  const rows = (data as any[])
+    .filter((r) => Array.isArray(r.hidden_nav_items))
+    .sort((a, b) => String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || '')));
+  const withList = rows[0];
+  if (withList) publish(withList.hidden_nav_items);
 }
 
 /** Menu pages an admin has hidden for the whole company (stored on company_settings). */
@@ -49,15 +55,25 @@ export function useHiddenNav() {
 /** Saves the hidden list. Throws a plain-language error if the database update hasn't been run. */
 export async function saveHiddenNav(list: string[]) {
   const clean = list.filter((h) => !LOCKED_NAV.includes(h));
-  const { data: row } = await supabase.from('company_settings').select('id').limit(1).maybeSingle();
-  const { error } = row
-    ? await supabase.from('company_settings').update({ hidden_nav_items: clean } as any).eq('id', row.id)
-    : await supabase.from('company_settings').insert({ hidden_nav_items: clean } as any);
-  if (error) {
-    if (/hidden_nav_items|schema cache|column/i.test(error.message)) {
-      throw new Error('The database needs the "menu visibility" update before this can be saved.');
-    }
-    throw error;
+  const { data: rows, error: readErr } = await supabase.from('company_settings').select('id');
+  if (readErr) throw readErr;
+  const explain = (msg: string) =>
+    /hidden_nav_items|schema cache|column/i.test(msg) ? new Error('The database needs the "menu visibility" update before this can be saved.') : new Error(msg);
+  let saved: any[] | null = null;
+  if (rows && rows.length) {
+    // Write to every settings row so whichever one a page reads has the same list.
+    const { data, error } = await supabase
+      .from('company_settings')
+      .update({ hidden_nav_items: clean, updated_at: new Date().toISOString() } as any)
+      .in('id', rows.map((r: any) => r.id))
+      .select('id, hidden_nav_items');
+    if (error) throw explain(error.message);
+    saved = data;
+  } else {
+    const { data, error } = await supabase.from('company_settings').insert({ company_name: 'RBF Construction', hidden_nav_items: clean } as any).select('id, hidden_nav_items');
+    if (error) throw explain(error.message);
+    saved = data;
   }
+  if (!saved || !saved.length) throw new Error("The menu wasn't saved. Your account may not have permission to change company settings.");
   publish(clean);
 }
