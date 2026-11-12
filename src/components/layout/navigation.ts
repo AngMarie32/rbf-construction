@@ -50,7 +50,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { name: 'Documents', href: '/documents', icon: FileText },
       { name: 'Payment Applications', href: '/payment-applications', icon: FileCheck2 },
-      { name: 'Permits', href: '/permits', icon: BadgeCheck },
+      { name: 'Permits & Bonds', href: '/permits', icon: BadgeCheck },
       { name: 'Project Schedule', href: '/project-schedule', icon: CalendarRange },
       { name: 'Punch List', href: '/punch-list', icon: ListChecks },
       { name: 'Subcontractors', href: '/subcontractors', icon: Users },

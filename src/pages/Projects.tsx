@@ -262,14 +262,14 @@ export default function Projects() {
 
   if (showReports) {
     return (
-      <Layout title="Report Snapshot" subtitle="Project reports">
+      <Layout hideTitle title="Report Snapshot">
         <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={() => setShowReports(false)}>
-              Back to Projects
-            </Button>
-          </div>
           <ProfessionalProjectReport
+            toolbarStart={
+              <Button variant="outline" onClick={() => setShowReports(false)}>
+                Back to Projects
+              </Button>
+            }
             projects={filteredProjects.map(p => ({
               id: p.id,
               name: p.name,

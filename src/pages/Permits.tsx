@@ -1,8 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { Plus, FileCheck, Clock, AlertTriangle, CheckCircle, CalendarCheck, Edit, Trash2, ClipboardCheck } from 'lucide-react';
+import { Plus, FileCheck, Clock, AlertTriangle, CheckCircle, CalendarCheck, Edit, Trash2, ClipboardCheck, ShieldCheck } from 'lucide-react';
+import { PageHero, heroButtonPrimary } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BondsPanel } from '@/components/permits/BondsPanel';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Layout } from '@/components/layout/Layout';
+
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,9 +44,12 @@ const statusTone: Record<string, 'success' | 'info' | 'warning' | 'destructive' 
 const fmt = (d: string) => format(new Date(`${d}T00:00:00`), 'MMM d, yyyy');
 
 export default function Permits() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setTabParams] = useSearchParams();
+  const [tab, setTab] = useState(searchParams.get('tab') === 'bonds' ? 'bonds' : 'permits');
+  const [addBond, setAddBond] = useState(0);
+  const [confirmDelete, setConfirmDelete] = useState<Permit | null>(null);
   const [permits, setPermits] = useState<Permit[]>([]);
-  const [projects, setProjects] = useState<{ id: string; name: string; status?: string | null }[]>([]);
+  const [projects, setProjects] = useState<{ id: string; name: string; status?: string | null; contract_value?: number | null; client?: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [projectFilter, setProjectFilter] = useState(searchParams.get('project') || 'all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -46,7 +64,7 @@ export default function Permits() {
         .from('permits')
         .select('*, projects(name), permit_inspections(*)')
         .order('created_at', { ascending: false }),
-      supabase.from('projects').select('id, name, status').is('archived_at', null),
+      supabase.from('projects').select('id, name, status, contract_value, client').is('archived_at', null),
     ]);
     if (error) {
       console.error(error);
@@ -96,7 +114,6 @@ export default function Permits() {
   ];
 
   const remove = async (p: Permit) => {
-    if (!confirm(`Delete the ${p.permit_type} permit${p.permit_number ? ` #${p.permit_number}` : ''} and its inspections?`)) return;
     const { error } = await (supabase as any).from('permits').delete().eq('id', p.id);
     if (error) return toast.error('Could not delete the permit.');
     toast.success('Permit deleted.');
@@ -178,7 +195,7 @@ export default function Permits() {
           <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit" onClick={() => { setEditing(p); setFormOpen(true); }}>
             <Edit className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Delete" onClick={() => remove(p)}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Delete" onClick={() => setConfirmDelete(p)}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -194,21 +211,62 @@ export default function Permits() {
   const inspecting = permits.find((p) => p.id === inspectingId) || null;
 
   return (
-    <Layout
-      title="Permits"
-      subtitle="Permit numbers, inspections and expiry dates for every job"
-      actions={<Button onClick={openNew}><Plus className="h-4 w-4" /> Add permit</Button>}
-    >
+    <Layout hideTitle title="Permits & Bonds">
       <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {stats.map((s) => (
-            <Card key={s.label} className="p-5">
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>{s.label}</span>
-                <s.icon className="h-4 w-4" />
-              </div>
-              <div className={cn('mt-2 text-2xl font-bold tabular-nums', s.tone)}>{s.value}</div>
-            </Card>
+        <PageHero
+          eyebrow="Project management"
+          title="Permits & Bonds"
+          subtitle="Permit numbers, inspections and expiry dates, plus surety bonds and how much bonding capacity is left."
+          actions={
+            <button
+              type="button"
+              className={heroButtonPrimary}
+              onClick={() => (tab === 'bonds' ? setAddBond((n) => n + 1) : openNew())}
+            >
+              <Plus className="h-4 w-4" /> {tab === 'bonds' ? 'Add bond' : 'Add permit'}
+            </button>
+          }
+          stats={[
+            { label: 'Permits issued', value: loading ? '…' : `${permits.filter((p) => p.status === 'Issued').length}/${permits.length}` },
+            { label: 'Inspections this week', value: loading ? '…' : upcoming.length },
+          ]}
+        />
+
+        <Tabs
+          value={tab}
+          onValueChange={(v) => {
+            setTab(v);
+            const next = new URLSearchParams(window.location.search);
+            if (v === 'bonds') next.set('tab', 'bonds');
+            else next.delete('tab');
+            setTabParams(next, { replace: true });
+          }}
+        >
+          <TabsList>
+            <TabsTrigger value="permits" className="gap-2">
+              <FileCheck className="h-4 w-4" /> Permits
+            </TabsTrigger>
+            <TabsTrigger value="bonds" className="gap-2">
+              <ShieldCheck className="h-4 w-4" /> Bonds
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="bonds" className="mt-6">
+            <BondsPanel projects={projects} projectFilter={projectFilter} onProjectFilter={setProjectFilter} addSignal={addBond} />
+          </TabsContent>
+
+          <TabsContent value="permits" className="mt-6 space-y-6">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {stats.map((s, i) => (
+            <AccentStat
+              key={s.label}
+              label={s.label}
+              value={s.value}
+              icon={s.icon}
+              loading={loading}
+              accent={(['blue', 'emerald', 'indigo', 'amber'] as const)[i]}
+              tone={i === 3 && Number(s.value) > 0 ? 'warn' : undefined}
+            />
           ))}
         </div>
 
@@ -285,7 +343,32 @@ export default function Permits() {
             />
           }
         />
+          </TabsContent>
+        </Tabs>
       </div>
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this permit?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The {confirmDelete?.permit_type} permit{confirmDelete?.permit_number ? ` #${confirmDelete.permit_number}` : ''} and its inspections will be removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (confirmDelete) remove(confirmDelete);
+                setConfirmDelete(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <PermitFormDialog
         open={formOpen}
