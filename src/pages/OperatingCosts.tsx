@@ -18,7 +18,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Layers, CalendarDays, Receipt } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { PageHero, heroButton, heroButtonPrimary } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
+import { cn } from '@/lib/utils';
 import {
   FREQUENCIES,
   OverheadFrequency,
@@ -68,6 +85,17 @@ const money = (n: number) =>
     maximumFractionDigits: 2,
   });
 
+const money0 = (n: number) => (Number(n) || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+const CAT_COLORS = ['#2563eb', '#f97316', '#10b981', '#6366f1', '#f59e0b', '#e11d48', '#06b6d4', '#8b5cf6', '#84cc16', '#ec4899', '#64748b'];
+const catColor = (c: string) => {
+  const i = CATEGORIES.indexOf(c);
+  if (i >= 0) return CAT_COLORS[i % CAT_COLORS.length];
+  let h = 0;
+  for (const ch of c) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return CAT_COLORS[h % CAT_COLORS.length];
+};
+
 const emptyForm = {
   id: '' as string,
   company_id: '' as string,
@@ -90,6 +118,9 @@ export default function OperatingCosts() {
   const [lookback, setLookback] = useState('180');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
+  const [catFilter, setCatFilter] = useState('all');
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [confirmDelete, setConfirmDelete] = useState<OverheadItem | null>(null);
 
   const load = useCallback(async () => {
     if (selectedIds.length === 0) {
@@ -239,42 +270,137 @@ export default function OperatingCosts() {
     load();
   };
 
-  const RateCards = ({ rate, label }: { rate: RunRate; label: string }) => (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {([
-        ['Per day', rate.daily],
-        ['Per week', rate.weekly],
-        ['Per month', rate.monthly],
-        ['Per year', rate.yearly],
-      ] as [string, number][]).map(([k, v]) => (
-        <Card key={k} className="p-4">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">{k}</p>
-          <p className="text-2xl font-semibold mt-1">{money(v)}</p>
-          <p className="text-xs text-muted-foreground mt-1">{label}</p>
-        </Card>
-      ))}
-    </div>
+  const toggleActive = async (item: OverheadItem) => {
+    const { error } = await supabase.from('overhead_items').update({ is_active: !item.is_active }).eq('id', item.id);
+    if (error) return toast.error(error.message);
+    setItems((list) => list.map((i) => (i.id === item.id ? { ...i, is_active: !i.is_active } : i)));
+    toast.success(item.is_active ? `Paused "${item.name}"` : `"${item.name}" is active again`);
+  };
+
+  const visibleItems = items.filter(
+    (i) => (catFilter === 'all' || i.category === catFilter) && (activeFilter === 'all' || (activeFilter === 'active' ? i.is_active : !i.is_active))
   );
+  const overheadShare = combined.total.monthly > 0 ? (combined.overhead.monthly / combined.total.monthly) * 100 : 0;
+  const catTotal = byCategory.reduce((s, c) => s + c.monthly, 0);
+  const pausedMonthly = items.filter((i) => !i.is_active).reduce((s, i) => s + runRateFromDaily(toDaily(Number(i.amount), i.frequency)).monthly, 0);
+
+  const columns: DataTableColumn<OverheadItem>[] = [
+    {
+      id: 'name',
+      header: 'Cost',
+      value: (i) => i.name,
+      cell: (i) => (
+        <div className="min-w-0">
+          <p className={cn('font-medium', !i.is_active && 'text-muted-foreground line-through decoration-muted-foreground/50')}>{i.name}</p>
+          {i.notes && <p className="max-w-xs truncate text-xs text-muted-foreground">{i.notes.replace(/\[batch:[^\]]+\]/g, '').trim()}</p>}
+        </div>
+      ),
+    },
+    ...(selectedIds.length > 1
+      ? [{ id: 'company', header: 'Company', value: (i: OverheadItem) => companies.find((c) => c.id === i.company_id)?.name || '', cell: (i: OverheadItem) => companies.find((c) => c.id === i.company_id)?.name || '—' }]
+      : []),
+    {
+      id: 'category',
+      header: 'Category',
+      value: (i) => i.category,
+      cell: (i) => (
+        <span className="inline-flex items-center gap-1.5 text-sm">
+          <span className="h-2 w-2 rounded-full" style={{ background: catColor(i.category) }} />
+          {i.category}
+        </span>
+      ),
+    },
+    {
+      id: 'amount',
+      header: 'Amount',
+      align: 'right',
+      value: (i) => Number(i.amount) || 0,
+      cell: (i) => (
+        <div className="text-right">
+          <p className="tabular-nums">{money(Number(i.amount))}</p>
+          <p className="text-xs text-muted-foreground">{FREQUENCIES.find((f) => f.value === i.frequency)?.label}</p>
+        </div>
+      ),
+    },
+    { id: 'monthly', header: 'Monthly', align: 'right', value: (i) => runRateFromDaily(toDaily(Number(i.amount), i.frequency)).monthly, cell: (i) => <span className="font-semibold tabular-nums">{money(runRateFromDaily(toDaily(Number(i.amount), i.frequency)).monthly)}</span> },
+    { id: 'yearly', header: 'Yearly', align: 'right', value: (i) => runRateFromDaily(toDaily(Number(i.amount), i.frequency)).yearly, cell: (i) => <span className="tabular-nums text-muted-foreground">{money(runRateFromDaily(toDaily(Number(i.amount), i.frequency)).yearly)}</span> },
+    {
+      id: 'active',
+      header: 'Active',
+      value: (i) => (i.is_active ? 'Active' : 'Paused'),
+      cell: (i) => (
+        <div onClick={(e) => e.stopPropagation()}>
+          <Switch checked={i.is_active} onCheckedChange={() => toggleActive(i)} aria-label={i.is_active ? 'Pause' : 'Resume'} />
+        </div>
+      ),
+    },
+    {
+      id: 'actions',
+      header: '',
+      align: 'right',
+      noExport: true,
+      cell: (i) => (
+        <div className="flex justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit" onClick={() => openEdit(i)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Delete" onClick={() => setConfirmDelete(i)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <Layout title="Operating Costs">
+    <Layout hideTitle title="Operating Costs">
       <div className="space-y-6">
-        <div className="flex flex-wrap items-end gap-4 justify-between">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">View</Label>
-              <Select value={view} onValueChange={(v) => setView(v as any)}>
-                <SelectTrigger className="w-[190px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="combined">Combined total</SelectItem>
-                  <SelectItem value="per_company">Separate by company</SelectItem>
-                </SelectContent>
-              </Select>
+        <PageHero
+          eyebrow="Portfolio"
+          title="Operating Costs"
+          subtitle="What it costs to keep the doors open: fixed overhead plus average job spending, as a daily, weekly, monthly and yearly run rate."
+          actions={
+            <>
+              <button type="button" className={heroButtonPrimary} onClick={openNew}>
+                <Plus className="h-4 w-4" /> Add cost
+              </button>
+              <button type="button" className={heroButton} onClick={openAllIn}>
+                <Layers className="h-4 w-4" /> One all-in number
+              </button>
+            </>
+          }
+          stats={[
+            { label: 'Per month', value: loading ? '…' : money0(combined.total.monthly) },
+            { label: 'Per year', value: loading ? '…' : money0(combined.total.yearly) },
+          ]}
+        />
+
+        {/* Controls */}
+        <Card className="flex flex-wrap items-end gap-4 p-4">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">View</Label>
+            <div className="flex rounded-lg bg-muted p-1 text-sm">
+              {(['combined', 'per_company'] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setView(v)}
+                  className={cn('rounded-md px-3 py-1.5 font-medium transition-colors', view === v ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground')}
+                >
+                  {v === 'combined' ? 'Combined' : 'By company'}
+                </button>
+              ))}
             </div>
+          </div>
+          <div className="flex items-center gap-2 pb-2">
+            <Switch checked={includeSpend} onCheckedChange={setIncludeSpend} id="inc" />
+            <Label htmlFor="inc" className="text-sm">
+              Include job spending
+            </Label>
+          </div>
+          {includeSpend && (
             <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Recorded spending window</Label>
+              <Label className="text-xs text-muted-foreground">Average job spending over</Label>
               <Select value={lookback} onValueChange={setLookback}>
                 <SelectTrigger className="w-[170px]">
                   <SelectValue />
@@ -288,296 +414,297 @@ export default function OperatingCosts() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2 pb-2">
-              <Switch checked={includeSpend} onCheckedChange={setIncludeSpend} id="inc" />
-              <Label htmlFor="inc" className="text-sm">
-                Include recorded job spending
-              </Label>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={openAllIn}>
-              <Plus className="w-4 h-4 mr-2" />
-              All-in overhead
-            </Button>
-            <Button onClick={openNew}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add cost
-            </Button>
-          </div>
+          )}
+        </Card>
+
+        {/* Run rate */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <AccentStat label="Per day" value={money0(combined.total.daily)} icon={CalendarDays} accent="blue" loading={loading} hint={includeSpend ? 'Overhead + job spending' : 'Overhead only'} />
+          <AccentStat label="Per week" value={money0(combined.total.weekly)} accent="indigo" loading={loading} hint="7 days" />
+          <AccentStat label="Per month" value={money0(combined.total.monthly)} accent="orange" loading={loading} hint="Average month" />
+          <AccentStat label="Per year" value={money0(combined.total.yearly)} accent="emerald" loading={loading} hint={pausedMonthly ? `${money0(pausedMonthly)}/mo paused, not counted` : '365 days'} />
         </div>
 
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : (
-          <>
-            {view === 'combined' ? (
-              <div className="space-y-4">
-                <RateCards
-                  rate={combined.total}
-                  label={includeSpend ? 'overhead + job spending' : 'overhead only'}
+        {view === 'combined' ? (
+          <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+            {/* Split fixed vs job */}
+            <Card className="p-5">
+              <p className="font-semibold">Where the run rate comes from</p>
+              <p className="text-xs text-muted-foreground">Per month</p>
+              <div className="mt-4 flex h-3 overflow-hidden rounded-full bg-muted">
+                <div className="h-full bg-indigo-500" style={{ width: `${overheadShare}%` }} />
+                <div className="h-full bg-orange-500" style={{ width: `${includeSpend ? 100 - overheadShare : 0}%` }} />
+              </div>
+              <div className="mt-4 space-y-3">
+                <SplitRow color="bg-indigo-500" label="Fixed overhead" hint={`${items.filter((i) => i.is_active).length} active costs`} rate={combined.overhead} />
+                <SplitRow
+                  color="bg-orange-500"
+                  label="Job spending (averaged)"
+                  hint={includeSpend ? `Expenses on jobs, ${LOOKBACKS.find((l) => l.value === lookback)?.label.toLowerCase()}` : 'Turned off'}
+                  rate={combined.recorded}
+                  muted={!includeSpend}
                 />
-                <div className="grid md:grid-cols-2 gap-4">
-                  <Card className="p-4">
-                    <p className="text-sm font-medium">Fixed overhead</p>
-                    <p className="text-xl font-semibold mt-1">{money(combined.overhead.monthly)}/mo</p>
-                    <p className="text-xs text-muted-foreground">
-                      {money(combined.overhead.daily)}/day · {money(combined.overhead.yearly)}/yr
-                    </p>
-                  </Card>
-                  <Card className="p-4">
-                    <p className="text-sm font-medium">Recorded job spending (averaged)</p>
-                    <p className="text-xl font-semibold mt-1">{money(combined.recorded.monthly)}/mo</p>
-                    <p className="text-xs text-muted-foreground">
-                      {money(combined.recorded.daily)}/day · {money(combined.recorded.yearly)}/yr
-                    </p>
-                  </Card>
-                </div>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {perCompany.map((r) => (
-                  <Card key={r.company.id} className="p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="font-semibold">{r.company.name}</p>
-                      <Badge variant="secondary">{r.items.length} cost items</Badge>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Per day</p>
-                        <p className="font-semibold">{money(r.total.daily)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Per week</p>
-                        <p className="font-semibold">{money(r.total.weekly)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Per month</p>
-                        <p className="font-semibold">{money(r.total.monthly)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Per year</p>
-                        <p className="font-semibold">{money(r.total.yearly)}</p>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Overhead {money(r.overhead.monthly)}/mo · Job spending{' '}
-                      {money(r.recorded.monthly)}/mo
-                    </p>
-                  </Card>
-                ))}
-                {perCompany.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No companies selected.</p>
-                )}
-              </div>
-            )}
+            </Card>
 
-            {byCategory.length > 0 && (
-              <Card className="p-4">
-                <p className="font-semibold mb-3">Overhead by category</p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-xs uppercase text-muted-foreground">
-                        <th className="py-2">Category</th>
-                        <th className="py-2 text-right">Day</th>
-                        <th className="py-2 text-right">Week</th>
-                        <th className="py-2 text-right">Month</th>
-                        <th className="py-2 text-right">Year</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {byCategory.map((c) => (
-                        <tr key={c.label} className="border-t border-border">
-                          <td className="py-2">{c.label}</td>
-                          <td className="py-2 text-right">{money(c.daily)}</td>
-                          <td className="py-2 text-right">{money(c.weekly)}</td>
-                          <td className="py-2 text-right">{money(c.monthly)}</td>
-                          <td className="py-2 text-right">{money(c.yearly)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            {/* Categories */}
+            <Card className="p-5">
+              <p className="font-semibold">Overhead by category</p>
+              <p className="text-xs text-muted-foreground">Active costs, per month</p>
+              {byCategory.length ? (
+                <div className="mt-4 grid items-center gap-4 sm:grid-cols-[160px_1fr]">
+                  <div className="h-40">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={byCategory} dataKey="monthly" nameKey="label" innerRadius={45} outerRadius={70} paddingAngle={2} isAnimationActive={false}>
+                          {byCategory.map((c) => (
+                            <Cell key={c.label} fill={catColor(c.label)} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(v: number) => money(v)} contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="space-y-2">
+                    {byCategory.map((c) => (
+                      <button
+                        key={c.label}
+                        type="button"
+                        onClick={() => setCatFilter(catFilter === c.label ? 'all' : c.label)}
+                        className={cn('block w-full rounded-md px-2 py-1 text-left text-sm hover:bg-muted', catFilter === c.label && 'bg-muted')}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-2">
+                            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: catColor(c.label) }} />
+                            {c.label}
+                          </span>
+                          <span className="tabular-nums">
+                            {money0(c.monthly)} <span className="text-xs text-muted-foreground">{catTotal ? `${((c.monthly / catTotal) * 100).toFixed(0)}%` : ''}</span>
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </Card>
-            )}
-
-            <Card className="p-4">
-              <p className="font-semibold mb-3">Recurring overhead items</p>
-              {items.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Nothing yet — add rent, insurance, payroll, software and other fixed costs.
-                </p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-xs uppercase text-muted-foreground">
-                        <th className="py-2">Name</th>
-                        <th className="py-2">Company</th>
-                        <th className="py-2">Category</th>
-                        <th className="py-2 text-right">Amount</th>
-                        <th className="py-2">Frequency</th>
-                        <th className="py-2 text-right">Monthly</th>
-                        <th className="py-2 text-right">Yearly</th>
-                        <th className="py-2" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((i) => {
-                        const rate = runRateFromDaily(toDaily(Number(i.amount), i.frequency));
-                        return (
-                          <tr key={i.id} className="border-t border-border">
-                            <td className="py-2">
-                              {i.name}
-                              {!i.is_active && (
-                                <Badge variant="secondary" className="ml-2">
-                                  Paused
-                                </Badge>
-                              )}
-                            </td>
-                            <td className="py-2 text-muted-foreground">
-                              {companies.find((c) => c.id === i.company_id)?.name || '—'}
-                            </td>
-                            <td className="py-2 text-muted-foreground">{i.category}</td>
-                            <td className="py-2 text-right">{money(Number(i.amount))}</td>
-                            <td className="py-2 text-muted-foreground">
-                              {FREQUENCIES.find((f) => f.value === i.frequency)?.label}
-                            </td>
-                            <td className="py-2 text-right">{money(rate.monthly)}</td>
-                            <td className="py-2 text-right">{money(rate.yearly)}</td>
-                            <td className="py-2 text-right whitespace-nowrap">
-                              <Button variant="ghost" size="sm" onClick={() => openEdit(i)}>
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => remove(i.id)}>
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <p className="mt-6 text-sm text-muted-foreground">Add recurring costs to see the breakdown.</p>
               )}
             </Card>
-          </>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {perCompany.map((r) => (
+              <Card key={r.company.id} className="p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold">{r.company.name}</p>
+                  <Badge variant="secondary">{r.items.length} costs</Badge>
+                </div>
+                <p className="mt-3 font-display text-2xl font-bold tabular-nums">
+                  {money0(r.total.monthly)}
+                  <span className="text-sm font-normal text-muted-foreground"> / month</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {money0(r.total.daily)}/day · {money0(r.total.yearly)}/yr
+                </p>
+                <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full bg-indigo-500" style={{ width: `${r.total.monthly ? (r.overhead.monthly / r.total.monthly) * 100 : 0}%` }} />
+                  <div className="h-full bg-orange-500" style={{ width: `${r.total.monthly ? (r.recorded.monthly / r.total.monthly) * 100 : 0}%` }} />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Overhead {money0(r.overhead.monthly)}/mo · Job spending {money0(r.recorded.monthly)}/mo
+                </p>
+              </Card>
+            ))}
+            {perCompany.length === 0 && <p className="text-sm text-muted-foreground">No companies selected.</p>}
+          </div>
         )}
 
-        {showForm && (
-          <Card className="p-4 space-y-4">
-            <p className="font-semibold">
-              {form.allIn ? 'All-in overhead' : form.id ? 'Edit cost' : 'New recurring cost'}
-            </p>
-            {form.allIn && (
-              <p className="text-sm text-muted-foreground">
-                One total number for all your overhead — no itemized breakdown. It saves as a
-                single recurring cost you can edit later.
-              </p>
-            )}
-            <div className="grid md:grid-cols-3 gap-4">
-              {!form.allIn && (
-                <div className="space-y-1">
-                  <Label>Name</Label>
-                  <Input
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Office rent"
-                  />
-                </div>
-              )}
-              <div className="space-y-1">
-                <Label>Company</Label>
-                <Select
-                  value={form.company_id}
-                  onValueChange={(v) => setForm({ ...form, company_id: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select" />
+        <div>
+          <h2 className="mb-3 font-semibold">Recurring costs</h2>
+          <DataTable
+            columns={columns}
+            rows={visibleItems}
+            totalCount={items.length}
+            getRowId={(i) => i.id}
+            loading={loading}
+            searchPlaceholder="Search costs…"
+            exportFilename="operating-costs"
+            initialSort={{ id: 'monthly', desc: true }}
+            onRowClick={openEdit}
+            filters={
+              <>
+                <Select value={catFilter} onValueChange={setCatFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="All categories" />
                   </SelectTrigger>
                   <SelectContent>
-                    {companies.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
+                    <SelectItem value="all">All categories</SelectItem>
+                    {[...new Set([...CATEGORIES, ...items.map((i) => i.category)])].map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              {!form.allIn && (
-                <div className="space-y-1">
-                  <Label>Category</Label>
-                  <Select
-                    value={form.category}
-                    onValueChange={(v) => setForm({ ...form, category: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              <div className="space-y-1">
-                <Label>{form.allIn ? 'Total overhead amount' : 'Amount'}</Label>
-                <Input
-                  type="number"
-                  step="0.001"
-                  value={form.amount}
-                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>How often</Label>
-                <Select
-                  value={form.frequency}
-                  onValueChange={(v) => setForm({ ...form, frequency: v as OverheadFrequency })}
-                >
-                  <SelectTrigger>
+                <Select value={activeFilter} onValueChange={setActiveFilter}>
+                  <SelectTrigger className="w-44">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {FREQUENCIES.map((f) => (
-                      <SelectItem key={f.value} value={f.value}>
-                        {f.label}
+                    <SelectItem value="all">Active & paused</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="paused">Paused</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            }
+            empty={
+              <EmptyState
+                icon={Receipt}
+                title="No recurring costs yet"
+                description="Add rent, insurance, payroll, vehicles, software and other fixed costs, or enter one all-in overhead number."
+                action={{ label: 'Add cost', onClick: openNew, icon: Plus }}
+                secondaryAction={{ label: 'One all-in number', onClick: openAllIn }}
+              />
+            }
+          />
+        </div>
+      </div>
+
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{form.allIn ? 'All-in overhead' : form.id ? 'Edit cost' : 'New recurring cost'}</DialogTitle>
+            <DialogDescription>
+              {form.allIn
+                ? 'One total number for all your overhead, with no itemized breakdown. It saves as a single recurring cost you can edit later.'
+                : 'A fixed cost that repeats, like rent, insurance or a software subscription.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {!form.allIn && (
+              <div className="sm:col-span-2">
+                <Label>Name *</Label>
+                <Input className="mt-1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Office rent" />
+              </div>
+            )}
+            <div>
+              <Label>Company</Label>
+              <Select value={form.company_id} onValueChange={(v) => setForm({ ...form, company_id: v })}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {!form.allIn && (
+              <div>
+                <Label>Category</Label>
+                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-2 pt-6">
-                <Switch
-                  id="active"
-                  checked={form.is_active}
-                  onCheckedChange={(v) => setForm({ ...form, is_active: v })}
-                />
-                <Label htmlFor="active">Active</Label>
-              </div>
+            )}
+            <div>
+              <Label>{form.allIn ? 'Total overhead amount' : 'Amount'}</Label>
+              <Input className="mt-1" type="number" inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
             </div>
-            <div className="space-y-1">
+            <div>
+              <Label>How often</Label>
+              <Select value={form.frequency} onValueChange={(v) => setForm({ ...form, frequency: v as OverheadFrequency })}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FREQUENCIES.map((f) => (
+                    <SelectItem key={f.value} value={f.value}>
+                      {f.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {Number(form.amount) > 0 && (
+              <p className="text-sm text-muted-foreground sm:col-span-2">
+                = <span className="font-semibold text-foreground">{money(runRateFromDaily(toDaily(Number(form.amount), form.frequency)).monthly)}</span> per month ·{' '}
+                {money(runRateFromDaily(toDaily(Number(form.amount), form.frequency)).yearly)} per year
+              </p>
+            )}
+            <div className="flex items-center gap-2 sm:col-span-2">
+              <Switch id="active" checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
+              <Label htmlFor="active">Active (counts toward the run rate)</Label>
+            </div>
+            <div className="sm:col-span-2">
               <Label>Notes</Label>
-              <Textarea
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                rows={2}
-              />
+              <Textarea className="mt-1" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
             </div>
-            <div className="flex gap-2">
-              <Button onClick={save}>Save</Button>
-              <Button variant="outline" onClick={() => setShowForm(false)}>
-                Cancel
-              </Button>
-            </div>
-          </Card>
-        )}
-      </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowForm(false)}>
+              Cancel
+            </Button>
+            <Button onClick={save}>{form.id ? 'Save changes' : 'Add cost'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this cost?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{confirmDelete?.name}" will be removed from your operating costs. To stop counting it but keep it on file, pause it instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (confirmDelete) remove(confirmDelete.id);
+                setConfirmDelete(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
+  );
+}
+
+function SplitRow({ color, label, hint, rate, muted }: { color: string; label: string; hint: string; rate: RunRate; muted?: boolean }) {
+  return (
+    <div className={cn('flex items-start justify-between gap-3', muted && 'opacity-50')}>
+      <div className="flex items-start gap-2">
+        <span className={cn('mt-1.5 h-2.5 w-2.5 shrink-0 rounded-sm', color)} />
+        <div>
+          <p className="text-sm font-medium">{label}</p>
+          <p className="text-xs text-muted-foreground">{hint}</p>
+        </div>
+      </div>
+      <div className="text-right">
+        <p className="font-semibold tabular-nums">{money0(rate.monthly)}/mo</p>
+        <p className="text-xs text-muted-foreground">
+          {money0(rate.daily)}/day · {money0(rate.yearly)}/yr
+        </p>
+      </div>
+    </div>
   );
 }
