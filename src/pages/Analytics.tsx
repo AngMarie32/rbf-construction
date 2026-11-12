@@ -21,6 +21,7 @@ import { normalizeProjectStatus } from '@/lib/projectStatus';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { exportToCSV, exportToExcel, exportToPDF, type ExportData } from '@/utils/reportExports';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAll } from '@/lib/fetchAll';
 import { cn } from '@/lib/utils';
 
 type Tab = 'overview' | 'snapshot' | 'project' | 'financial' | 'labor' | 'builder';
@@ -108,10 +109,11 @@ export default function Analytics() {
       try {
         const [p, e, b, c, t] = await Promise.all([
           supabase.from('projects').select('*').is('archived_at', null),
-          supabase.from('expenses').select('*'),
-          supabase.from('project_billing').select('*'),
-          supabase.from('change_orders').select('*'),
-          supabase.from('time_entries').select('project_id, work_date, employee_name, trade, regular_hours, overtime_hours, hourly_rate, ot_multiplier, burden_percent, total_cost'),
+          // All rows: a plain select stops at 1,000 and undercounts every total.
+          fetchAll('expenses', '*').then((data) => ({ data: data.filter((x: any) => x.status !== 'Rejected') })),
+          fetchAll('project_billing', '*').then((data) => ({ data })),
+          fetchAll('change_orders', '*').then((data) => ({ data })),
+          fetchAll('time_entries', 'id, project_id, work_date, employee_name, trade, regular_hours, overtime_hours, hourly_rate, ot_multiplier, burden_percent, total_cost').then((data) => ({ data })),
         ]);
         if (p.error) throw p.error;
         setRaw({

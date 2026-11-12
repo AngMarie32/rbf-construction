@@ -17,6 +17,7 @@ import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { ProfessionalProjectReport } from '@/components/reports/ProfessionalProjectReport';
 import { toast } from 'sonner';
+import { fetchAll } from '@/lib/fetchAll';
 import { PageHero, heroButton } from '@/components/ui/page-hero';
 import { AccentStat } from '@/components/ui/accent-stat';
 import { Briefcase, CircleDollarSign, Landmark, AlertTriangle } from 'lucide-react';
@@ -69,6 +70,7 @@ export default function Projects() {
   const [entries, setEntries] = useState<{
     expenses: { project_id: string; amount: number; date: string | null }[];
     billing: { project_id: string; billed: number; paid: number; date: string | null }[];
+    changeOrders?: { project_id: string; amount: number; status: string | null; date: string | null }[];
   }>();
 
   const fieldLeaders = useMemo(() => {
@@ -127,16 +129,18 @@ export default function Projects() {
 
   const fetchFinancialData = async () => {
     try {
-      const { data: expensesData } = await supabase
-        .from('expenses')
-        .select('project_id, amount, date');
-
-      const { data: billingData } = await supabase
-        .from('project_billing')
-        .select('project_id, billed_amount, paid_amount, invoice_date, billing_period_end');
+      // Every row, not just the first 1,000 the API returns per request.
+      const [allExpenses, billingData, coData] = await Promise.all([
+        fetchAll<any>('expenses', 'id, project_id, amount, date, status'),
+        fetchAll<any>('project_billing', 'id, project_id, billed_amount, paid_amount, invoice_date, billing_period_end'),
+        fetchAll<any>('change_orders', 'id, project_id, amount, status, date').catch(() => [] as any[]),
+      ]);
+      // Rejected expenses aren't costs.
+      const expensesData = allExpenses.filter((e: any) => e.status !== 'Rejected');
 
       setEntries({
-        expenses: (expensesData || []).map((e: any) => ({ project_id: e.project_id, amount: Number(e.amount) || 0, date: e.date })),
+        expenses: expensesData.map((e: any) => ({ project_id: e.project_id, amount: Number(e.amount) || 0, date: e.date })),
+        changeOrders: coData.map((c: any) => ({ project_id: c.project_id, amount: Number(c.amount) || 0, status: c.status, date: c.date })),
         billing: (billingData || []).map((b: any) => ({
           project_id: b.project_id,
           billed: Number(b.billed_amount) || 0,

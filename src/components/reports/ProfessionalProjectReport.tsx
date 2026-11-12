@@ -52,6 +52,7 @@ interface Props {
   entries?: {
     expenses: { project_id: string; amount: number; date: string | null }[];
     billing: { project_id: string; billed: number; paid: number; date: string | null }[];
+    changeOrders?: { project_id: string; amount: number; status: string | null; date: string | null }[];
   };
 }
 
@@ -98,25 +99,39 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
   const range = useMemo(() => periodRange(period, custom), [period, custom]);
   const inRange = (d: Date | null) => !d || ((!range.from || d >= range.from) && (!range.to || d <= range.to));
 
-  // Billing and costs inside the period (falls back to lifetime totals when dated rows aren't supplied).
+  // Lifetime totals (match the project page) plus the slice dated inside the period.
   const sums = useMemo(() => {
-    if (!entries || (!range.from && !range.to)) return { costs: totalExpenses, billed: totalBilled, received: totalReceived, active: null as Set<string> | null };
-    const costs: Record<string, number> = {};
-    const billed: Record<string, number> = {};
-    const received: Record<string, number> = {};
+    const add = (m: Record<string, number>, k: string, v: number) => (m[k] = (m[k] || 0) + (Number(v) || 0));
+    const life = { costs: {} as Record<string, number>, billed: {} as Record<string, number>, received: {} as Record<string, number> };
+    const per = { costs: {} as Record<string, number>, billed: {} as Record<string, number>, received: {} as Record<string, number> };
+    const approvedCO: Record<string, number> = {};
     const active = new Set<string>();
+    const hasPeriod = !!(range.from || range.to);
+    if (!entries) {
+      return { life: { costs: totalExpenses, billed: totalBilled, received: totalReceived }, per: { costs: totalExpenses, billed: totalBilled, received: totalReceived }, approvedCO, active: null as Set<string> | null };
+    }
     entries.expenses.forEach((e) => {
-      if (!e.project_id || !inRange(day(e.date))) return;
-      costs[e.project_id] = (costs[e.project_id] || 0) + (Number(e.amount) || 0);
-      active.add(e.project_id);
+      if (!e.project_id) return;
+      add(life.costs, e.project_id, e.amount);
+      if (!hasPeriod || inRange(day(e.date))) {
+        add(per.costs, e.project_id, e.amount);
+        active.add(e.project_id);
+      }
     });
-    entries.billing.forEach((b) => {
-      if (!b.project_id || !inRange(day(b.date))) return;
-      billed[b.project_id] = (billed[b.project_id] || 0) + (Number(b.billed) || 0);
-      received[b.project_id] = (received[b.project_id] || 0) + (Number(b.paid) || 0);
-      active.add(b.project_id);
+    entries.billing.forEach((x) => {
+      if (!x.project_id) return;
+      add(life.billed, x.project_id, x.billed);
+      add(life.received, x.project_id, x.paid);
+      if (!hasPeriod || inRange(day(x.date))) {
+        add(per.billed, x.project_id, x.billed);
+        add(per.received, x.project_id, x.paid);
+        active.add(x.project_id);
+      }
     });
-    return { costs, billed, received, active };
+    (entries.changeOrders || []).forEach((c) => {
+      if (c.project_id && (c.status || '').toLowerCase() === 'approved') add(approvedCO, c.project_id, c.amount);
+    });
+    return { life, per, approvedCO, active: hasPeriod ? active : null };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, range, totalExpenses, totalBilled, totalReceived]);
 
@@ -155,51 +170,67 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
       projects
         .filter((p) => inScope(p) && (leader === 'all' || p.field_leader === leader))
         .map((p) => {
-          const billed = sums.billed[p.id] || 0;
-          const received = sums.received[p.id] || 0;
-          const costs = sums.costs[p.id] || 0;
-          const profit = billed - costs;
+          // Same math as the project page: contract incl. approved change orders, minus all costs to date.
+          const contract = (Number(p.contract_value) || 0) + (sums.approvedCO[p.id] || 0);
+          const billed = sums.life.billed[p.id] || 0;
+          const received = sums.life.received[p.id] || 0;
+          const costs = sums.life.costs[p.id] || 0;
+          const profit = contract - costs;
+          const done = Number(p.completion_percentage) || 0;
+          const costPct = contract > 0 ? (costs / contract) * 100 : 0;
           return {
             ...p,
+            contract,
+            co: sums.approvedCO[p.id] || 0,
             billed,
             received,
             costs,
+            billedP: sums.per.billed[p.id] || 0,
+            receivedP: sums.per.received[p.id] || 0,
+            costsP: sums.per.costs[p.id] || 0,
             profit,
             owed: Math.max(0, billed - received),
-            margin: billed > 0 ? (profit / billed) * 100 : null,
-            billedPct: p.contract_value > 0 ? (billed / p.contract_value) * 100 : 0,
-            late: !!p.due_date && (day(p.due_date) as Date) < new Date() && (p.completion_percentage || 0) < 100 && isOpenJob(p.status),
+            margin: contract > 0 ? (profit / contract) * 100 : null,
+            billedPct: contract > 0 ? (billed / contract) * 100 : 0,
+            costPct,
+            costAhead: contract > 0 && costPct - done > 10,
+            late: !!p.due_date && (day(p.due_date) as Date) < new Date() && done < 100 && isOpenJob(p.status),
           };
         })
-        .sort((a, b) => (b.contract_value || 0) - (a.contract_value || 0)),
+        .sort((a, b) => b.contract - a.contract),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [projects, scope, leader, sums, range]
   );
 
   const t = rows.reduce(
     (a, r) => ({
-      contract: a.contract + (r.contract_value || 0),
+      contract: a.contract + r.contract,
       billed: a.billed + r.billed,
       received: a.received + r.received,
       costs: a.costs + r.costs,
       owed: a.owed + r.owed,
+      billedP: a.billedP + r.billedP,
+      receivedP: a.receivedP + r.receivedP,
+      costsP: a.costsP + r.costsP,
     }),
-    { contract: 0, billed: 0, received: 0, costs: 0, owed: 0 }
+    { contract: 0, billed: 0, received: 0, costs: 0, owed: 0, billedP: 0, receivedP: 0, costsP: 0 }
   );
-  const profit = t.billed - t.costs;
-  const margin = t.billed > 0 ? (profit / t.billed) * 100 : 0;
+  const profit = t.contract - t.costs;
+  const margin = t.contract > 0 ? (profit / t.contract) * 100 : 0;
   const leftToBill = Math.max(0, t.contract - t.billed);
+  const grossP = t.billedP - t.costsP;
 
   const statusMix = Object.entries(
     rows.reduce<Record<string, number>>((a, r) => ((a[r.status] = (a[r.status] || 0) + 1), a), {})
   ).map(([name, value]) => ({ name, value }));
-  const chartRows = rows.slice(0, 10).map((r) => ({ name: r.name.length > 22 ? `${r.name.slice(0, 21)}…` : r.name, Contract: r.contract_value || 0, Billed: r.billed, Costs: r.costs }));
+  const chartRows = rows.slice(0, 10).map((r) => ({ name: r.name.length > 22 ? `${r.name.slice(0, 21)}…` : r.name, Contract: r.contract, Billed: r.billed, Costs: r.costs }));
 
   const watch = [
-    ...rows.filter((r) => r.margin != null && r.margin < 0).map((r) => ({ job: r.name, issue: `Costs exceed billing by ${money(-r.profit)}`, tone: 'bad' as const })),
-    ...rows.filter((r) => r.margin != null && r.margin >= 0 && r.margin < 10).map((r) => ({ job: r.name, issue: `Thin margin: ${pct(r.margin!)}`, tone: 'warn' as const })),
+    ...rows.filter((r) => r.contract > 0 && r.profit < 0).map((r) => ({ job: r.name, issue: `Costs are ${money(-r.profit)} over the contract`, tone: 'bad' as const })),
+    ...rows.filter((r) => r.costAhead && r.profit >= 0).map((r) => ({ job: r.name, issue: `${pct(r.costPct)} of contract spent at ${r.completion_percentage || 0}% complete`, tone: 'warn' as const })),
+    ...rows.filter((r) => r.margin != null && r.margin >= 0 && r.margin < 10 && !r.costAhead).map((r) => ({ job: r.name, issue: `Thin projected margin: ${pct(r.margin!)}`, tone: 'warn' as const })),
     ...rows.filter((r) => r.late).map((r) => ({ job: r.name, issue: `Past due date (${format(day(r.due_date) as Date, 'MMM d')}) at ${r.completion_percentage || 0}% complete`, tone: 'warn' as const })),
-    ...rows.filter((r) => r.owed > 0 && r.owed >= r.billed * 0.5 && r.billed > 0).map((r) => ({ job: r.name, issue: `${money(r.owed)} still owed (${pct((r.owed / r.billed) * 100)} of billing)`, tone: 'warn' as const })),
+    ...rows.filter((r) => r.owed > 0 && r.billed > 0 && r.owed >= r.billed * 0.5).map((r) => ({ job: r.name, issue: `${money(r.owed)} still owed (${pct((r.owed / r.billed) * 100)} of billing)`, tone: 'warn' as const })),
   ];
 
   // Bonding
@@ -224,7 +255,8 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
           ? `${new Date().getFullYear() - 1}`
           : PERIODS[period];
   const chips = [SCOPES[scope], periodLabel, leader === 'all' ? 'All field leaders' : `Field leader: ${leader}`];
-  const periodWord = range.from || range.to ? 'in period' : 'to date';
+  const periodWord =
+    period === 'ytd' ? 'YTD' : period === 'last-year' ? `in ${new Date().getFullYear() - 1}` : period === '12m' ? 'last 12 mo.' : range.from || range.to ? 'in period' : 'to date';
 
   return (
     <div className="space-y-4">
@@ -273,18 +305,18 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
         companyName={companyName}
         stats={[
           { label: 'Contract value', value: compact(t.contract) },
-          { label: `Profit ${periodWord}`, value: compact(profit) },
+          { label: 'Projected profit', value: compact(profit) },
         ]}
       >
         <Section eyebrow="Overview" title="Where the portfolio stands">
           <KpiGrid
             items={[
               { label: 'Jobs', value: String(rows.length), sub: `${rows.filter((r) => r.late).length} past due`, icon: Briefcase, accent: 'bg-blue-600' },
-              { label: 'Contract value', value: compact(t.contract), sub: `${compact(leftToBill)} left to bill`, icon: CircleDollarSign, accent: 'bg-indigo-500' },
-              { label: 'Billed', value: compact(t.billed), sub: `${pct(t.contract ? (t.billed / t.contract) * 100 : 0)} of contract`, icon: Receipt, accent: 'bg-emerald-500' },
-              { label: 'Costs', value: compact(t.costs), sub: `Recorded expenses ${periodWord}`, icon: Wallet, accent: 'bg-orange-500' },
-              { label: `Profit ${periodWord}`, value: compact(profit), sub: `${pct(margin)} margin on billing`, icon: TrendingUp, accent: 'bg-amber-500', tone: profit < 0 ? 'bad' : 'good' },
-              { label: 'Owed to you', value: compact(t.owed), sub: `${compact(t.received)} received`, icon: Landmark, accent: 'bg-rose-500', tone: t.owed > 0 ? undefined : 'good' },
+              { label: 'Contract value', value: compact(t.contract), sub: `Incl. approved COs · ${compact(leftToBill)} left to bill`, icon: CircleDollarSign, accent: 'bg-indigo-500' },
+              { label: `Billed ${periodWord}`, value: compact(t.billedP), sub: `${compact(t.billed)} billed to date (${pct(t.contract ? (t.billed / t.contract) * 100 : 0)})`, icon: Receipt, accent: 'bg-emerald-500' },
+              { label: `Costs ${periodWord}`, value: compact(t.costsP), sub: `${compact(t.costs)} to date · rejected excluded`, icon: Wallet, accent: 'bg-orange-500' },
+              { label: 'Projected profit', value: compact(profit), sub: `${pct(margin)} margin · contract − costs to date`, icon: TrendingUp, accent: 'bg-amber-500', tone: profit < 0 ? 'bad' : 'good' },
+              { label: 'Owed to you', value: compact(t.owed), sub: `All unpaid billing · ${compact(t.receivedP)} received ${periodWord}`, icon: Landmark, accent: 'bg-rose-500', tone: t.owed > 0 ? undefined : 'good' },
             ]}
           />
         </Section>
@@ -376,11 +408,11 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
                     </div>
                   ),
                 },
-                { header: 'Contract', align: 'right', cell: (r) => money(r.contract_value || 0) },
-                { header: 'Billed', align: 'right', cell: (r) => money(r.billed) },
-                { header: 'Costs', align: 'right', cell: (r) => money(r.costs) },
+                { header: 'Contract', align: 'right', cell: (r) => (<div><p>{money(r.contract)}</p>{r.co ? <p className="text-[11px] text-slate-500">incl. {money(r.co)} COs</p> : null}</div>) },
+                { header: 'Billed to date', align: 'right', cell: (r) => (<div><p>{money(r.billed)}</p><p className="text-[11px] text-slate-500">{money(r.billedP)} {periodWord}</p></div>) },
+                { header: 'Costs to date', align: 'right', cell: (r) => (<div><p>{money(r.costs)}</p><p className="text-[11px] text-slate-500">{money(r.costsP)} {periodWord}</p></div>) },
                 {
-                  header: 'Profit',
+                  header: 'Projected profit',
                   align: 'right',
                   cell: (r) => (
                     <div>

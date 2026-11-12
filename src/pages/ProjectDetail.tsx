@@ -228,7 +228,8 @@ export default function ProjectDetail() {
 
   const pid = project.id;
   const qs = `?project=${pid}`;
-  const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  // Rejected expenses aren't costs (same rule as the Project performance report).
+  const totalExpenses = expenses.filter((e) => e.status !== 'Rejected').reduce((sum, e) => sum + (e.amount || 0), 0);
   const paidExpenses = expenses.filter((e) => e.status === 'Paid').reduce((sum, e) => sum + (e.amount || 0), 0);
   const totalBilled = billing.reduce((sum, b) => sum + (b.billed_amount || 0), 0);
   const totalReceived = billing.reduce((sum, b) => sum + (b.paid_amount || 0), 0);
