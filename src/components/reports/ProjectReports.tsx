@@ -14,7 +14,7 @@ const STATE = {
   'on-track': { label: 'On track', chip: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' },
 } as const;
 
-export function ProjectReports({ data, actions, chips }: { data: Data; actions?: React.ReactNode; chips?: string[] }) {
+export function ProjectReports({ data, actions, chips, periodText = { label: 'To date', short: 'to date', trend: 'Last 12 months' } }: { data: Data; actions?: React.ReactNode; chips?: string[]; periodText?: { label: string; short: string; trend: string } }) {
   const { statusDistribution, budget, schedule, coByMonth, totals } = data;
   const coTotal = coByMonth.reduce((s, m) => s + m.approved + m.pending, 0);
 
@@ -74,9 +74,9 @@ export function ProjectReports({ data, actions, chips }: { data: Data; actions?:
             )}
           </Panel>
 
-          <Panel title="Change orders by month" note={`Last 12 months · ${compact(coTotal)}`}>
+          <Panel title="Change orders by month" note={`${periodText.trend} · ${compact(coTotal)}`}>
             {coTotal === 0 ? (
-              <EmptyNote>No change orders dated in the last 12 months.</EmptyNote>
+              <EmptyNote>No change orders dated in this period ({periodText.label}).</EmptyNote>
             ) : (
               <>
                 <div className="h-44">
@@ -97,7 +97,7 @@ export function ProjectReports({ data, actions, chips }: { data: Data; actions?:
           </Panel>
         </div>
 
-        <Section eyebrow="Budget" title="Contract vs costs to date" note="Open jobs, contract includes approved change orders">
+        <Section eyebrow="Budget" title={`Contract vs costs ${periodText.short}`} note="Open jobs, contract includes approved change orders">
           {budget.length === 0 ? (
             <EmptyNote>No open projects.</EmptyNote>
           ) : (

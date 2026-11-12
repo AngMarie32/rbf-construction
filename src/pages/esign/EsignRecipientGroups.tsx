@@ -1,3 +1,6 @@
+import { Link } from 'react-router-dom';
+import { PageHero, heroButton } from '@/components/ui/page-hero';
+import { ArrowLeft } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
@@ -53,7 +56,19 @@ export default function EsignRecipientGroups() {
   };
 
   return (
-    <Layout title="Recipient Groups" subtitle="Reusable signer lists for E-Signature">
+    <Layout hideTitle title="Recipient groups">
+      <div className="mb-6">
+        <PageHero
+          eyebrow="E-Sign"
+          title="Recipient groups"
+          subtitle="Signer lists you send to often, like an owner and architect, added to a document in one step."
+          actions={
+            <Link to="/esign" className={heroButton}>
+              <ArrowLeft className="h-4 w-4" /> E-Sign home
+            </Link>
+          }
+        />
+      </div>
       <div className="space-y-4 max-w-4xl">
         <div className="flex justify-end items-center">
           <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> New Group</Button>

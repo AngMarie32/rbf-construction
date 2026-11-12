@@ -48,7 +48,7 @@ const monthKey = (d?: string | null) => (d && d.length >= 7 ? d.slice(0, 7) : nu
 
 // ---------------------------------------------------------------- Projects
 
-export function buildProjectAnalytics(projects: AProject[], expenses: AExpense[], changeOrders: AChangeOrder[], today = new Date()) {
+export function buildProjectAnalytics(projects: AProject[], expenses: AExpense[], changeOrders: AChangeOrder[], today = new Date(), monthCount = 12) {
   const costBy: Record<string, number> = {};
   expenses.forEach((e) => (costBy[e.project_id] = (costBy[e.project_id] || 0) + n(e.amount)));
 
@@ -97,7 +97,7 @@ export function buildProjectAnalytics(projects: AProject[], expenses: AExpense[]
     })
     .sort((a, b) => a.daysLeft - b.daysLeft);
 
-  const months = monthBuckets(12, today);
+  const months = monthBuckets(monthCount, today);
   const coByMonth = months.map((m) => {
     const inMonth = changeOrders.filter((c) => monthKey(c.date) === m.key);
     return {
@@ -139,8 +139,8 @@ export function buildProjectAnalytics(projects: AProject[], expenses: AExpense[]
 
 // --------------------------------------------------------------- Financial
 
-export function buildFinancialAnalytics(projects: AProject[], expenses: AExpense[], billing: ABilling[], today = new Date()) {
-  const months = monthBuckets(12, today);
+export function buildFinancialAnalytics(projects: AProject[], expenses: AExpense[], billing: ABilling[], today = new Date(), monthCount = 12) {
+  const months = monthBuckets(monthCount, today);
   const billDate = (b: ABilling) => b.billing_period_end || b.invoice_date || b.billing_period_start || null;
 
   const monthly = months.map((m) => {
@@ -222,10 +222,10 @@ export function entryCost(t: ATimeEntry) {
   return base * (1 + n(t.burden_percent) / 100);
 }
 
-export function buildLaborAnalytics(entries: ATimeEntry[], projects: AProject[], today = new Date()) {
+export function buildLaborAnalytics(entries: ATimeEntry[], projects: AProject[], today = new Date(), monthCount = 12) {
   const name: Record<string, string> = {};
   projects.forEach((p) => (name[p.id] = p.name));
-  const months = monthBuckets(12, today);
+  const months = monthBuckets(monthCount, today);
 
   const monthly = months.map((m) => {
     const inMonth = entries.filter((t) => monthKey(t.work_date) === m.key);

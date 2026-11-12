@@ -23,7 +23,7 @@ function LaborTip({ active, payload, label }: { active?: boolean; payload?: { na
   );
 }
 
-export function LaborReport({ data, actions, chips }: { data: Data; actions?: React.ReactNode; chips?: string[] }) {
+export function LaborReport({ data, actions, chips, periodText = { label: 'To date', short: 'to date', trend: 'Last 12 months' } }: { data: Data; actions?: React.ReactNode; chips?: string[]; periodText?: { label: string; short: string; trend: string } }) {
   const { monthly, byProject, byTrade, byPerson, totals } = data;
 
   if (totals.hours === 0) {
@@ -68,7 +68,7 @@ export function LaborReport({ data, actions, chips }: { data: Data; actions?: Re
         </Section>
 
         <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr] print:grid-cols-1">
-          <Panel title="Hours and labor cost by month" note="Last 12 months">
+          <Panel title="Hours and labor cost by month" note={periodText.trend}>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={monthly} margin={{ top: 4, right: 4, left: -4, bottom: 0 }}>
