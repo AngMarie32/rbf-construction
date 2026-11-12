@@ -1,14 +1,27 @@
-
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { Download } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { AlertTriangle, Briefcase, CircleDollarSign, Landmark, Receipt, TrendingUp, Wallet } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { supabase } from '@/integrations/supabase/client';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { isOpenJob } from '@/lib/analyticsData';
+import { bondedExposure, loadBondCapacity, type Bond, type BondCapacity } from '@/types/bonds';
+import {
+  CHART,
+  ChartTooltip,
+  EmptyNote,
+  KpiGrid,
+  Legend,
+  Panel,
+  ReportDocument,
+  ReportTable,
+  ReportToolbar,
+  SERIES,
+  Section,
+  axisProps,
+  compact,
+  money,
+} from './ReportKit';
 
 interface Project {
   id: string;
@@ -26,331 +39,317 @@ interface Project {
   type?: string;
 }
 
-interface ProfessionalProjectReportProps {
+interface Props {
   projects: Project[];
   totalExpenses: Record<string, number>;
   totalBilled: Record<string, number>;
   totalReceived: Record<string, number>;
+  /** Extra controls shown at the left of the toolbar (e.g. a Back button). */
+  toolbarStart?: React.ReactNode;
 }
 
-export const ProfessionalProjectReport: React.FC<ProfessionalProjectReportProps> = ({
-  projects,
-  totalExpenses,
-  totalBilled,
-  totalReceived
-}) => {
-  const [selectedFieldLeader, setSelectedFieldLeader] = useState<string>('all');
-  const [fieldLeaders, setFieldLeaders] = useState<string[]>([]);
-  const [filteredProjects, setFilteredProjects] = useState<Project[]>(projects);
-  const [companyInfo, setCompanyInfo] = useState<any>(null);
+const pct = (n: number) => `${(Number.isFinite(n) ? n : 0).toFixed(1)}%`;
+const statusColor: Record<string, string> = {
+  Active: CHART.emerald,
+  'On Hold': CHART.amber,
+  Planning: CHART.indigo,
+  Completed: CHART.blue,
+  Closed: CHART.slate,
+};
+
+export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpenses, totalBilled, totalReceived, toolbarStart }) => {
+  const [leader, setLeader] = useState('all');
+  const [scope, setScope] = useState<'open' | 'all'>('open');
+  const [companyName, setCompanyName] = useState('RBF Construction');
+  const [bonds, setBonds] = useState<Bond[]>([]);
+  const [capacity, setCapacity] = useState<BondCapacity>({ single: 0, aggregate: 0 });
 
   useEffect(() => {
-    // Extract unique field leaders
-    const leaders = [...new Set(projects.map(p => p.field_leader).filter(Boolean))] as string[];
-    setFieldLeaders(leaders);
-    
-    // Fetch company information
-    fetchCompanyInfo();
-  }, [projects]);
+    supabase
+      .from('company_settings')
+      .select('company_name')
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => data?.company_name && !/buildpro/i.test(data.company_name) && setCompanyName(data.company_name));
+    (supabase as any)
+      .from('project_bonds')
+      .select('*, projects(name, contract_value, status, client)')
+      .then(({ data, error }: any) => !error && setBonds(data || []));
+    loadBondCapacity(supabase).then(setCapacity);
+  }, []);
 
-  useEffect(() => {
-    // Filter projects by field leader
-    if (selectedFieldLeader === 'all') {
-      setFilteredProjects(projects);
-    } else {
-      setFilteredProjects(projects.filter(p => p.field_leader === selectedFieldLeader));
-    }
-  }, [selectedFieldLeader, projects]);
+  const leaders = useMemo(() => [...new Set(projects.map((p) => p.field_leader).filter(Boolean))] as string[], [projects]);
+  const rows = useMemo(
+    () =>
+      projects
+        .filter((p) => (scope === 'all' || isOpenJob(p.status)) && (leader === 'all' || p.field_leader === leader))
+        .map((p) => {
+          const billed = totalBilled[p.id] || 0;
+          const received = totalReceived[p.id] || 0;
+          const costs = totalExpenses[p.id] || 0;
+          const profit = billed - costs;
+          return {
+            ...p,
+            billed,
+            received,
+            costs,
+            profit,
+            owed: Math.max(0, billed - received),
+            margin: billed > 0 ? (profit / billed) * 100 : null,
+            billedPct: p.contract_value > 0 ? (billed / p.contract_value) * 100 : 0,
+            late: !!p.due_date && new Date(p.due_date) < new Date() && (p.completion_percentage || 0) < 100 && isOpenJob(p.status),
+          };
+        })
+        .sort((a, b) => (b.contract_value || 0) - (a.contract_value || 0)),
+    [projects, scope, leader, totalBilled, totalReceived, totalExpenses]
+  );
 
-  const fetchCompanyInfo = async () => {
-    try {
-      const { data } = await supabase
-        .from('company_settings')
-        .select('*')
-        .maybeSingle();
-      setCompanyInfo(data);
-    } catch (error) {
-      console.error('Error fetching company info:', error);
-    }
-  };
+  const t = rows.reduce(
+    (a, r) => ({
+      contract: a.contract + (r.contract_value || 0),
+      billed: a.billed + r.billed,
+      received: a.received + r.received,
+      costs: a.costs + r.costs,
+      owed: a.owed + r.owed,
+    }),
+    { contract: 0, billed: 0, received: 0, costs: 0, owed: 0 }
+  );
+  const profit = t.billed - t.costs;
+  const margin = t.billed > 0 ? (profit / t.billed) * 100 : 0;
+  const leftToBill = Math.max(0, t.contract - t.billed);
 
-  const calculateTotals = () => {
-    return filteredProjects.reduce((acc, project) => ({
-      totalContractValue: acc.totalContractValue + (project.contract_value || 0),
-      totalExpenses: acc.totalExpenses + (totalExpenses[project.id] || 0),
-      totalBilled: acc.totalBilled + (totalBilled[project.id] || 0),
-      totalReceived: acc.totalReceived + (totalReceived[project.id] || 0),
-    }), {
-      totalContractValue: 0,
-      totalExpenses: 0,
-      totalBilled: 0,
-      totalReceived: 0,
-    });
-  };
+  const statusMix = Object.entries(
+    rows.reduce<Record<string, number>>((a, r) => ((a[r.status] = (a[r.status] || 0) + 1), a), {})
+  ).map(([name, value]) => ({ name, value }));
+  const chartRows = rows.slice(0, 10).map((r) => ({ name: r.name.length > 22 ? `${r.name.slice(0, 21)}…` : r.name, Contract: r.contract_value || 0, Billed: r.billed, Costs: r.costs }));
 
-  const totals = calculateTotals();
-  const profitMargin = totals.totalContractValue > 0 
-    ? ((totals.totalReceived - totals.totalExpenses) / totals.totalContractValue) * 100 
-    : 0;
+  const watch = [
+    ...rows.filter((r) => r.margin != null && r.margin < 0).map((r) => ({ job: r.name, issue: `Costs exceed billing by ${money(-r.profit)}`, tone: 'bad' as const })),
+    ...rows.filter((r) => r.margin != null && r.margin >= 0 && r.margin < 10).map((r) => ({ job: r.name, issue: `Thin margin: ${pct(r.margin!)}`, tone: 'warn' as const })),
+    ...rows.filter((r) => r.late).map((r) => ({ job: r.name, issue: `Past due date (${format(new Date(r.due_date), 'MMM d')}) at ${r.completion_percentage || 0}% complete`, tone: 'warn' as const })),
+    ...rows.filter((r) => r.owed > 0 && r.owed >= r.billed * 0.5 && r.billed > 0).map((r) => ({ job: r.name, issue: `${money(r.owed)} still owed (${pct((r.owed / r.billed) * 100)} of billing)`, tone: 'warn' as const })),
+  ];
 
-  const exportToPDF = async () => {
-    const element = document.getElementById('professional-report');
-    if (!element) return;
+  // Bonding
+  const exposure = bondedExposure(bonds);
+  const bondRows = bonds
+    .filter((b) => ['Active', 'Requested'].includes(b.status))
+    .filter((b) => leader === 'all' || rows.some((r) => r.id === b.project_id))
+    .sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
+  const usedPct = capacity.aggregate > 0 ? Math.min(100, (exposure.total / capacity.aggregate) * 100) : 0;
 
-    try {
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true
-      });
-      
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210;
-      const pageHeight = 295;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      const fileName = selectedFieldLeader === 'all' 
-        ? 'project-report-all.pdf'
-        : `project-report-${selectedFieldLeader.replace(/\s+/g, '-').toLowerCase()}.pdf`;
-      
-      pdf.save(fileName);
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-    }
-  };
-
-  const getStatusTextColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'completed': return 'text-green-600';
-      case 'active': return 'text-green-600';
-      case 'open': return 'text-green-600';
-      case 'on hold': return 'text-yellow-600';
-      case 'planning': return 'text-purple-600';
-      case 'closed': return 'text-blue-600';
-      default: return 'text-gray-500';
-    }
-  };
+  const chips = [scope === 'open' ? 'Active & on-hold jobs' : 'All jobs', leader === 'all' ? 'All field leaders' : `Field leader: ${leader}`];
 
   return (
-    <div className="space-y-6">
-      {/* Report Controls */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Professional Project Report</CardTitle>
-            <div className="flex items-center gap-4">
-              <Select value={selectedFieldLeader} onValueChange={setSelectedFieldLeader}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filter by Field Leader" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Field Leaders</SelectItem>
-                  {fieldLeaders.map(leader => (
-                    <SelectItem key={leader} value={leader}>
-                      {leader}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button onClick={exportToPDF} className="gap-2">
-                <Download className="w-4 h-4" />
-                Export PDF
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+    <div className="space-y-4">
+      <ReportToolbar>
+        {toolbarStart && <div className="mr-auto">{toolbarStart}</div>}
+        <Select value={scope} onValueChange={(v) => setScope(v as 'open' | 'all')}>
+          <SelectTrigger className="w-52">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="open">Active & on-hold jobs</SelectItem>
+            <SelectItem value="all">All jobs</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={leader} onValueChange={setLeader}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="All field leaders" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All field leaders</SelectItem>
+            {leaders.map((l) => (
+              <SelectItem key={l} value={l}>
+                {l}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </ReportToolbar>
 
-      {/* Professional Report */}
-      <div id="professional-report" className="bg-white p-8 space-y-8">
-        {/* Header */}
-        <div className="text-center border-b pb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {companyInfo?.company_name || 'RBF Construction'}
-          </h1>
-          <p className="text-gray-600 text-lg">Project Performance Report</p>
-          <p className="text-sm text-gray-500 mt-2">
-            Generated on {format(new Date(), 'MMMM dd, yyyy')}
-          </p>
-          {selectedFieldLeader !== 'all' && (
-            <p className="text-sm text-blue-600 mt-1">
-              Field Leader: {selectedFieldLeader}
-            </p>
+      <ReportDocument
+        eyebrow="Report snapshot"
+        title="Project Performance"
+        chips={chips}
+        companyName={companyName}
+        stats={[
+          { label: 'Contract value', value: compact(t.contract) },
+          { label: 'Profit to date', value: compact(profit) },
+        ]}
+      >
+        <Section eyebrow="Overview" title="Where the portfolio stands">
+          <KpiGrid
+            items={[
+              { label: 'Jobs', value: String(rows.length), sub: `${rows.filter((r) => r.late).length} past due`, icon: Briefcase, accent: 'bg-blue-600' },
+              { label: 'Contract value', value: compact(t.contract), sub: `${compact(leftToBill)} left to bill`, icon: CircleDollarSign, accent: 'bg-indigo-500' },
+              { label: 'Billed', value: compact(t.billed), sub: `${pct(t.contract ? (t.billed / t.contract) * 100 : 0)} of contract`, icon: Receipt, accent: 'bg-emerald-500' },
+              { label: 'Costs', value: compact(t.costs), sub: 'Recorded expenses', icon: Wallet, accent: 'bg-orange-500' },
+              { label: 'Profit to date', value: compact(profit), sub: `${pct(margin)} margin on billing`, icon: TrendingUp, accent: 'bg-amber-500', tone: profit < 0 ? 'bad' : 'good' },
+              { label: 'Owed to you', value: compact(t.owed), sub: `${compact(t.received)} received`, icon: Landmark, accent: 'bg-rose-500', tone: t.owed > 0 ? undefined : 'good' },
+            ]}
+          />
+        </Section>
+
+        <Section eyebrow="Jobs" title="Contract, billing and costs by job" note={rows.length > 10 ? 'Top 10 by contract value' : undefined}>
+          {chartRows.length ? (
+            <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
+              <Panel title="Contract vs billed vs costs">
+                <div style={{ height: Math.max(180, chartRows.length * 34) }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartRows} layout="vertical" margin={{ left: 8, right: 12 }}>
+                      <CartesianGrid horizontal={false} stroke={CHART.grid} />
+                      <XAxis type="number" {...axisProps} tickFormatter={compact} />
+                      <YAxis type="category" dataKey="name" {...axisProps} width={140} />
+                      <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f1f5f9' }} />
+                      <Bar dataKey="Contract" fill={CHART.slate} radius={[0, 3, 3, 0]} barSize={8} isAnimationActive={false} />
+                      <Bar dataKey="Billed" fill={CHART.emerald} radius={[0, 3, 3, 0]} barSize={8} isAnimationActive={false} />
+                      <Bar dataKey="Costs" fill={CHART.orange} radius={[0, 3, 3, 0]} barSize={8} isAnimationActive={false} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <Legend items={[{ label: 'Contract', color: CHART.slate }, { label: 'Billed', color: CHART.emerald }, { label: 'Costs', color: CHART.orange }]} />
+              </Panel>
+              <Panel title="Jobs by status">
+                <div className="h-44">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={statusMix} dataKey="value" nameKey="name" innerRadius={45} outerRadius={70} paddingAngle={2} isAnimationActive={false}>
+                        {statusMix.map((s, i) => (
+                          <Cell key={s.name} fill={statusColor[s.name] || SERIES[i % SERIES.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip valueFormat={(v) => `${v} job${v === 1 ? '' : 's'}`} />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <Legend items={statusMix.map((s, i) => ({ label: `${s.name} (${s.value})`, color: statusColor[s.name] || SERIES[i % SERIES.length] }))} />
+              </Panel>
+            </div>
+          ) : (
+            <EmptyNote>No jobs match these filters.</EmptyNote>
           )}
-        </div>
+        </Section>
 
-        {/* Executive Summary */}
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Executive Summary</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <span className="text-sm font-medium text-blue-600">Projects</span>
-              <p className="text-2xl font-bold text-blue-900">{filteredProjects.length}</p>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <span className="text-sm font-medium text-green-600">Contract Value</span>
-              <p className="text-2xl font-bold text-green-900">
-                ${totals.totalContractValue.toLocaleString()}
-              </p>
-            </div>
-            <div className="bg-orange-50 p-4 rounded-lg">
-              <span className="text-sm font-medium text-orange-600">Total Billed</span>
-              <p className="text-2xl font-bold text-orange-900">
-                ${totals.totalBilled.toLocaleString()}
-              </p>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <span className="text-sm font-medium text-purple-600">Profit Margin</span>
-              <p className="text-2xl font-bold text-purple-900">
-                {profitMargin.toFixed(1)}%
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Project Details */}
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Project Details</h2>
-          <div className="space-y-4">
-            {filteredProjects.map(project => {
-              const projectProfit = (totalReceived[project.id] || 0) - (totalExpenses[project.id] || 0);
-              return (
-                <div key={project.id} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
-                      <p className="text-gray-600">{project.client}</p>
-                      {project.project_code && (
-                        <p className="text-sm text-gray-500">Code: {project.project_code}</p>
-                      )}
-                    </div>
-                    <span className={`text-sm font-semibold ${getStatusTextColor(project.status)}`}>
-                      {project.status}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-                    <div>
-                      <p className="text-sm text-gray-500">Contract Value</p>
-                      <p className="font-semibold">${project.contract_value?.toLocaleString() || 0}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Completion</p>
-                      <p className="font-semibold">{project.completion_percentage || 0}%</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Field Leader</p>
-                      <p className="font-semibold">{project.field_leader || 'Not assigned'}</p>
-                    </div>
-                  </div>
-
-                  {project.address && (
-                    <div className="text-sm text-gray-600 mb-2">
-                      {project.address}
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-4 text-sm text-gray-600">
-                    <span>Start: {project.start_date ? format(new Date(project.start_date), 'MMM dd, yyyy') : 'Not set'}</span>
-                    <span>Due: {project.due_date ? format(new Date(project.due_date), 'MMM dd, yyyy') : 'Not set'}</span>
-                  </div>
-
-                  <div className="grid grid-cols-4 gap-4 mt-3 pt-3 border-t">
-                    <div>
-                      <p className="text-xs text-gray-500">Expenses</p>
-                      <p className="text-sm font-medium text-red-600">
-                        ${(totalExpenses[project.id] || 0).toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Billed</p>
-                      <p className="text-sm font-medium text-blue-600">
-                        ${(totalBilled[project.id] || 0).toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Received</p>
-                      <p className="text-sm font-medium text-green-600">
-                        ${(totalReceived[project.id] || 0).toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Profit</p>
-                      <p className={`text-sm font-medium ${projectProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                        ${projectProfit.toLocaleString()}
-                      </p>
-                    </div>
+        {watch.length > 0 && (
+          <Section eyebrow="Attention" title="Watch list">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {watch.slice(0, 10).map((w, i) => (
+                <div key={i} className={`flex items-start gap-3 rounded-lg border p-3 text-sm break-inside-avoid ${w.tone === 'bad' ? 'border-rose-200 bg-rose-50' : 'border-amber-200 bg-amber-50'}`}>
+                  <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 ${w.tone === 'bad' ? 'text-rose-600' : 'text-amber-600'}`} />
+                  <div>
+                    <p className="font-semibold text-slate-900">{w.job}</p>
+                    <p className="text-slate-600">{w.issue}</p>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Financial Summary */}
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Financial Summary</h2>
-          <div className="bg-gray-50 p-6 rounded-lg">
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Revenue</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Total Contract Value:</span>
-                    <span className="font-medium">${totals.totalContractValue.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Total Billed:</span>
-                    <span className="font-medium">${totals.totalBilled.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Total Received:</span>
-                    <span className="font-medium">${totals.totalReceived.toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Performance</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Total Expenses:</span>
-                    <span className="font-medium text-red-600">${totals.totalExpenses.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Outstanding:</span>
-                    <span className="font-medium text-orange-600">
-                      ${(totals.totalBilled - totals.totalReceived).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Profit Margin:</span>
-                    <span className="font-medium text-green-600">{profitMargin.toFixed(1)}%</span>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
-          </div>
-        </div>
+          </Section>
+        )}
 
-        {/* Footer */}
-        <div className="text-center pt-6 border-t text-sm text-gray-500">
-          <p>This report contains confidential and proprietary information.</p>
-          <p>© {new Date().getFullYear()} {companyInfo?.company_name || 'RBF Construction'}. All rights reserved.</p>
-        </div>
-      </div>
+        <Section eyebrow="Detail" title="Job by job">
+          {rows.length ? (
+            <ReportTable
+              rows={rows}
+              columns={[
+                {
+                  header: 'Job',
+                  cell: (r) => (
+                    <div>
+                      <p className="font-semibold">{r.name}</p>
+                      <p className="text-xs text-slate-500">{[r.project_code, r.client, r.field_leader].filter(Boolean).join(' · ')}</p>
+                    </div>
+                  ),
+                },
+                { header: 'Status', cell: (r) => <span className="whitespace-nowrap text-xs font-medium" style={{ color: statusColor[r.status] || CHART.axis }}>● {r.status}</span> },
+                {
+                  header: 'Progress',
+                  cell: (r) => (
+                    <div className="w-24">
+                      <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-full rounded-full bg-blue-600" style={{ width: `${Math.min(100, r.completion_percentage || 0)}%` }} />
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-500">{r.completion_percentage || 0}% done · {pct(r.billedPct)} billed</p>
+                    </div>
+                  ),
+                },
+                { header: 'Contract', align: 'right', cell: (r) => money(r.contract_value || 0) },
+                { header: 'Billed', align: 'right', cell: (r) => money(r.billed) },
+                { header: 'Costs', align: 'right', cell: (r) => money(r.costs) },
+                {
+                  header: 'Profit',
+                  align: 'right',
+                  cell: (r) => (
+                    <div>
+                      <p className={r.profit < 0 ? 'font-semibold text-rose-600' : 'font-semibold'}>{money(r.profit)}</p>
+                      <p className="text-[11px] text-slate-500">{r.margin == null ? '—' : pct(r.margin)}</p>
+                    </div>
+                  ),
+                },
+                { header: 'Owed', align: 'right', cell: (r) => (r.owed ? money(r.owed) : <span className="text-slate-400">—</span>) },
+              ]}
+              footer={
+                <tr>
+                  <td className="px-4 py-3" colSpan={3}>
+                    Totals ({rows.length} jobs)
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">{money(t.contract)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{money(t.billed)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{money(t.costs)}</td>
+                  <td className={`px-4 py-3 text-right tabular-nums ${profit < 0 ? 'text-rose-600' : ''}`}>{money(profit)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{money(t.owed)}</td>
+                </tr>
+              }
+            />
+          ) : (
+            <EmptyNote>No jobs match these filters.</EmptyNote>
+          )}
+        </Section>
+
+        <Section eyebrow="Surety" title="Bonding" note={capacity.surety ? `Surety: ${capacity.surety}` : undefined}>
+          <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+            <Panel title="Capacity">
+              {capacity.aggregate > 0 ? (
+                <>
+                  <p className="font-display text-3xl font-bold tabular-nums">{money(Math.max(0, capacity.aggregate - exposure.total))}</p>
+                  <p className="text-xs text-slate-500">available of {money(capacity.aggregate)} aggregate</p>
+                  <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${usedPct}%`, background: usedPct >= 100 ? CHART.rose : usedPct >= 80 ? CHART.amber : CHART.emerald }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-slate-600">
+                    {money(exposure.total)} bonded ({usedPct.toFixed(0)}%) · single-job limit {capacity.single ? money(capacity.single) : 'not set'}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-slate-500">Bond capacity isn't set. Add it in Settings → Bonding.</p>
+              )}
+            </Panel>
+            {bondRows.length ? (
+              <ReportTable
+                rows={bondRows}
+                columns={[
+                  { header: 'Job', cell: (b) => <span className="font-medium">{b.projects?.name || '—'}</span> },
+                  { header: 'Bond', cell: (b) => `${b.bond_type}${b.bond_number ? ` #${b.bond_number}` : ''}` },
+                  { header: 'Status', cell: (b) => b.status },
+                  { header: 'Expires', cell: (b) => (b.expiration_date ? format(new Date(`${b.expiration_date}T00:00:00`), 'MMM d, yyyy') : '—') },
+                  {
+                    header: 'Amount',
+                    align: 'right',
+                    cell: (b) => (
+                      <span className={capacity.single && Number(b.amount) > capacity.single ? 'font-semibold text-rose-600' : ''}>{money(Number(b.amount) || 0)}</span>
+                    ),
+                  },
+                ]}
+              />
+            ) : (
+              <EmptyNote>No active or requested bonds.</EmptyNote>
+            )}
+          </div>
+        </Section>
+      </ReportDocument>
     </div>
   );
 };
