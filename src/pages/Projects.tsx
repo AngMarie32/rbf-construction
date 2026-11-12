@@ -23,7 +23,8 @@ import { Briefcase, CircleDollarSign, Landmark, AlertTriangle } from 'lucide-rea
 import { cn } from '@/lib/utils';
 
 /** "2026-03-01" as local midnight; plain new Date() reads it as UTC and shows a day early in the US. */
-const parseDay = (v?: string | null) => (v ? new Date(`${v.slice(0, 10)}T00:00:00`) : new Date(NaN));
+/** Missing dates stay undefined: an Invalid Date makes date-fns format() throw and blanks the page. */
+const parseDay = (v?: string | null): Date => (v ? new Date(`${v.slice(0, 10)}T00:00:00`) : (undefined as unknown as Date));
 const hasDate = (d?: Date | null) => !!d && !isNaN(d.getTime()) && d.getFullYear() > 1970;
 const STATUS_CHIPS = [
   ['Active', 'Active'],

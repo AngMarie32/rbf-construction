@@ -21,6 +21,9 @@ interface EditProjectDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+
+/** A real date (not missing, not Invalid Date). */
+const okDate = (d?: Date | null): d is Date => !!d && !isNaN(new Date(d).getTime());
 export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChange }: EditProjectDialogProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -28,8 +31,8 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
     type: project.type,
     contractValue: project.contractValue.toString(),
     status: normalizeProjectStatus(project.status),
-    startDate: project.startDate,
-    dueDate: project.dueDate,
+    startDate: okDate(project.startDate) ? project.startDate : undefined,
+    dueDate: okDate(project.dueDate) ? project.dueDate : undefined,
     address: project.address,
     projectCode: project.projectCode,
     client: project.client,
@@ -43,8 +46,8 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
       type: project.type,
       contractValue: project.contractValue.toString(),
       status: normalizeProjectStatus(project.status),
-      startDate: project.startDate,
-      dueDate: project.dueDate,
+      startDate: okDate(project.startDate) ? project.startDate : undefined,
+      dueDate: okDate(project.dueDate) ? project.dueDate : undefined,
       address: project.address,
       projectCode: project.projectCode,
       client: project.client,
@@ -66,8 +69,8 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
         name: formData.name,
         type: formData.type || 'General',
         contract_value: formData.contractValue ? parseFloat(formData.contractValue) : 0,
-        start_date: formData.startDate ? format(formData.startDate, 'yyyy-MM-dd') : null,
-        due_date: formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : null,
+        start_date: okDate(formData.startDate) ? format(formData.startDate, 'yyyy-MM-dd') : null,
+        due_date: okDate(formData.dueDate) ? format(formData.dueDate, 'yyyy-MM-dd') : null,
         address: formData.address || null,
         project_code: formData.projectCode || null,
         client: formData.client || null,
@@ -226,7 +229,7 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.startDate ? format(formData.startDate, "PPP") : "Pick start date"}
+                    {okDate(formData.startDate) ? format(formData.startDate, "PPP") : "Pick start date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -253,7 +256,7 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.dueDate ? format(formData.dueDate, "PPP") : "Pick due date"}
+                    {okDate(formData.dueDate) ? format(formData.dueDate, "PPP") : "Pick due date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
