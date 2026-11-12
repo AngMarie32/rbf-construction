@@ -17,6 +17,23 @@ import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { ProfessionalProjectReport } from '@/components/reports/ProfessionalProjectReport';
 import { toast } from 'sonner';
+import { PageHero, heroButton } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { Briefcase, CircleDollarSign, Landmark, AlertTriangle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+/** "2026-03-01" as local midnight; plain new Date() reads it as UTC and shows a day early in the US. */
+const parseDay = (v?: string | null) => (v ? new Date(`${v.slice(0, 10)}T00:00:00`) : new Date(NaN));
+const hasDate = (d?: Date | null) => !!d && !isNaN(d.getTime()) && d.getFullYear() > 1970;
+const STATUS_CHIPS = [
+  ['Active', 'Active'],
+  ['open', 'All open'],
+  ['Planning', 'Planning'],
+  ['On Hold', 'On hold'],
+  ['Completed', 'Completed'],
+  ['Closed', 'Closed'],
+  ['all', 'Everything'],
+] as const;
 import type { Project } from '@/types';
 
 const statusTone: Record<string, string> = {
@@ -32,7 +49,7 @@ export default function Projects() {
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('open');
+  const [statusFilter, setStatusFilter] = useState<string>('Active');
   const [fieldLeaderFilter, setFieldLeaderFilter] = useState<string>('all');
   const [showReports, setShowReports] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -44,10 +61,14 @@ export default function Projects() {
     setView(v);
     try { localStorage.setItem('rbf.projects.view', v); } catch { /* ignore */ }
   };
-  
+
   const [projectExpenses, setProjectExpenses] = useState<Record<string, number>>({});
   const [projectBilled, setProjectBilled] = useState<Record<string, number>>({});
   const [projectReceived, setProjectReceived] = useState<Record<string, number>>({});
+  const [entries, setEntries] = useState<{
+    expenses: { project_id: string; amount: number; date: string | null }[];
+    billing: { project_id: string; billed: number; paid: number; date: string | null }[];
+  }>();
 
   const fieldLeaders = useMemo(() => {
     const leaders = [...new Set(projects.map(p => p.fieldLeader).filter(Boolean))] as string[];
@@ -72,15 +93,15 @@ export default function Projects() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       const typedData = (data || []).map(item => ({
         id: item.id,
         name: item.name,
         type: item.type,
         contractValue: item.contract_value || 0,
         status: normalizeProjectStatus(item.status) as Project['status'],
-        startDate: item.start_date ? new Date(item.start_date) : new Date(),
-        dueDate: item.due_date ? new Date(item.due_date) : new Date(),
+        startDate: parseDay(item.start_date),
+        dueDate: parseDay(item.due_date),
         completionPercentage: item.completion_percentage || 0,
         address: item.address || '',
         projectCode: item.project_code || '',
@@ -93,7 +114,7 @@ export default function Projects() {
         createdAt: new Date(item.created_at),
         updatedAt: new Date(item.updated_at)
       })) as Project[];
-      
+
       setProjects(typedData);
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -107,29 +128,39 @@ export default function Projects() {
     try {
       const { data: expensesData } = await supabase
         .from('expenses')
-        .select('project_id, amount');
-      
+        .select('project_id, amount, date');
+
       const { data: billingData } = await supabase
         .from('project_billing')
-        .select('project_id, billed_amount, paid_amount');
-      
+        .select('project_id, billed_amount, paid_amount, invoice_date, billing_period_end');
+
+      setEntries({
+        expenses: (expensesData || []).map((e: any) => ({ project_id: e.project_id, amount: Number(e.amount) || 0, date: e.date })),
+        billing: (billingData || []).map((b: any) => ({
+          project_id: b.project_id,
+          billed: Number(b.billed_amount) || 0,
+          paid: Number(b.paid_amount) || 0,
+          date: b.invoice_date || b.billing_period_end,
+        })),
+      });
+
       const expensesByProject: Record<string, number> = {};
       const billedByProject: Record<string, number> = {};
       const receivedByProject: Record<string, number> = {};
-      
+
       expensesData?.forEach(expense => {
         if (expense.project_id) {
           expensesByProject[expense.project_id] = (expensesByProject[expense.project_id] || 0) + (expense.amount || 0);
         }
       });
-      
+
       billingData?.forEach(billing => {
         if (billing.project_id) {
           billedByProject[billing.project_id] = (billedByProject[billing.project_id] || 0) + (billing.billed_amount || 0);
           receivedByProject[billing.project_id] = (receivedByProject[billing.project_id] || 0) + (billing.paid_amount || 0);
         }
       });
-      
+
       setProjectExpenses(expensesByProject);
       setProjectBilled(billedByProject);
       setProjectReceived(receivedByProject);
@@ -270,13 +301,14 @@ export default function Projects() {
                 Back to Projects
               </Button>
             }
-            projects={filteredProjects.map(p => ({
+            entries={entries}
+            projects={projects.filter((p) => !p.archivedAt).map(p => ({
               id: p.id,
               name: p.name,
               client: p.client,
               status: p.status,
-              start_date: p.startDate.toISOString(),
-              due_date: p.dueDate.toISOString(),
+              start_date: hasDate(p.startDate) ? format(p.startDate, 'yyyy-MM-dd') : '',
+              due_date: hasDate(p.dueDate) ? format(p.dueDate, 'yyyy-MM-dd') : '',
               contract_value: p.contractValue,
               completion_percentage: p.completionPercentage,
               description: p.description,
@@ -311,8 +343,8 @@ export default function Projects() {
     {
       id: 'due',
       header: 'Due',
-      value: (p) => (p.dueDate && p.dueDate.getFullYear() > 1970 ? p.dueDate : null),
-      cell: (p) => (p.dueDate && p.dueDate.getFullYear() > 1970 ? format(p.dueDate, 'MMM d, yyyy') : '—'),
+      value: (p) => (hasDate(p.dueDate) ? p.dueDate : null),
+      cell: (p) => (hasDate(p.dueDate) ? format(p.dueDate, 'MMM d, yyyy') : '—'),
     },
     {
       id: 'progress',
@@ -356,10 +388,10 @@ export default function Projects() {
       <Select value={statusFilter} onValueChange={setStatusFilter}>
         <SelectTrigger className="w-40"><SelectValue placeholder="All statuses" /></SelectTrigger>
         <SelectContent>
-          <SelectItem value="open">Open projects</SelectItem>
+          <SelectItem value="Active">Active</SelectItem>
+          <SelectItem value="open">All open (planning, active, on hold)</SelectItem>
           <SelectItem value="all">All statuses</SelectItem>
           <SelectItem value="Planning">Planning</SelectItem>
-          <SelectItem value="Active">Active</SelectItem>
           <SelectItem value="On Hold">On Hold</SelectItem>
           <SelectItem value="Completed">Completed</SelectItem>
           <SelectItem value="Closed">Closed</SelectItem>
@@ -397,20 +429,74 @@ export default function Projects() {
     </div>
   );
 
+  const live = projects.filter((p) => !p.archivedAt);
+  const statusCount = (k: string) =>
+    k === 'all' ? live.length : k === 'open' ? live.filter((p) => p.status !== 'Completed' && p.status !== 'Closed').length : live.filter((p) => p.status === k).length;
+  const activeJobs = live.filter((p) => p.status === 'Active');
+  const sum = (list: Project[], f: (p: Project) => number) => list.reduce((a, p) => a + f(p), 0);
+  const activeContract = sum(activeJobs, (p) => p.contractValue || 0);
+  const activeBilled = sum(activeJobs, (p) => projectBilled[p.id] || 0);
+  const activeOwed = sum(activeJobs, (p) => Math.max(0, (projectBilled[p.id] || 0) - (projectReceived[p.id] || 0)));
+  const today = new Date();
+  const pastDue = activeJobs.filter((p) => hasDate(p.dueDate) && p.dueDate < today && (p.completionPercentage || 0) < 100);
+  const avgDone = activeJobs.length ? Math.round(sum(activeJobs, (p) => p.completionPercentage || 0) / activeJobs.length) : 0;
+
   return (
-    <Layout
-      title="Projects"
-      subtitle="Every job, its progress and where the money stands"
-      actions={
-        <>
-          {viewToggle}
-          <Button variant="outline" onClick={() => setShowReports(true)}>
-            <FileBarChart className="w-4 h-4" /> Report snapshot
-          </Button>
-          <NewProjectDialog onProjectCreated={fetchProjects} />
-        </>
-      }
-    >
+    <Layout hideTitle title="Projects">
+      <div className="space-y-6">
+      <PageHero
+        eyebrow="Overview"
+        title="Projects"
+        subtitle="Every job, its progress and where the money stands."
+        actions={
+          <>
+            <span className="contents [&_button]:border-white/15 [&_button]:bg-white/10 [&_button]:text-white [&_button:hover]:bg-white/20">
+              <NewProjectDialog onProjectCreated={fetchProjects} />
+            </span>
+            <button type="button" className={heroButton} onClick={() => setShowReports(true)}>
+              <FileBarChart className="h-4 w-4" /> Project performance
+            </button>
+          </>
+        }
+        stats={[
+          { label: 'Active jobs', value: String(activeJobs.length) },
+          { label: 'Average complete', value: `${avgDone}%` },
+        ]}
+      />
+
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <AccentStat label="Active jobs" value={activeJobs.length} icon={Briefcase} accent="blue" hint={`${statusCount('Planning')} planning · ${statusCount('On Hold')} on hold`} />
+        <AccentStat label="Active contract value" value={money(activeContract)} icon={CircleDollarSign} accent="indigo" hint={`${money(Math.max(0, activeContract - activeBilled))} left to bill`} />
+        <AccentStat label="Owed to you" value={money(activeOwed)} icon={Landmark} accent="emerald" hint="Billed, not yet paid (active jobs)" />
+        <AccentStat
+          label="Past due"
+          value={pastDue.length}
+          icon={AlertTriangle}
+          accent="rose"
+          tone={pastDue.length ? 'bad' : 'good'}
+          hint={pastDue.length ? pastDue.slice(0, 2).map((p) => p.name).join(', ') : 'All active jobs on time'}
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {STATUS_CHIPS.map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setStatusFilter(k)}
+            aria-pressed={statusFilter === k}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors',
+              statusFilter === k ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'
+            )}
+          >
+            {label}
+            <span className={cn('rounded-full px-1.5 text-xs tabular-nums', statusFilter === k ? 'bg-white/20' : 'bg-muted')}>{statusCount(k)}</span>
+          </button>
+        ))}
+        <div className="ml-auto">{viewToggle}</div>
+      </div>
+
       {view === 'table' ? (
         <DataTable
           columns={columns}
@@ -468,6 +554,7 @@ export default function Projects() {
           )}
         </div>
       )}
+      </div>
     </Layout>
   );
 }

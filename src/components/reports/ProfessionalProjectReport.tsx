@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { format } from 'date-fns';
+import { format, startOfYear, endOfYear, subYears, subMonths, startOfDay, endOfDay } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
+import { DatePickerWithRange } from '@/components/ui/date-picker-with-range';
 import { AlertTriangle, Briefcase, CircleDollarSign, Landmark, Receipt, TrendingUp, Wallet } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,6 +48,37 @@ interface Props {
   totalReceived: Record<string, number>;
   /** Extra controls shown at the left of the toolbar (e.g. a Back button). */
   toolbarStart?: React.ReactNode;
+  /** Dated rows so billing and costs can be limited to the report period. Without them, lifetime totals are used. */
+  entries?: {
+    expenses: { project_id: string; amount: number; date: string | null }[];
+    billing: { project_id: string; billed: number; paid: number; date: string | null }[];
+  };
+}
+
+type Scope = 'active-closed' | 'active' | 'open' | 'all';
+type Period = 'ytd' | 'last-year' | '12m' | 'all' | 'custom';
+const SCOPES: Record<Scope, string> = {
+  'active-closed': 'Active & closed jobs',
+  active: 'Active jobs only',
+  open: 'Active & on-hold jobs',
+  all: 'All jobs',
+};
+const PERIODS: Record<Period, string> = {
+  ytd: 'Year to date',
+  'last-year': 'Last year',
+  '12m': 'Last 12 months',
+  all: 'All time',
+  custom: 'Custom dates',
+};
+/** "2026-03-01" as local midnight (plain new Date() reads it as UTC, a day early in the US). */
+const day = (v?: string | null) => (v ? new Date(`${v.slice(0, 10)}T00:00:00`) : null);
+function periodRange(p: Period, custom?: DateRange): { from: Date | null; to: Date | null } {
+  const now = new Date();
+  if (p === 'ytd') return { from: startOfYear(now), to: endOfDay(now) };
+  if (p === 'last-year') { const y = subYears(now, 1); return { from: startOfYear(y), to: endOfYear(y) }; }
+  if (p === '12m') return { from: startOfDay(subMonths(now, 12)), to: endOfDay(now) };
+  if (p === 'custom') return { from: custom?.from ? startOfDay(custom.from) : null, to: custom?.to ? endOfDay(custom.to) : custom?.from ? endOfDay(custom.from) : null };
+  return { from: null, to: null };
 }
 
 const pct = (n: number) => `${(Number.isFinite(n) ? n : 0).toFixed(1)}%`;
@@ -57,9 +90,47 @@ const statusColor: Record<string, string> = {
   Closed: CHART.slate,
 };
 
-export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpenses, totalBilled, totalReceived, toolbarStart }) => {
+export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpenses, totalBilled, totalReceived, toolbarStart, entries }) => {
   const [leader, setLeader] = useState('all');
-  const [scope, setScope] = useState<'open' | 'all'>('open');
+  const [scope, setScope] = useState<Scope>('active-closed');
+  const [period, setPeriod] = useState<Period>('ytd');
+  const [custom, setCustom] = useState<DateRange | undefined>();
+  const range = useMemo(() => periodRange(period, custom), [period, custom]);
+  const inRange = (d: Date | null) => !d || ((!range.from || d >= range.from) && (!range.to || d <= range.to));
+
+  // Billing and costs inside the period (falls back to lifetime totals when dated rows aren't supplied).
+  const sums = useMemo(() => {
+    if (!entries || (!range.from && !range.to)) return { costs: totalExpenses, billed: totalBilled, received: totalReceived, active: null as Set<string> | null };
+    const costs: Record<string, number> = {};
+    const billed: Record<string, number> = {};
+    const received: Record<string, number> = {};
+    const active = new Set<string>();
+    entries.expenses.forEach((e) => {
+      if (!e.project_id || !inRange(day(e.date))) return;
+      costs[e.project_id] = (costs[e.project_id] || 0) + (Number(e.amount) || 0);
+      active.add(e.project_id);
+    });
+    entries.billing.forEach((b) => {
+      if (!b.project_id || !inRange(day(b.date))) return;
+      billed[b.project_id] = (billed[b.project_id] || 0) + (Number(b.billed) || 0);
+      received[b.project_id] = (received[b.project_id] || 0) + (Number(b.paid) || 0);
+      active.add(b.project_id);
+    });
+    return { costs, billed, received, active };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, range, totalExpenses, totalBilled, totalReceived]);
+
+  const inScope = (p: Project) => {
+    const st = p.status;
+    if (scope === 'all') return true;
+    if (scope === 'active') return st === 'Active';
+    if (scope === 'open') return isOpenJob(st);
+    // Active jobs always; closed jobs only when they had billing/costs in the period or ended in it.
+    if (st === 'Active') return true;
+    if (st !== 'Closed') return false;
+    if (!sums.active) return true;
+    return sums.active.has(p.id) || (!!p.due_date && inRange(day(p.due_date)));
+  };
   const [companyName, setCompanyName] = useState('RBF Construction');
   const [bonds, setBonds] = useState<Bond[]>([]);
   const [capacity, setCapacity] = useState<BondCapacity>({ single: 0, aggregate: 0 });
@@ -82,11 +153,11 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
   const rows = useMemo(
     () =>
       projects
-        .filter((p) => (scope === 'all' || isOpenJob(p.status)) && (leader === 'all' || p.field_leader === leader))
+        .filter((p) => inScope(p) && (leader === 'all' || p.field_leader === leader))
         .map((p) => {
-          const billed = totalBilled[p.id] || 0;
-          const received = totalReceived[p.id] || 0;
-          const costs = totalExpenses[p.id] || 0;
+          const billed = sums.billed[p.id] || 0;
+          const received = sums.received[p.id] || 0;
+          const costs = sums.costs[p.id] || 0;
           const profit = billed - costs;
           return {
             ...p,
@@ -97,11 +168,12 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
             owed: Math.max(0, billed - received),
             margin: billed > 0 ? (profit / billed) * 100 : null,
             billedPct: p.contract_value > 0 ? (billed / p.contract_value) * 100 : 0,
-            late: !!p.due_date && new Date(p.due_date) < new Date() && (p.completion_percentage || 0) < 100 && isOpenJob(p.status),
+            late: !!p.due_date && (day(p.due_date) as Date) < new Date() && (p.completion_percentage || 0) < 100 && isOpenJob(p.status),
           };
         })
         .sort((a, b) => (b.contract_value || 0) - (a.contract_value || 0)),
-    [projects, scope, leader, totalBilled, totalReceived, totalExpenses]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [projects, scope, leader, sums, range]
   );
 
   const t = rows.reduce(
@@ -126,7 +198,7 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
   const watch = [
     ...rows.filter((r) => r.margin != null && r.margin < 0).map((r) => ({ job: r.name, issue: `Costs exceed billing by ${money(-r.profit)}`, tone: 'bad' as const })),
     ...rows.filter((r) => r.margin != null && r.margin >= 0 && r.margin < 10).map((r) => ({ job: r.name, issue: `Thin margin: ${pct(r.margin!)}`, tone: 'warn' as const })),
-    ...rows.filter((r) => r.late).map((r) => ({ job: r.name, issue: `Past due date (${format(new Date(r.due_date), 'MMM d')}) at ${r.completion_percentage || 0}% complete`, tone: 'warn' as const })),
+    ...rows.filter((r) => r.late).map((r) => ({ job: r.name, issue: `Past due date (${format(day(r.due_date) as Date, 'MMM d')}) at ${r.completion_percentage || 0}% complete`, tone: 'warn' as const })),
     ...rows.filter((r) => r.owed > 0 && r.owed >= r.billed * 0.5 && r.billed > 0).map((r) => ({ job: r.name, issue: `${money(r.owed)} still owed (${pct((r.owed / r.billed) * 100)} of billing)`, tone: 'warn' as const })),
   ];
 
@@ -138,21 +210,44 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
     .sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
   const usedPct = capacity.aggregate > 0 ? Math.min(100, (exposure.total / capacity.aggregate) * 100) : 0;
 
-  const chips = [scope === 'open' ? 'Active & on-hold jobs' : 'All jobs', leader === 'all' ? 'All field leaders' : `Field leader: ${leader}`];
+  const periodLabel =
+    period === 'custom'
+      ? range.from
+        ? `${format(range.from, 'MMM d, yyyy')} – ${format(range.to || range.from, 'MMM d, yyyy')}`
+        : 'All time'
+      : period === 'ytd'
+        ? `Year to date (Jan 1 – ${format(new Date(), 'MMM d, yyyy')})`
+        : period === 'last-year'
+          ? `${new Date().getFullYear() - 1}`
+          : PERIODS[period];
+  const chips = [SCOPES[scope], periodLabel, leader === 'all' ? 'All field leaders' : `Field leader: ${leader}`];
+  const periodWord = range.from || range.to ? 'in period' : 'to date';
 
   return (
     <div className="space-y-4">
       <ReportToolbar>
         {toolbarStart && <div className="mr-auto">{toolbarStart}</div>}
-        <Select value={scope} onValueChange={(v) => setScope(v as 'open' | 'all')}>
-          <SelectTrigger className="w-52">
+        <Select value={scope} onValueChange={(v) => setScope(v as Scope)}>
+          <SelectTrigger className="w-52" aria-label="Which jobs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="open">Active & on-hold jobs</SelectItem>
-            <SelectItem value="all">All jobs</SelectItem>
+            {(Object.keys(SCOPES) as Scope[]).map((k) => (
+              <SelectItem key={k} value={k}>{SCOPES[k]}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
+        <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
+          <SelectTrigger className="w-44" aria-label="Report period">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(PERIODS) as Period[]).map((k) => (
+              <SelectItem key={k} value={k}>{PERIODS[k]}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {period === 'custom' && <DatePickerWithRange date={custom} onDateChange={setCustom} />}
         <Select value={leader} onValueChange={setLeader}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="All field leaders" />
@@ -175,7 +270,7 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
         companyName={companyName}
         stats={[
           { label: 'Contract value', value: compact(t.contract) },
-          { label: 'Profit to date', value: compact(profit) },
+          { label: `Profit ${periodWord}`, value: compact(profit) },
         ]}
       >
         <Section eyebrow="Overview" title="Where the portfolio stands">
@@ -184,8 +279,8 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
               { label: 'Jobs', value: String(rows.length), sub: `${rows.filter((r) => r.late).length} past due`, icon: Briefcase, accent: 'bg-blue-600' },
               { label: 'Contract value', value: compact(t.contract), sub: `${compact(leftToBill)} left to bill`, icon: CircleDollarSign, accent: 'bg-indigo-500' },
               { label: 'Billed', value: compact(t.billed), sub: `${pct(t.contract ? (t.billed / t.contract) * 100 : 0)} of contract`, icon: Receipt, accent: 'bg-emerald-500' },
-              { label: 'Costs', value: compact(t.costs), sub: 'Recorded expenses', icon: Wallet, accent: 'bg-orange-500' },
-              { label: 'Profit to date', value: compact(profit), sub: `${pct(margin)} margin on billing`, icon: TrendingUp, accent: 'bg-amber-500', tone: profit < 0 ? 'bad' : 'good' },
+              { label: 'Costs', value: compact(t.costs), sub: `Recorded expenses ${periodWord}`, icon: Wallet, accent: 'bg-orange-500' },
+              { label: `Profit ${periodWord}`, value: compact(profit), sub: `${pct(margin)} margin on billing`, icon: TrendingUp, accent: 'bg-amber-500', tone: profit < 0 ? 'bad' : 'good' },
               { label: 'Owed to you', value: compact(t.owed), sub: `${compact(t.received)} received`, icon: Landmark, accent: 'bg-rose-500', tone: t.owed > 0 ? undefined : 'good' },
             ]}
           />
