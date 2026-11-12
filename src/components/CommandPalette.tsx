@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/command';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useHiddenNav } from '@/hooks/useHiddenNav';
 
 interface ProjectRow {
   id: string;
@@ -58,6 +59,7 @@ const NAV_ITEMS: { name: string; href: string; group: string }[] = [
 ];
 
 export function CommandPalette() {
+  const hiddenNav = useHiddenNav();
   const [open, setOpen] = useState(false);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const navigate = useNavigate();
@@ -118,7 +120,7 @@ export function CommandPalette() {
         )}
 
         <CommandGroup heading="Pages">
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.filter((item) => !hiddenNav.includes(item.href.split('?')[0])).map((item) => (
             <CommandItem
               key={item.href}
               value={`page ${item.name}`}
