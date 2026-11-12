@@ -13,7 +13,7 @@ import { RoleChangeRequest } from './RoleChangeRequest';
 
 export const ProfileSettings: React.FC = () => {
   const [profileData, setProfileData] = useState({
-    name: '',
+    name: '', nickname: '',
     email: '',
     role: 'Field',
   });
@@ -30,12 +30,12 @@ export const ProfileSettings: React.FC = () => {
 
   const fetchProfileData = async () => {
     if (!user?.id) return;
-    
+
     setFetchLoading(true);
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('name, email, role')
+        .select('*')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -52,6 +52,7 @@ export const ProfileSettings: React.FC = () => {
       if (data) {
         setProfileData({
           name: data.name || '',
+          nickname: (data as any).nickname || '',
           email: data.email || user.email || '',
           role: data.role || 'Field',
         });
@@ -59,6 +60,7 @@ export const ProfileSettings: React.FC = () => {
         // No profile exists, use auth user data
         setProfileData({
           name: '',
+          nickname: '',
           email: user.email || '',
           role: 'Field',
         });
@@ -90,15 +92,26 @@ export const ProfileSettings: React.FC = () => {
 
     try {
       // Use upsert to handle both insert and update
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
-          name: profileData.name,
-          email: profileData.email,
-        }, {
-          onConflict: 'id'
-        });
+      const row: Record<string, any> = {
+        id: user.id,
+        name: profileData.name,
+        email: profileData.email,
+        nickname: profileData.nickname.trim() || null,
+      };
+      let { error } = await supabase.from('profiles').upsert(row as any, { onConflict: 'id' });
+      if (error && /nickname|schema cache/i.test(error.message)) {
+        // Database hasn't had the nickname update yet: save the rest, explain the nickname.
+        delete row.nickname;
+        ({ error } = await supabase.from('profiles').upsert(row as any, { onConflict: 'id' }));
+        if (!error) {
+          toast({
+            title: 'Profile saved, nickname not stored',
+            description: 'The database needs the "profile nickname" update before a nickname can be saved.',
+          });
+          return;
+        }
+      }
+      if (!error) window.dispatchEvent(new Event('rbf:profile-updated'));
 
       if (error) {
         console.error('Error saving profile:', error);
@@ -184,6 +197,17 @@ export const ProfileSettings: React.FC = () => {
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="nickname">Nickname</Label>
+                    <Input
+                      id="nickname"
+                      value={profileData.nickname}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, nickname: e.target.value }))}
+                      placeholder="What the dashboard greets you as"
+                      maxLength={40}
+                    />
+                    <p className="text-xs text-muted-foreground">Shown on the dashboard, e.g. "Good morning, Angie". Leave blank to use your first name.</p>
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="profile_email">Email Address</Label>
                     <Input
                       id="profile_email"
@@ -222,7 +246,7 @@ export const ProfileSettings: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="role-request">
-          <RoleChangeRequest 
+          <RoleChangeRequest
             currentRole={profileData.role}
             onRequestSubmitted={() => {
               toast({

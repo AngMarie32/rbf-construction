@@ -204,10 +204,13 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
 
   // Bonding
   const exposure = bondedExposure(bonds);
+  // Only some jobs require a bond: list bonds for the jobs on this report; capacity stays company-wide.
+  const reportIds = new Set(rows.map((r) => r.id));
   const bondRows = bonds
-    .filter((b) => ['Active', 'Requested'].includes(b.status))
-    .filter((b) => leader === 'all' || rows.some((r) => r.id === b.project_id))
+    .filter((b) => ['Active', 'Requested'].includes(b.status) && reportIds.has(b.project_id))
     .sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
+  const bondedIds = new Set(bondRows.map((b) => b.project_id));
+  const reportExposure = bondedExposure(bondRows).total;
   const usedPct = capacity.aggregate > 0 ? Math.min(100, (exposure.total / capacity.aggregate) * 100) : 0;
 
   const periodLabel =
@@ -351,7 +354,12 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
                   header: 'Job',
                   cell: (r) => (
                     <div>
-                      <p className="font-semibold">{r.name}</p>
+                      <p className="font-semibold">
+                        {r.name}
+                        {bondedIds.has(r.id) && (
+                          <span className="ml-2 rounded bg-indigo-50 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-indigo-700 ring-1 ring-indigo-600/20">Bonded</span>
+                        )}
+                      </p>
                       <p className="text-xs text-slate-500">{[r.project_code, r.client, r.field_leader].filter(Boolean).join(' · ')}</p>
                     </div>
                   ),
@@ -401,7 +409,11 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
           )}
         </Section>
 
-        <Section eyebrow="Surety" title="Bonding" note={capacity.surety ? `Surety: ${capacity.surety}` : undefined}>
+        <Section
+          eyebrow="Surety"
+          title="Bonding"
+          note={`${bondedIds.size} of ${rows.length} job${rows.length === 1 ? '' : 's'} on this report bonded${capacity.surety ? ` · Surety: ${capacity.surety}` : ''}`}
+        >
           <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
             <Panel title="Capacity">
               {capacity.aggregate > 0 ? (
@@ -415,8 +427,9 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
                     />
                   </div>
                   <p className="mt-2 text-xs text-slate-600">
-                    {money(exposure.total)} bonded ({usedPct.toFixed(0)}%) · single-job limit {capacity.single ? money(capacity.single) : 'not set'}
+                    {money(exposure.total)} bonded across all jobs ({usedPct.toFixed(0)}%) · single-job limit {capacity.single ? money(capacity.single) : 'not set'}
                   </p>
+                  <p className="mt-1 text-xs text-slate-600">{money(reportExposure)} of that is on the jobs in this report.</p>
                 </>
               ) : (
                 <p className="text-sm text-slate-500">Bond capacity isn't set. Add it in Settings → Bonding.</p>
@@ -440,7 +453,7 @@ export const ProfessionalProjectReport: React.FC<Props> = ({ projects, totalExpe
                 ]}
               />
             ) : (
-              <EmptyNote>No active or requested bonds.</EmptyNote>
+              <EmptyNote>None of the jobs on this report require a bond. Jobs without a bond don't use bonding capacity.</EmptyNote>
             )}
           </div>
         </Section>

@@ -262,6 +262,25 @@ export default function Dashboard() {
     return items.slice(0, 8);
   }, [openProjects, summary.pending, reminders]);
 
+  const [nickname, setNickname] = useState('');
+  const [profileName, setProfileName] = useState('');
+  useEffect(() => {
+    if (!user?.id) return;
+    const load = () =>
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          setNickname(((data as any)?.nickname || '').trim());
+          setProfileName((data as any)?.name || '');
+        });
+    load();
+    window.addEventListener('rbf:profile-updated', load);
+    return () => window.removeEventListener('rbf:profile-updated', load);
+  }, [user?.id]);
+
   const kpis = [
     { label: 'Active jobs', value: String(summary.active), hint: `${openProjects.length} open in total`, icon: FolderKanban },
     { label: 'Open contract value', value: compactMoney(summary.contract), hint: `${compactMoney(Math.max(0, summary.contract - summary.billed))} left to bill`, icon: DollarSign },
@@ -270,7 +289,7 @@ export default function Dashboard() {
     { label: 'Job costs paid', value: compactMoney(summary.paid), hint: summary.pending ? `${compactMoney(summary.pending)} pending approval` : 'Nothing pending', icon: Receipt },
   ];
 
-  const firstName = (user?.user_metadata?.full_name || user?.user_metadata?.name || '').split(' ')[0];
+  const firstName = nickname || (profileName || user?.user_metadata?.full_name || user?.user_metadata?.name || '').split(' ')[0];
 
   return (
     <Layout title="Dashboard" hideTitle>

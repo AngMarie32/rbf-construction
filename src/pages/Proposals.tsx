@@ -114,7 +114,6 @@ export default function Proposals() {
       pendingValue: sum(pending),
       approved: approved.length,
       approvedValue: sum(approved),
-      winRate: decided ? Math.round((approved.length / decided) * 100) : null,
     };
   }, [proposals]);
 
@@ -336,7 +335,6 @@ export default function Proposals() {
           stats={[
             { label: 'Out for decision', value: loading ? '…' : money0(stats.pendingValue), tone: stats.pendingValue ? 'warn' : undefined },
             { label: 'Won', value: loading ? '…' : money0(stats.approvedValue), tone: stats.approvedValue ? 'good' : undefined },
-            { label: 'Win rate', value: loading ? '…' : stats.winRate == null ? '—' : `${stats.winRate}%` },
           ]}
         />
 
