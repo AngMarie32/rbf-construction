@@ -6,13 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ProjectCombobox } from '@/components/ui/project-combobox';
+import { localDateISO } from '@/utils/dates';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { CalendarIcon, Download, Import, Plus, Trash2 } from 'lucide-react';
+import { Download, Import, Plus, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -64,6 +64,11 @@ interface ImprovedBillingDialogProps {
   onSuccess: () => void;
 }
 
+/** "2026-11-01" -> local midnight (new Date('2026-11-01') is UTC and lands a day early in the US). */
+const parseDay = (v?: string | null) => (v ? new Date(`${v.slice(0, 10)}T00:00:00`) : undefined);
+const toInput = (d?: Date) => (d && !isNaN(d.getTime()) ? localDateISO(d) : '');
+const fromInput = (v: string) => (v ? new Date(`${v}T00:00:00`) : undefined);
+
 export function ImprovedBillingDialog({
   open,
   onOpenChange,
@@ -98,14 +103,14 @@ export function ImprovedBillingDialog({
         console.log('Setting form data from billing:', billing);
         setFormData({
           project_id: billing.project_id || '',
-          billing_period_start: billing.billing_period_start ? new Date(billing.billing_period_start) : new Date(),
-          billing_period_end: billing.billing_period_end ? new Date(billing.billing_period_end) : new Date(),
+          billing_period_start: parseDay(billing.billing_period_start) || new Date(),
+          billing_period_end: parseDay(billing.billing_period_end) || new Date(),
           billed_amount: billing.billed_amount || 0,
           paid_amount: billing.paid_amount || 0,
           status: billing.status || 'Draft',
           invoice_number: billing.invoice_number || '',
-          invoice_date: billing.invoice_date ? new Date(billing.invoice_date) : undefined,
-          due_date: billing.due_date ? new Date(billing.due_date) : undefined,
+          invoice_date: parseDay(billing.invoice_date),
+          due_date: parseDay(billing.due_date),
           notes: billing.notes || ''
         });
         setBulkMode(false);
@@ -166,9 +171,9 @@ export function ImprovedBillingDialog({
     
     // Use the payment app period end date as both start and end for simplicity
     const latestPeriodEnd = selectedApps.reduce((latest, app) => {
-      const appDate = new Date(app.period_to);
+      const appDate = parseDay(app.period_to)!;
       return appDate > latest ? appDate : latest;
-    }, new Date(selectedApps[0].period_to));
+    }, parseDay(selectedApps[0].period_to)!);
 
     setFormData({
       ...formData,
@@ -224,8 +229,8 @@ export function ImprovedBillingDialog({
     try {
       const billingData = bulkEntries.map(entry => ({
         project_id: entry.project_id,
-        billing_period_start: entry.billing_period_start.toISOString().split('T')[0],
-        billing_period_end: entry.billing_period_end.toISOString().split('T')[0],
+        billing_period_start: localDateISO(entry.billing_period_start),
+        billing_period_end: localDateISO(entry.billing_period_end),
         billed_amount: Number(entry.billed_amount),
         paid_amount: Number(entry.paid_amount) || 0,
         status: entry.status,
@@ -275,14 +280,14 @@ export function ImprovedBillingDialog({
     try {
       const billingData = {
         project_id: formData.project_id,
-        billing_period_start: formData.billing_period_start.toISOString().split('T')[0],
-        billing_period_end: formData.billing_period_end.toISOString().split('T')[0],
+        billing_period_start: localDateISO(formData.billing_period_start),
+        billing_period_end: localDateISO(formData.billing_period_end),
         billed_amount: Number(formData.billed_amount),
         paid_amount: Number(formData.paid_amount) || 0,
         status: formData.status,
         invoice_number: formData.invoice_number || null,
-        invoice_date: formData.invoice_date ? formData.invoice_date.toISOString().split('T')[0] : null,
-        due_date: formData.due_date ? formData.due_date.toISOString().split('T')[0] : null,
+        invoice_date: formData.invoice_date ? localDateISO(formData.invoice_date) : null,
+        due_date: formData.due_date ? localDateISO(formData.due_date) : null,
         notes: formData.notes || null
       };
 
@@ -361,23 +366,7 @@ export function ImprovedBillingDialog({
                   <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label>Project</Label>
-                      <Select 
-                        value={entry.project_id} 
-                        onValueChange={(value) => updateBulkEntry(entry.id, 'project_id', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select project" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {projects.map((project) => (
-                            <SelectItem key={project.id} value={project.id}>
-                              <div className="max-w-[300px] truncate">
-                                {project.name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <ProjectCombobox projects={projects as any} value={entry.project_id} onChange={(value) => updateBulkEntry(entry.id, 'project_id', value)} placeholder="Type to search…" />
                     </div>
 
                     <div>
@@ -482,26 +471,7 @@ export function ImprovedBillingDialog({
                 <CardContent className="space-y-4">
                   <div>
                     <Label htmlFor="project">Project</Label>
-                    <Select 
-                      value={formData.project_id} 
-                      onValueChange={(value) => setFormData({ ...formData, project_id: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a project" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {projects.map((project) => (
-                          <SelectItem key={project.id} value={project.id}>
-                            <div className="max-w-[300px]">
-                              <div className="font-medium truncate">{project.name}</div>
-                              {project.client && (
-                                <div className="text-sm text-muted-foreground truncate">{project.client}</div>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <ProjectCombobox id="project" projects={projects as any} value={formData.project_id} onChange={(value) => setFormData({ ...formData, project_id: value })} placeholder="Type to search projects…" />
                   </div>
 
                   {formData.project_id && (
@@ -540,7 +510,7 @@ export function ImprovedBillingDialog({
                               />
                               <Label htmlFor={app.id} className="text-sm flex-1">
                                 App #{app.application_number} - ${app.current_payment_due.toLocaleString()} 
-                                ({format(new Date(app.period_to), 'MMM dd, yyyy')})
+                                ({format(parseDay(app.period_to)!, 'MMM dd, yyyy')})
                               </Label>
                             </div>
                           ))}
@@ -659,97 +629,46 @@ export function ImprovedBillingDialog({
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
-                    <Label>Billing Period Start</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {format(formData.billing_period_start, 'PPP')}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={formData.billing_period_start}
-                          onSelect={(date) => date && setFormData({ ...formData, billing_period_start: date })}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <Label htmlFor="bd-billing_period_start">Billing Period Start</Label>
+                    <Input
+                      id="bd-billing_period_start"
+                      type="date"
+                      value={toInput(formData.billing_period_start)}
+                      onChange={(e) => { const d = fromInput(e.target.value); if (d) setFormData({ ...formData, billing_period_start: d }); }}
+                    />
                   </div>
 
                   <div>
-                    <Label>Billing Period End</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {format(formData.billing_period_end, 'PPP')}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={formData.billing_period_end}
-                          onSelect={(date) => date && setFormData({ ...formData, billing_period_end: date })}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <Label htmlFor="bd-billing_period_end">Billing Period End</Label>
+                    <Input
+                      id="bd-billing_period_end"
+                      type="date"
+                      value={toInput(formData.billing_period_end)}
+                      onChange={(e) => { const d = fromInput(e.target.value); if (d) setFormData({ ...formData, billing_period_end: d }); }}
+                    />
                   </div>
 
                   <div>
-                    <Label>Invoice Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {formData.invoice_date ? format(formData.invoice_date, 'PPP') : 'Select date'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={formData.invoice_date}
-                          onSelect={(date) => setFormData({ ...formData, invoice_date: date })}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <Label htmlFor="bd-invoice_date">Invoice Date</Label>
+                    <Input
+                      id="bd-invoice_date"
+                      type="date"
+                      value={toInput(formData.invoice_date)}
+                      onChange={(e) => { const d = fromInput(e.target.value); setFormData({ ...formData, invoice_date: d, ...(d && !formData.due_date ? { due_date: new Date(d.getTime() + 30 * 86400000) } : {}) }); }}
+                    />
                   </div>
 
                   <div>
-                    <Label>Due Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {formData.due_date ? format(formData.due_date, 'PPP') : 'Select date'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={formData.due_date}
-                          onSelect={(date) => setFormData({ ...formData, due_date: date })}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <Label htmlFor="bd-due_date">Due Date</Label>
+                    <Input
+                      id="bd-due_date"
+                      type="date"
+                      value={toInput(formData.due_date)}
+                      onChange={(e) => { const d = fromInput(e.target.value); setFormData({ ...formData, due_date: d }); }}
+                    />
                   </div>
                 </div>
+                <p className="mt-2 text-xs text-muted-foreground">Picking an invoice date fills the due date 30 days later; change it if your terms differ.</p>
               </CardContent>
             </Card>
 
