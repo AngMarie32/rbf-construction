@@ -38,6 +38,7 @@ import { ImportExpensesDialog } from '@/components/expenses/ImportExpensesDialog
 import { DatePickerWithRange } from '@/components/ui/date-picker-with-range';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { fetchAll } from '@/lib/fetchAll';
 import { DateRange } from 'react-day-picker';
 import { exportToExcel, exportToPDF, exportToCSV } from '@/utils/reportExports';
 
@@ -63,6 +64,11 @@ interface Project {
   name: string;
 }
 
+
+/** "2026-11-13" as local midnight; new Date("2026-11-13") is UTC and shows a day early in the US. */
+const localDay = (v: string) => new Date(`${String(v).slice(0, 10)}T00:00:00`);
+const startOfDayLocal = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const endOfDayLocal = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
 export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -105,19 +111,10 @@ export default function Expenses() {
   const fetchExpenses = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('expenses')
-        .select(`
-          *,
-          projects (
-            name
-          )
-        `)
-        .order('date', { ascending: false });
-
-      if (error) throw error;
-      console.log('Fetched expenses:', data);
-      setExpenses(data || []);
+      // Every expense, not just the first 1,000 the API returns per request; newest first.
+      const data = await fetchAll<any>('expenses', '*, projects ( name )');
+      data.sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
+      setExpenses(data);
     } catch (error) {
       console.error('Error fetching expenses:', error);
       toast.error('Failed to load expenses');
@@ -150,31 +147,34 @@ export default function Expenses() {
 
   const handleStatusChange = async (expenseId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
+      const { data: saved, error } = await supabase
         .from('expenses')
         .update({ status: newStatus })
-        .eq('id', expenseId);
+        .eq('id', expenseId)
+        .select('id');
 
       if (error) throw error;
+      // An update blocked by database permissions returns no error and no rows.
+      if (!saved?.length) throw new Error("The status didn't change. Your account may not have permission to approve expenses.");
 
-      setExpenses(prev => 
-        prev.map(expense => 
-          expense.id === expenseId 
+      setExpenses(prev =>
+        prev.map(expense =>
+          expense.id === expenseId
             ? { ...expense, status: newStatus }
             : expense
         )
       );
-      
-      toast.success('Status updated successfully');
+
+      toast.success(`Marked ${newStatus}`);
     } catch (error) {
       console.error('Error updating status:', error);
-      toast.error('Failed to update status');
+      toast.error(error instanceof Error && error.message ? error.message : 'Failed to update status');
     }
   };
 
   const filteredExpenses = expenses.filter(expense => {
     const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = 
+    const matchesSearch =
       expense.description.toLowerCase().includes(searchLower) ||
       expense.vendor?.toLowerCase().includes(searchLower) ||
       expense.category.toLowerCase().includes(searchLower) ||
@@ -182,25 +182,25 @@ export default function Expenses() {
       expense.status.toLowerCase().includes(searchLower) ||
       expense.amount.toString().includes(searchTerm) ||
       expense.receipt_number?.toLowerCase().includes(searchLower) ||
-      new Date(expense.date).toLocaleDateString().includes(searchTerm);
+      localDay(expense.date).toLocaleDateString().includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || expense.status === statusFilter || (statusFilter === 'pending' && expense.status.includes('Pending'));
     const matchesProject = projectFilter === 'all' || expense.project_id === projectFilter;
     const matchesCategory = (categoryFilter === 'all' || expense.category === categoryFilter) &&
       (vendorFilter === 'all' || (expense.vendor || '') === vendorFilter);
-    
+
     let matchesDateRange = true;
     if (dateRange?.from && dateRange?.to) {
-      const expenseDate = new Date(expense.date);
-      matchesDateRange = expenseDate >= dateRange.from && expenseDate <= dateRange.to;
+      const expenseDate = localDay(expense.date);
+      matchesDateRange = expenseDate >= startOfDayLocal(dateRange.from) && expenseDate <= endOfDayLocal(dateRange.to);
     } else if (dateRange?.from) {
-      const expenseDate = new Date(expense.date);
-      matchesDateRange = expenseDate >= dateRange.from;
+      const expenseDate = localDay(expense.date);
+      matchesDateRange = expenseDate >= startOfDayLocal(dateRange.from);
     }
 
     return matchesSearch && matchesStatus && matchesProject && matchesCategory && matchesDateRange;
   }).sort((a, b) => {
     let aValue: any, bValue: any;
-    
+
     switch (sortColumn) {
       case 'date':
         aValue = new Date(a.date).getTime();
@@ -334,11 +334,13 @@ export default function Expenses() {
     try {
       const ids = Array.from(selectedExpenses);
       for (let i = 0; i < ids.length; i += 100) {
-        const { error } = await supabase
+        const { data: saved, error } = await supabase
           .from('expenses')
           .update({ status: newStatus })
-          .in('id', ids.slice(i, i + 100));
+          .in('id', ids.slice(i, i + 100))
+          .select('id');
         if (error) throw error;
+        if (!saved?.length) throw new Error("No expenses changed. Your account may not have permission to approve expenses.");
       }
       setExpenses(prev =>
         prev.map(e => ids.includes(e.id) ? { ...e, status: newStatus } : e)
@@ -347,7 +349,7 @@ export default function Expenses() {
       toast.success(`${ids.length} expense(s) updated to ${newStatus}`);
     } catch (error) {
       console.error('Error bulk updating:', error);
-      toast.error('Failed to update expenses');
+      toast.error(error instanceof Error && error.message ? error.message : 'Failed to update expenses');
     }
   };
 
@@ -355,7 +357,7 @@ export default function Expenses() {
     const exportData = {
       title: 'Expense Report',
       data: filteredExpenses.map(expense => ({
-        Date: new Date(expense.date).toLocaleDateString(),
+        Date: localDay(expense.date).toLocaleDateString(),
         Project: expense.projects?.name || 'Unknown',
         Description: expense.description,
         Category: expense.category,
@@ -365,7 +367,7 @@ export default function Expenses() {
       })),
       metadata: {
         generatedAt: new Date().toLocaleString(),
-        dateRange: dateRange?.from && dateRange?.to 
+        dateRange: dateRange?.from && dateRange?.to
           ? `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`
           : 'All dates',
         totalExpenses: filteredExpenses.length,
@@ -397,7 +399,7 @@ export default function Expenses() {
       id: 'date',
       header: 'Date',
       value: (e) => e.date,
-      cell: (e) => <span className="whitespace-nowrap">{new Date(e.date).toLocaleDateString()}</span>,
+      cell: (e) => <span className="whitespace-nowrap">{localDay(e.date).toLocaleDateString()}</span>,
     },
     {
       id: 'project',
@@ -447,6 +449,22 @@ export default function Expenses() {
       align: 'right',
       cell: (e) => (
         <div className="flex justify-end gap-0.5">
+          {e.status.includes('Pending') && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mr-1 h-8 gap-1 border-emerald-500/40 px-2 text-xs text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400"
+                title={e.status === 'Pending Field Approval' ? 'Field approve (moves to office approval)' : 'Approve'}
+                onClick={() => handleStatusChange(e.id, e.status === 'Pending Field Approval' ? 'Pending Office Approval' : 'Approved')}
+              >
+                <CheckCircle className="h-3.5 w-3.5" /> {e.status === 'Pending Field Approval' ? 'Field OK' : 'Approve'}
+              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Reject" aria-label="Reject" onClick={() => handleStatusChange(e.id, 'Rejected')}>
+                <XCircle className="h-4 w-4" />
+              </Button>
+            </>
+          )}
           <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" aria-label="Edit" onClick={() => setEditingExpense(e)}>
             <Edit className="w-4 h-4" />
           </Button>
