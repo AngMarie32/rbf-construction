@@ -29,6 +29,31 @@ const ext = (q: number, c: number, w: number) => (Number(q) || 0) * (Number(c) |
 const aiExt = (m: Material) => (m.ai_quantity == null ? 0 : ext(m.ai_quantity, m.ai_unit_cost ?? 0, m.ai_waste_pct ?? 0));
 const isEdited = (m: Material) =>
   m.ai_quantity == null || Number(m.quantity) !== Number(m.ai_quantity) || Number(m.unit_cost) !== Number(m.ai_unit_cost) || Number(m.waste_pct) !== Number(m.ai_waste_pct ?? 0);
+/**
+ * Lines with no material list (labor, equipment, lump sums) still get one editable row: the line's own
+ * quantity x unit cost, or 1 LS at the line amount. It is saved as a real row the first time it's edited.
+ */
+const lineRow = (l: EstimateLine): Material => {
+  const hasQty = Number(l.quantity) > 0 && Number(l.unit_cost) > 0;
+  const q = hasQty ? Number(l.quantity) : 1;
+  const c = hasQty ? Number(l.unit_cost) : Number(l.baseline_amount) || 0;
+  return {
+    id: `virtual:${l.id}`,
+    line_id: l.id,
+    item: hasQty ? `${l.name} (line quantity)` : `${l.name} (lump sum)`,
+    quantity: q,
+    unit: hasQty ? l.unit : 'LS',
+    unit_cost: c,
+    waste_pct: 0,
+    ai_quantity: q,
+    ai_unit_cost: c,
+    ai_waste_pct: 0,
+    basis: hasQty ? 'Quantity and unit cost from the estimate line' : 'No quantity on this line; enter one to calculate it',
+    sort_order: 0,
+  };
+};
+const isVirtual = (m: Material) => m.id.startsWith('virtual:');
+
 const qtyFmt = (n: number) => (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 interface Props {
@@ -78,10 +103,20 @@ export function EstimateMaterialsTab({ estimateId, lines, onLineOverride }: Prop
     if ((line.override_amount ?? null) !== next) await onLineOverride(line, next);
   };
 
-  const patch = async (m: Material, field: 'quantity' | 'unit_cost' | 'waste_pct' | 'item' | 'unit', raw: string) => {
+  const patch = async (m0: Material, field: 'quantity' | 'unit_cost' | 'waste_pct' | 'item' | 'unit', raw: string) => {
     const value = field === 'item' || field === 'unit' ? raw : Math.max(0, Number(raw) || 0);
-    if ((m as any)[field] === value) return;
-    const next = (mats || []).map((x) => (x.id === m.id ? { ...x, [field]: value } : x));
+    if ((m0 as any)[field] === value) return;
+    let m = m0;
+    if (isVirtual(m0)) {
+      // First edit of a line calculation: save it as a real row, keeping the original numbers.
+      const { id: _v, ...rest } = m0;
+      const { data, error } = await (supabase as any).from('estimate_materials').insert({ ...rest, estimate_id: estimateId }).select('*').single();
+      if (error) return toast.error(error.message);
+      m = data as Material;
+      setMats((p) => [...(p || []), m]);
+    }
+    const base = (mats || []).some((x) => x.id === m.id) ? mats || [] : [...(mats || []), m];
+    const next = base.map((x) => (x.id === m.id ? { ...x, [field]: value } : x));
     setMats(next);
     const { error } = await (supabase as any).from('estimate_materials').update({ [field]: value, updated_at: new Date().toISOString() }).eq('id', m.id);
     if (error) return toast.error(error.message);
@@ -192,29 +227,17 @@ export function EstimateMaterialsTab({ estimateId, lines, onLineOverride }: Prop
 
       {!mats.length && (
         <Card className="p-6 text-sm text-muted-foreground">
-          This estimate has no material takeoff. Estimates built from now on include one for each line. You can also add materials to a line below.
+          No material list came back for this estimate, so each line below shows its own calculation (quantity × unit cost, or a lump sum). Change the numbers to recalculate, or add materials to a line.
         </Card>
       )}
 
       {[...withMats, ...without].map((l) => {
-        const list = byLine.get(l.id) || [];
+        const saved = byLine.get(l.id) || [];
+        const calcOnly = saved.length === 0 || saved.every((m) => /\((line quantity|lump sum)\)$/.test(m.item));
+        const list = saved.length ? saved : [lineRow(l)];
         const now = list.reduce((a, m) => a + ext(m.quantity, m.unit_cost, m.waste_pct), 0);
         const ai = list.reduce((a, m) => a + aiExt(m), 0);
         const d = draft[l.id] || { item: '', quantity: '', unit: '', unit_cost: '' };
-        if (!list.length && !q && mats.length) {
-          // Lines without materials stay compact.
-          return (
-            <details key={l.id} className="rounded-lg border bg-card">
-              <summary className="flex cursor-pointer items-center justify-between px-4 py-2 text-sm">
-                <span>
-                  {l.name} <span className="text-xs text-muted-foreground">· {l.section_name} · no materials</span>
-                </span>
-                <span className="tabular-nums">{currency(lineAmount(l))}</span>
-              </summary>
-              <AddRow d={d} onChange={(v) => setDraft((p) => ({ ...p, [l.id]: v }))} onAdd={() => addRow(l)} />
-            </details>
-          );
-        }
         return (
           <Card key={l.id} className="overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-2 bg-muted/40 px-4 py-2">
@@ -228,7 +251,7 @@ export function EstimateMaterialsTab({ estimateId, lines, onLineOverride }: Prop
                   {l.override_amount != null && <Badge variant="outline" className="ml-2 text-[10px]">recalculated</Badge>}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  line (AI baseline {currency(l.baseline_amount)}) · materials {currency(now)}
+                  line (AI baseline {currency(l.baseline_amount)}) · {calcOnly ? 'calculation' : 'materials'} {currency(now)}
                   {Math.abs(now - ai) >= 0.5 ? ` (${now >= ai ? '+' : '−'}${currency(Math.abs(now - ai))})` : ''}
                 </p>
               </div>
@@ -237,7 +260,7 @@ export function EstimateMaterialsTab({ estimateId, lines, onLineOverride }: Prop
               <table className="w-full text-sm">
                 <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <tr className="border-b">
-                    <th className="px-3 py-2">Material</th>
+                    <th className="px-3 py-2">{calcOnly ? 'Line calculation' : 'Material'}</th>
                     <th className="px-3 py-2 text-right">Quantity</th>
                     <th className="px-3 py-2">Unit</th>
                     <th className="px-3 py-2 text-right">Unit cost</th>
@@ -277,9 +300,11 @@ export function EstimateMaterialsTab({ estimateId, lines, onLineOverride }: Prop
                                 <RotateCcw className="h-3.5 w-3.5" />
                               </Button>
                             )}
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="Remove" onClick={() => removeRow(m)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                            {!isVirtual(m) && (
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="Remove" onClick={() => removeRow(m)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                           </div>
                         </td>
                       </tr>
