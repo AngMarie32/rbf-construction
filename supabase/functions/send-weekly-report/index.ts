@@ -462,101 +462,257 @@ async function buildPdf(sub: Sub, data: any): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  let page = pdf.addPage([612, 792]);
-  const margin = 40;
-  let y = 752;
-
-  const ensureSpace = (needed: number) => {
-    if (y - needed < margin) {
-      page = pdf.addPage([612, 792]);
-      y = 752;
-    }
-  };
-  const text = (s: string, opts: { size?: number; bold?: boolean; color?: any } = {}) => {
-    const size = opts.size || 10;
-    ensureSpace(size + 4);
-    page.drawText(s.slice(0, 200), { x: margin, y, size, font: opts.bold ? bold : font, color: opts.color || rgb(0, 0, 0) });
-    y -= size + 4;
-  };
-  const hr = () => { ensureSpace(8); page.drawLine({ start: { x: margin, y }, end: { x: 612 - margin, y }, thickness: 0.5, color: rgb(0.7, 0.7, 0.7) }); y -= 8; };
-
-  text(sub.name, { size: 18, bold: true });
+  const W = 612, H = 792, M = 36;
+  const NAVY = rgb(15 / 255, 42 / 255, 74 / 255), ORANGE = rgb(232 / 255, 116 / 255, 44 / 255);
+  const INK = rgb(0.12, 0.16, 0.22), MUTED = rgb(0.42, 0.45, 0.5), LINE = rgb(0.9, 0.91, 0.92), ZEBRA = rgb(0.97, 0.98, 0.99);
+  const RED = rgb(0.73, 0.11, 0.11), GREEN = rgb(0.02, 0.47, 0.34), AMBER = rgb(0.71, 0.33, 0.04), BLUE = rgb(0.11, 0.31, 0.85);
+  const companyName = (data._companies || []).map((c: any) => c.name).join(', ') || 'RBF Construction';
   const periodEnd: Date = data._rangeEnd || new Date();
   const periodStart: Date = data._rangeStart || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  text(`RBF Construction — ${periodStart.toLocaleDateString()} to ${periodEnd.toLocaleDateString()}`, { size: 10, color: rgb(0.4, 0.4, 0.4) });
-  hr();
+  const fmtD = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const day = (d?: string) => {
+    if (!d) return '-';
+    const x = new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T00:00:00` : d);
+    return isNaN(x.getTime()) ? String(d) : x.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+  // Standard PDF fonts only cover basic characters; replace anything else.
+  const clean = (s: any) => String(s ?? '').replace(/[–—]/g, '-').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/→/g, '->').replace(/[^\x20-\x7E\xA0-\xFF]/g, '');
+  const fit = (s: string, f: any, size: number, w: number) => {
+    let t = clean(s);
+    if (f.widthOfTextAtSize(t, size) <= w) return t;
+    while (t.length > 1 && f.widthOfTextAtSize(t + '...', size) > w) t = t.slice(0, -1);
+    return t + '...';
+  };
+  const statusColor = (s: string) => {
+    const x = String(s || '').toLowerCase();
+    if (/overdue|reject|late|high|critical|cancel/.test(x)) return RED;
+    if (/complete|approved|paid|available|sent/.test(x)) return GREEN;
+    if (/hold|draft|maintenance|planning|medium/.test(x)) return AMBER;
+    if (/active|progress|submitted|in use|open|pending/.test(x)) return BLUE;
+    return MUTED;
+  };
 
-  if (sub.sections.includes('projects') && data.projects) {
-    text('Project Status & Progress', { size: 14, bold: true });
-    for (const p of data.projects) {
-      text(`• ${p.name} — ${p.status || ''} — ${p.completion_percentage ?? 0}% — ${fmtMoney(p.contract_value)}`);
+  let page: any;
+  let y = 0;
+  let pageNo = 0;
+  const newPage = () => {
+    page = pdf.addPage([W, H]);
+    pageNo++;
+    if (pageNo === 1) {
+      page.drawRectangle({ x: 0, y: H - 92, width: W, height: 92, color: NAVY });
+      page.drawRectangle({ x: 0, y: H - 95, width: W, height: 3, color: ORANGE });
+      page.drawText(clean(companyName).toUpperCase(), { x: M, y: H - 32, size: 8.5, font: bold, color: rgb(0.96, 0.71, 0.51) });
+      page.drawText(fit(sub.name, bold, 20, W - 2 * M), { x: M, y: H - 56, size: 20, font: bold, color: rgb(1, 1, 1) });
+      page.drawText(`${fmtD(periodStart)} - ${fmtD(periodEnd)}`, { x: M, y: H - 76, size: 10, font, color: rgb(0.78, 0.82, 0.88) });
+      y = H - 118;
+    } else {
+      page.drawRectangle({ x: 0, y: H - 6, width: W, height: 6, color: NAVY });
+      page.drawText(fit(`${companyName} - ${sub.name}`, font, 8, W - 2 * M), { x: M, y: H - 24, size: 8, font, color: MUTED });
+      y = H - 42;
     }
-    if (!data.projects.length) text('No projects.', { color: rgb(0.5, 0.5, 0.5) });
-    hr();
-  }
-  if (sub.sections.includes('financials') && data.financials) {
-    text('Financials', { size: 14, bold: true });
-    for (const f of data.financials) {
-      text(`• ${f.name}: Contract ${fmtMoney(f.contract)} | Billed ${fmtMoney(f.billed)} | Paid ${fmtMoney(f.paid)} | Outstanding ${fmtMoney(f.outstanding)}`);
+  };
+  const ensure = (h: number) => { if (y - h < M + 20) newPage(); };
+
+  const heading = (t: string, subtitle = '') => {
+    ensure(60);
+    y -= 8;
+    page.drawRectangle({ x: M, y: y - 13, width: 3, height: 15, color: ORANGE });
+    page.drawText(clean(t), { x: M + 9, y: y - 10, size: 13, font: bold, color: NAVY });
+    if (subtitle) page.drawText(fit(subtitle, font, 8.5, 300), { x: W - M - Math.min(300, font.widthOfTextAtSize(clean(subtitle), 8.5)), y: y - 9, size: 8.5, font, color: MUTED });
+    y -= 24;
+  };
+  const label = (t: string, color = INK) => { ensure(30); page.drawText(clean(t), { x: M, y: y - 9, size: 9.5, font: bold, color }); y -= 16; };
+  const note = (t: string) => { ensure(16); page.drawText(fit(t, font, 9, W - 2 * M), { x: M + 4, y: y - 9, size: 9, font, color: MUTED }); y -= 16; };
+
+  const tiles = (items: { label: string; value: string; color?: any }[]) => {
+    if (!items.length) return;
+    ensure(52);
+    const gap = 8, w = (W - 2 * M - gap * (items.length - 1)) / items.length;
+    items.forEach((t, i) => {
+      const x = M + i * (w + gap);
+      page.drawRectangle({ x, y: y - 44, width: w, height: 44, borderColor: LINE, borderWidth: 1, color: rgb(1, 1, 1) });
+      page.drawText(fit(t.label.toUpperCase(), font, 7.5, w - 16), { x: x + 9, y: y - 14, size: 7.5, font, color: MUTED });
+      page.drawText(fit(t.value, bold, 15, w - 16), { x: x + 9, y: y - 34, size: 15, font: bold, color: t.color || NAVY });
+    });
+    y -= 54;
+  };
+
+  type Col = { h: string; w: number; align?: 'left' | 'right' };
+  type Cell = string | { t: string; color?: any; bold?: boolean; pill?: boolean; bar?: number };
+  const table = (cols: Col[], rows: Cell[][], opts: { empty?: string; totalRow?: Cell[] } = {}) => {
+    const total = cols.reduce((s, c) => s + c.w, 0);
+    const widths = cols.map((c) => (c.w / total) * (W - 2 * M));
+    const rowH = 18;
+    const header = () => {
+      ensure(rowH * 2);
+      page.drawRectangle({ x: M, y: y - rowH, width: W - 2 * M, height: rowH, color: rgb(0.95, 0.96, 0.97) });
+      let x = M;
+      cols.forEach((c, i) => {
+        const t = c.h.toUpperCase();
+        const tw = font.widthOfTextAtSize(t, 7.5);
+        page.drawText(t, { x: c.align === 'right' ? x + widths[i] - 7 - tw : x + 7, y: y - 12, size: 7.5, font, color: MUTED });
+        x += widths[i];
+      });
+      y -= rowH;
+    };
+    const drawRow = (r: Cell[], idx: number, isTotal = false) => {
+      if (y - rowH < M + 20) { newPage(); header(); }
+      if (isTotal) page.drawRectangle({ x: M, y: y - rowH, width: W - 2 * M, height: rowH, color: rgb(0.95, 0.96, 0.97) });
+      else if (idx % 2) page.drawRectangle({ x: M, y: y - rowH, width: W - 2 * M, height: rowH, color: ZEBRA });
+      let x = M;
+      r.forEach((cell, i) => {
+        const c = typeof cell === 'string' ? { t: cell } : cell;
+        const f = c.bold || isTotal ? bold : font;
+        const avail = widths[i] - 14;
+        if (c.bar !== undefined) {
+          const p = Math.max(0, Math.min(100, Math.round(c.bar)));
+          const bw = Math.min(60, avail - 28);
+          page.drawRectangle({ x: x + 7, y: y - 11, width: bw, height: 5, color: LINE });
+          if (p) page.drawRectangle({ x: x + 7, y: y - 11, width: (bw * p) / 100, height: 5, color: p >= 100 ? GREEN : ORANGE });
+          page.drawText(`${p}%`, { x: x + 12 + bw, y: y - 12.5, size: 8.5, font, color: INK });
+        } else if (c.pill) {
+          const t = fit(c.t, bold, 7.5, avail - 10);
+          if (t) {
+            const tw = bold.widthOfTextAtSize(t, 7.5);
+            const col = c.color || statusColor(c.t);
+            page.drawRectangle({ x: x + 7, y: y - 14, width: tw + 10, height: 11, color: col, opacity: 0.12 });
+            page.drawText(t, { x: x + 12, y: y - 11.3, size: 7.5, font: bold, color: col });
+          }
+        } else {
+          const t = fit(c.t, f, 8.5, avail);
+          const tw = f.widthOfTextAtSize(t, 8.5);
+          page.drawText(t, { x: cols[i].align === 'right' ? x + widths[i] - 7 - tw : x + 7, y: y - 12.5, size: 8.5, font: f, color: c.color || INK });
+        }
+        x += widths[i];
+      });
+      page.drawLine({ start: { x: M, y: y - rowH }, end: { x: W - M, y: y - rowH }, thickness: 0.5, color: LINE });
+      y -= rowH;
+    };
+    header();
+    if (!rows.length) {
+      ensure(rowH);
+      page.drawText(clean(opts.empty || 'Nothing to show.'), { x: M + 7, y: y - 12.5, size: 8.5, font, color: MUTED });
+      y -= rowH;
     }
-    if (!data.financials.length) text('No financial data.', { color: rgb(0.5, 0.5, 0.5) });
-    hr();
+    rows.forEach((r, i) => drawRow(r, i));
+    if (opts.totalRow) drawRow(opts.totalRow, 0, true);
+    y -= 10;
+  };
+
+  newPage();
+  const on = (k: string) => sub.sections.includes(k);
+
+  // Headline tiles
+  const kpis: { label: string; value: string; color?: any }[] = [];
+  if (on('projects') && data.projects) kpis.push({ label: 'Active projects', value: String(data.projects.filter((p: any) => !/complete|closed/i.test(p.status || '')).length) });
+  if (on('financials') && data.financials) {
+    kpis.push({ label: 'Billed to date', value: fmtMoney(data.financials.reduce((s: number, f: any) => s + Number(f.billed || 0), 0)) });
+    kpis.push({ label: 'Outstanding', value: fmtMoney(data.financials.reduce((s: number, f: any) => s + Number(f.outstanding || 0), 0)), color: AMBER });
   }
-  if (sub.sections.includes('money') && data.money) {
-    text('Money', { size: 14, bold: true });
-    text(`Collected: ${fmtMoney(data.money.collected)} | Paid out: ${fmtMoney(data.money.paidOut)} | Net: ${fmtMoney(data.money.net)}`);
-    text(`Still owed to you: ${fmtMoney(data.money.owedToUs)} | You owe: ${fmtMoney(data.money.owedByUs)}`);
-    for (const o of (data.money.overdue || []).slice(0, 20)) {
-      text(`• PAST DUE ${o.counterparty_name} (${o.kind}) due ${o.due_date} — ${fmtMoney(o.balance)}`, { color: rgb(0.7, 0.1, 0.1) });
+  if (on('money') && data.money) kpis.push({ label: 'Collected this week', value: fmtMoney(data.money.collected), color: GREEN });
+  if (on('schedule') && data.schedule) kpis.push({ label: 'Overdue tasks', value: String(data.schedule.overdue.length), color: data.schedule.overdue.length ? RED : GREEN });
+  tiles(kpis.slice(0, 4));
+
+  if (on('projects') && data.projects) {
+    const order = (s: string) => (/active|progress/i.test(s) ? 0 : /planning|hold/i.test(s) ? 1 : 2);
+    const list = [...data.projects].sort((a: any, b: any) => order(a.status) - order(b.status) || Number(b.contract_value || 0) - Number(a.contract_value || 0));
+    heading('Projects', `${list.length} project${list.length === 1 ? '' : 's'}`);
+    table(
+      [{ h: 'Project', w: 34 }, { h: 'Status', w: 15 }, { h: 'Progress', w: 20 }, { h: 'Contract', w: 18, align: 'right' }, { h: 'Due', w: 11 }],
+      list.map((p: any) => [{ t: p.name, bold: true }, { t: p.status || '', pill: true }, { t: '', bar: Number(p.completion_percentage) || 0 }, Number(p.contract_value) ? fmtMoney(p.contract_value) : '-', day(p.due_date)]),
+      { empty: 'No projects.' }
+    );
+  }
+
+  if (on('financials') && data.financials) {
+    const list = [...data.financials].sort((a: any, b: any) => Number(b.outstanding || 0) - Number(a.outstanding || 0) || Number(b.billed || 0) - Number(a.billed || 0));
+    const t = list.reduce((a: any, f: any) => ({ c: a.c + Number(f.contract || 0), b: a.b + Number(f.billed || 0), p: a.p + Number(f.paid || 0), o: a.o + Number(f.outstanding || 0) }), { c: 0, b: 0, p: 0, o: 0 });
+    const m = (n: any) => (Number(n) ? fmtMoney(n) : '-');
+    heading('Financials', 'Sorted by amount outstanding');
+    table(
+      [{ h: 'Project', w: 32 }, { h: 'Contract', w: 17, align: 'right' }, { h: 'Billed', w: 17, align: 'right' }, { h: 'Paid', w: 17, align: 'right' }, { h: 'Outstanding', w: 17, align: 'right' }],
+      list.map((f: any) => [{ t: f.name, bold: true }, m(f.contract), m(f.billed), m(f.paid), { t: m(f.outstanding), bold: Number(f.outstanding) > 0, color: Number(f.outstanding) > 0 ? AMBER : MUTED }]),
+      { empty: 'No financial data.', totalRow: list.length > 1 ? ['Total', fmtMoney(t.c), fmtMoney(t.b), fmtMoney(t.p), fmtMoney(t.o)] : undefined }
+    );
+  }
+
+  if (on('money') && data.money) {
+    const mo = data.money;
+    heading('Money', `${mo.paymentCount} payment${mo.paymentCount === 1 ? '' : 's'} recorded`);
+    tiles([
+      { label: 'Collected', value: fmtMoney(mo.collected), color: GREEN },
+      { label: 'Paid out', value: fmtMoney(mo.paidOut) },
+      { label: 'Net', value: fmtMoney(mo.net), color: mo.net < 0 ? RED : GREEN },
+      { label: 'Owed to you', value: fmtMoney(mo.owedToUs) },
+      { label: 'You owe', value: fmtMoney(mo.owedByUs) },
+    ]);
+    if ((mo.overdue || []).length) {
+      label('Past due to you', RED);
+      table([{ h: 'From', w: 40 }, { h: 'Type', w: 22 }, { h: 'Due', w: 16 }, { h: 'Balance', w: 22, align: 'right' }],
+        mo.overdue.slice(0, 20).map((o: any) => [{ t: o.counterparty_name, bold: true }, o.kind || '', { t: day(o.due_date), color: RED }, { t: fmtMoney(o.balance), bold: true }]));
     }
-    hr();
   }
-  if (sub.sections.includes('properties') && data.properties) {
-    text('Properties', { size: 14, bold: true });
-    text(`${data.properties.properties.length} properties | ${data.properties.units.length} units | ${data.properties.occupancy}% occupied`);
-    text(`Rent in place ${fmtMoney(data.properties.rentInPlace)} of ${fmtMoney(data.properties.potentialRent)} potential`);
-    hr();
+
+  if (on('properties') && data.properties && (data.properties.units.length || !sub.only_changes)) {
+    const p = data.properties;
+    heading('Properties', `${p.properties.length} properties - ${p.units.length} units`);
+    if (!p.units.length) note('No rental units set up.');
+    else tiles([{ label: 'Occupied', value: `${p.occupancy}%` }, { label: 'Rent in place', value: fmtMoney(p.rentInPlace) }, { label: 'Potential rent', value: fmtMoney(p.potentialRent) }]);
   }
-  if (sub.sections.includes('schedule') && data.schedule) {
-    text('Schedule & Tasks', { size: 14, bold: true });
-    text(`Completed last 7 days (${data.schedule.completed.length})`, { bold: true });
-    for (const t of data.schedule.completed) text(`• ${t.title} (${t.end_date})`);
-    text(`Upcoming next 7 days (${data.schedule.upcoming.length})`, { bold: true });
-    for (const t of data.schedule.upcoming) text(`• ${t.title} (${t.start_date} → ${t.end_date})`);
-    text(`Overdue (${data.schedule.overdue.length})`, { bold: true, color: rgb(0.7, 0.1, 0.1) });
-    for (const t of data.schedule.overdue) text(`• ${t.title} (due ${t.end_date})`);
-    hr();
+
+  if (on('schedule') && data.schedule) {
+    const s = data.schedule;
+    heading('Schedule', `${s.completed.length} finished - ${s.upcoming.length} coming up - ${s.overdue.length} overdue`);
+    const cols: Col[] = [{ h: 'Task', w: 50 }, { h: 'Status', w: 20 }, { h: 'Start', w: 15 }, { h: 'Finish', w: 15 }];
+    const rows = (arr: any[], late = false) => arr.map((t: any) => [{ t: t.title, bold: true }, { t: t.status || '', pill: true }, day(t.start_date), { t: day(t.end_date), color: late ? RED : undefined }]);
+    if (s.overdue.length) { label(`Overdue (${s.overdue.length})`, RED); table(cols, rows(s.overdue, true)); }
+    label(`Coming up next 7 days (${s.upcoming.length})`); table(cols, rows(s.upcoming), { empty: 'Nothing scheduled.' });
+    label(`Finished last 7 days (${s.completed.length})`, GREEN); table(cols, rows(s.completed), { empty: 'Nothing finished.' });
   }
-  if (sub.sections.includes('documents') && data.documents) {
-    text('Documents & Change Orders', { size: 14, bold: true });
-    text(`Change orders (${data.documents.changeOrders.length})`, { bold: true });
-    for (const c of data.documents.changeOrders) text(`• #${c.number || ''} ${c.description || ''} — ${c.status || ''} — ${fmtMoney(c.amount)}`);
-    text(`Documents sent (${data.documents.sends.length})`, { bold: true });
-    for (const s of data.documents.sends) text(`• ${new Date(s.sent_at).toLocaleDateString()} — ${s.bulk_invoices?.file_name || ''} → ${s.sent_to}`);
-    hr();
+
+  if (on('documents') && data.documents) {
+    heading('Documents & change orders', 'Last 7 days');
+    label('Change orders');
+    table([{ h: 'No.', w: 12 }, { h: 'Description', w: 50 }, { h: 'Status', w: 18 }, { h: 'Amount', w: 20, align: 'right' }],
+      data.documents.changeOrders.map((c: any) => [{ t: String(c.number || ''), bold: true }, c.description || '', { t: c.status || '', pill: true }, fmtMoney(c.amount)]), { empty: 'No new change orders.' });
+    label('Documents sent');
+    table([{ h: 'Sent', w: 14 }, { h: 'File', w: 40 }, { h: 'To', w: 30 }, { h: 'Status', w: 16 }],
+      data.documents.sends.map((s: any) => [day(s.sent_at), s.bulk_invoices?.file_name || '', s.sent_to || '', { t: s.status || '', pill: true }]), { empty: 'No documents sent.' });
   }
-  if (sub.sections.includes('expenses') && data.expenses) {
-    text('Expenses', { size: 14, bold: true });
-    text(`Total ${fmtMoney(data.expenses.total)} across ${data.expenses.count} entries`);
-    text('Top vendors:', { bold: true });
-    for (const [v, a] of data.expenses.topVendors) text(`• ${v}: ${fmtMoney(a)}`);
-    hr();
+
+  if (on('expenses') && data.expenses) {
+    const e = data.expenses;
+    heading('Expenses', `${fmtMoney(e.total)} across ${e.count} entr${e.count === 1 ? 'y' : 'ies'}`);
+    label('Top vendors');
+    table([{ h: 'Vendor', w: 70 }, { h: 'Amount', w: 30, align: 'right' }], e.topVendors.map(([v, a]: any) => [{ t: v, bold: true }, fmtMoney(a)]), { empty: 'No expenses.' });
+    if (e.byCategory?.length) { label('By category'); table([{ h: 'Category', w: 70 }, { h: 'Amount', w: 30, align: 'right' }], e.byCategory.map(([v, a]: any) => [v, fmtMoney(a)])); }
   }
-  if (sub.sections.includes('payment_apps') && data.payment_apps) {
-    text('Payment Applications', { size: 14, bold: true });
-    for (const p of data.payment_apps) text(`• #${p.application_number || ''} — ${p.status || ''} — Due ${fmtMoney(p.current_payment_due)}`);
-    hr();
+
+  if (on('payment_apps') && data.payment_apps) {
+    heading('Payment applications');
+    table([{ h: 'App', w: 15 }, { h: 'Status', w: 25 }, { h: 'Completed to date', w: 30, align: 'right' }, { h: 'Current due', w: 30, align: 'right' }],
+      data.payment_apps.map((p: any) => [{ t: `#${p.application_number || ''}`, bold: true }, { t: p.status || '', pill: true }, fmtMoney(p.total_completed_and_stored_to_date), { t: fmtMoney(p.current_payment_due), bold: true }]), { empty: 'No pay app activity.' });
   }
-  if (sub.sections.includes('equipment') && data.equipment) {
-    text('Equipment & Maintenance', { size: 14, bold: true });
-    text(`${data.equipment.items.length} units · ${data.equipment.alerts.length} open alerts`);
-    for (const a of data.equipment.alerts) text(`• [${a.severity}] ${a.message} (due ${a.due_date || 'n/a'})`);
-    hr();
+
+  if (on('equipment') && data.equipment) {
+    heading('Equipment & maintenance', `${data.equipment.items.length} units - ${data.equipment.alerts.length} open alerts`);
+    table([{ h: 'Type', w: 20 }, { h: 'Message', w: 50 }, { h: 'Severity', w: 15 }, { h: 'Due', w: 15 }],
+      data.equipment.alerts.map((a: any) => [{ t: a.alert_type, bold: true }, a.message || '', { t: a.severity || '', pill: true }, day(a.due_date)]), { empty: 'No open alerts.' });
   }
-  if (sub.sections.includes('subcontractors') && data.subcontractors) {
-    text('Subcontractor Activity', { size: 14, bold: true });
-    text(`${data.subcontractors.active.length} active subs · ${data.subcontractors.recentInvites.length} invites in period`);
+
+  if (on('subcontractors') && data.subcontractors) {
+    heading('Subcontractors');
+    tiles([{ label: 'Active subcontractors', value: String(data.subcontractors.active.length) }, { label: 'Bid invitations this period', value: String(data.subcontractors.recentInvites.length) }]);
   }
+
+  // Footer with page numbers
+  const pages = pdf.getPages();
+  pages.forEach((pg: any, i: number) => {
+    pg.drawLine({ start: { x: M, y: 28 }, end: { x: W - M, y: 28 }, thickness: 0.5, color: LINE });
+    pg.drawText(fit(`${companyName} - ${sub.name} - printed ${fmtD(new Date())}`, font, 7.5, 400), { x: M, y: 17, size: 7.5, font, color: MUTED });
+    const t = `Page ${i + 1} of ${pages.length}`;
+    pg.drawText(t, { x: W - M - font.widthOfTextAtSize(t, 7.5), y: 17, size: 7.5, font, color: MUTED });
+  });
 
   return await pdf.save();
 }
