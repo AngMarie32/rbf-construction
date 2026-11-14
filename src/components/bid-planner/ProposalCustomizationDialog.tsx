@@ -1,5 +1,6 @@
+import { DEFAULT_PROPOSAL_SETTINGS, fillProposalText, loadProposalSettings } from '@/lib/proposalSettings';
 
-import { useState } from 'react';
+import { useState , useEffect} from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,15 +25,12 @@ export function ProposalCustomizationDialog({ open, onOpenChange, bidItems, proj
   const [exportType, setExportType] = useState<'itemized' | 'category' | 'division'>('itemized');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [terms, setTerms] = useState<string[]>([
-    'This proposal is valid for 30 days from the date above.',
-    '50% deposit required to begin work, with balance due upon completion.',
-    'All materials will be of good quality and installed in a workmanlike manner.',
-    'Any changes to this scope of work must be approved in writing.',
-    'Contractor will obtain all necessary permits.',
-    'Work area to be left clean and debris removed daily.',
-    'This proposal becomes a contract when signed by both parties.'
-  ]);
+  const [terms, setTerms] = useState<string[]>(DEFAULT_PROPOSAL_SETTINGS.terms.map((t) => fillProposalText(t, { days: DEFAULT_PROPOSAL_SETTINGS.validDays })));
+  // Start from the company's terms in Settings → Proposals each time the dialog opens.
+  useEffect(() => {
+    if (!open) return;
+    loadProposalSettings().then((w) => setTerms(w.terms.map((t) => fillProposalText(t, { days: w.validDays }))));
+  }, [open]);
 
   // Get unique categories and divisions
   const categories = Array.from(new Set(bidItems.map(item => item.category).filter(Boolean)));
