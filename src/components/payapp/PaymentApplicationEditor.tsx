@@ -34,6 +34,30 @@ const num = (v: string) => {
   return Number.isFinite(n) ? n : 0;
 };
 const r2 = (n: number) => Math.round(n * 100) / 100;
+
+const norm = (v: unknown) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+/**
+ * What each line carries out of an earlier application: previous + this period, and stored materials.
+ * Lines are matched by id, then item number, then description, so a rebuilt Schedule of Values still lines up.
+ */
+function carryFrom(prior: PayAppLine[] | null, line: { id: string; itemNumber?: string; description?: string }) {
+  if (!prior?.length) return null;
+  const hit =
+    prior.find((p) => p.id === line.id) ||
+    (line.itemNumber ? prior.find((p) => norm(p.itemNumber) === norm(line.itemNumber) && norm(p.description) === norm(line.description)) : undefined) ||
+    (line.itemNumber ? prior.find((p) => norm(p.itemNumber) === norm(line.itemNumber)) : undefined) ||
+    prior.find((p) => norm(p.description) && norm(p.description) === norm(line.description));
+  return hit ? { previous: r2((Number(hit.previous) || 0) + (Number(hit.thisPeriod) || 0)), stored: Number(hit.stored) || 0 } : null;
+}
+/** Work billed before this application, from the saved totals or (if blank) from the certificates paid. */
+function earlierBilledOf(prior: any, certified: number, retainPct: number) {
+  const fromLines = Array.isArray(prior?.line_items)
+    ? (prior.line_items as PayAppLine[]).reduce((a, l) => a + (Number(l.previous) || 0) + (Number(l.thisPeriod) || 0) + (Number(l.stored) || 0), 0)
+    : 0;
+  const fromTotal = Number(prior?.total_completed_and_stored) || 0;
+  const fromCerts = certified > 0 ? certified / Math.max(0.01, 1 - (Number(retainPct) || 0) / 100) : 0;
+  return Math.max(fromLines, fromTotal, fromCerts);
+}
 const addDays = (iso: string, days: number) => {
   const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
   return localDateISO(new Date(y, m - 1, d + days));
@@ -105,6 +129,8 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
   const [changeOrders, setChangeOrders] = useState<any[]>([]);
   // Set when earlier applications billed more than the lines carry forward (older apps saved without line history).
   const [carryGap, setCarryGap] = useState(0);
+  // Saved latest application whose Previous doesn't match the application before it.
+  const [pullFrom, setPullFrom] = useState<{ number: number; lines: PayAppLine[] } | null>(null);
   const [mode, setMode] = useState<{ editableLines: boolean; reason?: string; legacy?: boolean }>({ editableLines: true });
   const [signOpen, setSignOpen] = useState(false);
   const [waiverOpen, setWaiverOpen] = useState(false);
@@ -162,6 +188,7 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
     });
 
     setCarryGap(0);
+    setPullFrom(null);
     if (current) {
       const isLatest = current.application_number === Math.max(...all.map((a) => a.application_number));
       const snapshot = Array.isArray(current.line_items) ? (current.line_items as PayAppLine[]) : null;
@@ -184,7 +211,25 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
               ? { editableLines: false, reason: 'This application is marked paid, so its billed amounts are locked.' }
               : { editableLines: true }
       );
-      setPreviousCertificates(all.filter((a) => a.application_number < current.application_number).reduce((s, a) => s + (Number(a.current_payment_due) || 0), 0));
+      const certified = all.filter((a) => a.application_number < current.application_number).reduce((s, a) => s + (Number(a.current_payment_due) || 0), 0);
+      setPreviousCertificates(certified);
+      if (snapshot && isLatest && current.payment_status !== 'paid') {
+        const prior = all
+          .filter((a) => a.application_number < current.application_number)
+          .reduce((m: any, a: any) => (!m || a.application_number > m.application_number ? a : m), null as any);
+        if (prior) {
+          const priorLines = Array.isArray(prior.line_items) ? (prior.line_items as PayAppLine[]) : null;
+          const prevNow = snapshot.reduce((a, l) => a + (Number(l.previous) || 0), 0);
+          const fixed = snapshot.map((l) => {
+            const c = carryFrom(priorLines, l);
+            return c ? { ...l, previous: c.previous } : l;
+          });
+          const prevFixed = fixed.reduce((a, l) => a + l.previous, 0);
+          if (priorLines && prevFixed > prevNow + 0.5) setPullFrom({ number: prior.application_number, lines: fixed });
+          const billedBefore = earlierBilledOf(prior, certified, Number(current.retainage_percentage ?? 10));
+          if (billedBefore > Math.max(prevNow, prevFixed) + 0.5) setCarryGap(billedBefore);
+        }
+      }
       setOtherNumbers(all.filter((a) => a.id !== current.id).map((a) => a.application_number));
       setForm({
         applicationNumber: current.application_number,
@@ -210,15 +255,14 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
       // source of truth (previous + this period, stored materials carried); the Schedule of Values is the
       // fallback for lines it doesn't cover or applications saved before line history was kept.
       const lastSnap = Array.isArray(last?.line_items) ? (last.line_items as PayAppLine[]) : null;
-      const snapById = new Map((lastSnap || []).map((l) => [l.id, l]));
       const carried = (sov || []).map((s: any) => {
         const base = fromSov(s);
-        const prev = snapById.get(s.id);
-        if (!prev) return base;
-        return { ...base, previous: r2((Number(prev.previous) || 0) + (Number(prev.thisPeriod) || 0)), stored: Number(prev.stored) || 0 };
+        const c = carryFrom(lastSnap, base);
+        return c ? { ...base, previous: Math.max(base.previous, c.previous), stored: c.stored } : base;
       });
       setLines(carried);
-      const earlierBilled = Number(last?.total_completed_and_stored) || 0;
+      const certifiedAll = all.reduce((s, a) => s + (Number(a.current_payment_due) || 0), 0);
+      const earlierBilled = last ? earlierBilledOf(last, certifiedAll, Number(last.retainage_percentage ?? 10)) : 0;
       const carriedTotal = carried.reduce((a, l) => a + l.previous + l.stored, 0);
       setCarryGap(!!last && earlierBilled > 0 && carriedTotal + 0.5 < earlierBilled ? earlierBilled : 0);
       setMode({ editableLines: true });
@@ -229,7 +273,8 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
         ...f,
         applicationNumber: (last?.application_number || 0) + 1,
         periodFrom: last?.period_to ? addDays(last.period_to, 1) : '',
-        periodTo: localDateISO(),
+        // "Period to" can't be before "Period from" (e.g. the last application ended today).
+        periodTo: last?.period_to && addDays(last.period_to, 1) > localDateISO() ? addDays(last.period_to, 1) : localDateISO(),
         applicationDate: localDateISO(),
         contractDate: last?.contract_date || '',
         projectNumber: last?.project_number || proj?.project_code || '',
@@ -512,16 +557,36 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
         ]}
       />
 
-      {(mode.reason || carryGap > 0 || overbilled.length > 0 || totals.sovMismatch || duplicateNumber || totals.currentPaymentDue < 0) && (
+      {(mode.reason || carryGap > 0 || !!pullFrom || overbilled.length > 0 || totals.sovMismatch || duplicateNumber || totals.currentPaymentDue < 0) && (
         <div className="space-y-2">
           {mode.reason && (
             <Notice icon={Lock} tone="slate">
               {mode.reason}
             </Notice>
           )}
-          {carryGap > 0 && (
+          {pullFrom && mode.editableLines && (
             <Notice tone="rose">
-              Earlier applications billed {money(carryGap)} to date, but only {money(lines.reduce((a, l) => a + l.previous + l.stored, 0))} carried into "Previous" on these lines. Those applications were saved before line-by-line history was kept. Enter each line's previous amount in the Previous column (it's editable here) so this application continues from the last one.
+              <span className="flex flex-wrap items-center gap-3">
+                <span className="flex-1">
+                  The Previous column doesn't match what Application #{pullFrom.number} billed. Pull it over so this application continues where #{pullFrom.number} ended.
+                </span>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setLines(pullFrom.lines.map((l) => ({ ...l })));
+                    setPullFrom(null);
+                    setCarryGap(0);
+                    setDirty(true);
+                  }}
+                >
+                  Use Application #{pullFrom.number}'s amounts
+                </Button>
+              </span>
+            </Notice>
+          )}
+          {carryGap > 0 && !pullFrom && (
+            <Notice tone="rose">
+              Earlier applications billed about {money(carryGap)} to date, but only {money(lines.reduce((a, l) => a + l.previous + l.stored, 0))} carried into "Previous" on these lines. Those applications were saved before line-by-line history was kept. Enter each line's previous amount in the Previous column (it's editable here) so this application continues from the last one.
             </Notice>
           )}
                     {duplicateNumber && <Notice tone="rose">Application #{form.applicationNumber} already exists for this project. Change the number before saving.</Notice>}
