@@ -22,7 +22,7 @@ const TITLES: Record<WaiverType, string> = {
 };
 
 function bodyText(input: WaiverInput): string {
-  const through = new Date(input.throughDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const through = new Date(input.throughDate.length <= 10 ? `${input.throughDate}T00:00:00` : input.throughDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const amt = input.amountPaid.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   const isConditional = input.type.startsWith('conditional');
   const isFinal = input.type.endsWith('final');

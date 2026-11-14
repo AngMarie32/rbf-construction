@@ -89,7 +89,7 @@ export default function EsignMySignature() {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               maxLength={120}
-              placeholder="Jane Doe"
+              placeholder="Your full name"
             />
             <p className="text-xs text-muted-foreground mt-1">
               Used to prefill your name when you add yourself as a signer.

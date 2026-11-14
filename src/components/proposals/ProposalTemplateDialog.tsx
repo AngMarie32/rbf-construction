@@ -477,7 +477,7 @@ export function ProposalTemplateDialog({ open, onOpenChange, onTemplateSelect }:
                       id="templateName"
                       value={newTemplate.name}
                       onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
-                      placeholder="e.g., Kitchen Remodel, Office Build-out"
+                      placeholder="Project type"
                     />
                   </div>
                   <div>

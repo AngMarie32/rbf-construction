@@ -1,3 +1,5 @@
+import { BulkComplianceDialog } from '@/components/subcontractors/BulkComplianceDialog';
+import { ShieldCheck } from 'lucide-react';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -78,6 +80,7 @@ export default function Subcontractors() {
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
   const [selectedRegion, setSelectedRegion] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [bulkCompliance, setBulkCompliance] = useState(false);
   const [editingSubcontractor, setEditingSubcontractor] = useState<Subcontractor | null>(null);
   const [showDocumentIssues, setShowDocumentIssues] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -433,6 +436,9 @@ export default function Subcontractors() {
               <button type="button" className={heroButton} onClick={() => setShowDocumentIssues(true)}>
                 <ShieldAlert className="h-4 w-4" /> Document issues
               </button>
+              <button type="button" className={heroButton} onClick={() => setBulkCompliance(true)}>
+                <ShieldCheck className="h-4 w-4" /> Update W-9s / COIs
+              </button>
             </>
           }
           stats={[
@@ -705,6 +711,12 @@ export default function Subcontractors() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <BulkComplianceDialog
+        open={bulkCompliance}
+        onOpenChange={setBulkCompliance}
+        subcontractors={subcontractors}
+        onSaved={fetchSubcontractors}
+      />
     </Layout>
   );
 }

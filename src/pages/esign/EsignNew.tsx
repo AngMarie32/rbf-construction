@@ -231,7 +231,7 @@ export default function EsignNew() {
             <h2 className="font-semibold">Details</h2>
             <div>
               <Label htmlFor="es-title">Document title *</Label>
-              <Input id="es-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Subcontract – Smith Electric – Main St" />
+              <Input id="es-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Document title" />
             </div>
             <div>
               <Label htmlFor="es-msg">Message to signers</Label>

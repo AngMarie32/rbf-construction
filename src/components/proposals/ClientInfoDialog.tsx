@@ -55,7 +55,7 @@ export function ClientInfoDialog({
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Label htmlFor="ci-client">Client name *</Label>
-              <Input id="ci-client" autoFocus required value={form.client} onChange={set('client')} placeholder="e.g. John & Mary Smith or Acme Holdings LLC" />
+              <Input id="ci-client" autoFocus required value={form.client} onChange={set('client')} placeholder="Client or owner name" />
             </div>
             <div>
               <Label htmlFor="ci-email">Email</Label>

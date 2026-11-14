@@ -737,7 +737,7 @@ export default function EsignDocumentDetail() {
                 rows={8}
                 value={bulkText}
                 onChange={(e) => setBulkText(e.target.value)}
-                placeholder={'One per line: Name, email@domain.com, Company (optional)\nJohn Smith, john@acme.com, Acme Subs\nJane Doe, jane@buildco.com'}
+                placeholder={'One signer per line: Name, Email, Company (optional)'}
               />
               <p className="text-xs text-muted-foreground mt-1">Format: Name, Email, Company (company optional).</p>
             </div>

@@ -119,7 +119,7 @@ export function SubcontractorScorecardDialog({ sub, onOpenChange, onSaved }: Pro
           </div>
           <div>
             <Label>Notes (optional)</Label>
-            <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Great on the Smith remodel, slow with submittals" />
+            <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Notes on this subcontractor's work" />
           </div>
         </div>
 

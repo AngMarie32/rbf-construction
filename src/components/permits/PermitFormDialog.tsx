@@ -128,15 +128,15 @@ export function PermitFormDialog({ open, onOpenChange, projects, permit, default
             </div>
             <div>
               <Label>Permit number</Label>
-              <Input value={form.permit_number} onChange={(e) => set('permit_number', e.target.value)} placeholder="e.g. BP-2026-01482" />
+              <Input value={form.permit_number} onChange={(e) => set('permit_number', e.target.value)} placeholder="Permit number" />
             </div>
             <div>
               <Label>Issuing authority</Label>
-              <Input value={form.issuing_authority} onChange={(e) => set('issuing_authority', e.target.value)} placeholder="e.g. City of Austin DSD" />
+              <Input value={form.issuing_authority} onChange={(e) => set('issuing_authority', e.target.value)} placeholder="Issuing city or county" />
             </div>
             <div className="sm:col-span-2">
               <Label>Description</Label>
-              <Input value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="e.g. Kitchen and primary bath remodel" />
+              <Input value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="What the permit covers" />
             </div>
             <div>
               <Label>Applied</Label>

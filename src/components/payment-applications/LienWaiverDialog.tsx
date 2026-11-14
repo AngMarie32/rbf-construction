@@ -18,7 +18,7 @@ interface Sub { id: string; name: string; email: string | null; company: string 
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  paymentApp: {
+  paymentApp?: {
     id: string;
     application_number: number;
     project_id: string | null;
@@ -28,12 +28,28 @@ interface Props {
     project_address?: string;
     client?: string;
   };
+  /** Send a waiver for an expense (vendor or sub payment) instead of a payment application. */
+  expense?: {
+    id: string;
+    project_id: string | null;
+    project_name?: string;
+    project_address?: string;
+    amount: number;
+    date: string;
+    vendor?: string | null;
+    description?: string | null;
+    paid?: boolean;
+  };
 }
 
-export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
-  const [type, setType] = useState<WaiverType>('conditional_progress');
-  const [amount, setAmount] = useState<string>(String(paymentApp.current_payment_due ?? 0));
-  const [throughDate, setThroughDate] = useState<string>(paymentApp.period_to?.slice(0, 10) || localDateISO());
+export function LienWaiverDialog({ open, onOpenChange, paymentApp, expense }: Props) {
+  // One shape for both sources.
+  const src = paymentApp
+    ? { id: paymentApp.id, project_id: paymentApp.project_id, project_name: paymentApp.project_name, project_address: paymentApp.project_address, amount: paymentApp.current_payment_due, date: paymentApp.period_to, ref: `Payment App #${paymentApp.application_number}`, file: `App${paymentApp.application_number}` }
+    : { id: expense!.id, project_id: expense!.project_id, project_name: expense!.project_name, project_address: expense!.project_address, amount: expense!.amount, date: expense!.date, ref: `Expense${expense!.description ? `: ${expense!.description}` : ''}`, file: 'Expense' };
+  const [type, setType] = useState<WaiverType>(expense?.paid ? 'unconditional_progress' : 'conditional_progress');
+  const [amount, setAmount] = useState<string>(String(src.amount ?? 0));
+  const [throughDate, setThroughDate] = useState<string>(src.date?.slice(0, 10) || localDateISO());
   const [exceptions, setExceptions] = useState('');
   const [checkNumber, setCheckNumber] = useState('');
   const [subs, setSubs] = useState<Sub[]>([]);
@@ -48,16 +64,31 @@ export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    setAmount(String(paymentApp.current_payment_due ?? 0));
-    setThroughDate(paymentApp.period_to?.slice(0, 10) || localDateISO());
+    setAmount(String(src.amount ?? 0));
+    setThroughDate(src.date?.slice(0, 10) || localDateISO());
+    if (expense) setType(expense.paid ? 'unconditional_progress' : 'conditional_progress');
     (async () => {
       const { data } = await supabase
         .from('subcontractors')
         .select('id, name, email, company')
         .order('name');
-      setSubs((data as any) || []);
+      const list = ((data as any) || []) as Sub[];
+      setSubs(list);
+      // Match the expense vendor to a subcontractor; otherwise use the vendor name as typed.
+      if (expense?.vendor) {
+        const v = expense.vendor.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+        const hit = list.find((x) => [x.company, x.name].some((n) => n && n.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() === v));
+        if (hit) {
+          setSubId(hit.id);
+          setOverrideName('');
+        } else {
+          setSubId('');
+          setOverrideName(expense.vendor);
+        }
+      }
     })();
-  }, [open, paymentApp]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, paymentApp?.id, expense?.id]);
 
   const selectedSub = subs.find(s => s.id === subId);
   const recipientName = overrideName.trim() || selectedSub?.company || selectedSub?.name || '';
@@ -66,8 +97,8 @@ export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
   const buildPdf = async () => {
     return await generateLienWaiverPdf({
       type,
-      projectName: paymentApp.project_name || 'Project',
-      projectAddress: paymentApp.project_address,
+      projectName: src.project_name || 'Project',
+      projectAddress: src.project_address,
       contractorName: recipientName || '[Subcontractor]',
       customerName: 'RBF Construction',
       amountPaid: Number(amount) || 0,
@@ -84,11 +115,11 @@ export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Lien_Waiver_${paymentApp.application_number}_${recipientName || 'Sub'}.pdf`.replace(/\s+/g, '_');
+      a.download = `Lien_Waiver_${src.file}_${recipientName || 'Sub'}.pdf`.replace(/\s+/g, '_');
       a.click();
       URL.revokeObjectURL(url);
       // Track this waiver as pending
-      await supabase.from('payment_app_lien_waivers').insert({
+      if (paymentApp) await supabase.from('payment_app_lien_waivers').insert({
         payment_app_id: paymentApp.id,
         project_id: paymentApp.project_id,
         subcontractor_id: subId || null,
@@ -115,17 +146,19 @@ export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
     setBusy(true);
     try {
       const blob = await buildPdf();
-      const file = new File([blob], `Lien_Waiver_${paymentApp.application_number}.pdf`, { type: 'application/pdf' });
+      const file = new File([blob], `Lien_Waiver_${src.file}.pdf`, { type: 'application/pdf' });
       const env = await createEnv.mutateAsync({
-        title: `${WAIVER_LABELS[type]} — Payment App #${paymentApp.application_number}`,
-        message: `Please review and sign this lien waiver for Payment Application #${paymentApp.application_number}.`,
+        title: `${WAIVER_LABELS[type]} — ${paymentApp ? src.ref : `${recipientName}${src.project_name ? ` · ${src.project_name}` : ''}`}`,
+        message: paymentApp
+          ? `Please review and sign this lien waiver for Payment Application #${paymentApp.application_number}.`
+          : `Please review and sign this lien waiver for payment of ${(Number(amount) || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}${src.project_name ? ` on ${src.project_name}` : ''}.`,
         signing_order: 'parallel',
-        source_type: 'invoice',
-        source_id: paymentApp.id,
-        project_id: paymentApp.project_id || undefined,
+        source_type: paymentApp ? 'invoice' : 'expense',
+        source_id: src.id,
+        project_id: src.project_id || undefined,
         document_type: 'Lien Waiver',
         company: recipientName,
-        payment_app_number: String(paymentApp.application_number),
+        payment_app_number: paymentApp ? String(paymentApp.application_number) : undefined,
       });
       await upload.mutateAsync({ envelopeId: env.id, file });
 
@@ -153,7 +186,7 @@ export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
 
       await send.mutateAsync(env.id);
       // Track waiver as requested
-      await supabase.from('payment_app_lien_waivers').insert({
+      if (paymentApp) await supabase.from('payment_app_lien_waivers').insert({
         payment_app_id: paymentApp.id,
         project_id: paymentApp.project_id,
         subcontractor_id: subId || null,
@@ -180,10 +213,12 @@ export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileSignature className="h-5 w-5" /> Lien Waiver — App #{paymentApp.application_number}
+            <FileSignature className="h-5 w-5" /> Lien waiver — {paymentApp ? `App #${paymentApp.application_number}` : src.project_name || 'Expense'}
           </DialogTitle>
           <DialogDescription>
-            Auto-fills from the payment application. Choose a waiver type, pick a subcontractor, then download or send for signature.
+            {paymentApp
+              ? 'Auto-fills from the payment application. Choose a waiver type, pick a subcontractor, then download or send for signature.'
+              : 'Auto-fills from the expense. Choose a waiver type, confirm who signs it, then download or send for signature. The signed copy appears in E-Sign.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -215,7 +250,7 @@ export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
           </div>
 
           <Card className="p-3">
-            <Label className="text-xs uppercase tracking-wide">Recipient (Subcontractor)</Label>
+            <Label className="text-xs uppercase tracking-wide">Who signs it (subcontractor or vendor)</Label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
               <div className="md:col-span-2">
                 <Select value={subId} onValueChange={setSubId}>
@@ -231,11 +266,11 @@ export function LienWaiverDialog({ open, onOpenChange, paymentApp }: Props) {
               </div>
               <div>
                 <Label className="text-xs">Override Name</Label>
-                <Input value={overrideName} onChange={e => setOverrideName(e.target.value)} placeholder={selectedSub?.company || selectedSub?.name || ''} />
+                <Input value={overrideName} onChange={e => setOverrideName(e.target.value)} placeholder={selectedSub?.company || selectedSub?.name || 'Company or person signing'} />
               </div>
               <div>
                 <Label className="text-xs">Override Email</Label>
-                <Input value={overrideEmail} onChange={e => setOverrideEmail(e.target.value)} placeholder={selectedSub?.email || ''} />
+                <Input value={overrideEmail} onChange={e => setOverrideEmail(e.target.value)} placeholder={selectedSub?.email || 'Their email'} />
               </div>
             </div>
           </Card>
