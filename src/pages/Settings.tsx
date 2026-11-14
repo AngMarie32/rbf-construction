@@ -1,3 +1,5 @@
+import { ProposalSettingsCard } from '@/components/settings/ProposalSettingsCard';
+import { FileSignature } from 'lucide-react';
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -221,6 +223,10 @@ const Settings = () => {
               <Building className="w-4 h-4" />
               Company
             </TabsTrigger>
+            <TabsTrigger value="proposals" className="flex items-center gap-2">
+              <FileSignature className="w-4 h-4" />
+              Proposals
+            </TabsTrigger>
             <TabsTrigger value="bonding" className="flex items-center gap-2">
               <Landmark className="w-4 h-4" />
               Bonding
@@ -246,6 +252,10 @@ const Settings = () => {
               <MenuVisibilitySettings />
             </TabsContent>
           )}
+
+          <TabsContent value="proposals">
+            <ProposalSettingsCard />
+          </TabsContent>
 
           <TabsContent value="company">
             <Card>

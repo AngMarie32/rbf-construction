@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { DEFAULT_PROPOSAL_SETTINGS, fillProposalText, loadProposalSettings, type ProposalSettings } from '@/lib/proposalSettings';
 
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -17,6 +19,10 @@ interface ProposalViewModalProps {
 }
 
 export function ProposalViewModal({ proposal, open, onOpenChange, onDownload }: ProposalViewModalProps) {
+  const [wording, setWording] = useState<ProposalSettings>(DEFAULT_PROPOSAL_SETTINGS);
+  useEffect(() => {
+    if (open) loadProposalSettings().then(setWording);
+  }, [open]);
   // Don't render anything if proposal is null
   if (!proposal) {
     return null;
@@ -46,9 +52,7 @@ Scope of Work:
 ${proposal.scope || 'No scope defined'}
 
 Terms and Conditions:
-- This proposal is valid for 30 days from the date above
-- Payment terms: Net 30 days
-- Work to begin upon signed contract and receipt of deposit
+${wording.terms.map((t) => `- ${fillProposalText(t, { project: proposal.projectName, days: wording.validDays })}`).join('\n')}
 
 Thank you for considering our proposal. We look forward to working with you.
     `;
@@ -186,8 +190,7 @@ Thank you for considering our proposal. We look forward to working with you.
                   </span>
                 </div>
                 <div className="text-sm text-muted-foreground space-y-1">
-                  <p>• Price includes all materials and labor</p>
-                  <p>• Valid for 30 days from proposal date</p>
+                  <p>• Valid for {wording.validDays} days from proposal date</p>
                   <p>• Payment terms: Net 30 days</p>
                 </div>
               </CardContent>
@@ -200,14 +203,11 @@ Thank you for considering our proposal. We look forward to working with you.
               <CardTitle>Terms and Conditions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-sm text-foreground/80 space-y-2">
-                <p><strong>1. Validity:</strong> This proposal is valid for 30 days from the date above.</p>
-                <p><strong>2. Payment Terms:</strong> Net 30 days from invoice date.</p>
-                <p><strong>3. Work Commencement:</strong> Work will begin upon signed contract and receipt of any required deposit.</p>
-                <p><strong>4. Materials:</strong> All materials will be of industry standard quality unless otherwise specified.</p>
-                <p><strong>5. Changes:</strong> Any changes to the scope of work must be approved in writing and may affect the total cost.</p>
-                <p><strong>6. Permits:</strong> Client is responsible for obtaining any necessary permits unless specifically included in this proposal.</p>
-              </div>
+              <ol className="list-decimal space-y-2 pl-5 text-sm text-foreground/80">
+                {wording.terms.map((t, i) => (
+                  <li key={i}>{fillProposalText(t, { project: proposal.projectName, days: wording.validDays })}</li>
+                ))}
+              </ol>
             </CardContent>
           </Card>
 

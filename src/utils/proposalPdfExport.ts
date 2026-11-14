@@ -1,3 +1,4 @@
+import { fillProposalText, loadProposalSettings } from '@/lib/proposalSettings';
 import { DocKit, loadCompany, usd, fmtDate, fileSlug } from './pdfDocKit';
 
 interface ProposalData {
@@ -24,18 +25,10 @@ interface ProposalData {
   }>;
 }
 
-const DEFAULT_TERMS = [
-  'Payment terms: 50% deposit to schedule the work, with the balance due upon completion.',
-  'All materials will be of good quality and installed in a workmanlike manner according to standard practice.',
-  'Any change to this scope of work must be agreed in writing and may change the price and schedule.',
-  'Contractor will obtain the permits required for the work described above.',
-  'Work areas will be kept orderly and debris removed on a regular basis.',
-  'This proposal becomes a binding agreement when signed by both parties.',
-];
 
 export const generateProfessionalProposalPDF = async (proposal: ProposalData) => {
-  const company = await loadCompany();
-  const validDays = proposal.validDays || 30;
+  const [company, wording] = await Promise.all([loadCompany(), loadProposalSettings()]);
+  const validDays = proposal.validDays || wording.validDays;
   const validUntil = new Date(proposal.createdAt);
   validUntil.setDate(validUntil.getDate() + validDays);
   const ref = proposal.id ? `No. P-${proposal.id.replace(/-/g, '').slice(0, 6).toUpperCase()}` : '';
@@ -62,7 +55,7 @@ export const generateProfessionalProposalPDF = async (proposal: ProposalData) =>
   ]);
 
   doc.paragraph(
-    `${company.name} is pleased to submit this proposal for ${proposal.projectName}. The price below covers the labor, materials and supervision needed to complete the scope of work described.`,
+    fillProposalText(wording.intro, { company: company.name, project: proposal.projectName, days: validDays }),
     9.5
   );
 
@@ -100,7 +93,8 @@ export const generateProfessionalProposalPDF = async (proposal: ProposalData) =>
   }
 
   doc.heading('Terms and conditions');
-  const terms = proposal.terms?.length ? [...proposal.terms] : [`This proposal is valid for ${validDays} days from the date above.`, ...DEFAULT_TERMS];
+  // Terms from Settings → Proposals unless this proposal has its own.
+  const terms = (proposal.terms?.length ? [...proposal.terms] : wording.terms).map((t) => fillProposalText(t, { company: company.name, project: proposal.projectName, days: validDays }));
   doc.bullets(terms);
 
   if (proposal.notes?.trim()) {
@@ -111,7 +105,7 @@ export const generateProfessionalProposalPDF = async (proposal: ProposalData) =>
   doc.ensure(64); // keep the acceptance text and signature lines together
   doc.heading('Acceptance');
   doc.paragraph(
-    'The above price, scope and conditions are satisfactory and are hereby accepted. The contractor is authorized to do the work as specified, and payment will be made as outlined above.',
+    fillProposalText(wording.acceptance, { company: company.name, project: proposal.projectName, days: validDays }),
     9
   );
   doc.y += 2;

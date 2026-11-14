@@ -43,6 +43,9 @@ import { CreateChangeOrderDialog } from '@/components/change-orders/CreateChange
 import { Project as GlobalProject } from '@/types';
 import { rememberProject } from '@/utils/recentProjects';
 import { cn } from '@/lib/utils';
+import { PageHero, heroButton, heroButtonPrimary } from '@/components/ui/page-hero';
+import { AccentStat } from '@/components/ui/accent-stat';
+import { Wallet } from 'lucide-react';
 
 interface DatabaseProject {
   id: string;
@@ -115,8 +118,8 @@ export default function ProjectDetail() {
           description: data.description,
           type: data.type,
           status: normalizeProjectStatus(data.status) as 'Planning' | 'Active' | 'On Hold' | 'Completed' | 'Closed',
-          startDate: data.start_date ? new Date(data.start_date) : new Date(),
-          dueDate: data.due_date ? new Date(data.due_date) : new Date(),
+          startDate: data.start_date ? new Date(`${String(data.start_date).slice(0, 10)}T00:00:00`) : (undefined as any),
+          dueDate: data.due_date ? new Date(`${String(data.due_date).slice(0, 10)}T00:00:00`) : (undefined as any),
           contractValue: data.contract_value,
           completionPercentage: data.completion_percentage,
           estimatedProfit: (data as any).estimated_profit ?? null,
@@ -235,7 +238,7 @@ export default function ProjectDetail() {
   const paidExpenses = expenses.filter((e) => e.status === 'Paid').reduce((sum, e) => sum + (e.amount || 0), 0);
   const totalBilled = billing.reduce((sum, b) => sum + (b.billed_amount || 0), 0);
   const totalReceived = billing.reduce((sum, b) => sum + (b.paid_amount || 0), 0);
-  const approvedCOs = changeOrders.filter((c) => c.status === 'Approved').reduce((s, c) => s + (c.amount || 0), 0);
+  const approvedCOs = changeOrders.filter((c) => (c.status || '').toLowerCase() === 'approved').reduce((s, c) => s + (c.amount || 0), 0);
   const revisedContract = (project.contractValue || 0) + approvedCOs;
   const pp = projectProfit(revisedContract, totalExpenses, project.estimatedProfit);
   const estProfit = pp.profit;
@@ -249,6 +252,45 @@ export default function ProjectDetail() {
     { label: 'Billed / received', value: `${money(totalBilled)}`, hint: outstanding > 0 ? `${money(outstanding)} still owed to you` : `${money(totalReceived)} received`, icon: CreditCard },
     { label: 'Projected profit', value: money(estProfit), hint: pp.hasTarget ? (pp.overBudget > 0 ? `${money(pp.overBudget)} over cost budget` : `On budget · ${margin.toFixed(1)}% margin`) : `${margin.toFixed(1)}% margin`, icon: TrendingUp, tone: estProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' },
   ];
+
+  // ---- Job health ----
+  const done = Number(project.completionPercentage) || 0;
+  const billedPct = revisedContract > 0 ? (totalBilled / revisedContract) * 100 : 0;
+  const spentOfBudget = pp.costBudget > 0 ? (totalExpenses / pp.costBudget) * 100 : 0;
+  const today0 = new Date();
+  today0.setHours(0, 0, 0, 0);
+  const hasDue = !!project.dueDate && !isNaN(new Date(project.dueDate).getTime());
+  const daysLeft = hasDue ? Math.round((new Date(project.dueDate).getTime() - today0.getTime()) / 86400000) : null;
+  const pendingCOs = changeOrders.filter((c) => !['approved', 'rejected', 'void', 'voided'].includes((c.status || '').toLowerCase()));
+  const pendingExp = expenses.filter((e) => String(e.status || '').includes('Pending'));
+  const overdueTasks = tasks.filter((t) => t.status !== 'Completed' && t.end_date && new Date(`${String(t.end_date).slice(0, 10)}T00:00:00`) < today0);
+  const unbilledWork = Math.max(0, (revisedContract * done) / 100 - totalBilled);
+  const isOpen = !['Completed', 'Closed'].includes(project.status);
+  const alerts: { tone: 'bad' | 'warn' | 'info'; text: string; tab?: string; to?: string }[] = [];
+  if (isOpen && daysLeft != null && daysLeft < 0 && done < 100) alerts.push({ tone: 'bad', text: `Past the due date by ${-daysLeft} day${daysLeft === -1 ? '' : 's'} at ${done}% complete.`, tab: 'schedule' });
+  if (pp.overBudget > 0) alerts.push({ tone: 'bad', text: `Costs are ${money(pp.overBudget)} over the cost budget, which comes out of profit.`, tab: 'expenses' });
+  else if (revisedContract > 0 && budgetUsed > done + 10) alerts.push({ tone: 'warn', text: `${budgetUsed.toFixed(0)}% of the contract is spent at ${done}% complete. Costs are running ahead of progress.`, tab: 'burn-analysis' });
+  if (isOpen && unbilledWork > Math.max(1000, revisedContract * 0.05)) alerts.push({ tone: 'warn', text: `About ${money(unbilledWork)} of completed work (${done}% done, ${billedPct.toFixed(0)}% billed) hasn't been billed yet.`, to: `/payment-applications/create/${project.id}` });
+  if (billedPct > done + 15 && done > 0) alerts.push({ tone: 'info', text: `Billing (${billedPct.toFixed(0)}%) is ahead of progress (${done}%). Make sure % complete is up to date.`, tab: 'billing' });
+  if (outstanding > 0) alerts.push({ tone: 'info', text: `${money(outstanding)} billed and not paid yet.`, tab: 'billing' });
+  if (pendingCOs.length) alerts.push({ tone: 'warn', text: `${pendingCOs.length} change order${pendingCOs.length === 1 ? '' : 's'} waiting on approval (${money(pendingCOs.reduce((a, c) => a + (Number(c.amount) || 0), 0))}). Approved ones are added to the Schedule of Values.`, tab: 'change-orders' });
+  if (pendingExp.length) alerts.push({ tone: 'info', text: `${pendingExp.length} expense${pendingExp.length === 1 ? '' : 's'} waiting for approval (${money(pendingExp.reduce((a, e) => a + (Number(e.amount) || 0), 0))}).`, to: `/expenses${qs}` });
+  if (overdueTasks.length) alerts.push({ tone: 'warn', text: `${overdueTasks.length} schedule task${overdueTasks.length === 1 ? ' is' : 's are'} past due.`, tab: 'schedule' });
+
+  // ---- Recent activity across the job ----
+  const activity = [
+    ...expenses.filter((e) => e.status !== 'Rejected').map((e) => ({ date: e.date || e.created_at, kind: 'Cost', text: `${e.vendor || e.category || 'Expense'}${e.description ? ` · ${e.description}` : ''}`, amount: Number(e.amount) || 0, tab: 'expenses' })),
+    ...billing.map((b) => ({ date: b.invoice_date || b.billing_period_end || b.created_at, kind: 'Billed', text: b.invoice_number || 'Billing', amount: Number(b.billed_amount) || 0, tab: 'billing' })),
+    ...changeOrders.map((c) => ({ date: c.date || c.created_at, kind: 'Change order', text: `CO ${c.number} · ${c.description} (${c.status || 'Draft'})`, amount: Number(c.amount) || 0, tab: 'change-orders' })),
+    ...documents.map((d) => ({ date: d.created_at, kind: 'Document', text: d.name, amount: null as number | null, tab: 'documents' })),
+  ]
+    .filter((a) => a.date)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+    .slice(0, 8);
+  const dayLabel = (v: string) => {
+    const d = new Date(String(v).length <= 10 ? `${v}T00:00:00` : v);
+    return isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
 
   const quickActions = [
     { label: 'Change order', icon: GitPullRequestArrow, onClick: () => setChangeOrderOpen(true) },
@@ -321,39 +363,39 @@ export default function ProjectDetail() {
   return (
     <Layout title={project.name} hideTitle>
       <div className="space-y-6">
-        {/* Breadcrumb + header */}
-        <div className="space-y-3">
-          <nav className="flex items-center gap-1 text-sm text-muted-foreground" aria-label="Breadcrumb">
-            <Link to="/projects" className="hover:text-foreground">Projects</Link>
-            <ChevronRight className="h-4 w-4" />
-            <span className="text-foreground font-medium truncate">{project.name}</span>
-          </nav>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight">{project.name}</h1>
-                <Badge variant="secondary" className={statusTone[project.status] || ''}>{project.status}</Badge>
-                {project.projectCode && <span className="text-sm text-muted-foreground">#{project.projectCode}</span>}
-              </div>
-              <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground">
-                {project.client && <span className="inline-flex items-center gap-1.5"><User className="h-4 w-4" />{project.client}</span>}
-                {project.address && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" />{project.address}</span>}
-                {project.fieldLeader && <span className="inline-flex items-center gap-1.5"><HardHat className="h-4 w-4" />{project.fieldLeader}</span>}
-                {project.type && <span>{project.type}</span>}
-              </div>
-            </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <Button variant="outline" onClick={reuseCostsForBid} disabled={reusing} title="Create a bid template from this job's actual costs">
-                {reusing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
-                Reuse costs for a bid
-              </Button>
-              <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
-                <Edit className="w-4 h-4" />
-                Edit project
-              </Button>
-            </div>
-          </div>
-        </div>
+        {/* Header */}
+        <PageHero
+          eyebrow={[project.projectCode ? `#${project.projectCode}` : null, project.client].filter(Boolean).join(' · ') || 'Project'}
+          title={project.name}
+          subtitle={
+            [
+              project.status,
+              `${done}% complete`,
+              daysLeft == null ? null : daysLeft < 0 ? (isOpen ? `${-daysLeft} days past due` : null) : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`,
+              project.address,
+              project.fieldLeader ? `Field leader: ${project.fieldLeader}` : null,
+              project.type,
+            ]
+              .filter(Boolean)
+              .join(' · ') || undefined
+          }
+          actions={
+            <>
+              <Link to={`/payment-applications/create/${pid}`} className={heroButtonPrimary}>
+                <FileCheck2 className="h-4 w-4" /> New pay application
+              </Link>
+              <button type="button" className={heroButton} onClick={() => setEditDialogOpen(true)}>
+                <Edit className="h-4 w-4" /> Edit project
+              </button>
+              <button type="button" className={heroButton} onClick={reuseCostsForBid} disabled={reusing} title="Create a bid template from this job's actual costs">
+                {reusing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />} Reuse costs for a bid
+              </button>
+              <Link to="/projects" className={heroButton}>
+                <ChevronRight className="h-4 w-4 rotate-180" /> All projects
+              </Link>
+            </>
+          }
+        />
 
         {/* Quick actions */}
         <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
@@ -370,19 +412,19 @@ export default function ProjectDetail() {
         </div>
 
         {/* Key numbers */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {stats.map((s) => (
-            <Card key={s.label} className="p-0">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>{s.label}</span>
-                  <s.icon className="h-4 w-4" />
-                </div>
-                <div className={cn('mt-2 text-2xl font-bold tabular-nums', s.tone)}>{s.value}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{s.hint}</div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+          <AccentStat label="Contract" value={money(revisedContract)} icon={DollarSign} accent="blue" hint={approvedCOs ? `incl. ${money(approvedCOs)} approved COs` : 'Original contract'} />
+          <AccentStat label="Costs to date" value={money(totalExpenses)} icon={Receipt} accent="orange" hint={`${budgetUsed.toFixed(0)}% of contract · ${money(paidExpenses)} paid`} tone={budgetUsed > done + 10 ? 'warn' : undefined} />
+          <AccentStat label="Billed" value={money(totalBilled)} icon={CreditCard} accent="indigo" hint={`${billedPct.toFixed(0)}% of contract · ${money(Math.max(0, revisedContract - totalBilled))} left`} />
+          <AccentStat label="Owed to you" value={money(outstanding)} icon={Wallet} accent="amber" hint={`${money(totalReceived)} received`} tone={outstanding > 0 ? 'warn' : 'good'} />
+          <AccentStat
+            label="Projected profit"
+            value={money(estProfit)}
+            icon={TrendingUp}
+            accent="emerald"
+            tone={estProfit >= 0 ? 'good' : 'bad'}
+            hint={pp.hasTarget ? (pp.overBudget > 0 ? `${money(pp.overBudget)} over cost budget` : `On budget · ${margin.toFixed(1)}% margin`) : `${margin.toFixed(1)}% margin`}
+          />
         </div>
 
         {/* Tabs */}
@@ -409,39 +451,88 @@ export default function ProjectDetail() {
               onOpenTab={setActiveTab}
             />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.3fr_1fr]">
               <Card>
-                <CardHeader><CardTitle className="text-base">Progress</CardTitle></CardHeader>
+                <CardHeader className="pb-3"><CardTitle className="text-base">Job health</CardTitle></CardHeader>
                 <CardContent className="space-y-5">
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span>Work complete</span>
-                      <span className="font-medium">{project.completionPercentage || 0}%</span>
+                  {([
+                    ['Work complete', done, 'bg-blue-600', `${done}%`],
+                    [pp.hasTarget ? 'Cost budget used' : 'Contract spent on costs', pp.hasTarget ? spentOfBudget : budgetUsed, spentOfBudget > 100 || budgetUsed > done + 10 ? 'bg-rose-500' : 'bg-orange-500', `${(pp.hasTarget ? spentOfBudget : budgetUsed).toFixed(0)}%`],
+                    ['Billed', billedPct, 'bg-indigo-500', `${billedPct.toFixed(0)}%`],
+                  ] as const).map(([label, pct, color, text]) => (
+                    <div key={label}>
+                      <div className="mb-1.5 flex justify-between text-sm">
+                        <span>{label}</span>
+                        <span className="font-medium tabular-nums">{text}</span>
+                      </div>
+                      <div className="relative h-2 overflow-hidden rounded-full bg-muted">
+                        <div className={cn('h-full rounded-full', color)} style={{ width: `${Math.min(100, Math.max(0, Number(pct)))}%` }} />
+                        {label !== 'Work complete' && <div className="absolute top-0 h-full w-0.5 bg-foreground/60" style={{ left: `${Math.min(100, done)}%` }} title="Work complete" />}
+                      </div>
                     </div>
-                    <Progress value={project.completionPercentage || 0} className="h-2" />
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span>Contract spent on costs</span>
-                      <span className="font-medium">{budgetUsed.toFixed(0)}%</span>
-                    </div>
-                    <Progress value={budgetUsed} className="h-2" />
-                    {budgetUsed > (project.completionPercentage || 0) + 10 && (
-                      <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-                        Costs are running ahead of progress. Check Burn Analysis.
-                      </p>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  ))}
+                  <p className="text-xs text-muted-foreground">The dark tick on each bar marks % complete, so you can see whether costs and billing are keeping pace.</p>
+                  <div className="grid grid-cols-2 gap-4 border-t pt-4 text-sm">
                     <div>
                       <p className="text-muted-foreground">Start date</p>
-                      <p className="font-medium">{project.startDate?.toLocaleDateString()}</p>
+                      <p className="font-medium">{project.startDate && !isNaN(new Date(project.startDate).getTime()) ? new Date(project.startDate).toLocaleDateString() : 'Not set'}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Due date</p>
-                      <p className="font-medium">{project.dueDate?.toLocaleDateString()}</p>
+                      <p className="font-medium">{hasDue ? new Date(project.dueDate).toLocaleDateString() : 'Not set'}</p>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3"><CardTitle className="text-base">Needs attention</CardTitle></CardHeader>
+                <CardContent>
+                  {alerts.length === 0 ? (
+                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" /> Nothing needs attention on this job right now.
+                    </p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {alerts.map((al, i) => (
+                        <li key={i}>
+                          <button
+                            type="button"
+                            onClick={() => (al.to ? navigate(al.to) : al.tab ? setActiveTab(al.tab) : undefined)}
+                            className="flex w-full items-start gap-2 rounded-lg p-2 text-left text-sm hover:bg-muted/50"
+                          >
+                            <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', al.tone === 'bad' ? 'bg-rose-500' : al.tone === 'warn' ? 'bg-amber-500' : 'bg-blue-500')} />
+                            <span className="flex-1">{al.text}</span>
+                            <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader className="pb-3"><CardTitle className="text-base">Recent activity</CardTitle></CardHeader>
+                <CardContent>
+                  {activity.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No costs, billing, change orders or documents on this job yet.</p>
+                  ) : (
+                    <ul className="divide-y">
+                      {activity.map((a, i) => (
+                        <li key={i}>
+                          <button type="button" onClick={() => setActiveTab(a.tab)} className="flex w-full items-center gap-3 py-2 text-left text-sm hover:bg-muted/40">
+                            <span className="w-14 shrink-0 text-xs text-muted-foreground">{dayLabel(String(a.date))}</span>
+                            <Badge variant="outline" className="shrink-0 text-[10px]">{a.kind}</Badge>
+                            <span className="min-w-0 flex-1 truncate">{a.text}</span>
+                            {a.amount != null && <span className="shrink-0 tabular-nums">{money(a.amount)}</span>}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </CardContent>
               </Card>
 
