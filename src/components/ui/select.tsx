@@ -145,7 +145,7 @@ function SearchableViewport({ children, enabled }: { children: React.ReactNode; 
               }}
               onPointerDown={(e) => e.stopPropagation()}
               placeholder="Type to search…"
-              className="h-9 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              className="h-9 w-full border-0 bg-transparent text-sm shadow-none outline-none ring-0 placeholder:text-muted-foreground focus:outline-none focus:ring-0 focus-visible:ring-0"
               aria-label="Search options"
             />
           </div>
