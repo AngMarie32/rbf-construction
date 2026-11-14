@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, DollarSign, Download, RefreshCw, Search, ArrowUpRight, ArrowDownLeft, Wallet, AlertTriangle, CalendarClock, Percent, Building2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { fetchAll } from '@/lib/fetchAll';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { PageHero, heroButton, heroButtonPrimary } from '@/components/ui/page-hero';
@@ -39,6 +40,9 @@ interface Obligation {
   recurrence: string;
   property_unit_id: string | null;
   notes: string | null;
+  /** Pulled from Billing / Expenses (read-only here; edit it on its own page). */
+  source?: 'billing' | 'expense';
+  link?: string;
 }
 
 interface Payment {
@@ -50,7 +54,7 @@ interface Payment {
   reference: string | null;
 }
 
-const KINDS = ['rent', 'loan', 'invoice', 'draw', 'other'];
+const KINDS = ['job billing', 'job cost', 'rent', 'loan', 'invoice', 'draw', 'other'];
 const RECURRENCES = ['one_time', 'monthly', 'quarterly', 'annual'];
 
 const money = (n: number) =>
@@ -131,44 +135,100 @@ export default function OwnerMoney() {
   const [sortBy, setSortBy] = useState('due_asc');
 
   const load = useCallback(async () => {
-    if (selectedIds.length === 0) {
-      setObligations([]);
-      setPayments([]);
-      setLoading(false);
-      return;
-    }
     setLoading(true);
-    const { data: obs } = await supabase
-      .from('company_obligations')
-      .select('*')
-      .in('company_id', selectedIds)
-      .order('due_date');
-    const list = ((obs as any) || []) as Obligation[];
-    setObligations(list);
-    if (list.length) {
-      const { data: pays } = await supabase
-        .from('obligation_payments')
-        .select('*')
-        .in('obligation_id', list.map((o) => o.id));
-      setPayments(((pays as any) || []) as Payment[]);
-    } else {
-      setPayments([]);
+    try {
+      // With no companies set up, show everything instead of an empty page.
+      const filterByCompany = companies.length > 0 && selectedIds.length > 0;
+
+      // 1) Entries typed in on this page (rent, loans, draws...).
+      let manual: Obligation[] = [];
+      let manualPays: Payment[] = [];
+      if (filterByCompany) {
+        const { data: obs, error } = await supabase.from('company_obligations').select('*').in('company_id', selectedIds).order('due_date');
+        if (error && !/does not exist|schema cache/i.test(error.message)) throw error;
+        manual = ((obs as any) || []) as Obligation[];
+        if (manual.length) {
+          const { data: pays } = await supabase.from('obligation_payments').select('*').in('obligation_id', manual.map((o) => o.id));
+          manualPays = ((pays as any) || []) as Payment[];
+        }
+      }
+
+      // 2) Job billing and job costs, pulled automatically.
+      const [projects, bills, expenses] = await Promise.all([
+        fetchAll<any>('projects', 'id, name, client, company_id, archived_at'),
+        fetchAll<any>('project_billing', 'id, project_id, billed_amount, paid_amount, invoice_number, invoice_date, due_date, billing_period_end, payment_date, status'),
+        fetchAll<any>('expenses', 'id, project_id, vendor, description, amount, date, status, category'),
+      ]);
+      const inScope = (p: any) => !filterByCompany || !p.company_id || selectedIds.includes(p.company_id);
+      const proj: Record<string, any> = {};
+      projects.filter((p) => !p.archived_at && inScope(p)).forEach((p) => (proj[p.id] = p));
+      const fallbackCompany = selectedIds[0] || '';
+
+      const auto: Obligation[] = [];
+      const autoPays: Payment[] = [];
+      bills.forEach((b) => {
+        const p = proj[b.project_id];
+        const billed = Number(b.billed_amount) || 0;
+        if (!p || billed <= 0) return;
+        const id = `bill:${b.id}`;
+        const paid = Math.min(Number(b.paid_amount) || 0, billed);
+        auto.push({
+          id,
+          company_id: p.company_id || fallbackCompany,
+          direction: 'receivable',
+          kind: 'job billing',
+          counterparty_name: p.client || p.name,
+          description: [p.name, b.invoice_number ? `Invoice ${b.invoice_number}` : null].filter(Boolean).join(' · '),
+          amount: billed,
+          due_date: (b.due_date || b.invoice_date || b.billing_period_end || '').slice(0, 10) || null,
+          status: paid >= billed ? 'paid' : 'open',
+          recurrence: 'one_time',
+          property_unit_id: null,
+          notes: null,
+          source: 'billing',
+          link: `/billing?project=${p.id}`,
+        });
+        if (paid > 0) {
+          autoPays.push({ id: `bp:${b.id}`, obligation_id: id, amount: paid, paid_on: (b.payment_date || b.invoice_date || b.billing_period_end || today()).slice(0, 10), method: null, reference: b.invoice_number });
+        }
+      });
+      expenses.forEach((e) => {
+        if (e.status === 'Rejected') return;
+        const p = e.project_id ? proj[e.project_id] : null;
+        if (e.project_id && !p) return; // job outside the selected companies
+        const amt = Number(e.amount) || 0;
+        if (amt <= 0) return;
+        const id = `exp:${e.id}`;
+        const date = String(e.date || '').slice(0, 10) || null;
+        auto.push({
+          id,
+          company_id: p?.company_id || fallbackCompany,
+          direction: 'payable',
+          kind: 'job cost',
+          counterparty_name: (e.vendor || '').trim() || e.category || 'Expense',
+          description: [p?.name || 'Overhead', e.description, e.status !== 'Paid' ? e.status : null].filter(Boolean).join(' · '),
+          amount: amt,
+          due_date: date,
+          status: e.status === 'Paid' ? 'paid' : 'open',
+          recurrence: 'one_time',
+          property_unit_id: null,
+          notes: null,
+          source: 'expense',
+          link: p ? `/expenses?project=${p.id}` : '/expenses',
+        });
+        if (e.status === 'Paid') autoPays.push({ id: `ep:${e.id}`, obligation_id: id, amount: amt, paid_on: date || today(), method: null, reference: null });
+      });
+
+      setObligations([...manual, ...auto]);
+      setPayments([...manualPays, ...autoPays]);
+      setJobsOwed(auto.filter((o) => o.source === 'billing').reduce((acc, o) => acc + o.amount, 0) - autoPays.filter((x) => x.id.startsWith('bp:')).reduce((acc, x) => acc + x.amount, 0));
+    } catch (e: any) {
+      console.error(e);
+      toast.error(`Couldn't load the cockpit: ${e.message || e}`);
+    } finally {
+      setLoading(false);
     }
-    // Construction jobs: billed but not yet paid (from Billing), for the selected companies.
-    const { data: jobs } = await supabase
-      .from('projects')
-      .select('id')
-      .is('archived_at', null)
-      .or(`company_id.in.(${selectedIds.join(',')}),company_id.is.null`);
-    const jobIds = (jobs || []).map((j) => j.id);
-    if (jobIds.length) {
-      const { data: bills } = await supabase.from('project_billing').select('billed_amount, paid_amount').in('project_id', jobIds);
-      setJobsOwed(Math.max(0, (bills || []).reduce((acc, b) => acc + (Number(b.billed_amount) || 0) - (Number(b.paid_amount) || 0), 0)));
-    } else {
-      setJobsOwed(0);
-    }
-    setLoading(false);
-  }, [selectedIds]);
+  }, [selectedIds, companies.length]);
 
   useEffect(() => {
     load();
@@ -462,7 +522,7 @@ export default function OwnerMoney() {
         <div className="min-w-[180px]">
           <p className="font-semibold">{o.counterparty_name}</p>
           <p className="text-xs text-muted-foreground">
-            <span className="capitalize">{o.kind}</span> · {companyName(o.company_id)}
+            <span className="capitalize">{o.kind}</span> · {o.company_id ? companyName(o.company_id) : 'All companies'}
             {o.recurrence !== 'one_time' && ` · ${o.recurrence.replace('_', ' ')}`}
           </p>
           {o.description && <p className="max-w-[280px] truncate text-xs text-muted-foreground">{o.description}</p>}
@@ -495,6 +555,11 @@ export default function OwnerMoney() {
       align: 'right',
       cell: (o) => (
         <div className="flex justify-end gap-0.5">
+          {o.source ? (
+            <Button size="sm" variant="ghost" asChild>
+              <Link to={o.link || '/'}>{o.source === 'billing' ? 'Open in Billing' : 'Open in Expenses'}</Link>
+            </Button>
+          ) : (<>
           {balanceOf(o) > 0 && (
             <Button size="sm" variant="outline" onClick={() => { setPayFor(o); setPayAmount(balanceOf(o).toFixed(2)); setPayDate(today()); }}>
               <DollarSign className="h-3.5 w-3.5" /> {direction === 'receivable' ? 'Record payment' : 'Pay'}
@@ -502,6 +567,7 @@ export default function OwnerMoney() {
           )}
           <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Edit" onClick={() => setForm(o)}><Pencil className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Delete" onClick={() => setConfirmDelete(o)}><Trash2 className="h-4 w-4" /></Button>
+          </>)}
         </div>
       ),
     },
@@ -527,8 +593,8 @@ export default function OwnerMoney() {
           title="Where the money stands"
           subtitle={`Across ${selectedIds.length} compan${selectedIds.length === 1 ? 'y' : 'ies'} · ${format(new Date(`${from}T00:00:00`), 'MMM d')} – ${format(new Date(`${to}T00:00:00`), 'MMM d, yyyy')}`}
           stats={[
-            { label: 'Net position', value: loading ? '…' : money0(stats.netPosition + jobsOwed), tone: stats.netPosition + jobsOwed >= 0 ? 'good' : 'bad' },
-            { label: 'Owed to you', value: loading ? '…' : money0(stats.owedToUs + jobsOwed) },
+            { label: 'Net position', value: loading ? '…' : money0(stats.netPosition), tone: stats.netPosition >= 0 ? 'good' : 'bad' },
+            { label: 'Owed to you', value: loading ? '…' : money0(stats.owedToUs) },
             { label: 'You owe', value: loading ? '…' : money0(stats.owedByUs) },
           ]}
           actions={
