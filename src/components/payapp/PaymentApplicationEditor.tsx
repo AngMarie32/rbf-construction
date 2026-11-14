@@ -1,3 +1,4 @@
+import { syncPayAppBilling } from '@/lib/payAppBilling';
 import { writeSkippingGenerated } from '@/lib/generatedColumns';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -500,6 +501,26 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
           }
         }
       }
+
+      // 4) Keep the project's Billing entry for this application in step (one entry per application).
+      const savedId = app?.id || res.data?.id;
+      let billNote: string | undefined;
+      if (savedId) {
+        const b = await syncPayAppBilling({
+          id: savedId,
+          project_id: projectId!,
+          application_number: form.applicationNumber,
+          period_from: form.periodFrom || null,
+          period_to: form.periodTo,
+          application_date: form.applicationDate || null,
+          current_payment_due: t.currentPaymentDue,
+          payment_status: app?.payment_status,
+          paid_at: app?.paid_at,
+        });
+        if (!b.ok) billNote = `The Billing entry wasn't updated: ${b.message}`;
+        else if (b.duplicate) billNote = b.duplicate;
+      }
+      if (billNote) toast.warning(billNote, { duration: 12000 });
 
       if (sovProblems.length) {
         toast.warning(

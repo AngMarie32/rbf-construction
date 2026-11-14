@@ -1,3 +1,4 @@
+import { deletePayAppBilling, setPayAppBillingPaid, syncPayAppBilling } from '@/lib/payAppBilling';
 import { writeSkippingGenerated } from '@/lib/generatedColumns';
 import { WorkflowStepper } from '@/components/workflow/WorkflowStepper';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
@@ -90,6 +91,22 @@ export default function PaymentApplications() {
     }
   };
 
+  const [unbilled, setUnbilled] = useState<any[]>([]);
+  const [linking, setLinking] = useState(false);
+  const linkUnbilled = async () => {
+    setLinking(true);
+    const notes: string[] = [];
+    for (const a of [...unbilled].sort((x, y) => x.application_number - y.application_number)) {
+      const r = await syncPayAppBilling(a);
+      if (!r.ok) notes.push(`#${a.application_number}: ${r.message}`);
+      else if (r.duplicate) notes.push(`#${a.application_number}: ${r.duplicate}`);
+    }
+    setLinking(false);
+    if (notes.length) toast.warning(notes.join(' · '), { duration: 15000 });
+    else toast.success('Billing entries added for these applications');
+    fetchApplications();
+  };
+
   const fetchApplications = async () => {
     if (!selectedProject) return;
     
@@ -110,6 +127,13 @@ export default function PaymentApplications() {
       if (error) throw error;
       
       setApplications(data || []);
+      // Which applications already have their Billing entry
+      const refs = (data || []).map((a: any) => `payapp:${a.id}`);
+      if (refs.length) {
+        const { data: linked } = await supabase.from('project_billing').select('external_ref').in('external_ref', refs);
+        const have = new Set((linked || []).map((b: any) => b.external_ref));
+        setUnbilled((data || []).filter((a: any) => !have.has(`payapp:${a.id}`)).map((a: any) => a));
+      } else setUnbilled([]);
       // Fetch waiver summary for all apps in one query
       const ids = (data || []).map((a: any) => a.id);
       if (ids.length) {
@@ -243,8 +267,12 @@ export default function PaymentApplications() {
         .eq('id', id);
 
       if (deleteError) throw deleteError;
-      
-      toast.success('Payment application deleted and SOV progress reset successfully');
+
+      // The Billing entry made from this application goes with it.
+      const bill = await deletePayAppBilling(id);
+      if (!bill.ok) toast.warning(`Application deleted, but its Billing entry wasn't removed: ${bill.message}`);
+
+      toast.success('Payment application and its Billing entry deleted; SOV progress reset');
       fetchApplications();
     } catch (error) {
       console.error('Error deleting application:', error);
@@ -269,7 +297,10 @@ export default function PaymentApplications() {
       .update({ payment_status: 'paid', paid_at: new Date().toISOString() })
       .eq('id', app.id);
     if (error) return toast.error(error.message);
-    toast.success(`Application #${app.application_number} marked as paid`);
+    const paidAt = new Date().toISOString();
+    const r = await setPayAppBillingPaid(app.id, true, paidAt);
+    if (r.missing) await syncPayAppBilling({ ...(app as any), payment_status: 'paid', paid_at: paidAt });
+    toast.success(`Application #${app.application_number} marked as paid (Billing updated)`);
     fetchApplications();
   };
 
@@ -279,6 +310,7 @@ export default function PaymentApplications() {
       .update({ payment_status: 'unpaid', paid_at: null })
       .eq('id', app.id);
     if (error) return toast.error(error.message);
+    await setPayAppBillingPaid(app.id, false);
     fetchApplications();
   };
 
@@ -356,6 +388,21 @@ export default function PaymentApplications() {
           />
         ) : (
           <>
+            {unbilled.length > 0 && (
+              <Card className="flex flex-wrap items-center gap-3 border-amber-500/40 bg-amber-500/5 p-4">
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="font-medium">
+                    {unbilled.length === 1 ? `Application #${unbilled[0].application_number} has` : `${unbilled.length} applications have`} no Billing entry yet.
+                  </p>
+                  <p className="text-muted-foreground">
+                    Payment applications now create a matching Billing entry so billed and owed totals include them. If you already entered these on the Billing page by hand, you'll be told so you can remove the duplicate.
+                  </p>
+                </div>
+                <Button size="sm" onClick={linkUnbilled} disabled={linking}>
+                  {linking ? 'Adding…' : 'Add Billing entries'}
+                </Button>
+              </Card>
+            )}
             {/* Contract summary band */}
             <Card className="overflow-hidden p-0">
               <div className="relative overflow-hidden bg-[hsl(222_47%_13%)] px-6 py-6 text-white">
