@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { projectProfit } from './projectProfit';
 describe('projectProfit', () => {
   it('keeps full estimated profit while costs are under budget', () => {
