@@ -108,7 +108,7 @@ export function BurnAnalysisFilters({
                   <SelectTrigger>
                     <SelectValue placeholder="Select Projects" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent searchable="always">
                     {projects.map(project => (
                       <div key={project.id} className="flex items-center space-x-2 px-2 py-1 hover:bg-muted/40">
                         <input

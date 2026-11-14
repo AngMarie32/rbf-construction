@@ -76,7 +76,7 @@ export function ProjectSelector({
               <SelectTrigger>
                 <SelectValue placeholder={loading ? "Loading projects..." : "Choose a project"} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent searchable="always">
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name}
@@ -95,7 +95,7 @@ export function ProjectSelector({
       <SelectTrigger>
         <SelectValue placeholder={loading ? "Loading projects..." : "Choose a project"} />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent searchable="always">
         {projects.map((project) => (
           <SelectItem key={project.id} value={project.id}>
             {project.name}

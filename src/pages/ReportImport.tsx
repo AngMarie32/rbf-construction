@@ -488,7 +488,7 @@ export default function ReportImport() {
                 <div className="text-xs uppercase text-muted-foreground">Project</div>
                 <Select value="" onValueChange={(v) => bulkApply({ projectId: v === 'none' ? null : v })}>
                   <SelectTrigger className="w-52"><SelectValue placeholder="Choose…" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent searchable="always">
                     <SelectItem value="none">No project</SelectItem>
                     {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                   </SelectContent>
@@ -584,7 +584,7 @@ export default function ReportImport() {
                             <div className="flex flex-col gap-1">
                               <Select value={r.projectId ?? 'none'} onValueChange={(v) => update(i, { projectId: v === 'none' ? null : v })}>
                                 <SelectTrigger className="w-52"><SelectValue placeholder="Pick a project" /></SelectTrigger>
-                                <SelectContent>
+                                <SelectContent searchable="always">
                                   <SelectItem value="none">Pick a project</SelectItem>
                                   {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                                 </SelectContent>
@@ -602,7 +602,7 @@ export default function ReportImport() {
                                     onValueChange={(v) => update(i, { splits: r.splits!.map((x, xi) => (xi === si ? { ...x, projectId: v === 'none' ? '' : v } : x)) })}
                                   >
                                     <SelectTrigger className="w-40"><SelectValue placeholder="Project" /></SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent searchable="always">
                                       <SelectItem value="none">Pick a project</SelectItem>
                                       {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                                     </SelectContent>

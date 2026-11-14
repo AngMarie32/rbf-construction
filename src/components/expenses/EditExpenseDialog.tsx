@@ -126,7 +126,7 @@ export function EditExpenseDialog({ expense, projects, onExpenseUpdated, onClose
               <SelectTrigger>
                 <SelectValue placeholder="Select project" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent searchable="always">
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name}

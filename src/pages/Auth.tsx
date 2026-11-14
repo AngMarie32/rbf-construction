@@ -6,27 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Eye, EyeOff, ArrowLeft, Fish, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Lightbulb, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-
-/** Rotating jokes for the login screen. Internal site, adult crew: keep them funny, not filthy. */
-const JOKES: { setup: string; punchline: string }[] = [
-  { setup: 'A contractor dies and St. Peter says, "Why should I let you in?" He says, "I finished a job on time and under budget."', punchline: 'St. Peter says, "Liar. Straight to hell." He says, "Fine. I built the place, and they still owe me the final draw."' },
-  { setup: 'Give a man a fish and he eats for a day.', punchline: 'Teach a man to fish and he calls in "sick" every Friday for the rest of his life.' },
-  { setup: "Fishing isn't drinking at 9 a.m.", punchline: "It's drinking at 9 a.m. with an alibi." },
-  { setup: 'My wife said, "You love fishing more than you love me."', punchline: 'I said, "That\'s not fair. I love the boat more than both of you."' },
-  { setup: "What's the difference between a fisherman and a contractor?", punchline: 'The fisherman admits he\'s lying about the size.' },
-  { setup: 'Our safety meeting covered hydration today.', punchline: 'The crew voted unanimously that beer is 95% water and called it compliant.' },
-  { setup: 'My doctor told me to cut back on beer and stress.', punchline: "So I stopped answering the architect's calls. Halfway there." },
-  { setup: 'The two happiest days of a boat owner\'s life are the day he buys it and the day he sells it.', punchline: 'Same goes for any job where the owner says, "I watched a YouTube video."' },
-  { setup: 'I told my wife the bathroom remodel would take two weekends.', punchline: 'That was 2019. The fish and I are still on schedule.' },
-  { setup: 'Why do fishermen make great project managers?', punchline: 'They can sit for eight hours doing nothing and still call it a productive day.' },
-  { setup: 'An owner asked if we could do it fast, cheap and good.', punchline: 'I said pick two. He picked "cheap" twice.' },
-  { setup: 'Sent the new guy to the truck for a bucket of steam and a board stretcher.', punchline: 'He came back with my cooler and a six-pack. Made him foreman.' },
-  { setup: 'Marriage is a lot like a change order.', punchline: "You don't fully understand what you signed until it's way too late to back out." },
-  { setup: "I never lie about how big the fish was.", punchline: "I save that for the IRS, where the boat is a \"site inspection vessel.\"" },
-];
+import { FUN_FACTS, nextFunFact } from '@/lib/funFacts';
 
 export default function Auth() {
   const { user, signIn, signUp } = useAuth();
@@ -34,7 +17,7 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
-  const [jokeIndex, setJokeIndex] = useState(() => Math.floor(Math.random() * JOKES.length));
+  const [factIndex, setFactIndex] = useState(() => nextFunFact());
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,8 +112,8 @@ export default function Auth() {
     </div>
   );
 
-  const joke = JOKES[jokeIndex];
-  const nextJoke = () => setJokeIndex((i) => (i + 1 + Math.floor(Math.random() * (JOKES.length - 1))) % JOKES.length);
+  const fact = FUN_FACTS[factIndex];
+  const nextFact = () => setFactIndex((i) => nextFunFact(i));
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
@@ -152,18 +135,17 @@ export default function Auth() {
 
         <figure className="relative max-w-xl">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-accent">
-            <Fish className="h-4 w-4" /> Joke of the day
+            <Lightbulb className="h-4 w-4" /> Funny fact · {fact.topic}
           </div>
-          <blockquote key={jokeIndex} className="animate-fade-in-up">
-            <p className="font-display text-3xl font-bold leading-snug tracking-tight text-white/90">{joke.setup}</p>
-            <p className="mt-5 font-display text-4xl font-extrabold leading-tight tracking-tight text-accent">{joke.punchline}</p>
+          <blockquote key={factIndex} className="animate-fade-in-up">
+            <p className="font-display text-3xl font-bold leading-snug tracking-tight text-white/90">{fact.fact}</p>
           </blockquote>
           <button
             type="button"
-            onClick={nextJoke}
+            onClick={nextFact}
             className="mt-10 inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
           >
-            <RefreshCw className="h-4 w-4" /> Tell me another
+            <RefreshCw className="h-4 w-4" /> Another fact
           </button>
         </figure>
 
@@ -267,12 +249,11 @@ export default function Auth() {
           )}
           <button
             type="button"
-            onClick={nextJoke}
+            onClick={nextFact}
             className="mt-10 block w-full rounded-xl border border-dashed p-4 text-left lg:hidden"
           >
-            <span className="text-xs font-semibold uppercase tracking-wider text-accent">Joke of the day · tap for another</span>
-            <span className="mt-2 block text-sm text-muted-foreground">{joke.setup}</span>
-            <span className="mt-1 block text-sm font-semibold">{joke.punchline}</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-accent">Funny fact · {fact.topic} · tap for another</span>
+            <span className="mt-2 block text-sm text-muted-foreground">{fact.fact}</span>
           </button>
         </div>
       </div>

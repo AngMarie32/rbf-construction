@@ -686,7 +686,7 @@ export default function InvoiceSender() {
                 </div>
                 <Select value={filterProject} onValueChange={setFilterProject}>
                   <SelectTrigger><SelectValue placeholder="All projects" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent searchable="always">
                     <SelectItem value="all">All projects</SelectItem>
                     {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                   </SelectContent>
@@ -861,7 +861,7 @@ export default function InvoiceSender() {
                     <Label>Project</Label>
                     <Select value={form.project_id} onValueChange={v => setForm({ ...form, project_id: v })}>
                       <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
-                      <SelectContent>
+                      <SelectContent searchable="always">
                         {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
@@ -964,7 +964,7 @@ export default function InvoiceSender() {
                   <Label>Project</Label>
                   <Select value={editFor.project_id || ''} onValueChange={v => setEditFor({ ...editFor, project_id: v })}>
                     <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                    <SelectContent>
+                    <SelectContent searchable="always">
                       {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                     </SelectContent>
                   </Select>

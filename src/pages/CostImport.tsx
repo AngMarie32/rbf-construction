@@ -510,7 +510,7 @@ export default function CostImport() {
                                 <SelectTrigger className="w-48">
                                   <SelectValue placeholder="Pick a job" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent searchable="always">
                                   <SelectItem value="none">No job</SelectItem>
                                   {projects.map((p) => (
                                     <SelectItem key={p.id} value={p.id}>

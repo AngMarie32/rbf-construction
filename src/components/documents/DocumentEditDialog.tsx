@@ -137,7 +137,7 @@ export function DocumentEditDialog({ document, open, onOpenChange, onSave, proje
                 <SelectTrigger aria-label="Project">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable="always">
                   <SelectItem value="no-project">No project</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>

@@ -172,7 +172,7 @@ export function EditBillingDialog({ billing, open, onOpenChange, onBillingUpdate
               <SelectTrigger className="col-span-3">
                 <SelectValue placeholder="Select a project" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent searchable="always">
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name}

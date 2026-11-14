@@ -168,7 +168,7 @@ export function DocumentFilters({
               <SelectTrigger>
                 <SelectValue placeholder="All Projects" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent searchable="always">
                 <SelectItem value="all">All Projects</SelectItem>
                 <SelectItem value="general">General</SelectItem>
                 {projects.map((project) => (

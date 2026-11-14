@@ -242,7 +242,7 @@ export default function EsignNew() {
                 <Label>Project</Label>
                 <Select value={projectId} onValueChange={setProjectId}>
                   <SelectTrigger><SelectValue placeholder="No project" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent searchable="always">
                     <SelectItem value="none">No project</SelectItem>
                     {projects.map((p) => (
                       <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>

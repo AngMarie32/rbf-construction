@@ -205,7 +205,7 @@ export function DocumentUploadDialog({ open, onOpenChange, onUpload, projects }:
                 <SelectTrigger>
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable="always">
                   <SelectItem value="no-project">No Project</SelectItem>
                   {projects.map((proj) => (
                     <SelectItem key={proj.id} value={proj.id}>

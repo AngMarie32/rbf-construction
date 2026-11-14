@@ -263,7 +263,7 @@ export default function EstimateDashboard() {
                   <SelectTrigger className="h-8 w-48 text-xs">
                     <SelectValue placeholder="Link to a project" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent searchable="always">
                     <SelectItem value="none">No project linked</SelectItem>
                     {projects.map((p) => (
                       <SelectItem key={p.id} value={p.id}>

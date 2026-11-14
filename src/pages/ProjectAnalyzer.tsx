@@ -251,7 +251,7 @@ export default function ProjectAnalyzer() {
                   <SelectTrigger className="rounded-lg border-primary/40 shadow-sm font-playfair">
                     <SelectValue placeholder="Choose a project" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent searchable="always">
                     {projects.map((project: any) => (
                       <SelectItem key={project.id} value={project.id} className="font-playfair">
                         {project.name}

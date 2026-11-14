@@ -292,7 +292,7 @@ export function BondsPanel({
               <SelectTrigger className="w-44">
                 <SelectValue placeholder="All jobs" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent searchable="always">
                 <SelectItem value="all">All jobs</SelectItem>
                 {projects.map((p) => (
                   <SelectItem key={p.id} value={p.id}>

@@ -168,7 +168,7 @@ export function BulkExpenseDialog({ onExpensesCreated, projects }: BulkExpenseDi
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue placeholder="Select..." />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent searchable="always">
                         {projects.map((project) => (
                           <SelectItem key={project.id} value={project.id}>
                             {project.name}

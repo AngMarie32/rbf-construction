@@ -75,7 +75,7 @@ export function ReportFilters({
               <SelectTrigger className="bg-card border-border hover:border-primary/30 transition-colors">
                 <SelectValue placeholder="All Field Leaders" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent searchable="always">
                 <SelectItem value="all">All Field Leaders</SelectItem>
                 {projectManagers.map((manager) => (
                   <SelectItem key={manager.id} value={manager.id}>

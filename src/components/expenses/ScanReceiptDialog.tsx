@@ -222,7 +222,7 @@ export function ScanReceiptDialog({ onExpenseCreated, defaultProjectId, triggerL
                 <Label>Job *</Label>
                 <Select value={form.project_id} onValueChange={set('project_id')}>
                   <SelectTrigger><SelectValue placeholder="Which job is this for?" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent searchable="always">
                     {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                   </SelectContent>
                 </Select>

@@ -209,7 +209,7 @@ export function SendToBidPlannerDialog({
                   <SelectTrigger>
                     <SelectValue placeholder="Choose a project" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent searchable="always">
                     {projects.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.name}

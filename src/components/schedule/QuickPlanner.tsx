@@ -162,7 +162,7 @@ export function QuickPlanner({ open, onOpenChange, projects, onTemplateApplied, 
               <SelectTrigger className="w-64">
                 <SelectValue placeholder="Select a project..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent searchable="always">
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     <div className="flex items-center gap-2">

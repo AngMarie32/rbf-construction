@@ -425,7 +425,7 @@ export default function Invoices() {
                         <SelectTrigger>
                           <SelectValue placeholder="Select project..." />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent searchable="always">
                           <SelectItem value="none">No Project</SelectItem>
                           {projects.map((project) => (
                             <SelectItem key={project.id} value={project.id}>

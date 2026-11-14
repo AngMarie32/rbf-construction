@@ -203,7 +203,7 @@ export function CreateChangeOrderDialog({
                   <SelectTrigger>
                     <SelectValue placeholder="Which job is this change order for?" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent searchable="always">
                     {projectOptions.map((p) => (
                       <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                     ))}

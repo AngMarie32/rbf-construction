@@ -670,7 +670,7 @@ export default function Expenses() {
               </Select>
               <Select value={projectFilter} onValueChange={setProjectFilter}>
                 <SelectTrigger className="w-44"><SelectValue placeholder="All projects" /></SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable="always">
                   <SelectItem value="all">All projects</SelectItem>
                   {projects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
                 </SelectContent>

@@ -221,7 +221,7 @@ export function ImportBidItemsDialog({ onItemsImported, projects }: ImportBidIte
                 <SelectTrigger>
                   <SelectValue placeholder="Choose a project..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable="always">
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
