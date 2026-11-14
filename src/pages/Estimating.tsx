@@ -199,6 +199,7 @@ export default function Estimating() {
         let buf = '';
         let out: any = null;
         let failure: string | null = null;
+        const streamed: any[] = [];
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -211,17 +212,48 @@ export default function Estimating() {
             let payload: any;
             try { payload = JSON.parse(dataLine.slice(5).trim()); } catch { continue; }
             if (frame.includes('event: result')) out = payload;
+            else if (frame.includes('event: line')) streamed.push(payload);
             else if (frame.includes('event: error')) failure = payload?.error || 'Estimate generation failed.';
             else if (payload?.message) setStage(`${label}${payload.message}…`);
           }
         }
-        if (failure) throw new Error(parts.length > 1 ? `${label}${failure}` : failure);
-        if (!out) throw new Error(`${label}The estimate did not finish. Try again with smaller files.`);
+        // Lines arrive one at a time, so a run that is cut off still keeps what it wrote.
+        if (out && (!out.lines || !out.lines.length) && streamed.length) out = { ...out, lines: streamed };
+        if (!out && streamed.length) out = { lines: streamed, partial: true, assumptions: [], flags: [] };
+        if (out?.partial) {
+          out.flags = [
+            ...(out.flags || []),
+            {
+              severity: 'high',
+              issue: `${label}Analysis stopped early`,
+              finding: `The plan review was cut off after ${out.lines.length} cost lines${out.timedOut ? ' (time limit)' : ''}. Scope that comes later in the set may be missing.`,
+              exposure: 'Missing scope would understate the estimate.',
+              action: 'Review the divisions for gaps, or run the remaining sheets as a separate estimate and add the lines.',
+            },
+          ];
+        }
+        if (!out) throw new Error(failure ? (parts.length > 1 ? `${label}${failure}` : failure) : `${label}The estimate did not finish. Try again with fewer or smaller sheets.`);
         return out;
       };
 
+      // Keep finished parts even if a later part fails, instead of losing everything.
       const results: any[] = [];
-      for (let i = 0; i < parts.length; i++) results.push(await runPart(parts[i], i));
+      const failedParts: string[] = [];
+      for (let i = 0; i < parts.length; i++) {
+        try {
+          results.push(await runPart(parts[i], i));
+        } catch (err: any) {
+          if (parts.length === 1) throw err;
+          failedParts.push(`${parts[i].map((p) => p.file.name).join(', ')}: ${err.message}`);
+        }
+      }
+      if (!results.length) throw new Error(failedParts.join(' · ') || 'The estimate could not be generated.');
+      if (failedParts.length) {
+        results[0].flags = [
+          ...(results[0].flags || []),
+          ...failedParts.map((f) => ({ severity: 'critical', issue: 'Sheets not analyzed', finding: f, exposure: 'Scope on these sheets is not in the estimate.', action: 'Re-run these sheets as their own estimate and add the lines.' })),
+        ];
+      }
 
       // Merge parts: same cost line in the same group is kept once (larger amount wins, never summed)
       const merged = new Map<string, any>();
@@ -231,8 +263,8 @@ export default function Estimating() {
         if (!prev || Number(l.baseline_amount) > Number(prev.baseline_amount)) merged.set(key, l);
       });
       const result = {
-        project: results[0].project,
-        settings: results[0].settings,
+        project: results.find((r) => r.project)?.project,
+        settings: results.find((r) => r.settings)?.settings,
         scope_summary: results.map((r) => r.scope_summary).filter(Boolean).join('\n\n'),
         assumptions: Array.from(new Set(results.flatMap((r) => r.assumptions || []))),
         flags: results.flatMap((r) => r.flags || []),
@@ -302,7 +334,9 @@ export default function Estimating() {
           result.flags.map((f: any) => ({ estimate_id: est.id, ...f }))
         );
 
-      toast.success('Estimate built from the plans.');
+      const partial = results.some((r) => r.partial) || failedParts.length > 0;
+      if (partial) toast.warning(`Estimate saved with ${result.lines.length} lines, but part of the plan review was cut off. Check the flags on the estimate.`, { duration: 10000 });
+      else toast.success(`Estimate built from the plans: ${result.lines.length} cost lines.`);
       navigate(`/estimating/${est.id}`);
     } catch (e: any) {
       toast.error(e.message || 'The estimate could not be generated.');

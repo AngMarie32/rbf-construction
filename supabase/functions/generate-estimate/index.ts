@@ -65,7 +65,16 @@ Walk every CSI division and either price it or say why it does not apply: 01 Gen
 Return "division_coverage": [{ "division": "09 Finishes", "status": "priced|not_applicable|review", "note": "string" }] listing ALL of them.
 A division that the building clearly needs but the drawings do not show must get a REVIEW allowance line, not silence.
 
-Be thorough: 25-70 cost lines across all five groups for a full plan set, each with a detailed subcost build-up.`;
+Be thorough: 25-70 cost lines across all five groups for a full plan set.
+
+OUTPUT ORDER AND LENGTH (important: long answers can be cut off)
+- Write the keys in this order: "project", "scope_summary", "assumptions", "settings", "division_coverage", "flags", and "lines" LAST.
+- Keep "basis" under 300 characters and give each line at most 5 subcosts.
+- Write the most important / largest-dollar lines first.`;
+
+// Stop reading the model a little before Supabase's function time limit so the lines
+// written so far can still be returned (override with ESTIMATE_TIME_BUDGET_SECONDS).
+const TIME_BUDGET_MS = (Number(Deno.env.get("ESTIMATE_TIME_BUDGET_SECONDS")) || 135) * 1000;
 
 // Per-file and total caps keep the AI request within gateway and memory limits.
 const MAX_FILE_BYTES = 12 * 1024 * 1024;
@@ -113,8 +122,60 @@ const GROUPS: Record<string, string> = {
   other: "OTHER PROJECT COSTS",
 };
 
+function normalizeLine(l: any, i: number) {
+  const [line] = normalizeLines([l]);
+  return line ? { ...line, sort_order: i } : null;
+}
+
+/**
+ * Pulls complete objects out of the "lines" array of a JSON document that is still streaming in.
+ * Returns the parsed lines found after `from` and where scanning stopped.
+ */
+function scanLines(text: string, state: { start: number; pos: number; depth: number; inStr: boolean; esc: boolean; objStart: number }) {
+  const found: any[] = [];
+  if (state.start < 0) {
+    const m = /"lines"\s*:\s*\[/.exec(text);
+    if (!m) return found;
+    state.start = m.index + m[0].length;
+    state.pos = state.start;
+  }
+  for (; state.pos < text.length; state.pos++) {
+    const c = text[state.pos];
+    if (state.inStr) {
+      if (state.esc) state.esc = false;
+      else if (c === "\\") state.esc = true;
+      else if (c === '"') state.inStr = false;
+      continue;
+    }
+    if (c === '"') state.inStr = true;
+    else if (c === "{") {
+      if (state.depth === 0) state.objStart = state.pos;
+      state.depth++;
+    } else if (c === "}") {
+      state.depth--;
+      if (state.depth === 0 && state.objStart >= 0) {
+        try {
+          found.push(JSON.parse(text.slice(state.objStart, state.pos + 1)));
+        } catch (_) {
+          /* skip a malformed line */
+        }
+        state.objStart = -1;
+      }
+    } else if (c === "]" && state.depth === 0) {
+      state.pos = text.length; // end of the lines array
+      break;
+    }
+  }
+  return found;
+}
+
 function normalize(parsed: any, projectName: string, location: string, areaSf: number) {
-  const lines = (Array.isArray(parsed.lines) ? parsed.lines : []).map((l: any, i: number) => {
+  const lines = normalizeLines(Array.isArray(parsed.lines) ? parsed.lines : []);
+  return normalizeRest(parsed, lines, projectName, location, areaSf);
+}
+
+function normalizeLines(raw: any[]) {
+  return raw.map((l: any, i: number) => {
     const key = GROUPS[l.group_key] ? l.group_key : "building";
     const subs = (Array.isArray(l.subcosts) ? l.subcosts : []).map((s: any, j: number) => ({
       name: String(s.name ?? "Subcost"),
@@ -140,7 +201,9 @@ function normalize(parsed: any, projectName: string, location: string, areaSf: n
       subcosts: subs,
     };
   });
+}
 
+function normalizeRest(parsed: any, lines: any[], projectName: string, location: string, areaSf: number) {
   const s = parsed.settings || {};
   return {
     lines,
@@ -193,6 +256,7 @@ serve(async (req) => {
 
   const encoder = new TextEncoder();
 
+  const startedAt = Date.now();
   const stream = new ReadableStream({
     async start(controller) {
       const send = (event: string, data: unknown) => {
@@ -272,8 +336,17 @@ Price with current ${new Date().getFullYear()} local/regional commercial constru
         let buffer = "";
         let text = "";
         let chars = 0;
+        const scan = { start: -1, pos: 0, depth: 0, inStr: false, esc: false, objStart: -1 };
+        let lineCount = 0;
+        let timedOut = false;
 
         while (true) {
+          // Wrap up before Supabase stops the function, keeping every line written so far.
+          if (Date.now() - startedAt > TIME_BUDGET_MS) {
+            timedOut = true;
+            try { await reader.cancel(); } catch (_) { /* ignore */ }
+            break;
+          }
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
@@ -288,9 +361,16 @@ Price with current ${new Date().getFullYear()} local/regional commercial constru
               const delta = JSON.parse(data)?.choices?.[0]?.delta?.content;
               if (typeof delta === "string" && delta) {
                 text += delta;
+                for (const raw of scanLines(text, scan)) {
+                  const line = normalizeLine(raw, lineCount);
+                  if (line) {
+                    send("line", line);
+                    lineCount++;
+                  }
+                }
                 if (text.length - chars > 2000) {
                   chars = text.length;
-                  send("status", { message: "Writing cost lines", characters: chars });
+                  send("status", { message: lineCount ? `Writing cost lines (${lineCount} so far)` : "Writing cost lines", characters: chars });
                 }
               }
             } catch (_) {
@@ -304,19 +384,41 @@ Price with current ${new Date().getFullYear()} local/regional commercial constru
           parsed = JSON.parse(text);
         } catch {
           const m = text.match(/\{[\s\S]*\}/);
-          if (!m) {
-            send("error", { error: "The model did not return a usable estimate. Try again." });
-            return;
-          }
           try {
-            parsed = JSON.parse(m[0]);
+            parsed = m ? JSON.parse(m[0]) : null;
           } catch {
-            send("error", { error: "The estimate came back incomplete. Try again with fewer sheets." });
+            parsed = null;
+          }
+        }
+        if (!parsed) {
+          // Cut off (time or length): rebuild the header from what arrived and keep the streamed lines.
+          const head = text.slice(0, scan.start > 0 ? scan.start : text.length);
+          const grab = (re: RegExp) => { const m = re.exec(head); try { return m ? JSON.parse(m[1]) : undefined; } catch { return undefined; } };
+          parsed = {
+            project: grab(/"project"\s*:\s*(\{[^{}]*\})/),
+            scope_summary: grab(/"scope_summary"\s*:\s*("(?:[^"\\]|\\.)*")/),
+            assumptions: grab(/"assumptions"\s*:\s*(\[[^\]]*\])/),
+            settings: grab(/"settings"\s*:\s*(\{[^{}]*\})/),
+            flags: grab(/"flags"\s*:\s*(\[[\s\S]*?\])\s*,\s*"lines"/),
+            lines: [],
+            partial: true,
+          };
+          const streamed = scanLines(text, scan); // anything after the last delta
+          streamed.forEach((raw) => { const line = normalizeLine(raw, lineCount); if (line) { send("line", line); lineCount++; } });
+          if (!lineCount) {
+            send("error", { error: timedOut ? "The analysis ran out of time before writing any cost lines. Try fewer or smaller sheets per run." : "The model did not return a usable estimate. Try again." });
             return;
           }
+          const r = normalizeRest(parsed, [], projectName, location, Number(areaSf) || 0);
+          send("result", { ...r, lines: [], partial: true, timedOut });
+          return;
         }
 
         const result = normalize(parsed, projectName, location, Number(areaSf) || 0);
+        if (!result.lines.length && lineCount) {
+          send("result", { ...result, partial: true });
+          return;
+        }
         if (!result.lines.length) {
           send("error", { error: "No cost lines could be produced from those documents." });
           return;
