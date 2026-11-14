@@ -1397,6 +1397,8 @@ export type Database = {
       }
       company_settings: {
         Row: {
+          bond_capacity_aggregate: number | null
+          bond_capacity_single: number | null
           company_address: string | null
           company_email: string | null
           company_name: string
@@ -1406,13 +1408,20 @@ export type Database = {
           default_contingency_value: number | null
           default_retainage_rate: number | null
           default_tax_rate: number | null
+          hidden_nav_items: string[]
           id: string
           logo_url: string | null
           overhead_percentage: number | null
           profit_margin: number | null
+          surety_agent: string | null
+          surety_agent_email: string | null
+          surety_agent_phone: string | null
+          surety_company: string | null
           updated_at: string | null
         }
         Insert: {
+          bond_capacity_aggregate?: number | null
+          bond_capacity_single?: number | null
           company_address?: string | null
           company_email?: string | null
           company_name?: string
@@ -1422,13 +1431,20 @@ export type Database = {
           default_contingency_value?: number | null
           default_retainage_rate?: number | null
           default_tax_rate?: number | null
+          hidden_nav_items?: string[]
           id?: string
           logo_url?: string | null
           overhead_percentage?: number | null
           profit_margin?: number | null
+          surety_agent?: string | null
+          surety_agent_email?: string | null
+          surety_agent_phone?: string | null
+          surety_company?: string | null
           updated_at?: string | null
         }
         Update: {
+          bond_capacity_aggregate?: number | null
+          bond_capacity_single?: number | null
           company_address?: string | null
           company_email?: string | null
           company_name?: string
@@ -1438,10 +1454,15 @@ export type Database = {
           default_contingency_value?: number | null
           default_retainage_rate?: number | null
           default_tax_rate?: number | null
+          hidden_nav_items?: string[]
           id?: string
           logo_url?: string | null
           overhead_percentage?: number | null
           profit_margin?: number | null
+          surety_agent?: string | null
+          surety_agent_email?: string | null
+          surety_agent_phone?: string | null
+          surety_company?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -1681,6 +1702,7 @@ export type Database = {
       }
       documents: {
         Row: {
+          archived_at: string | null
           category: string | null
           created_at: string | null
           description: string | null
@@ -1688,6 +1710,7 @@ export type Database = {
           file_size: number | null
           id: string
           is_current_version: boolean | null
+          is_favorite: boolean
           mime_type: string | null
           name: string
           project_id: string | null
@@ -1699,6 +1722,7 @@ export type Database = {
           version: number | null
         }
         Insert: {
+          archived_at?: string | null
           category?: string | null
           created_at?: string | null
           description?: string | null
@@ -1706,6 +1730,7 @@ export type Database = {
           file_size?: number | null
           id?: string
           is_current_version?: boolean | null
+          is_favorite?: boolean
           mime_type?: string | null
           name: string
           project_id?: string | null
@@ -1717,6 +1742,7 @@ export type Database = {
           version?: number | null
         }
         Update: {
+          archived_at?: string | null
           category?: string | null
           created_at?: string | null
           description?: string | null
@@ -1724,6 +1750,7 @@ export type Database = {
           file_size?: number | null
           id?: string
           is_current_version?: boolean | null
+          is_favorite?: boolean
           mime_type?: string | null
           name?: string
           project_id?: string | null
@@ -3448,87 +3475,120 @@ export type Database = {
       }
       payment_applications_g702: {
         Row: {
+          application_date: string | null
           application_number: number
           architect_date: string | null
+          architect_name: string | null
+          architect_project_no: string | null
           architect_signature: string | null
           balance_to_finish: number | null
+          contract_date: string | null
           contract_sum_to_date: number | null
           contractor_address: string | null
           contractor_date: string | null
           contractor_name: string
+          contractor_signatory: string | null
           contractor_signature: string | null
+          contractor_title: string | null
           created_at: string
           current_payment_due: number | null
           id: string
           less_previous_certificates: number | null
+          line_items: Json | null
           net_change_by_change_orders: number | null
           original_contract_sum: number
+          owner_name: string | null
           paid_at: string | null
           payment_status: string
+          period_from: string | null
           period_to: string
           project_id: string | null
           project_name: string
           project_number: string | null
           retainage_completed_work: number | null
+          retainage_percentage: number | null
           retainage_stored_materials: number | null
+          retainage_stored_percentage: number | null
           total_completed_and_stored: number | null
           total_earned_less_retainage: number | null
           total_retainage: number | null
           updated_at: string
         }
         Insert: {
+          application_date?: string | null
           application_number: number
           architect_date?: string | null
+          architect_name?: string | null
+          architect_project_no?: string | null
           architect_signature?: string | null
           balance_to_finish?: number | null
+          contract_date?: string | null
           contract_sum_to_date?: number | null
           contractor_address?: string | null
           contractor_date?: string | null
           contractor_name: string
+          contractor_signatory?: string | null
           contractor_signature?: string | null
+          contractor_title?: string | null
           created_at?: string
           current_payment_due?: number | null
           id?: string
           less_previous_certificates?: number | null
+          line_items?: Json | null
           net_change_by_change_orders?: number | null
           original_contract_sum?: number
+          owner_name?: string | null
           paid_at?: string | null
           payment_status?: string
+          period_from?: string | null
           period_to: string
           project_id?: string | null
           project_name: string
           project_number?: string | null
           retainage_completed_work?: number | null
+          retainage_percentage?: number | null
           retainage_stored_materials?: number | null
+          retainage_stored_percentage?: number | null
           total_completed_and_stored?: number | null
           total_earned_less_retainage?: number | null
           total_retainage?: number | null
           updated_at?: string
         }
         Update: {
+          application_date?: string | null
           application_number?: number
           architect_date?: string | null
+          architect_name?: string | null
+          architect_project_no?: string | null
           architect_signature?: string | null
           balance_to_finish?: number | null
+          contract_date?: string | null
           contract_sum_to_date?: number | null
           contractor_address?: string | null
           contractor_date?: string | null
           contractor_name?: string
+          contractor_signatory?: string | null
           contractor_signature?: string | null
+          contractor_title?: string | null
           created_at?: string
           current_payment_due?: number | null
           id?: string
           less_previous_certificates?: number | null
+          line_items?: Json | null
           net_change_by_change_orders?: number | null
           original_contract_sum?: number
+          owner_name?: string | null
           paid_at?: string | null
           payment_status?: string
+          period_from?: string | null
           period_to?: string
           project_id?: string | null
           project_name?: string
           project_number?: string | null
           retainage_completed_work?: number | null
+          retainage_percentage?: number | null
           retainage_stored_materials?: number | null
+          retainage_stored_percentage?: number | null
           total_completed_and_stored?: number | null
           total_earned_less_retainage?: number | null
           total_retainage?: number | null
@@ -3537,6 +3597,118 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "payment_applications_g702_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permit_inspections: {
+        Row: {
+          created_at: string
+          id: string
+          inspection_type: string
+          inspector: string | null
+          notes: string | null
+          permit_id: string
+          result: string
+          scheduled_date: string
+          scheduled_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inspection_type: string
+          inspector?: string | null
+          notes?: string | null
+          permit_id: string
+          result?: string
+          scheduled_date: string
+          scheduled_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inspection_type?: string
+          inspector?: string | null
+          notes?: string | null
+          permit_id?: string
+          result?: string
+          scheduled_date?: string
+          scheduled_time?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permit_inspections_permit_id_fkey"
+            columns: ["permit_id"]
+            isOneToOne: false
+            referencedRelation: "permits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permits: {
+        Row: {
+          application_date: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          expiration_date: string | null
+          fee_amount: number | null
+          fee_paid: boolean
+          id: string
+          issued_date: string | null
+          issuing_authority: string
+          notes: string | null
+          permit_number: string | null
+          permit_type: string
+          project_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          application_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          expiration_date?: string | null
+          fee_amount?: number | null
+          fee_paid?: boolean
+          id?: string
+          issued_date?: string | null
+          issuing_authority?: string
+          notes?: string | null
+          permit_number?: string | null
+          permit_type?: string
+          project_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          application_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          expiration_date?: string | null
+          fee_amount?: number | null
+          fee_paid?: boolean
+          id?: string
+          issued_date?: string | null
+          issuing_authority?: string
+          notes?: string | null
+          permit_number?: string | null
+          permit_type?: string
+          project_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permits_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
@@ -3553,6 +3725,7 @@ export type Database = {
           email_verified: boolean | null
           id: string
           name: string | null
+          nickname: string | null
           role: string | null
           updated_at: string | null
         }
@@ -3564,6 +3737,7 @@ export type Database = {
           email_verified?: boolean | null
           id: string
           name?: string | null
+          nickname?: string | null
           role?: string | null
           updated_at?: string | null
         }
@@ -3575,6 +3749,7 @@ export type Database = {
           email_verified?: boolean | null
           id?: string
           name?: string | null
+          nickname?: string | null
           role?: string | null
           updated_at?: string | null
         }
@@ -3638,6 +3813,71 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "project_billing_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_bonds: {
+        Row: {
+          amount: number
+          bond_number: string | null
+          bond_type: string
+          created_at: string
+          created_by: string | null
+          effective_date: string | null
+          expiration_date: string | null
+          id: string
+          notes: string | null
+          obligee: string | null
+          premium: number | null
+          premium_paid: boolean
+          project_id: string
+          status: string
+          surety: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          bond_number?: string | null
+          bond_type?: string
+          created_at?: string
+          created_by?: string | null
+          effective_date?: string | null
+          expiration_date?: string | null
+          id?: string
+          notes?: string | null
+          obligee?: string | null
+          premium?: number | null
+          premium_paid?: boolean
+          project_id: string
+          status?: string
+          surety?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          bond_number?: string | null
+          bond_type?: string
+          created_at?: string
+          created_by?: string | null
+          effective_date?: string | null
+          expiration_date?: string | null
+          id?: string
+          notes?: string | null
+          obligee?: string | null
+          premium?: number | null
+          premium_paid?: boolean
+          project_id?: string
+          status?: string
+          surety?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_bonds_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
@@ -4286,6 +4526,71 @@ export type Database = {
         }
         Relationships: []
       }
+      safety_meetings: {
+        Row: {
+          attendees: string[]
+          conducted_by: string
+          corrective_actions: string
+          created_at: string
+          created_by: string | null
+          duration_minutes: number | null
+          hazards_discussed: string
+          id: string
+          location: string
+          meeting_date: string
+          meeting_type: string
+          notes: string | null
+          project_id: string
+          start_time: string | null
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          attendees?: string[]
+          conducted_by?: string
+          corrective_actions?: string
+          created_at?: string
+          created_by?: string | null
+          duration_minutes?: number | null
+          hazards_discussed?: string
+          id?: string
+          location?: string
+          meeting_date?: string
+          meeting_type?: string
+          notes?: string | null
+          project_id: string
+          start_time?: string | null
+          topic: string
+          updated_at?: string
+        }
+        Update: {
+          attendees?: string[]
+          conducted_by?: string
+          corrective_actions?: string
+          created_at?: string
+          created_by?: string | null
+          duration_minutes?: number | null
+          hazards_discussed?: string
+          id?: string
+          location?: string
+          meeting_date?: string
+          meeting_type?: string
+          notes?: string | null
+          project_id?: string
+          start_time?: string | null
+          topic?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "safety_meetings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       schedule_template_items: {
         Row: {
           category: string | null
@@ -4567,6 +4872,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           rating: number | null
+          scorecard: Json | null
           specialties: string[] | null
           state: string | null
           status: string | null
@@ -4587,6 +4893,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           rating?: number | null
+          scorecard?: Json | null
           specialties?: string[] | null
           state?: string | null
           status?: string | null
@@ -4607,6 +4914,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           rating?: number | null
+          scorecard?: Json | null
           specialties?: string[] | null
           state?: string | null
           status?: string | null
