@@ -1,3 +1,4 @@
+import { coSovMessage, isApproved, syncChangeOrderToSov } from '@/lib/changeOrderSov';
 import { localDateISO } from '@/utils/dates';
 
 import { useState, useEffect } from 'react';
@@ -151,6 +152,12 @@ export function CreateChangeOrderDialog({
       if (error) throw error;
 
       toast.success(changeOrder ? 'Change order updated' : 'Change order created');
+      // Approved change orders go onto the Schedule of Values so the next payment application bills them.
+      const sync = await syncChangeOrderToSov({ ...row, project_id: projectId as string });
+      const msg = coSovMessage(sync, row.number);
+      if (msg) (msg.tone === 'warn' ? toast.warning : toast.success)(msg.text);
+      else if (!isApproved(row.status) && !changeOrder)
+        toast.message('Set it to Approved when the owner signs off', { description: 'Approved change orders are added to the Schedule of Values and show up on the next payment application.' });
       onSave();
       onOpenChange(false);
       resetForm();
