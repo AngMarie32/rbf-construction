@@ -252,7 +252,7 @@ serve(async (req) => {
   } catch (err) {
     console.error("analyze-blueprint error:", err);
     return new Response(
-      JSON.stringify({ error: String(err?.message ?? err) }),
+      JSON.stringify({ error: String((err as Error)?.message ?? err) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
