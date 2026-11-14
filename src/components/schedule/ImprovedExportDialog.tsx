@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText, Printer, AlertCircle, BarChart3, Calendar, List, GitBranch } from 'lucide-react';
 import { Task } from '@/types';
-import { generateReport } from '@/utils/enhancedExports';
+import { generateSchedulePdf, scheduleCsv } from '@/utils/schedulePdf';
 import { validateTaskList, formatValidationMessage, getValidationSummary } from '@/utils/dataValidation';
 import { toast } from 'sonner';
 
@@ -56,13 +56,16 @@ export function ImprovedExportDialog({
     setReportOptions(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     try {
-      generateReport(tasks, projects, reportOptions, title);
-      toast.success('Report generated successfully');
+      setLoading(true);
+      await generateSchedulePdf(tasks, projects, { ...reportOptions, includeProjectInfo: (reportOptions as any).includeProjectInfo ?? reportOptions.includeCalendarView } as any, title);
+      toast.success('Schedule PDF downloaded');
       onOpenChange(false);
     } catch (error) {
       toast.error('Failed to generate report');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -158,7 +161,7 @@ export function ImprovedExportDialog({
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-purple-600" />
-                        <Label htmlFor="includeCalendarView" className="font-medium">Calendar Overview</Label>
+                        <Label htmlFor="includeCalendarView" className="font-medium">Project Summary Boxes</Label>
                       </div>
                       <p className="text-sm text-gray-600 mt-1">
                         Calendar-style view highlighting upcoming and overdue tasks
@@ -330,13 +333,17 @@ export function ImprovedExportDialog({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
+            <Button variant="outline" onClick={() => { scheduleCsv(tasks, projects); toast.success('Schedule spreadsheet downloaded'); }}>
+              <List className="w-4 h-4 mr-2" />
+              Spreadsheet (CSV)
+            </Button>
             <Button 
               onClick={handleGenerateReport}
               disabled={loading || getIncludedViewsCount() === 0}
               
             >
               <Printer className="w-4 h-4 mr-2" />
-              Generate Report
+              Download PDF
             </Button>
           </div>
         </div>
