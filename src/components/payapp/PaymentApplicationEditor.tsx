@@ -103,6 +103,8 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
   const [lines, setLines] = useState<PayAppLine[]>([]);
   const [previousCertificates, setPreviousCertificates] = useState(0);
   const [changeOrders, setChangeOrders] = useState<any[]>([]);
+  // Set when earlier applications billed more than the lines carry forward (older apps saved without line history).
+  const [carryGap, setCarryGap] = useState(0);
   const [mode, setMode] = useState<{ editableLines: boolean; reason?: string; legacy?: boolean }>({ editableLines: true });
   const [signOpen, setSignOpen] = useState(false);
   const [waiverOpen, setWaiverOpen] = useState(false);
@@ -145,7 +147,8 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
     setChangeOrders(cos || []);
     const all = (apps || []) as any[];
     const current = applicationId ? all.find((a) => a.id === applicationId) : null;
-    const last = all[all.length - 1];
+    // Latest application by number (don't rely on list order).
+    const last = all.reduce((m: any, a: any) => (!m || Number(a.application_number) > Number(m.application_number) ? a : m), null as any);
     const fromSov = (s: any): PayAppLine => ({
       id: s.id,
       itemNumber: s.item_number,
@@ -158,6 +161,7 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
       stored: Number(s.materials_stored) || 0,
     });
 
+    setCarryGap(0);
     if (current) {
       const isLatest = current.application_number === Math.max(...all.map((a) => a.application_number));
       const snapshot = Array.isArray(current.line_items) ? (current.line_items as PayAppLine[]) : null;
@@ -202,7 +206,21 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
       });
       setApp(current);
     } else {
-      setLines((sov || []).map(fromSov));
+      // A new application starts where the last one ended. The last application's saved lines are the
+      // source of truth (previous + this period, stored materials carried); the Schedule of Values is the
+      // fallback for lines it doesn't cover or applications saved before line history was kept.
+      const lastSnap = Array.isArray(last?.line_items) ? (last.line_items as PayAppLine[]) : null;
+      const snapById = new Map((lastSnap || []).map((l) => [l.id, l]));
+      const carried = (sov || []).map((s: any) => {
+        const base = fromSov(s);
+        const prev = snapById.get(s.id);
+        if (!prev) return base;
+        return { ...base, previous: r2((Number(prev.previous) || 0) + (Number(prev.thisPeriod) || 0)), stored: Number(prev.stored) || 0 };
+      });
+      setLines(carried);
+      const earlierBilled = Number(last?.total_completed_and_stored) || 0;
+      const carriedTotal = carried.reduce((a, l) => a + l.previous + l.stored, 0);
+      setCarryGap(!!last && earlierBilled > 0 && carriedTotal + 0.5 < earlierBilled ? earlierBilled : 0);
       setMode({ editableLines: true });
       setPreviousCertificates(all.reduce((s, a) => s + (Number(a.current_payment_due) || 0), 0));
       setOtherNumbers(all.map((a) => a.application_number));
@@ -494,14 +512,19 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
         ]}
       />
 
-      {(mode.reason || overbilled.length > 0 || totals.sovMismatch || duplicateNumber || totals.currentPaymentDue < 0) && (
+      {(mode.reason || carryGap > 0 || overbilled.length > 0 || totals.sovMismatch || duplicateNumber || totals.currentPaymentDue < 0) && (
         <div className="space-y-2">
           {mode.reason && (
             <Notice icon={Lock} tone="slate">
               {mode.reason}
             </Notice>
           )}
-          {duplicateNumber && <Notice tone="rose">Application #{form.applicationNumber} already exists for this project. Change the number before saving.</Notice>}
+          {carryGap > 0 && (
+            <Notice tone="rose">
+              Earlier applications billed {money(carryGap)} to date, but only {money(lines.reduce((a, l) => a + l.previous + l.stored, 0))} carried into "Previous" on these lines. Those applications were saved before line-by-line history was kept. Enter each line's previous amount in the Previous column (it's editable here) so this application continues from the last one.
+            </Notice>
+          )}
+                    {duplicateNumber && <Notice tone="rose">Application #{form.applicationNumber} already exists for this project. Change the number before saving.</Notice>}
           {overbilled.length > 0 && (
             <Notice tone="rose">
               {overbilled.length} line{overbilled.length === 1 ? ' is' : 's are'} billed past 100% ({overbilled.map((l) => l.itemNumber).join(', ')}). Lower "this period" or
@@ -616,7 +639,15 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
                             {money(lineContract(l))}
                             {l.changeOrders ? <p className="text-[11px] text-muted-foreground">incl. {money(l.changeOrders)} CO</p> : null}
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{money(l.previous)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                            {carryGap > 0 && mode.editableLines ? (
+                              <div className="flex justify-end">
+                                <MoneyCell value={l.previous} onCommit={(n) => updateLine(l.id, { previous: n })} />
+                              </div>
+                            ) : (
+                              money(l.previous)
+                            )}
+                          </td>
                           <td className="px-3 py-2 text-right">
                             <div className="flex justify-end">
                               <MoneyCell value={l.thisPeriod} disabled={!mode.editableLines} invalid={over} onCommit={(n) => updateLine(l.id, { thisPeriod: n })} />
