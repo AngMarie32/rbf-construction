@@ -1,6 +1,6 @@
 import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
-import { Check, ChevronDown, ChevronUp } from "lucide-react"
+import { Check, ChevronDown, ChevronUp, Search } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -65,10 +65,107 @@ const SelectScrollDownButton = React.forwardRef<
 SelectScrollDownButton.displayName =
   SelectPrimitive.ScrollDownButton.displayName
 
+
+/**
+ * Type-to-search for every dropdown: lists with more than SEARCH_MIN options get a search box at the top.
+ * Typing anywhere in an open list jumps into the box. Words can be in any order ("concrete sample"
+ * finds "Sample Concrete Co"). Pass searchable={false} on SelectContent to turn it off for one list.
+ */
+const SEARCH_MIN = 8
+type SearchCtx = { query: string; register: () => () => void }
+const SelectSearchContext = React.createContext<SearchCtx | null>(null)
+
+const textOf = (node: React.ReactNode): string => {
+  if (node == null || typeof node === "boolean") return ""
+  if (typeof node === "string" || typeof node === "number") return String(node)
+  if (Array.isArray(node)) return node.map(textOf).join(" ")
+  if (React.isValidElement(node)) return textOf((node.props as any).children)
+  return ""
+}
+const matches = (text: string, query: string) => {
+  const hay = text.toLowerCase()
+  return query.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w))
+}
+
+function SearchableViewport({ children, enabled }: { children: React.ReactNode; enabled: boolean }) {
+  const [query, setQuery] = React.useState("")
+  const [count, setCount] = React.useState(0)
+  const input = React.useRef<HTMLInputElement>(null)
+  const ctx = React.useMemo<SearchCtx>(
+    () => ({
+      query,
+      register: () => {
+        setCount((c) => c + 1)
+        return () => setCount((c) => c - 1)
+      },
+    }),
+    [query]
+  )
+  const show = enabled && (count >= SEARCH_MIN || query !== "")
+  React.useEffect(() => {
+    if (!show) return
+    const t = setTimeout(() => input.current?.focus(), 30)
+    return () => clearTimeout(t)
+  }, [show])
+
+  return (
+    <SelectSearchContext.Provider value={ctx}>
+      <div
+        className="group/sel contents"
+        onKeyDownCapture={(e) => {
+          // Letters typed while an option has focus go into the search box instead of jumping around.
+          if (!show || e.target === input.current) return
+          if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            e.stopPropagation()
+            input.current?.focus()
+          }
+        }}
+      >
+        {show && (
+          <div className="sticky top-0 z-10 -mx-1 -mt-1 mb-1 flex items-center border-b bg-popover px-3">
+            <Search className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+            <input
+              ref={input}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape" || e.key === "Tab") return
+                if (e.key === "ArrowDown") {
+                  e.preventDefault()
+                  const first = e.currentTarget.closest("[role=listbox]")?.querySelector<HTMLElement>("[role=option]:not([data-disabled])")
+                  first?.focus()
+                  return
+                }
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  e.currentTarget.closest("[role=listbox]")?.querySelector<HTMLElement>("[role=option]:not([data-disabled])")?.click()
+                  return
+                }
+                e.stopPropagation()
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              placeholder="Type to search…"
+              className="h-9 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              aria-label="Search options"
+            />
+          </div>
+        )}
+        {children}
+        {show && query && <NoMatches />}
+      </div>
+    </SelectSearchContext.Provider>
+  )
+}
+
+function NoMatches() {
+  // Shown (via CSS) only when no option is left after filtering.
+  return <div className="hidden px-2 py-4 text-center text-sm text-muted-foreground group-[:not(:has([role=option]))]/sel:block">No matches</div>
+}
+
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = "popper", ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content> & { searchable?: boolean }
+>(({ className, children, position = "popper", searchable = true, ...props }, ref) => (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       ref={ref}
@@ -89,7 +186,7 @@ const SelectContent = React.forwardRef<
             "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
         )}
       >
-        {children}
+        <SearchableViewport enabled={searchable}>{children}</SearchableViewport>
       </SelectPrimitive.Viewport>
       <SelectScrollDownButton />
     </SelectPrimitive.Content>
@@ -112,7 +209,12 @@ SelectLabel.displayName = SelectPrimitive.Label.displayName
 const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => {
+  const search = React.useContext(SelectSearchContext)
+  const register = search?.register
+  React.useLayoutEffect(() => (register ? register() : undefined), [register === undefined])
+  if (search?.query && !matches(`${props.textValue || ""} ${textOf(children)} `, search.query)) return null
+  return (
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
@@ -129,7 +231,8 @@ const SelectItem = React.forwardRef<
 
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
   </SelectPrimitive.Item>
-))
+  )
+})
 SelectItem.displayName = SelectPrimitive.Item.displayName
 
 const SelectSeparator = React.forwardRef<
