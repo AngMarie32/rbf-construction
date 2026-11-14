@@ -1,3 +1,5 @@
+import { LienWaiverDialog } from '@/components/payment-applications/LienWaiverDialog';
+import { FileSignature } from 'lucide-react';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -83,6 +85,7 @@ export default function Expenses() {
   const [attachingInvoice, setAttachingInvoice] = useState<{ id: string; description: string } | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<{ id: string; description: string } | null>(null);
   const [vendorAnalysisOpen, setVendorAnalysisOpen] = useState(false);
+  const [waiverFor, setWaiverFor] = useState<any | null>(null);
   const [sortColumn, setSortColumn] = useState<string>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(new Set());
@@ -96,7 +99,7 @@ export default function Expenses() {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, status')
+        .select('id, name, status, address')
         .is('archived_at', null)
         .order('name');
 
@@ -468,6 +471,9 @@ export default function Expenses() {
           <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" aria-label="Edit" onClick={() => setEditingExpense(e)}>
             <Edit className="w-4 h-4" />
           </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Lien waiver" aria-label="Lien waiver" onClick={() => setWaiverFor(e)}>
+            <FileSignature className="w-4 h-4" />
+          </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" title="Attach invoice" aria-label="Attach invoice" onClick={() => setAttachingInvoice({ id: e.id, description: e.description })}>
             <Paperclip className="w-4 h-4" />
           </Button>
@@ -783,6 +789,23 @@ export default function Expenses() {
           projects={projects}
         />
       </div>
+      {waiverFor && (
+        <LienWaiverDialog
+          open={!!waiverFor}
+          onOpenChange={(o) => !o && setWaiverFor(null)}
+          expense={{
+            id: waiverFor.id,
+            project_id: waiverFor.project_id,
+            project_name: waiverFor.projects?.name || (projects as any[]).find((p) => p.id === waiverFor.project_id)?.name,
+            project_address: (projects as any[]).find((p) => p.id === waiverFor.project_id)?.address || undefined,
+            amount: Number(waiverFor.amount) || 0,
+            date: String(waiverFor.date || '').slice(0, 10),
+            vendor: waiverFor.vendor,
+            description: waiverFor.description,
+            paid: waiverFor.status === 'Paid',
+          }}
+        />
+      )}
     </Layout>
   );
 }

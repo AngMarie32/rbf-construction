@@ -246,7 +246,7 @@ export default function Auth() {
                   <form onSubmit={handleSignUp} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="signup-name">Full name</Label>
-                      <Input id="signup-name" name="name" type="text" autoComplete="name" placeholder="Jane Smith" required disabled={loading} className="h-11" />
+                      <Input id="signup-name" name="name" type="text" autoComplete="name" placeholder="Your full name" required disabled={loading} className="h-11" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="signup-email">Work email</Label>

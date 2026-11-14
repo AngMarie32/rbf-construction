@@ -524,7 +524,7 @@ export default function Properties() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <Label>Name *</Label>
-                <Input className="mt-1" value={propForm.name} onChange={(e) => setPropForm({ ...propForm, name: e.target.value })} placeholder="e.g. Oak Ridge Duplex" />
+                <Input className="mt-1" value={propForm.name} onChange={(e) => setPropForm({ ...propForm, name: e.target.value })} placeholder="Property name" />
               </div>
               <div>
                 <Label>Company</Label>

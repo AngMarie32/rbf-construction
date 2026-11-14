@@ -277,7 +277,7 @@ export default function BidTemplates() {
                   <div className="grid gap-3 border-b p-4 md:grid-cols-2">
                     <div>
                       <Label>Template name</Label>
-                      <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Standard bathroom remodel" />
+                      <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Template name" />
                     </div>
                     <div>
                       <Label>Description</Label>
