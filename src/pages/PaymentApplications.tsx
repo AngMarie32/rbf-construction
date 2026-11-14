@@ -1,3 +1,4 @@
+import { writeSkippingGenerated } from '@/lib/generatedColumns';
 import { WorkflowStepper } from '@/components/workflow/WorkflowStepper';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { useState, useEffect } from 'react';
@@ -205,16 +206,13 @@ export default function PaymentApplications() {
         
         // If this is application #1 being deleted, reset everything to 0
         if (applicationNumber === 1) {
-          await supabase
-            .from('sov_items')
-            .update({
+          await writeSkippingGenerated({
               previous_applications: 0,
               this_period: 0,
               percent_complete: 0,
               // Preserve change_orders and other fields
               change_orders: item.change_orders
-            })
-            .eq('id', item.id);
+            }, (row) => supabase.from('sov_items').update(row).eq('id', item.id));
         } else {
           // For applications > 1, we need to recalculate based on remaining applications
           // This is complex without historical data, so for now we'll approximate
@@ -228,16 +226,13 @@ export default function PaymentApplications() {
           const totalContract = (item.scheduled_value || 0) + (item.change_orders || 0);
           const newPercentComplete = totalContract > 0 ? (newPreviousApplications / totalContract) * 100 : 0;
           
-          await supabase
-            .from('sov_items')
-            .update({
+          await writeSkippingGenerated({
               previous_applications: newPreviousApplications,
               this_period: 0,
               percent_complete: Math.min(newPercentComplete, 100),
               // Preserve change_orders and other fields
               change_orders: item.change_orders
-            })
-            .eq('id', item.id);
+            }, (row) => supabase.from('sov_items').update(row).eq('id', item.id));
         }
       }
 

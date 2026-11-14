@@ -1,3 +1,4 @@
+import { writeSkippingGenerated } from '@/lib/generatedColumns';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, CheckCircle2, FileSignature, Loader2, Lock, Plus, Save, X } from 'lucide-react';
@@ -380,10 +381,12 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
         retainage_stored_percentage: form.retainageStoredPct,
         ...(mode.editableLines ? { line_items: saved } : {}),
       };
-      const write = (row: Record<string, any>) =>
+      const writeOnce = (row: Record<string, any>) =>
         app
           ? supabase.from('payment_applications_g702').update(row).eq('id', app.id).select('id').single()
           : supabase.from('payment_applications_g702').insert(row as any).select('id').single();
+      // Columns the database calculates itself are left out automatically.
+      const write = (row: Record<string, any>) => writeSkippingGenerated(row, writeOnce);
       let res = await write({ ...base, ...details });
       let detailsSkipped = false;
       if (res.error && isMissingColumn(res.error)) {
@@ -398,16 +401,16 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
           const previous = r2(l.previous + l.thisPeriod);
           const completed = previous + l.stored;
           const contract = lineContract(l);
-          const { error } = await supabase
-            .from('sov_items')
-            .update({
+          const { error } = await writeSkippingGenerated(
+            {
               previous_applications: previous,
               this_period: 0,
               materials_stored: l.stored,
               total_completed_and_stored: completed,
               percent_complete: contract > 0 ? Math.min(100, (completed / contract) * 100) : 0,
-            })
-            .eq('id', l.id);
+            },
+            (row) => supabase.from('sov_items').update(row).eq('id', l.id)
+          );
           if (error) throw error;
         }
       }

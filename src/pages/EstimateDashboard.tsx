@@ -30,6 +30,7 @@ import {
   rollup,
   sumBaselineGroup,
   sumGroup,
+  missingGcLines,
 } from '@/utils/estimateMath';
 
 interface EstimateRecord {
@@ -154,6 +155,18 @@ export default function EstimateDashboard() {
     : { contingency_pct: 0, overhead_pct: 0, profit_pct: 0, bond_pct: 0 };
 
   const totals = useMemo(() => rollup(lines, settings, est?.area_sf ?? 0), [lines, settings, est]);
+
+  const missingGc = useMemo(() => missingGcLines(lines), [lines]);
+  const addMissingGc = async () => {
+    if (!est || !missingGc.length) return;
+    const start = lines.reduce((m, l) => Math.max(m, Number(l.sort_order) || 0), 0) + 1;
+    const { error } = await supabase
+      .from('estimate_lines')
+      .insert(missingGc.map((g, i) => ({ ...g, estimate_id: est.id, sort_order: start + i })) as any);
+    if (error) return toast.error(`Couldn't add general conditions: ${error.message}`);
+    toast.success('General conditions added. Review and refine the allowance.');
+    load();
+  };
 
   const saveSetting = async (field: keyof EstimateRecord, value: number) => {
     if (!est) return;
@@ -408,6 +421,17 @@ export default function EstimateDashboard() {
           </TabsList>
 
           <TabsContent value="estimate" className="space-y-4">
+            {est && missingGc.length > 0 && (
+              <Card className="flex flex-wrap items-center gap-3 border-amber-500/40 bg-amber-500/5 p-4">
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="font-medium">General conditions are missing for {missingGc.map((g) => (g.group_key === 'site_gc' ? 'site work' : 'the building')).join(' and ')}.</p>
+                  <p className="text-muted-foreground">
+                    Building and site general conditions are always carried as separate lines. Add an allowance ({missingGc.map((g) => currency(g.baseline_amount)).join(' + ')}, 8% of direct cost) and refine it on the Estimate or Materials tab.
+                  </p>
+                </div>
+                <Button size="sm" onClick={addMissingGc}>Add general conditions</Button>
+              </Card>
+            )}
             <Card className="p-6">
               <h3 className="font-semibold">Adjustable assumptions</h3>
               <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">

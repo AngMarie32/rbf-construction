@@ -1,3 +1,4 @@
+import { writeSkippingGenerated } from '@/lib/generatedColumns';
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -240,14 +241,9 @@ export function G702Dialog({ open, onOpenChange, projectId, applicationId, onSav
 
       let result;
       if (applicationId) {
-        result = await supabase
-          .from('payment_applications_g702')
-          .update(applicationData)
-          .eq('id', applicationId);
+        result = await writeSkippingGenerated(applicationData, (row) => supabase.from('payment_applications_g702').update(row).eq('id', applicationId));
       } else {
-        result = await supabase
-          .from('payment_applications_g702')
-          .insert(applicationData);
+        result = await writeSkippingGenerated(applicationData, (row) => supabase.from('payment_applications_g702').insert(row as any));
       }
 
       if (result.error) throw result.error;

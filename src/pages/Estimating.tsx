@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Upload, Loader2, FileText, X, Trash2, CloudUpload, Database, ClipboardList, Calculator, Sparkles, TrendingUp, Ruler, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { missingGcLines } from '@/utils/estimateMath';
 import { PageHero, heroButton, heroButtonPrimary } from '@/components/ui/page-hero';
 import { AccentStat } from '@/components/ui/accent-stat';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
@@ -278,7 +279,12 @@ export default function Estimating() {
         scope_summary: results.map((r) => r.scope_summary).filter(Boolean).join('\n\n'),
         assumptions: Array.from(new Set(results.flatMap((r) => r.assumptions || []))),
         flags: results.flatMap((r) => r.flags || []),
-        lines: Array.from(merged.values()).map((l, i) => ({ ...l, sort_order: i })),
+        // Building and site general conditions are always carried separately; add an allowance if one is missing.
+        lines: (() => {
+          const kept = Array.from(merged.values());
+          const gc = missingGcLines(kept).map((g) => ({ ...g, subcosts: [], materials: [] }));
+          return [...kept, ...gc].map((l, i) => ({ ...l, sort_order: i }));
+        })(),
       };
 
       setStage('Saving the estimate…');
