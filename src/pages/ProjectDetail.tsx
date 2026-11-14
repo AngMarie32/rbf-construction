@@ -45,6 +45,8 @@ import { rememberProject } from '@/utils/recentProjects';
 import { cn } from '@/lib/utils';
 import { PageHero, heroButton, heroButtonPrimary } from '@/components/ui/page-hero';
 import { AccentStat } from '@/components/ui/accent-stat';
+import { JobCostTab } from '@/components/projects/JobCostTab';
+import { exportChangeOrderPdf } from '@/utils/changeOrderPdf';
 import { Wallet } from 'lucide-react';
 
 interface DatabaseProject {
@@ -438,6 +440,7 @@ export default function ProjectDetail() {
               <TabsTrigger value="billing">Billing{billing.length ? ` (${billing.length})` : ''}</TabsTrigger>
               <TabsTrigger value="payment-apps">Pay Apps</TabsTrigger>
               <TabsTrigger value="documents">Documents{documents.length ? ` (${documents.length})` : ''}</TabsTrigger>
+              <TabsTrigger value="job-cost">Job Cost</TabsTrigger>
               <TabsTrigger value="burn-analysis">Burn Analysis</TabsTrigger>
               <TabsTrigger value="safety">Safety</TabsTrigger>
             </TabsList>
@@ -585,7 +588,12 @@ export default function ProjectDetail() {
                       <p className="text-sm text-muted-foreground mb-2">{co.description}</p>
                       <div className="flex justify-between text-sm">
                         <span className="font-medium tabular-nums">{money(co.amount)}</span>
-                        <span className="text-muted-foreground">{co.date ? new Date(co.date).toLocaleDateString() : ''}</span>
+                        <span className="flex items-center gap-3 text-muted-foreground">
+                          {co.date ? new Date(`${co.date}T00:00:00`).toLocaleDateString() : ''}
+                          <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => exportChangeOrderPdf(co.id).catch((e) => toast.error(`Couldn't make the PDF: ${e.message}`))}>
+                            PDF
+                          </button>
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -711,6 +719,10 @@ export default function ProjectDetail() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="job-cost">
+            <JobCostTab projectId={project.id} percentComplete={Number(project.completionPercentage) || 0} />
           </TabsContent>
 
           <TabsContent value="burn-analysis">

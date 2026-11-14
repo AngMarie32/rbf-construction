@@ -458,3 +458,23 @@
   .report-print tfoot { display: table-row-group; } /* print the total once, at the end */
   .break-inside-avoid { break-inside: avoid; }
 }
+
+/*
+ * Dark mode safety net: older screens use fixed light colors (bg-white, bg-gray-50, text-gray-600…)
+ * with no dark version, which showed up as bright white boxes or unreadable gray text in dark mode.
+ * :where() keeps these weaker than any explicit dark: class, so screens that already handle dark mode win.
+ */
+.dark :where(.bg-white, .bg-gray-50, .bg-slate-50, .bg-gray-100) { background-color: hsl(var(--card)); }
+.dark :where(.text-black, .text-gray-900, .text-gray-800, .text-gray-700) { color: hsl(var(--foreground)); }
+.dark :where(.text-gray-600, .text-gray-500) { color: hsl(var(--muted-foreground)); }
+.dark :where(.border-gray-200, .border-gray-300) { border-color: hsl(var(--border)); }
+.dark :where(.bg-blue-50) { background-color: rgb(30 58 138 / 0.25); }
+.dark :where(.bg-green-50) { background-color: rgb(20 83 45 / 0.3); }
+.dark :where(.bg-red-50) { background-color: rgb(127 29 29 / 0.3); }
+.dark :where(.bg-yellow-50, .bg-amber-50) { background-color: rgb(120 53 15 / 0.3); }
+
+/* Phones: wide tables scroll sideways inside their card instead of stretching the whole page. */
+@media (max-width: 640px) {
+  main table { font-size: 0.8125rem; }
+  main :where(.overflow-x-auto, .overflow-auto) { -webkit-overflow-scrolling: touch; }
+}
