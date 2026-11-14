@@ -135,7 +135,7 @@ export default function Auth() {
 
         <figure className="relative max-w-xl">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-accent">
-            <Lightbulb className="h-4 w-4" /> Fun fact · {fact.topic}
+            <Lightbulb className="h-4 w-4" /> Funny fact · {fact.topic}
           </div>
           <blockquote key={factIndex} className="animate-fade-in-up">
             <p className="font-display text-3xl font-bold leading-snug tracking-tight text-white/90">{fact.fact}</p>
@@ -252,7 +252,7 @@ export default function Auth() {
             onClick={nextFact}
             className="mt-10 block w-full rounded-xl border border-dashed p-4 text-left lg:hidden"
           >
-            <span className="text-xs font-semibold uppercase tracking-wider text-accent">Fun fact · {fact.topic} · tap for another</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-accent">Funny fact · {fact.topic} · tap for another</span>
             <span className="mt-2 block text-sm text-muted-foreground">{fact.fact}</span>
           </button>
         </div>
