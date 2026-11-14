@@ -1,3 +1,4 @@
+import { EstimateMaterialsTab } from '@/components/estimating/EstimateMaterialsTab';
 import { WorkflowStepper } from '@/components/workflow/WorkflowStepper';
 import { ExportMenu } from '@/components/ui/export-menu';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -393,6 +394,7 @@ export default function EstimateDashboard() {
           <TabsList className="flex-wrap">
             <TabsTrigger value="estimate">Estimate</TabsTrigger>
             <TabsTrigger value="buildup">Cost build-up</TabsTrigger>
+            <TabsTrigger value="materials">Materials</TabsTrigger>
             <TabsTrigger value="flags">
               Critical flags
               {flags.length > 0 && (
@@ -586,6 +588,20 @@ export default function EstimateDashboard() {
                   })}
               </div>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="materials">
+            {est && (
+              <EstimateMaterialsTab
+                estimateId={est.id}
+                lines={lines}
+                onLineOverride={async (line, amount) => {
+                  setLines((prev) => prev.map((l) => (l.id === line.id ? { ...l, override_amount: amount } : l)));
+                  const { error } = await supabase.from('estimate_lines').update({ override_amount: amount }).eq('id', line.id);
+                  if (error) toast.error(error.message);
+                }}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="flags">

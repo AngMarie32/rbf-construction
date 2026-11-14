@@ -54,6 +54,9 @@ export default function Estimating() {
   const [location, setLocation] = useState('');
   const [areaSf, setAreaSf] = useState('');
   const [notes, setNotes] = useState('');
+  // What to price. A full plan set can be uploaded and only part of it estimated.
+  const [scope, setScope] = useState({ building: true, site: true, utilities: true });
+  const scopeNone = !scope.building && !scope.site && !scope.utilities;
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -187,6 +190,7 @@ export default function Estimating() {
             location,
             areaSf: Number(areaSf) || 0,
             notes: (notes || '') + partNote,
+            scope: { ...scope, instructions: notes || undefined },
             costBook,
           }),
         });
@@ -257,7 +261,13 @@ export default function Estimating() {
 
       // Merge parts: same cost line in the same group is kept once (larger amount wins, never summed)
       const merged = new Map<string, any>();
-      results.flatMap((r) => r.lines || []).forEach((l: any) => {
+      // Keep only the groups that were asked for (site utilities live in the site groups).
+      const allowed = new Set<string>([
+        ...(scope.building ? ['building', 'building_gc'] : []),
+        ...(scope.site || scope.utilities ? ['site', 'site_gc'] : []),
+        'other',
+      ]);
+      results.flatMap((r) => r.lines || []).filter((l: any) => allowed.has(l.group_key)).forEach((l: any) => {
         const key = `${l.group_key}|${String(l.name).trim().toLowerCase()}`;
         const prev = merged.get(key);
         if (!prev || Number(l.baseline_amount) > Number(prev.baseline_amount)) merged.set(key, l);
@@ -272,25 +282,28 @@ export default function Estimating() {
       };
 
       setStage('Saving the estimate…');
-      const { data: est, error: estErr } = await supabase
-        .from('estimates')
-        .insert({
-          company_id: companyId,
-          name: name || result.project?.name || 'Untitled estimate',
-          location: location || result.project?.location || null,
-          area_sf: Number(areaSf) || result.project?.area_sf || 0,
-          scope_summary: result.scope_summary || null,
-          assumptions: result.assumptions || [],
-          source_files: uploaded,
-          notes: notes || null,
-          contingency_pct: result.settings?.contingency_pct ?? 5,
-          overhead_pct: result.settings?.overhead_pct ?? 4,
-          profit_pct: result.settings?.profit_pct ?? 6,
-          bond_pct: result.settings?.bond_pct ?? 1,
-          created_by: userId ?? null,
-        })
-        .select('id')
-        .single();
+      const estRow: Record<string, any> = {
+        company_id: companyId,
+        name: name || result.project?.name || 'Untitled estimate',
+        location: location || result.project?.location || null,
+        area_sf: Number(areaSf) || result.project?.area_sf || 0,
+        scope_summary: result.scope_summary || null,
+        assumptions: result.assumptions || [],
+        source_files: uploaded,
+        notes: notes || null,
+        contingency_pct: result.settings?.contingency_pct ?? 5,
+        overhead_pct: result.settings?.overhead_pct ?? 4,
+        profit_pct: result.settings?.profit_pct ?? 6,
+        bond_pct: result.settings?.bond_pct ?? 1,
+        created_by: userId ?? null,
+        scope,
+      };
+      let ins = await supabase.from('estimates').insert(estRow as any).select('id').single();
+      if (ins.error && /scope|schema cache|column/i.test(ins.error.message)) {
+        delete estRow.scope;
+        ins = await supabase.from('estimates').insert(estRow as any).select('id').single();
+      }
+      const { data: est, error: estErr } = ins;
       if (estErr) throw estErr;
 
       const { data: insertedLines, error: lineErr } = await supabase
@@ -328,6 +341,27 @@ export default function Estimating() {
         }))
       ).filter((s: any) => s.line_id);
       if (subs.length) await supabase.from('estimate_subcosts').insert(subs);
+
+      const mats = result.lines.flatMap((l: any) =>
+        (l.materials || []).map((m: any) => ({
+          estimate_id: est.id,
+          line_id: idBySort.get(l.sort_order),
+          item: m.item,
+          quantity: m.quantity,
+          unit: m.unit,
+          unit_cost: m.unit_cost,
+          waste_pct: m.waste_pct ?? 0,
+          ai_quantity: m.quantity,
+          ai_unit_cost: m.unit_cost,
+          ai_waste_pct: m.waste_pct ?? 0,
+          basis: m.basis,
+          sort_order: m.sort_order ?? 0,
+        }))
+      ).filter((m: any) => m.line_id);
+      if (mats.length) {
+        const { error: matErr } = await (supabase as any).from('estimate_materials').insert(mats);
+        if (matErr) console.warn('Material takeoff not saved (run the estimate materials database update):', matErr.message);
+      }
 
       if (result.flags?.length)
         await supabase.from('estimate_flags').insert(
@@ -516,12 +550,46 @@ export default function Estimating() {
             </div>
 
             <div>
-              <Label>Estimator notes / context</Label>
+              <Label>What to estimate</Label>
+              <div className="mt-1.5 grid gap-2 sm:grid-cols-3">
+                {([
+                  ['building', 'Building', 'Building direct cost + building general conditions'],
+                  ['site', 'Site / civil', 'Earthwork, paving, exterior work + site general conditions'],
+                  ['utilities', 'Site utilities', 'Water, sewer, storm, gas, duct banks outside the building'],
+                ] as const).map(([k, label, hint]) => (
+                  <label
+                    key={k}
+                    className={cn(
+                      'flex cursor-pointer items-start gap-2 rounded-lg border p-3 transition-colors',
+                      scope[k] ? 'border-orange-500/60 bg-orange-500/5' : 'hover:bg-muted/40'
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 accent-orange-500"
+                      checked={scope[k]}
+                      disabled={busy}
+                      onChange={(e) => setScope((p) => ({ ...p, [k]: e.target.checked }))}
+                    />
+                    <span>
+                      <span className="block text-sm font-medium">{label}</span>
+                      <span className="block text-xs text-muted-foreground">{hint}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Upload the whole plan set either way. Unticked scope is used only as reference and is not priced. Building and site general conditions are always kept as separate lines.
+              </p>
+            </div>
+
+            <div>
+              <Label>Instructions and notes for the estimator</Label>
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
-                placeholder="Known scope, owner-supplied items, schedule constraints, what the set is missing…"
+                placeholder="Specific instructions, e.g. exclude landscaping, owner supplies the transformer, phase 1 only"
               />
             </div>
 
@@ -592,7 +660,7 @@ export default function Estimating() {
             )}
 
             <div className="flex flex-wrap items-center gap-3">
-              <Button onClick={run} disabled={busy || !files.length} className="bg-orange-500 text-white hover:bg-orange-600">
+              <Button onClick={run} disabled={busy || !files.length || scopeNone} className="bg-orange-500 text-white hover:bg-orange-600">
                 {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                 Build estimate
               </Button>

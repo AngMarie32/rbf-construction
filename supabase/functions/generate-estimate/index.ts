@@ -49,7 +49,8 @@ Return ONLY valid JSON, no markdown fences, with this exact shape:
       "status": "Verified|Modeled|Projected|REVIEW",
       "basis": "how the number was built: quantity, productivity, crew, equipment, freight",
       "source": "plan sheet / schedule / benchmark",
-      "subcosts": [{ "name": "Material", "amount": 0, "kind": "included|additive|alternate|excluded|allowance", "note": "string" }]
+      "subcosts": [{ "name": "Material", "amount": 0, "kind": "included|additive|alternate|excluded|allowance", "note": "string" }],
+      "materials": [{ "item": "4000 psi concrete", "quantity": 0, "unit": "CY", "unit_cost": 0, "waste_pct": 5, "basis": "how the quantity was measured" }]
     }
   ],
   "flags": [{ "severity": "critical|high|medium", "issue": "string", "finding": "string", "exposure": "string", "action": "string" }]
@@ -67,9 +68,20 @@ A division that the building clearly needs but the drawings do not show must get
 
 Be thorough: 25-70 cost lines across all five groups for a full plan set.
 
+GENERAL CONDITIONS
+- Building general conditions (group_key "building_gc") and site general conditions (group_key "site_gc") are ALWAYS separate lines.
+  Never combine them and never fold one into the other. Price each from its own duration, staffing and logistics.
+- If only site work is in scope, carry site GCs only; if only building work is in scope, carry building GCs only.
+
+MATERIAL TAKEOFF
+- For every line with material content, list the materials in "materials": item, measured quantity, unit, unit cost and waste %.
+- Material extended cost = quantity x unit_cost x (1 + waste_pct/100). These materials are part of the line's "amount"
+  (the amount also includes labor, equipment and markups on the line), so do not add them again.
+- Lines that are pure labor, services or allowances can have an empty "materials" list.
+
 OUTPUT ORDER AND LENGTH (important: long answers can be cut off)
 - Write the keys in this order: "project", "scope_summary", "assumptions", "settings", "division_coverage", "flags", and "lines" LAST.
-- Keep "basis" under 300 characters and give each line at most 5 subcosts.
+- Keep "basis" under 300 characters, give each line at most 5 subcosts and at most 8 materials.
 - Write the most important / largest-dollar lines first.`;
 
 // Stop reading the model a little before Supabase's function time limit so the lines
@@ -199,6 +211,15 @@ function normalizeLines(raw: any[]) {
       source: l.source ? String(l.source) : null,
       sort_order: i,
       subcosts: subs,
+      materials: (Array.isArray(l.materials) ? l.materials : []).slice(0, 20).map((m: any, j: number) => ({
+        item: String(m.item ?? m.name ?? "Material"),
+        quantity: Math.max(0, Number(m.quantity) || 0),
+        unit: m.unit ? String(m.unit) : null,
+        unit_cost: Math.max(0, Number(m.unit_cost) || 0),
+        waste_pct: Math.min(100, Math.max(0, Number(m.waste_pct) || 0)),
+        basis: m.basis ? String(m.basis) : null,
+        sort_order: j,
+      })),
     };
   });
 }
@@ -251,7 +272,20 @@ serve(async (req) => {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) return json({ error: "Missing LOVABLE_API_KEY" }, 500);
 
-  const { files = [], projectName = "", location = "", areaSf = 0, notes = "" } = payload;
+  const { files = [], projectName = "", location = "", areaSf = 0, notes = "", scope = null } = payload;
+  const scopeText = (() => {
+    if (!scope || typeof scope !== "object") return "";
+    const inc: string[] = [];
+    const exc: string[] = [];
+    (scope.building ? inc : exc).push("BUILDING work (building direct cost and building general conditions)");
+    (scope.site ? inc : exc).push("SITE / CIVIL work (earthwork, paving, exterior improvements, and site general conditions)");
+    (scope.utilities ? inc : exc).push("SITE UTILITIES (water, sewer, storm, gas, electrical/telecom duct banks outside the building)");
+    if (!exc.length) return scope.instructions ? `\n\nSCOPE INSTRUCTIONS FROM THE ESTIMATOR (follow exactly): ${scope.instructions}` : "";
+    return `\n\nSCOPE OF THIS ESTIMATE (follow exactly; the plan set may show more than is being priced):
+- PRICE ONLY: ${inc.join("; ") || "nothing selected"}.
+- DO NOT PRICE: ${exc.join("; ")}. Do not add lines, allowances or REVIEW lines for excluded scope, and do not report it in division_coverage except as "not_applicable" with the note "Excluded from this estimate".
+- Use sheets for excluded scope only as reference (e.g. building footprint, connection points).${scope.instructions ? `\n- Additional instructions from the estimator: ${scope.instructions}` : ""}`;
+  })();
   if (!Array.isArray(files) || files.length === 0) return json({ error: "At least one plan file is required" }, 400);
 
   const encoder = new TextEncoder();
@@ -282,7 +316,7 @@ serve(async (req) => {
 Project name: ${projectName || "(from the drawings)"}
 Location: ${location || "(from the drawings)"}
 Stated building area: ${areaSf || "(determine from the drawings)"} SF
-${notes ? `Estimator notes / context: ${notes}` : ""}
+${notes ? `Estimator notes / context: ${notes}` : ""}${scopeText}
 Price with current ${new Date().getFullYear()} local/regional commercial construction costs for this location.`;
 
         const book = Array.isArray(payload.costBook) ? payload.costBook.slice(0, 400) : [];
