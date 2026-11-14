@@ -276,7 +276,7 @@ export default function ChangeOrders() {
             <SelectTrigger className="w-full max-w-sm border-white/15 bg-white/10 text-white">
               <SelectValue placeholder="All projects" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable="always">
               <SelectItem value="all">All projects</SelectItem>
               {projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}>

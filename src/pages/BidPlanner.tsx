@@ -221,7 +221,7 @@ export default function BidPlanner() {
                 <SelectTrigger className="w-full max-w-md border-white/15 bg-white/10 text-white [&>span]:truncate">
                   <SelectValue placeholder="Choose a project for bid planning" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable="always">
                   {projects.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       <span className="flex items-center gap-2">

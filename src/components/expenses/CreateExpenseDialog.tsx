@@ -45,6 +45,9 @@ export function CreateExpenseDialog({ onExpenseCreated, projects }: CreateExpens
     vendor: '',
     receipt_number: ''
   });
+  const [spreadMonths, setSpreadMonths] = useState('1');
+  const months = Math.max(1, Math.min(60, Math.floor(Number(spreadMonths) || 1)));
+  const canSpread = formData.category === 'Labor';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,23 +59,34 @@ export function CreateExpenseDialog({ onExpenseCreated, projects }: CreateExpens
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('expenses')
-        .insert([{
+      const total = parseFloat(formData.amount);
+      const n = canSpread ? months : 1;
+      const baseDesc = formData.description.trim() || [formData.category, formData.vendor.trim()].filter(Boolean).join(' – ') || 'Expense';
+      // Split into whole cents; the last month absorbs any rounding so the parts add up to the total.
+      const cents = Math.round(total * 100);
+      const each = Math.floor(cents / n);
+      const [y, m, d] = formData.date.split('-').map(Number);
+      const rows = Array.from({ length: n }, (_, i) => {
+        const last = new Date(y, m - 1 + i + 1, 0).getDate();
+        const dt = new Date(y, m - 1 + i, Math.min(d, last));
+        return {
           project_id: formData.project_id,
           // The database requires a description; build one when the field is left blank.
-          description: formData.description.trim() || [formData.category, formData.vendor.trim()].filter(Boolean).join(' – ') || 'Expense',
+          description: n > 1 ? `${baseDesc} (month ${i + 1} of ${n})` : baseDesc,
           category: formData.category,
-          amount: parseFloat(formData.amount),
-          date: formData.date,
+          amount: (i === n - 1 ? cents - each * (n - 1) : each) / 100,
+          date: localDateISO(dt),
           vendor: formData.vendor || null,
           receipt_number: formData.receipt_number || null,
-          status: 'Pending Field Approval'
-        }]);
+          status: 'Pending Field Approval',
+        };
+      });
+      const { error } = await supabase.from('expenses').insert(rows);
 
       if (error) throw error;
 
-      toast.success('Expense created successfully');
+      toast.success(n > 1 ? `Labor spread over ${n} months: ${n} expenses created` : 'Expense created successfully');
+      setSpreadMonths('1');
       onExpenseCreated();
       setOpen(false);
       setFormData({
@@ -150,6 +164,21 @@ export function CreateExpenseDialog({ onExpenseCreated, projects }: CreateExpens
                 required
               />
             </div>
+
+            {canSpread && (
+              <div className="rounded-md border bg-muted/40 p-3">
+                <Label htmlFor="spread">Spread this labor cost over</Label>
+                <div className="mt-1 flex items-center gap-2">
+                  <Input id="spread" type="number" min={1} max={60} className="w-24" value={spreadMonths} onChange={(e) => setSpreadMonths(e.target.value)} />
+                  <span className="text-sm text-muted-foreground">month{months === 1 ? '' : 's'}</span>
+                </div>
+                {months > 1 && Number(formData.amount) > 0 && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Creates {months} expenses of about {(Number(formData.amount) / months).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} each, one per month starting on the date above.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div>
               <Label htmlFor="vendor">Vendor</Label>

@@ -319,7 +319,7 @@ export default function LaborCosts() {
                     <SelectTrigger>
                       <SelectValue placeholder="Pick a job" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent searchable="always">
                       {projects.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                           {p.name}
@@ -435,7 +435,7 @@ export default function LaborCosts() {
                 <SelectTrigger className="w-64">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable="always">
                   <SelectItem value="all">All jobs</SelectItem>
                   {projects.map((p) => (
                     <SelectItem key={p.id} value={p.id}>

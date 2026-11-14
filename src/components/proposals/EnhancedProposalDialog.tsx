@@ -250,7 +250,7 @@ export function EnhancedProposalDialog({
                 <Label>Link to project (creates payment application lines)</Label>
                 <Select value={projectId} onValueChange={setProjectId}>
                   <SelectTrigger><SelectValue placeholder="Not linked" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent searchable="always">
                     <SelectItem value="none">Not linked</SelectItem>
                     {projects.map(p => (
                       <SelectItem key={p.id} value={p.id}>{p.name}{p.status ? ` (${p.status})` : ''}</SelectItem>

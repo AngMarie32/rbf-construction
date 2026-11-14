@@ -340,7 +340,7 @@ export default function PaymentApplications() {
       <SelectTrigger className="w-72">
         <SelectValue placeholder="Choose a project" />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent searchable="always">
         {projects.map((project) => (
           <SelectItem key={project.id} value={project.id}>
             <span className="flex items-center gap-2">

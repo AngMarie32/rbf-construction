@@ -156,7 +156,7 @@ export function GanttChart({
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Filter by project" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent searchable="always">
                     <SelectItem value="all">All Projects</SelectItem>
                     {projects.map(project => (
                       <SelectItem key={project.id} value={project.id}>

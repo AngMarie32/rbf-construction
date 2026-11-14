@@ -69,7 +69,7 @@ SelectScrollDownButton.displayName =
 /**
  * Type-to-search for every dropdown: lists with more than SEARCH_MIN options get a search box at the top.
  * Typing anywhere in an open list jumps into the box. Words can be in any order ("concrete sample"
- * finds "Sample Concrete Co"). Pass searchable={false} on SelectContent to turn it off for one list.
+ * finds "Sample Concrete Co"). Project lists use searchable="always". Pass searchable={false} on SelectContent to turn it off for one list.
  */
 const SEARCH_MIN = 8
 type SearchCtx = { query: string; register: () => () => void }
@@ -87,7 +87,7 @@ const matches = (text: string, query: string) => {
   return query.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w))
 }
 
-function SearchableViewport({ children, enabled }: { children: React.ReactNode; enabled: boolean }) {
+function SearchableViewport({ children, enabled }: { children: React.ReactNode; enabled: boolean | "always" }) {
   const [query, setQuery] = React.useState("")
   const [count, setCount] = React.useState(0)
   const input = React.useRef<HTMLInputElement>(null)
@@ -101,7 +101,7 @@ function SearchableViewport({ children, enabled }: { children: React.ReactNode; 
     }),
     [query]
   )
-  const show = enabled && (count >= SEARCH_MIN || query !== "")
+  const show = enabled === "always" ? count > 0 || query !== "" : enabled && (count >= SEARCH_MIN || query !== "")
   React.useEffect(() => {
     if (!show) return
     const t = setTimeout(() => input.current?.focus(), 30)
@@ -164,7 +164,7 @@ function NoMatches() {
 
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content> & { searchable?: boolean }
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content> & { searchable?: boolean | "always" }
 >(({ className, children, position = "popper", searchable = true, ...props }, ref) => (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content

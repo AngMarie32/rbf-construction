@@ -457,7 +457,7 @@ export function PunchListManager({ projectId }: { projectId?: string }) {
             <SelectTrigger className="w-full max-w-sm border-white/15 bg-white/10 text-white">
               <SelectValue placeholder="Choose a project" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent searchable="always">
               {projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.name}

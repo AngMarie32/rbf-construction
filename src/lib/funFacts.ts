@@ -1,0 +1,262 @@
+/**
+ * Fun facts for the login screen. Each login shows one this browser hasn't seen yet;
+ * the list only starts over after every fact has been shown.
+ */
+export interface FunFact {
+  topic: string;
+  fact: string;
+}
+
+const F = (topic: string, fact: string): FunFact => ({ topic, fact });
+
+export const FUN_FACTS: FunFact[] = [
+  // Construction & building
+  F('Construction', 'The Romans built with concrete that has lasted 2,000 years. Seawater reacting with volcanic ash actually made their harbor concrete stronger over time.'),
+  F('Construction', "The Pantheon's dome in Rome is still the world's largest unreinforced concrete dome, nearly 1,900 years after it was built."),
+  F('Construction', 'The Empire State Building went up in about 13 months, sometimes rising more than four stories a week.'),
+  F('Construction', 'The Eiffel Tower grows up to about 6 inches taller in summer because the iron expands in the heat.'),
+  F('Construction', "Concrete is the most widely used man-made material on Earth. Only water is consumed in greater volume."),
+  F('Construction', 'The Great Pyramid of Giza was the tallest man-made structure in the world for nearly 4,000 years.'),
+  F('Construction', 'The Golden Gate Bridge is painted a custom color called "International Orange," chosen partly so ships could see it in the fog.'),
+  F('Construction', "Burj Khalifa's concrete was pumped more than 1,900 feet up during construction, a world record at the time."),
+  F('Construction', 'Hoover Dam holds enough concrete to pave a two-lane highway from San Francisco to New York.'),
+  F('Construction', "The Leaning Tower of Pisa started leaning during construction in the 1170s because of soft soil on one side."),
+  F('Construction', 'Engineers stabilized the Leaning Tower of Pisa in the 1990s by carefully removing soil from under its high side.'),
+  F('Construction', "A standard U.S. 2x4 doesn't measure 2 by 4 inches. After drying and planing, it's 1.5 by 3.5 inches."),
+  F('Construction', 'Plywood was patented in the U.S. in 1865, but the ancient Egyptians glued thin layers of wood together thousands of years earlier.'),
+  F('Construction', 'Drywall was invented in 1916 and was originally sold as a quick fire-resistant alternative to plaster.'),
+  F('Construction', 'Rebar and concrete work so well together partly because steel and concrete expand at almost the same rate when heated.'),
+  F('Construction', "Concrete doesn't dry; it cures. It hardens through a chemical reaction with water and can keep gaining strength for years."),
+  F('Construction', 'Most concrete reaches roughly 70% of its design strength in about 7 days and is typically tested at 28 days.'),
+  F('Construction', 'The Brooklyn Bridge was the longest suspension bridge in the world when it opened in 1883.'),
+  F('Construction', "During the Brooklyn Bridge's construction, P.T. Barnum walked 21 elephants across it to prove it was sturdy."),
+  F('Construction', 'The Great Wall of China used sticky rice mixed into some of its mortar, which helped it last for centuries.'),
+  F('Construction', "The world's oldest known wooden structures are water wells in Germany built around 7,000 years ago."),
+  F('Construction', 'The tower crane was invented in Germany in the late 1940s and transformed how tall buildings go up.'),
+  F('Construction', "Tower cranes are often built using themselves: they 'climb' by adding new sections of mast underneath their own top."),
+  F('Construction', 'The Panama Canal moved enough earth during construction to bury Manhattan about 12 feet deep.'),
+  F('Construction', 'The Channel Tunnel between England and France has the longest undersea stretch of any tunnel in the world, about 23.5 miles.'),
+  F('Construction', 'Asphalt is one of the most recycled materials in the U.S.; old pavement is regularly ground up and reused in new roads.'),
+  F('Construction', 'The first skyscraper is usually credited as the Home Insurance Building in Chicago, completed in 1885 at 10 stories.'),
+  F('Construction', "Elisha Otis's safety brake, demonstrated in 1854, made passenger elevators, and therefore skyscrapers, practical."),
+  F('Construction', "Taipei 101 has a 660-ton steel ball hanging inside it that sways to counteract wind and earthquakes."),
+  F('Construction', 'Bricks have been made for at least 9,000 years; some of the earliest were sun-dried mud bricks.'),
+  F('Construction', 'The Sydney Opera House roof is covered in more than one million tiles, made in Sweden to be self-cleaning.'),
+  F('Construction', 'The Sydney Opera House was supposed to take four years to build. It took 14 and went about 1,400% over budget.'),
+  F('Construction', 'The Mackinac Bridge in Michigan is designed so its deck can move as much as 35 feet sideways in extreme wind.'),
+  F('Construction', "A hard hat's suspension keeps a gap between your head and the shell so impact energy spreads out."),
+  F('Construction', 'Hard hats became required on the Golden Gate Bridge project in the 1930s, one of the first jobs to mandate them.'),
+  F('Construction', 'Workers on the Golden Gate Bridge had a safety net under them; the 19 men it saved called themselves the "Halfway to Hell Club."'),
+  F('Construction', "Glass is technically an amorphous solid; the idea that old windows are thicker at the bottom because glass 'flows' is a myth."),
+  F('Construction', 'Steel can be recycled over and over without losing its strength.'),
+  F('Construction', 'The Colosseum in Rome could hold an estimated 50,000 or more spectators and had a retractable awning system.'),
+  F('Construction', 'The Washington Monument changes color about a third of the way up because construction paused for over 20 years and the new marble came from a different quarry.'),
+  F('Construction', "The Chrysler Building's spire was secretly assembled inside the building and hoisted into place to win the race for world's tallest."),
+  F('Construction', "Machu Picchu was built without mortar. The stones are cut so precisely you can't slide a knife blade between many of them."),
+  F('Construction', 'Lumber is graded and stamped so you can tell its species, grade, moisture content and the mill that made it.'),
+  F('Construction', 'A cubic yard of concrete weighs roughly 4,000 pounds.'),
+  F('Construction', 'Joints cut in sidewalks are there on purpose: they give concrete a place to crack neatly instead of randomly.'),
+  F('Construction', "The word 'carpenter' comes from the Latin 'carpentarius,' a maker of carriages."),
+  F('Construction', "A 'penny' nail size comes from the old English price of 100 nails, written with 'd' for the Roman coin denarius."),
+  F('Construction', 'OSHA was created in 1970. Workplace deaths in the U.S. have fallen dramatically since then even as the workforce has grown.'),
+  F('Construction', "The International Space Station is the most expensive thing ever built, with estimates over $100 billion."),
+  F('Construction', "Shipping container homes work because standard containers are built to stack nine or more high when fully loaded."),
+
+  // Science & nature
+  F('Science', 'Honey never spoils. Archaeologists have found edible honey in ancient Egyptian tombs.'),
+  F('Science', 'A teaspoon of a neutron star would weigh around a billion tons on Earth.'),
+  F('Science', 'Lightning is about five times hotter than the surface of the sun.'),
+  F('Science', "There are more trees on Earth (about 3 trillion) than stars in the Milky Way (roughly 100–400 billion)."),
+  F('Science', "Octopuses have three hearts and blue blood."),
+  F('Science', 'Bananas are berries, but strawberries are not, at least botanically.'),
+  F('Science', 'A day on Venus is longer than its year: it takes longer to spin once than to orbit the sun.'),
+  F('Science', "Your body has about as many bacterial cells as human cells."),
+  F('Science', 'Water can boil and freeze at the same time at a specific temperature and pressure called the triple point.'),
+  F('Science', 'Sound travels about four times faster in water than in air.'),
+  F('Science', "Light from the sun takes about 8 minutes and 20 seconds to reach Earth."),
+  F('Science', "If you could fold a piece of paper 42 times, it would reach the moon. (You can't, but the math works.)"),
+  F('Science', "Earth's rotation is gradually slowing; days were about 22 hours long some 600 million years ago."),
+  F('Science', 'Hot water can sometimes freeze faster than cold water. It is called the Mpemba effect, and scientists still debate why.'),
+  F('Science', 'Diamonds and pencil graphite are both made of pure carbon, just arranged differently.'),
+  F('Science', "The human nose can distinguish an enormous number of smells; some studies estimate over a trillion."),
+  F('Science', 'Saturn is less dense than water. In a big enough bathtub, it would float.'),
+  F('Science', "A single bolt of lightning carries enough energy to toast roughly 100,000 slices of bread."),
+  F('Science', 'Glass frogs have see-through skin on their bellies, so you can watch their hearts beat.'),
+  F('Science', 'The Pacific Ocean is wider than the moon.'),
+  F('Science', "Mount Everest grows about 4 millimeters taller every year as tectonic plates keep pushing."),
+  F('Science', 'The coldest temperature ever recorded on Earth was about −128.6°F in Antarctica.'),
+  F('Science', "Your bones are about five times stronger than steel of the same weight."),
+  F('Science', "Sharks existed before trees. They've been around for more than 400 million years."),
+  F('Science', 'An adult human is made of roughly 7 octillion atoms (a 7 followed by 27 zeros).'),
+  F('Science', "The deepest hole humans ever drilled, the Kola Superdeep Borehole, goes about 7.6 miles down and is only 9 inches wide."),
+  F('Science', "Earth's core is about as hot as the surface of the sun."),
+  F('Science', 'The Sahara Desert was green with lakes and grasslands as recently as about 6,000 years ago.'),
+  F('Science', "Venus is the hottest planet in the solar system, even though Mercury is closer to the sun."),
+  F('Science', 'Sea otters hold hands while they sleep so they don\'t drift apart.'),
+  F('Science', "A bolt of lightning is only about an inch wide."),
+  F('Science', "Rainbows are actually full circles. From the ground, you usually only see the top half."),
+  F('Science', 'The average cumulus cloud weighs about 1.1 million pounds.'),
+  F('Science', "The Great Barrier Reef is the largest structure built by living things and can be seen from space."),
+  F('Science', 'Hummingbirds are the only birds that can fly backward.'),
+  F('Science', "Some metals, like sodium and potassium, explode on contact with water."),
+  F('Science', 'Helium is the only element that will not freeze at normal pressure, no matter how cold it gets.'),
+  F('Science', "Earth isn't a perfect sphere. It bulges at the equator because it spins."),
+  F('Science', "The tallest tree on record, a coast redwood named Hyperion, is about 380 feet tall."),
+  F('Science', 'Some bamboo species can grow up to 35 inches in a single day.'),
+
+  // Animals
+  F('Animals', 'Cows have best friends and get stressed when they are separated.'),
+  F('Animals', 'A group of flamingos is called a "flamboyance."'),
+  F('Animals', 'A group of crows is called a "murder."'),
+  F('Animals', 'Crows can recognize individual human faces and remember people who treated them badly.'),
+  F('Animals', "A shrimp's heart is in its head."),
+  F('Animals', "Elephants are the only animals that can't jump."),
+  F('Animals', 'A bumblebee flaps its wings about 200 times per second.'),
+  F('Animals', "Owls can't move their eyes, so they turn their heads up to about 270 degrees instead."),
+  F('Animals', 'Dolphins have names for each other: individual signature whistles.'),
+  F('Animals', 'A cheetah can go from 0 to 60 mph in about three seconds.'),
+  F('Animals', 'Horses and cows sleep standing up, though they lie down for deep sleep.'),
+  F('Animals', "Penguins propose with pebbles. Gentoo males search for the smoothest stone to give a mate."),
+  F('Animals', "A woodpecker's tongue wraps around the back of its skull to cushion its brain."),
+  F('Animals', 'Beavers are nature\'s civil engineers. Their dams can be hundreds of feet long, and one in Canada is visible from space.'),
+  F('Animals', "Beavers' teeth are orange because they contain iron, which makes them stronger."),
+  F('Animals', 'Termites build mounds with built-in ventilation that architects have studied for passive cooling.'),
+  F('Animals', 'A largemouth bass can live more than 15 years.'),
+  F('Animals', 'Catfish have taste buds all over their bodies, as many as 175,000 or more.'),
+  F('Animals', 'Salmon can find the exact stream where they were born, partly by smell.'),
+  F('Animals', 'Some fish, like the walleye, have eyes with a reflective layer that helps them see in murky water at night.'),
+  F('Animals', "A sailfish can swim close to 70 mph in short bursts, making it one of the fastest fish."),
+  F('Animals', 'Goldfish can remember things for months, not three seconds.'),
+  F('Animals', "A blue whale's heart is roughly the size of a small car."),
+  F('Animals', "Dogs' sense of smell is tens of thousands of times more sensitive than ours."),
+  F('Animals', 'Squirrels plant thousands of trees every year by forgetting where they buried their nuts.'),
+  F('Animals', 'Ants can carry 10 to 50 times their own body weight.'),
+  F('Animals', 'Pigs are smarter than dogs by many measures and can learn to play simple video games.'),
+  F('Animals', 'Wombats make cube-shaped droppings.'),
+  F('Animals', 'A group of owls is called a "parliament."'),
+  F('Animals', 'Turkeys can see in color and have a field of vision of about 270 degrees.'),
+  F('Animals', 'Deer grow and shed a new set of antlers every year; antler is one of the fastest-growing tissues in nature.'),
+  F('Animals', 'Mosquitoes are the deadliest animals on Earth because of the diseases they spread.'),
+  F('Animals', 'Male seahorses carry and give birth to the babies.'),
+  F('Animals', 'Some turtles can breathe through their rear ends while hibernating underwater.'),
+
+  // History
+  F('History', 'Cleopatra lived closer in time to the Moon landing than to the building of the Great Pyramid.'),
+  F('History', 'Oxford University is older than the Aztec Empire.'),
+  F('History', 'The shortest war in recorded history, between Britain and Zanzibar in 1896, lasted about 38 minutes.'),
+  F('History', 'The first speeding ticket in the U.S. was given in 1904, for going 12 mph.'),
+  F('History', "Abraham Lincoln is in the National Wrestling Hall of Fame. He lost only one recorded match."),
+  F('History', 'The fax machine was invented in 1843, before the telephone.'),
+  F('History', 'Woolly mammoths were still alive when the Great Pyramid was being built.'),
+  F('History', "The U.S. bought Alaska from Russia in 1867 for about two cents an acre."),
+  F('History', 'The first Ford Model T rolled out in 1908, and Ford eventually built one every 24 seconds or so.'),
+  F('History', "The 'Model T' moving assembly line cut the time to build a car from about 12 hours to about 90 minutes."),
+  F('History', 'Ketchup was sold in the 1830s as a medicine.'),
+  F('History', 'Napoleon was not unusually short; he was about average height for a Frenchman of his time.'),
+  F('History', 'Vikings never actually wore horned helmets into battle. That image came from 1800s costume designers.'),
+  F('History', "Benjamin Franklin invented bifocals, the lightning rod and a more efficient wood stove."),
+  F('History', 'The Eiffel Tower was meant to be temporary and was nearly torn down in 1909. Its use as a radio antenna saved it.'),
+  F('History', "The Statue of Liberty's copper skin is about as thick as two pennies stacked together."),
+  F('History', 'The Statue of Liberty was originally a dull copper color; the green patina formed over about 20 years.'),
+  F('History', 'Mount Rushmore was originally planned to show the presidents down to their waists.'),
+  F('History', 'The first email was sent in 1971 by Ray Tomlinson, who also picked the @ symbol for addresses.'),
+  F('History', 'The Hollywood sign originally read "Hollywoodland" and was an ad for a housing development.'),
+  F('History', 'The Great Fire of London in 1666 destroyed about 13,000 houses but officially killed only a handful of people.'),
+  F('History', "The interstate highway system was signed into law in 1956 and took about 35 years to complete."),
+  F('History', 'Pilots and astronauts once used slide rules. The Apollo missions carried them as backups.'),
+  F('History', 'The Wright brothers\' first flight in 1903 lasted 12 seconds and covered 120 feet, less than the wingspan of a modern jumbo jet.'),
+  F('History', 'Before alarm clocks, "knocker-uppers" were paid to tap on windows with long poles to wake workers.'),
+
+  // Food
+  F('Food', 'Peanuts are not nuts; they are legumes, like beans and peas.'),
+  F('Food', 'Carrots were originally purple or yellow. Orange carrots became popular in the Netherlands in the 1600s.'),
+  F('Food', "Coffee beans are actually the seeds of a cherry-like fruit."),
+  F('Food', 'Apples float because about a quarter of their volume is air.'),
+  F('Food', "Pineapples take about two years to grow."),
+  F('Food', 'Chocolate was once used as money by the Aztecs.'),
+  F('Food', 'Cashews grow on the bottom of a fruit called the cashew apple.'),
+  F('Food', "Potato chips were popularized in 1853, reportedly after a customer kept sending back his fries for being too thick."),
+  F('Food', 'Americans eat about 100 acres of pizza a day, by one popular estimate.'),
+  F('Food', 'The hottest chili peppers can be over 2 million Scoville heat units; a jalapeño is around 2,500–8,000.'),
+  F('Food', 'Ripe cranberries bounce. Farmers have used bounce tests to sort them.'),
+  F('Food', "Almonds are seeds of a fruit related to peaches and cherries."),
+  F('Food', 'Ketchup flows faster when you shake it because it thins under stress, a property called shear thinning.'),
+  F('Food', "Store-bought 'wasabi' is usually horseradish dyed green; real wasabi is rare and expensive."),
+  F('Food', 'Beef jerky has been to space. It is a popular astronaut snack because it is light and keeps well.'),
+  F('Food', 'Coffee is the second most traded commodity in the world by some measures, after oil.'),
+  F('Food', 'Pound cake got its name from the original recipe: a pound each of butter, sugar, eggs and flour.'),
+  F('Food', 'The world\'s most expensive spice by weight is saffron, which comes from the stigmas of crocus flowers.'),
+
+  // Sports & outdoors
+  F('Outdoors', 'The largest largemouth bass on record weighed 22 pounds, 4 ounces, caught in Georgia in 1932.'),
+  F('Outdoors', 'Michigan has more coastline than any state except Alaska.'),
+  F('Outdoors', "In Michigan, you're never more than about 6 miles from a lake or stream, or 85 miles from a Great Lake."),
+  F('Outdoors', 'The Great Lakes hold about 20% of the world\'s surface fresh water.'),
+  F('Outdoors', 'Lake Superior holds enough water to cover all of North and South America about a foot deep.'),
+  F('Outdoors', 'The Mackinac Bridge is about 5 miles long and was once the longest suspension bridge between anchorages in the world.'),
+  F('Outdoors', 'Golf balls have dimples because they fly about twice as far as smooth balls.'),
+  F('Outdoors', 'A regulation baseball has 108 double stitches.'),
+  F('Outdoors', "An NFL football is nicknamed 'the pigskin,' but it's actually made of cowhide."),
+  F('Outdoors', 'The first Super Bowl in 1967 did not sell out.'),
+  F('Outdoors', 'Hockey pucks are frozen before games so they slide better and bounce less.'),
+  F('Outdoors', 'Ice fishing shanties in Michigan must be removed by set dates each winter, depending on location.'),
+  F('Outdoors', 'Deer can run up to about 30 mph and jump fences roughly 8 to 10 feet high.'),
+  F('Outdoors', 'Morel mushrooms are notoriously hard to farm, so most are still found by foragers in the wild.'),
+  F('Outdoors', 'Yellowstone was the first national park in the world, established in 1872.'),
+
+  // Language & everyday
+  F('Language', 'The dot over a lowercase i or j is called a "tittle."'),
+  F('Language', '"Set" has one of the longest entries in the Oxford English Dictionary, with hundreds of meanings.'),
+  F('Language', 'The word "nerd" first appeared in a Dr. Seuss book in 1950.'),
+  F('Language', '"Rhythm" is one of the longest common English words without a regular vowel.'),
+  F('Language', 'The plastic tip on the end of a shoelace is called an "aglet."'),
+  F('Language', 'The "#" symbol is officially called an octothorpe.'),
+  F('Language', '"Strengths" is the longest common English word with only one vowel.'),
+  F('Language', 'The word "deadline" originally meant a line around a prison that inmates would be shot for crossing.'),
+  F('Language', '"Ballpark figure" comes from estimating crowd sizes at baseball games.'),
+  F('Language', '"Rule of thumb" likely comes from craftsmen using their thumbs as a rough inch measure.'),
+  F('Language', '"Skyscraper" was originally a sailing term for a tall sail at the top of a mast.'),
+  F('Language', 'The phrase "a baker\'s dozen" (13) came from bakers adding an extra loaf to avoid penalties for short weight.'),
+  F('Everyday', 'The average person walks the equivalent of about five times around the Earth in a lifetime.'),
+  F('Everyday', 'Your stomach gets a new lining every few days so it does not digest itself.'),
+  F('Everyday', "The average person spends about six months of their life waiting at red lights."),
+  F('Everyday', 'A standard pencil can draw a line about 35 miles long.'),
+  F('Everyday', "The QWERTY keyboard layout was designed in the 1870s for typewriters."),
+  F('Everyday', 'The smell after rain has a name: petrichor.'),
+  F('Everyday', "Your fingernails grow about four times faster than your toenails."),
+  F('Everyday', 'Duct tape was developed during World War II to seal ammunition boxes.'),
+  F('Everyday', 'WD-40 stands for "Water Displacement, 40th formula," the attempt that finally worked.'),
+  F('Everyday', 'Bubble wrap was originally invented as textured wallpaper.'),
+  F('Everyday', 'Velcro was inspired by burrs sticking to a dog\'s fur after a walk in the Swiss Alps.'),
+  F('Everyday', 'The microwave oven was invented after an engineer noticed radar equipment melted a candy bar in his pocket.'),
+  F('Everyday', 'Super Glue was discovered by accident while researchers were trying to make clear plastic gun sights.'),
+  F('Everyday', 'The tape measure\'s loose hook is on purpose: it slides to account for its own thickness on inside and outside measurements.'),
+  F('Everyday', "The little hole in a tape measure's hook can catch a nail or screw head so you can measure alone."),
+  F('Everyday', 'The black diamond marks on many tape measures (every 19.2 inches) are for spacing trusses and joists five per 8 feet.'),
+  F('Everyday', 'The red numbers every 16 inches on a tape measure mark standard stud spacing.'),
+];
+
+const KEY = 'login_fun_facts_seen_v1';
+
+/** Picks a fact this browser hasn't seen; starts over once all have been shown. */
+export function nextFunFact(excludeIndex?: number): number {
+  let seen: number[] = [];
+  try {
+    seen = JSON.parse(localStorage.getItem(KEY) || '[]');
+    if (!Array.isArray(seen)) seen = [];
+  } catch {
+    seen = [];
+  }
+  let pool = FUN_FACTS.map((_, i) => i).filter((i) => !seen.includes(i) && i !== excludeIndex);
+  if (!pool.length) {
+    seen = [];
+    pool = FUN_FACTS.map((_, i) => i).filter((i) => i !== excludeIndex);
+  }
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  try {
+    localStorage.setItem(KEY, JSON.stringify([...seen, pick]));
+  } catch {
+    /* private browsing: still random, just not tracked */
+  }
+  return pick;
+}

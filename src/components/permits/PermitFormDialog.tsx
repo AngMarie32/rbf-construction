@@ -109,7 +109,7 @@ export function PermitFormDialog({ open, onOpenChange, projects, permit, default
               <Label>Job *</Label>
               <Select value={form.project_id} onValueChange={(v) => set('project_id', v)}>
                 <SelectTrigger><SelectValue placeholder="Which job is this permit for?" /></SelectTrigger>
-                <SelectContent>{projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                <SelectContent searchable="always">{projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>

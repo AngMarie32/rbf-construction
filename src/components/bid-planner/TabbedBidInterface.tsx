@@ -227,7 +227,7 @@ export function TabbedBidInterface({
               <SelectTrigger className="w-64">
                 <SelectValue placeholder="Change project" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent searchable="always">
                 {projects.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
@@ -239,7 +239,7 @@ export function TabbedBidInterface({
               <SelectTrigger className="w-64">
                 <SelectValue placeholder={copying ? 'Copying…' : 'Copy this bid to project…'} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent searchable="always">
                 {projects.filter((p) => p.id !== projectId).map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}

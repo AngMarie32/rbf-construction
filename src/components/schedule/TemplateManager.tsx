@@ -368,7 +368,7 @@ export function TemplateManager({ open, onOpenChange, onTemplateApplied, project
                 <SelectTrigger>
                   <SelectValue placeholder="Select a project" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent searchable="always">
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}

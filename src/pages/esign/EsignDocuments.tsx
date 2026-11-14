@@ -131,7 +131,7 @@ export default function EsignDocuments() {
             </Select>
             <Select value={projectFilter} onValueChange={setProjectFilter}>
               <SelectTrigger className="w-[180px]"><SelectValue placeholder="Project" /></SelectTrigger>
-              <SelectContent>
+              <SelectContent searchable="always">
                 <SelectItem value="all">All projects</SelectItem>
                 <SelectItem value="none">No project</SelectItem>
                 {projects.map(p => (

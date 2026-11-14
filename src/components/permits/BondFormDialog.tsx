@@ -137,7 +137,7 @@ export function BondFormDialog({
               <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Choose the job" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent searchable="always">
                 {projects.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
