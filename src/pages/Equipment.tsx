@@ -197,13 +197,13 @@ export default function Equipment() {
   const utilization = fleet.total ? Math.round((fleet.inUse / fleet.total) * 100) : 0;
   const money0 = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
-  const handleExportPDF = () => {
-    exportEquipmentToPDF({
-      equipment,
-      filters,
-      title: 'Equipment Report'
-    });
-    toast.success('PDF report generated');
+  const handleExportPDF = async () => {
+    try {
+      await exportEquipmentToPDF({ equipment, filters, title: 'Equipment Report' });
+      toast.success('Equipment PDF downloaded');
+    } catch (e: any) {
+      toast.error(`Couldn't make the PDF: ${e?.message || e}`);
+    }
   };
 
   const handleExportExcel = () => {
@@ -212,7 +212,7 @@ export default function Equipment() {
       filters,
       title: 'Equipment Report'
     });
-    toast.success('Excel report generated');
+    toast.success('Equipment spreadsheet downloaded');
   };
 
   if (loading) {

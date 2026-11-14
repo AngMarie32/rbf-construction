@@ -238,165 +238,167 @@ function escapeHtml(s: string) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 }
 
+const NAVY = '#0f2a4a';
+const ORANGE = '#e8742c';
+const INK = '#1f2937';
+const MUTED = '#6b7280';
+const LINE = '#e5e7eb';
+const FONT = "font-family:'Segoe UI',Helvetica,Arial,sans-serif";
+const td = (v: string, align = 'left', extra = '') => `<td style="padding:9px 12px;border-bottom:1px solid ${LINE};text-align:${align};${FONT};font-size:13px;color:${INK};${extra}">${v}</td>`;
+const th = (v: string, align = 'left') => `<th style="padding:8px 12px;background:#f3f5f8;text-align:${align};${FONT};font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:${MUTED};font-weight:600;border-bottom:1px solid ${LINE}">${v}</th>`;
+const table = (head: string, rows: string) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid ${LINE};border-radius:8px;overflow:hidden"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
+const emptyRow = (cols: number, text: string) => `<tr><td colspan="${cols}" style="padding:14px 12px;${FONT};font-size:13px;color:${MUTED};font-style:italic">${text}</td></tr>`;
+const PILL: Record<string, [string, string]> = {
+  green: ['#ecfdf5', '#047857'], blue: ['#eff6ff', '#1d4ed8'], amber: ['#fffbeb', '#b45309'], red: ['#fef2f2', '#b91c1c'], gray: ['#f3f4f6', '#4b5563'],
+};
+const toneOf = (s: string) => {
+  const x = String(s || '').toLowerCase();
+  if (/complete|approved|paid|active|available|sent|done/.test(x)) return 'green';
+  if (/progress|submitted|in use|open|pending/.test(x)) return 'blue';
+  if (/hold|draft|maintenance|medium|warning/.test(x)) return 'amber';
+  if (/overdue|reject|late|high|critical|cancel|fail/.test(x)) return 'red';
+  return 'gray';
+};
+const pill = (s: string, tone = toneOf(s)) => s ? `<span style="display:inline-block;padding:2px 9px;border-radius:999px;background:${PILL[tone][0]};color:${PILL[tone][1]};${FONT};font-size:11px;font-weight:600;white-space:nowrap">${escapeHtml(s)}</span>` : '';
+const bar = (pct: number) => {
+  const p = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:110px;display:inline-table;vertical-align:middle"><tr><td style="width:80px;background:#e5e7eb;border-radius:4px;height:6px;padding:0"><div style="width:${Math.round(p * 0.8)}px;height:6px;background:${p >= 100 ? '#059669' : ORANGE};border-radius:4px"></div></td><td style="padding-left:8px;${FONT};font-size:12px;color:${INK};white-space:nowrap">${p}%</td></tr></table>`;
+};
+const section = (title: string, sub: string, inner: string) => `
+  <tr><td style="padding:22px 28px 0">
+    <div style="${FONT};font-size:16px;font-weight:700;color:${NAVY};margin:0 0 2px;border-left:4px solid ${ORANGE};padding-left:10px">${title}</div>
+    ${sub ? `<div style="${FONT};font-size:12px;color:${MUTED};margin:0 0 10px;padding-left:14px">${sub}</div>` : '<div style="height:10px"></div>'}
+    ${inner}
+  </td></tr>`;
+const tiles = (items: { label: string; value: string; tone?: string }[]) => {
+  const cells = items.map((t) => `<td width="${Math.floor(100 / items.length)}%" style="padding:6px"><div style="background:#ffffff;border:1px solid ${LINE};border-radius:10px;padding:12px 14px">
+    <div style="${FONT};font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:${MUTED}">${t.label}</div>
+    <div style="${FONT};font-size:20px;font-weight:700;color:${t.tone === 'red' ? '#b91c1c' : t.tone === 'green' ? '#047857' : NAVY};margin-top:4px">${t.value}</div></div></td>`).join('');
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${cells}</tr></table>`;
+};
+const sub3 = (t: string, color = INK) => `<div style="${FONT};font-size:13px;font-weight:700;color:${color};margin:14px 0 6px">${t}</div>`;
+const day = (d?: string) => {
+  if (!d) return '—';
+  const x = new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T00:00:00` : d);
+  return isNaN(x.getTime()) ? escapeHtml(d) : x.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
 function buildHtml(sub: Sub, data: any) {
   const periodEnd: Date = data._rangeEnd || new Date();
   const periodStart: Date = data._rangeStart || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const fmtDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const companyName = escapeHtml((data._companies || []).map((c: any) => c.name).join(', ') || 'RBF Construction');
 
   let body = '';
   const onlyChanges = sub.only_changes;
-  const hasItems = (arr: any) => Array.isArray(arr) ? arr.length > 0 : !!arr;
+  const hasItems = (arr: any) => (Array.isArray(arr) ? arr.length > 0 : !!arr);
+  const on = (k: string) => sub.sections.includes(k);
 
-  if (sub.sections.includes('projects') && data.projects && (!onlyChanges || hasItems(data.projects))) {
+  // Headline tiles from whatever sections are included.
+  const kpis: { label: string; value: string; tone?: string }[] = [];
+  if (on('projects') && data.projects) kpis.push({ label: 'Active projects', value: String(data.projects.filter((p: any) => !/complete|closed/i.test(p.status || '')).length) });
+  if (on('money') && data.money) kpis.push({ label: 'Collected', value: fmtMoney(data.money.collected), tone: 'green' });
+  else if (on('financials') && data.financials) kpis.push({ label: 'Outstanding', value: fmtMoney(data.financials.reduce((s: number, f: any) => s + Number(f.outstanding || 0), 0)) });
+  if (on('expenses') && data.expenses) kpis.push({ label: 'Spent', value: fmtMoney(data.expenses.total) });
+  if (on('schedule') && data.schedule) kpis.push({ label: 'Overdue tasks', value: String(data.schedule.overdue.length), tone: data.schedule.overdue.length ? 'red' : 'green' });
+  if (kpis.length) body += `<tr><td style="padding:18px 22px 0">${tiles(kpis.slice(0, 4))}</td></tr>`;
+
+  if (on('projects') && data.projects && (!onlyChanges || hasItems(data.projects))) {
     const rows = data.projects.map((p: any) =>
-      `<tr><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(p.name)}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(p.status || '')}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${p.completion_percentage ?? 0}%</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(p.contract_value)}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee">${p.due_date || ''}</td></tr>`
-    ).join('') || `<tr><td colspan="5" style="padding:12px;color:#888">No projects.</td></tr>`;
-    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Project Status & Progress</h2>
-      <table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:13px"><thead>
-      <tr style="background:#f4f4f4"><th style="text-align:left;padding:8px">Project</th><th style="text-align:left;padding:8px">Status</th><th style="text-align:right;padding:8px">% Complete</th><th style="text-align:right;padding:8px">Contract</th><th style="text-align:left;padding:8px">Due</th></tr>
-      </thead><tbody>${rows}</tbody></table>`;
+      `<tr>${td(`<strong>${escapeHtml(p.name)}</strong>`)}${td(pill(p.status || ''))}${td(bar(p.completion_percentage ?? 0))}${td(fmtMoney(p.contract_value), 'right')}${td(day(p.due_date))}</tr>`).join('') || emptyRow(5, 'No projects.');
+    body += section('Projects', `${data.projects.length} project${data.projects.length === 1 ? '' : 's'}`, table(th('Project') + th('Status') + th('Progress') + th('Contract', 'right') + th('Due'), rows));
   }
 
-  if (sub.sections.includes('financials') && data.financials && (!onlyChanges || hasItems(data.financials))) {
+  if (on('financials') && data.financials && (!onlyChanges || hasItems(data.financials))) {
+    const t = data.financials.reduce((a: any, f: any) => ({ c: a.c + Number(f.contract || 0), b: a.b + Number(f.billed || 0), p: a.p + Number(f.paid || 0), o: a.o + Number(f.outstanding || 0) }), { c: 0, b: 0, p: 0, o: 0 });
     const rows = data.financials.map((f: any) =>
-      `<tr><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(f.name)}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(f.contract)}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(f.billed)}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(f.paid)}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(f.outstanding)}</td></tr>`
-    ).join('') || `<tr><td colspan="5" style="padding:12px;color:#888">No financial data.</td></tr>`;
-    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Financials</h2>
-      <table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:13px"><thead>
-      <tr style="background:#f4f4f4"><th style="text-align:left;padding:8px">Project</th><th style="text-align:right;padding:8px">Contract</th><th style="text-align:right;padding:8px">Billed</th><th style="text-align:right;padding:8px">Paid</th><th style="text-align:right;padding:8px">Outstanding</th></tr>
-      </thead><tbody>${rows}</tbody></table>`;
+      `<tr>${td(`<strong>${escapeHtml(f.name)}</strong>`)}${td(fmtMoney(f.contract), 'right')}${td(fmtMoney(f.billed), 'right')}${td(fmtMoney(f.paid), 'right')}${td(fmtMoney(f.outstanding), 'right', Number(f.outstanding) > 0 ? 'font-weight:700;color:#b45309' : '')}</tr>`).join('') || emptyRow(5, 'No financial data.');
+    const total = data.financials.length > 1 ? `<tr>${td('<strong>Total</strong>', 'left', 'background:#f9fafb')}${td(`<strong>${fmtMoney(t.c)}</strong>`, 'right', 'background:#f9fafb')}${td(`<strong>${fmtMoney(t.b)}</strong>`, 'right', 'background:#f9fafb')}${td(`<strong>${fmtMoney(t.p)}</strong>`, 'right', 'background:#f9fafb')}${td(`<strong>${fmtMoney(t.o)}</strong>`, 'right', 'background:#f9fafb')}</tr>` : '';
+    body += section('Financials', 'Contract, billed and collected by project', table(th('Project') + th('Contract', 'right') + th('Billed', 'right') + th('Paid', 'right') + th('Outstanding', 'right'), rows + total));
   }
 
-  if (sub.sections.includes('schedule') && data.schedule && (!onlyChanges || (data.schedule.completed.length + data.schedule.upcoming.length + data.schedule.overdue.length) > 0)) {
-    const renderTasks = (arr: any[], empty: string) =>
-      arr.length
-        ? '<ul style="margin:4px 0 12px 20px;padding:0;font-family:Arial;font-size:13px">' +
-          arr.map((t: any) => `<li>${escapeHtml(t.title)} — ${escapeHtml(t.status)} (${t.start_date} → ${t.end_date})</li>`).join('') +
-          '</ul>'
-        : `<p style="color:#888;font-family:Arial;font-size:13px;margin:4px 0 12px">${empty}</p>`;
-    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Schedule & Tasks</h2>
-      <h3 style="font-family:Arial;color:#111;font-size:14px;margin:8px 0 0">Completed last 7 days (${data.schedule.completed.length})</h3>
-      ${renderTasks(data.schedule.completed, 'None.')}
-      <h3 style="font-family:Arial;color:#111;font-size:14px;margin:8px 0 0">Upcoming next 7 days (${data.schedule.upcoming.length})</h3>
-      ${renderTasks(data.schedule.upcoming, 'None.')}
-      <h3 style="font-family:Arial;color:#b91c1c;font-size:14px;margin:8px 0 0">Overdue (${data.schedule.overdue.length})</h3>
-      ${renderTasks(data.schedule.overdue, 'None.')}`;
+  if (on('schedule') && data.schedule && (!onlyChanges || data.schedule.completed.length + data.schedule.upcoming.length + data.schedule.overdue.length > 0)) {
+    const list = (arr: any[], empty: string) =>
+      table(th('Task') + th('Status') + th('Dates'), arr.map((t: any) => `<tr>${td(escapeHtml(t.title))}${td(pill(t.status))}${td(`${day(t.start_date)} → ${day(t.end_date)}`, 'left', 'white-space:nowrap')}</tr>`).join('') || emptyRow(3, empty));
+    body += section('Schedule', `${data.schedule.completed.length} finished · ${data.schedule.upcoming.length} coming up · ${data.schedule.overdue.length} overdue`,
+      (data.schedule.overdue.length ? sub3(`Overdue (${data.schedule.overdue.length})`, '#b91c1c') + list(data.schedule.overdue, '') : '') +
+      sub3(`Coming up next 7 days (${data.schedule.upcoming.length})`) + list(data.schedule.upcoming, 'Nothing scheduled.') +
+      sub3(`Finished last 7 days (${data.schedule.completed.length})`, '#047857') + list(data.schedule.completed, 'Nothing finished.'));
   }
 
-  if (sub.sections.includes('documents') && data.documents && (!onlyChanges || (data.documents.changeOrders.length + data.documents.sends.length) > 0)) {
-    const co = data.documents.changeOrders;
-    const sends = data.documents.sends;
-    const coRows = co.map((c: any) =>
-      `<tr><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(c.number || '')}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(c.description || '')}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(c.status || '')}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(c.amount)}</td></tr>`
-    ).join('') || `<tr><td colspan="4" style="padding:12px;color:#888">No new change orders.</td></tr>`;
-    const sendRows = sends.map((s: any) =>
-      `<tr><td style="padding:8px;border-bottom:1px solid #eee">${new Date(s.sent_at).toLocaleDateString()}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(s.bulk_invoices?.file_name || '')}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(s.sent_to || '')}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(s.status || '')}</td></tr>`
-    ).join('') || `<tr><td colspan="4" style="padding:12px;color:#888">No documents sent.</td></tr>`;
-    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Documents & Change Orders</h2>
-      <h3 style="font-family:Arial;color:#111;font-size:14px;margin:8px 0 4px">Change orders (last 7 days)</h3>
-      <table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:13px"><thead>
-      <tr style="background:#f4f4f4"><th style="text-align:left;padding:8px">No.</th><th style="text-align:left;padding:8px">Description</th><th style="text-align:left;padding:8px">Status</th><th style="text-align:right;padding:8px">Amount</th></tr>
-      </thead><tbody>${coRows}</tbody></table>
-      <h3 style="font-family:Arial;color:#111;font-size:14px;margin:16px 0 4px">Documents sent (last 7 days)</h3>
-      <table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:13px"><thead>
-      <tr style="background:#f4f4f4"><th style="text-align:left;padding:8px">Sent</th><th style="text-align:left;padding:8px">File</th><th style="text-align:left;padding:8px">To</th><th style="text-align:left;padding:8px">Status</th></tr>
-      </thead><tbody>${sendRows}</tbody></table>`;
+  if (on('documents') && data.documents && (!onlyChanges || data.documents.changeOrders.length + data.documents.sends.length > 0)) {
+    const coRows = data.documents.changeOrders.map((c: any) => `<tr>${td(`<strong>${escapeHtml(c.number || '')}</strong>`)}${td(escapeHtml(c.description || ''))}${td(pill(c.status || ''))}${td(fmtMoney(c.amount), 'right')}</tr>`).join('') || emptyRow(4, 'No new change orders.');
+    const sendRows = data.documents.sends.map((s: any) => `<tr>${td(day(s.sent_at))}${td(escapeHtml(s.bulk_invoices?.file_name || ''))}${td(escapeHtml(s.sent_to || ''))}${td(pill(s.status || ''))}</tr>`).join('') || emptyRow(4, 'No documents sent.');
+    body += section('Documents & change orders', 'Last 7 days',
+      sub3('Change orders') + table(th('No.') + th('Description') + th('Status') + th('Amount', 'right'), coRows) +
+      sub3('Documents sent') + table(th('Sent') + th('File') + th('To') + th('Status'), sendRows));
   }
 
-  if (sub.sections.includes('expenses') && data.expenses && (!onlyChanges || data.expenses.count > 0)) {
+  if (on('expenses') && data.expenses && (!onlyChanges || data.expenses.count > 0)) {
     const e = data.expenses;
-    const vendorRows = e.topVendors.map(([v, a]: any) => `<tr><td style="padding:6px;border-bottom:1px solid #eee">${escapeHtml(v)}</td><td style="padding:6px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(a)}</td></tr>`).join('') || `<tr><td colspan="2" style="padding:8px;color:#888">No expenses.</td></tr>`;
-    const catRows = e.byCategory.map(([v, a]: any) => `<tr><td style="padding:6px;border-bottom:1px solid #eee">${escapeHtml(v)}</td><td style="padding:6px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(a)}</td></tr>`).join('') || `<tr><td colspan="2" style="padding:8px;color:#888">—</td></tr>`;
-    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Expenses</h2>
-      <p style="font-family:Arial;font-size:13px;margin:4px 0">Total: <strong>${fmtMoney(e.total)}</strong> across ${e.count} entries.</p>
-      <h3 style="font-family:Arial;font-size:14px;margin:8px 0 4px">Top vendors</h3>
-      <table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:13px"><tbody>${vendorRows}</tbody></table>
-      <h3 style="font-family:Arial;font-size:14px;margin:12px 0 4px">By category</h3>
-      <table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:13px"><tbody>${catRows}</tbody></table>`;
+    const max = Math.max(1, ...e.topVendors.map(([, a]: any) => Number(a) || 0), ...e.byCategory.map(([, a]: any) => Number(a) || 0));
+    const rows = (arr: any[]) => arr.map(([v, a]: any) => `<tr>${td(escapeHtml(v))}${td(`<div style="background:#fde7d8;height:6px;border-radius:4px;width:${Math.max(4, Math.round((Number(a) / max) * 100))}%"></div>`, 'left', 'width:40%')}${td(fmtMoney(a), 'right')}</tr>`).join('') || emptyRow(3, 'No expenses.');
+    body += section('Expenses', `${fmtMoney(e.total)} across ${e.count} entr${e.count === 1 ? 'y' : 'ies'}`,
+      sub3('Top vendors') + table(th('Vendor') + th('') + th('Amount', 'right'), rows(e.topVendors)) +
+      sub3('By category') + table(th('Category') + th('') + th('Amount', 'right'), rows(e.byCategory)));
   }
 
-  if (sub.sections.includes('payment_apps') && data.payment_apps && (!onlyChanges || data.payment_apps.length > 0)) {
-    const rows = data.payment_apps.map((p: any) =>
-      `<tr><td style="padding:8px;border-bottom:1px solid #eee">#${escapeHtml(String(p.application_number || ''))}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(p.status || '')}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(p.total_completed_and_stored_to_date)}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(p.current_payment_due)}</td></tr>`
-    ).join('') || `<tr><td colspan="4" style="padding:12px;color:#888">No pay app activity.</td></tr>`;
-    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Payment Applications</h2>
-      <table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:13px"><thead>
-      <tr style="background:#f4f4f4"><th style="text-align:left;padding:8px">App #</th><th style="text-align:left;padding:8px">Status</th><th style="text-align:right;padding:8px">Completed to date</th><th style="text-align:right;padding:8px">Current due</th></tr>
-      </thead><tbody>${rows}</tbody></table>`;
+  if (on('payment_apps') && data.payment_apps && (!onlyChanges || data.payment_apps.length > 0)) {
+    const rows = data.payment_apps.map((p: any) => `<tr>${td(`<strong>#${escapeHtml(String(p.application_number || ''))}</strong>`)}${td(pill(p.status || ''))}${td(fmtMoney(p.total_completed_and_stored_to_date), 'right')}${td(fmtMoney(p.current_payment_due), 'right', 'font-weight:700')}</tr>`).join('') || emptyRow(4, 'No pay app activity.');
+    body += section('Payment applications', '', table(th('App') + th('Status') + th('Completed to date', 'right') + th('Current due', 'right'), rows));
   }
 
-  if (sub.sections.includes('equipment') && data.equipment && (!onlyChanges || data.equipment.alerts.length > 0)) {
-    const alertRows = data.equipment.alerts.map((a: any) =>
-      `<tr><td style="padding:6px;border-bottom:1px solid #eee">${escapeHtml(a.alert_type)}</td><td style="padding:6px;border-bottom:1px solid #eee">${escapeHtml(a.message)}</td><td style="padding:6px;border-bottom:1px solid #eee">${escapeHtml(a.severity)}</td><td style="padding:6px;border-bottom:1px solid #eee">${a.due_date || ''}</td></tr>`
-    ).join('') || `<tr><td colspan="4" style="padding:8px;color:#888">No open alerts.</td></tr>`;
-    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Equipment & Maintenance</h2>
-      <p style="font-family:Arial;font-size:13px;margin:4px 0">${data.equipment.items.length} units tracked · ${data.equipment.alerts.length} open alerts</p>
-      <table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:13px"><thead>
-      <tr style="background:#f4f4f4"><th style="text-align:left;padding:6px">Type</th><th style="text-align:left;padding:6px">Message</th><th style="text-align:left;padding:6px">Severity</th><th style="text-align:left;padding:6px">Due</th></tr>
-      </thead><tbody>${alertRows}</tbody></table>`;
+  if (on('equipment') && data.equipment && (!onlyChanges || data.equipment.alerts.length > 0)) {
+    const rows = data.equipment.alerts.map((a: any) => `<tr>${td(`<strong>${escapeHtml(a.alert_type)}</strong>`)}${td(escapeHtml(a.message))}${td(pill(a.severity))}${td(day(a.due_date))}</tr>`).join('') || emptyRow(4, 'No open alerts.');
+    body += section('Equipment & maintenance', `${data.equipment.items.length} units tracked · ${data.equipment.alerts.length} open alert${data.equipment.alerts.length === 1 ? '' : 's'}`, table(th('Type') + th('Message') + th('Severity') + th('Due'), rows));
   }
 
-  if (sub.sections.includes('subcontractors') && data.subcontractors && (!onlyChanges || data.subcontractors.recentInvites.length > 0)) {
-    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Subcontractor Activity</h2>
-      <p style="font-family:Arial;font-size:13px;margin:4px 0">${data.subcontractors.active.length} active subcontractors · ${data.subcontractors.recentInvites.length} bid invitations in period</p>`;
+  if (on('subcontractors') && data.subcontractors && (!onlyChanges || data.subcontractors.recentInvites.length > 0)) {
+    body += section('Subcontractors', '', tiles([
+      { label: 'Active subcontractors', value: String(data.subcontractors.active.length) },
+      { label: 'Bid invitations this period', value: String(data.subcontractors.recentInvites.length) },
+    ]));
   }
 
-  if (sub.sections.includes('money') && data.money && (!onlyChanges || data.money.paymentCount > 0)) {
+  if (on('money') && data.money && (!onlyChanges || data.money.paymentCount > 0)) {
     const m = data.money;
-    const overdueRows = (m.overdue || []).slice(0, 15).map((o: any) =>
-      `<tr><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(o.counterparty_name)}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(o.kind)}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(o.due_date || '')}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmtMoney(o.balance)}</td></tr>`).join('');
-    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Money</h2>
-      <p style="font-family:Arial;font-size:13px;margin:4px 0">
-        Collected: <strong>${fmtMoney(m.collected)}</strong> · Paid out: <strong>${fmtMoney(m.paidOut)}</strong> · Net: <strong>${fmtMoney(m.net)}</strong><br/>
-        Still owed to you: <strong>${fmtMoney(m.owedToUs)}</strong> · You owe: <strong>${fmtMoney(m.owedByUs)}</strong>
-      </p>
-      ${overdueRows ? `<table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:13px">
-        <tr><th align="left" style="padding:8px;border-bottom:2px solid #111">Past due from</th>
-        <th align="left" style="padding:8px;border-bottom:2px solid #111">Type</th>
-        <th align="left" style="padding:8px;border-bottom:2px solid #111">Due</th>
-        <th align="right" style="padding:8px;border-bottom:2px solid #111">Balance</th></tr>${overdueRows}</table>` : ''}`;
+    const rows = (m.overdue || []).slice(0, 15).map((o: any) => `<tr>${td(`<strong>${escapeHtml(o.counterparty_name)}</strong>`)}${td(escapeHtml(o.kind))}${td(day(o.due_date), 'left', 'color:#b91c1c')}${td(fmtMoney(o.balance), 'right', 'font-weight:700')}</tr>`).join('');
+    body += section('Money', `${m.paymentCount} payment${m.paymentCount === 1 ? '' : 's'} recorded`,
+      tiles([
+        { label: 'Collected', value: fmtMoney(m.collected), tone: 'green' },
+        { label: 'Paid out', value: fmtMoney(m.paidOut) },
+        { label: 'Net', value: fmtMoney(m.net), tone: m.net < 0 ? 'red' : 'green' },
+      ]) + tiles([
+        { label: 'Still owed to you', value: fmtMoney(m.owedToUs) },
+        { label: 'You owe', value: fmtMoney(m.owedByUs) },
+      ]) + (rows ? sub3('Past due to you', '#b91c1c') + table(th('From') + th('Type') + th('Due') + th('Balance', 'right'), rows) : ''));
   }
 
-  if (sub.sections.includes('properties') && data.properties && (!onlyChanges || data.properties.units.length > 0)) {
+  if (on('properties') && data.properties && (!onlyChanges || data.properties.units.length > 0)) {
     const p = data.properties;
     const expiring = (p.expiringLeases || []).length;
-    body += `<h2 style="font-family:Arial;color:#111;margin-top:24px">Properties</h2>
-      <p style="font-family:Arial;font-size:13px;margin:4px 0">
-        ${p.properties.length} properties · ${p.units.length} units · ${p.occupancy}% occupied<br/>
-        Rent in place: <strong>${fmtMoney(p.rentInPlace)}</strong> of ${fmtMoney(p.potentialRent)} potential${expiring ? ` · ${expiring} lease(s) ending soon` : ''}
-      </p>`;
+    body += section('Properties', `${p.properties.length} properties · ${p.units.length} units${expiring ? ` · ${expiring} lease${expiring === 1 ? '' : 's'} ending soon` : ''}`, tiles([
+      { label: 'Occupied', value: `${p.occupancy}%`, tone: p.occupancy >= 90 ? 'green' : undefined },
+      { label: 'Rent in place', value: fmtMoney(p.rentInPlace) },
+      { label: 'Potential rent', value: fmtMoney(p.potentialRent) },
+    ]));
   }
 
-  return `<div style="max-width:760px;margin:0 auto;padding:20px;color:#222">
-    <div style="border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:8px">
-      <h1 style="font-family:Arial;margin:0;font-size:22px">${escapeHtml(sub.name)}</h1>
-      <p style="font-family:Arial;color:#666;margin:4px 0 0;font-size:13px">${escapeHtml((data._companies || []).map((c: any) => c.name).join(', ') || 'RBF Construction')} — Recap for ${fmtDate(periodStart)} – ${fmtDate(periodEnd)}</p>
-    </div>
+  if (!body) body = section('Nothing new', '', `<p style="${FONT};font-size:13px;color:${MUTED};margin:0">No activity in the sections this report covers.</p>`);
+
+  return `<!doctype html><html><body style="margin:0;padding:0;background:#eef1f5">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f5;padding:24px 0"><tr><td align="center">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:760px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid ${LINE}">
+    <tr><td style="background:${NAVY};padding:22px 28px;border-bottom:4px solid ${ORANGE}">
+      <div style="${FONT};font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#f6b483;font-weight:600">${companyName}</div>
+      <div style="${FONT};font-size:24px;font-weight:700;color:#ffffff;margin-top:4px">${escapeHtml(sub.name)}</div>
+      <div style="${FONT};font-size:13px;color:#c7d2e0;margin-top:4px">${fmtDate(periodStart)} – ${fmtDate(periodEnd)}</div>
+    </td></tr>
     ${body}
-    <p style="font-family:Arial;color:#888;font-size:11px;margin-top:32px;border-top:1px solid #eee;padding-top:12px">
-      Generated automatically by RBF Construction Portal. Manage your reports in the portal under Weekly Reports.
-    </p>
-  </div>`;
+    <tr><td style="padding:28px 28px 22px">
+      <div style="border-top:1px solid ${LINE};padding-top:12px;${FONT};font-size:11px;color:#9ca3af">Sent automatically by the ${companyName} portal. Change what's in this report under Weekly Reports.</div>
+    </td></tr>
+  </table></td></tr></table></body></html>`;
 }
 
 function buildCsv(sub: Sub, data: any): string {
