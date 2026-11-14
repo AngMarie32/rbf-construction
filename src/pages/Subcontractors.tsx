@@ -1,3 +1,5 @@
+import { SendBidFilesDialog } from '@/components/subcontractors/SendBidFilesDialog';
+import { Send } from 'lucide-react';
 import { BulkComplianceDialog } from '@/components/subcontractors/BulkComplianceDialog';
 import { ShieldCheck } from 'lucide-react';
 
@@ -81,6 +83,8 @@ export default function Subcontractors() {
   const [selectedRegion, setSelectedRegion] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [bulkCompliance, setBulkCompliance] = useState(false);
+  const [selectedSubs, setSelectedSubs] = useState<Set<string>>(new Set());
+  const [bidFilesOpen, setBidFilesOpen] = useState(false);
   const [editingSubcontractor, setEditingSubcontractor] = useState<Subcontractor | null>(null);
   const [showDocumentIssues, setShowDocumentIssues] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -436,6 +440,20 @@ export default function Subcontractors() {
               <button type="button" className={heroButton} onClick={() => setShowDocumentIssues(true)}>
                 <ShieldAlert className="h-4 w-4" /> Document issues
               </button>
+              <button
+                type="button"
+                className={heroButton}
+                onClick={() => {
+                  if (!selectedSubs.size) {
+                    setViewMode('list');
+                    toast.message('Tick the subcontractors to send to', { description: 'Use the boxes on the left of the list (filter by trade first to narrow it down), then click Send bid files.' });
+                    return;
+                  }
+                  setBidFilesOpen(true);
+                }}
+              >
+                <Send className="h-4 w-4" /> Send bid files{selectedSubs.size ? ` (${selectedSubs.size})` : ''}
+              </button>
               <button type="button" className={heroButton} onClick={() => setBulkCompliance(true)}>
                 <ShieldCheck className="h-4 w-4" /> Update W-9s / COIs
               </button>
@@ -603,6 +621,13 @@ export default function Subcontractors() {
             totalCount={subcontractors.length}
             getRowId={(r) => r.id}
             searchable={false}
+            selectedIds={selectedSubs}
+            onSelectedIdsChange={setSelectedSubs}
+            bulkActions={
+              <Button size="sm" onClick={() => setBidFilesOpen(true)}>
+                <Send className="h-4 w-4" /> Send bid files
+              </Button>
+            }
             exportFilename="subcontractors"
             initialSort={{ id: 'rank', desc: true }}
             empty={
@@ -716,6 +741,12 @@ export default function Subcontractors() {
         onOpenChange={setBulkCompliance}
         subcontractors={subcontractors}
         onSaved={fetchSubcontractors}
+      />
+      <SendBidFilesDialog
+        open={bidFilesOpen}
+        onOpenChange={setBidFilesOpen}
+        recipients={subcontractors.filter((x) => selectedSubs.has(x.id))}
+        onRemoveRecipient={(id) => setSelectedSubs((p) => { const n = new Set(p); n.delete(id); return n; })}
       />
     </Layout>
   );
