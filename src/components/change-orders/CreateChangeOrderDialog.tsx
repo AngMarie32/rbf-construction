@@ -156,7 +156,7 @@ export function CreateChangeOrderDialog({
       resetForm();
     } catch (error) {
       console.error('Error creating change order:', error);
-      toast.error('Failed to create change order');
+      toast.error((error as any)?.message ? `The change order wasn't saved: ${(error as any).message}` : 'Failed to create change order');
     } finally {
       setLoading(false);
     }

@@ -52,6 +52,8 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ImprovedBillingDialog } from '@/components/billing/ImprovedBillingDialog';
+import { CreateChangeOrderDialog } from '@/components/change-orders/CreateChangeOrderDialog';
+import { GitPullRequestArrow } from 'lucide-react';
 import { format } from 'date-fns';
 import { FinancialDateFilter } from '@/components/dashboard/FinancialDateFilter';
 
@@ -85,6 +87,7 @@ const money0 = (n: number) => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n || 0)
 const money = (n: number) => `$${(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
 export default function ProjectBilling() {
+  const [convertBilling, setConvertBilling] = useState<BillingRecord | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [billingRecords, setBillingRecords] = useState<BillingRecord[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<BillingRecord[]>([]);
@@ -382,6 +385,9 @@ export default function ProjectBilling() {
               <Banknote className="mr-1 h-3.5 w-3.5" /> Payment
             </Button>
           )}
+          <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Turn into a change order" title="Turn into a change order" onClick={() => setConvertBilling(r)}>
+            <GitPullRequestArrow className="h-4 w-4" />
+          </Button>
           <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Edit" onClick={() => setEditingBilling(r)}>
             <Pencil className="h-4 w-4" />
           </Button>
@@ -598,6 +604,37 @@ export default function ProjectBilling() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+      <CreateChangeOrderDialog
+        open={!!convertBilling}
+        onOpenChange={(o) => !o && setConvertBilling(null)}
+        projectId={convertBilling?.project_id ?? null}
+        template={
+          convertBilling
+            ? {
+                description: [
+                  convertBilling.invoice_number ? `From invoice ${convertBilling.invoice_number}` : 'From billing',
+                  convertBilling.billing_period_start && convertBilling.billing_period_end
+                    ? `(${convertBilling.billing_period_start.slice(0, 10)} to ${convertBilling.billing_period_end.slice(0, 10)})`
+                    : null,
+                  convertBilling.notes,
+                ]
+                  .filter(Boolean)
+                  .join(' '),
+                estimatedAmount: Number(convertBilling.billed_amount) || 0,
+              }
+            : null
+        }
+        onSave={async () => {
+          const b = convertBilling;
+          if (!b) return;
+          // Leave a trail on the billing record so it isn't counted twice by mistake.
+          const note = `Turned into a change order on ${new Date().toLocaleDateString()}.`;
+          await supabase.from('project_billing').update({ notes: [b.notes, note].filter(Boolean).join('\n') }).eq('id', b.id);
+          setConvertBilling(null);
+          fetchBillingRecords();
+          toast.success('Change order created from this billing. Review it on the Change Orders page.');
+        }}
+      />
     </Layout>
   );
 }
