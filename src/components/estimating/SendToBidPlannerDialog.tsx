@@ -99,7 +99,7 @@ export function SendToBidPlannerDialog({
         quantity: qty,
         unit: l.unit || (qty === 1 ? 'LS' : 'each'),
         unit_cost: amount / qty,
-        markup_pct: Math.round(markupPct * 1000) / 1000,
+        markup_pct: markupPct,
         source_estimate_id: estimateId,
         source_estimate_line_id: l.id,
       };
@@ -138,6 +138,17 @@ export function SendToBidPlannerDialog({
 
       const { error: insErr } = await supabase.from('bid_items').insert(buildItems(pid));
       if (insErr) throw insErr;
+
+      // A new project's contract value is the bid total exactly as stored (the database rounds unit
+      // costs and markups), so the Bid Planner, proposal and SOV never show a rounding difference.
+      if (mode === 'new' && pid) {
+        const { data: stored } = await supabase.from('bid_items').select('quantity, unit_cost, markup_pct').eq('project_id', pid);
+        const total = (stored || []).reduce(
+          (a: number, i: any) => a + (Number(i.unit_cost) || 0) * (Number(i.quantity) || 0) * (1 + (Number(i.markup_pct) || 0) / 100),
+          0
+        );
+        if (total > 0) await supabase.from('projects').update({ contract_value: Math.round(total * 100) / 100 }).eq('id', pid);
+      }
       await supabase.from('estimates').update({ project_id: pid }).eq('id', estimateId);
 
       toast.success(`${priced.length} lines added to the Bid Planner.`);
