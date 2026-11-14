@@ -55,6 +55,7 @@ interface Sub {
 const SECTION_OPTS = [
   { id: 'projects', label: 'Project status & progress' },
   { id: 'financials', label: 'Financials' },
+  { id: 'job_cost', label: 'Jobs over budget' },
   { id: 'schedule', label: 'Schedule & tasks' },
   { id: 'documents', label: 'Documents & change orders' },
   { id: 'expenses', label: 'Expenses summary' },
