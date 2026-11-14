@@ -1,3 +1,4 @@
+import { coSovMessage, syncChangeOrderToSov } from '@/lib/changeOrderSov';
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -125,10 +126,14 @@ export default function ChangeOrders() {
     if (error) return toast.error(`Couldn't update: ${error.message}`);
     setChangeOrders((list) => list.map((c) => (c.id === co.id ? { ...c, status } : c)));
     toast.success(`CO #${co.number} marked ${status}`);
+    const sync = await syncChangeOrderToSov({ ...(co as any), status });
+    const msg = coSovMessage(sync, co.number);
+    if (msg) (msg.tone === 'warn' ? toast.warning : toast.success)(msg.text);
   };
 
   const remove = async (co: ChangeOrder) => {
     const { error } = await supabase.from('change_orders').delete().eq('id', co.id);
+    if (!error) await syncChangeOrderToSov({ ...(co as any), status: 'Deleted' });
     if (error) return toast.error(`Couldn't delete: ${error.message}`);
     setChangeOrders((list) => list.filter((c) => c.id !== co.id));
     toast.success(`CO #${co.number} deleted`);

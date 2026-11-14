@@ -128,6 +128,7 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
   const [lines, setLines] = useState<PayAppLine[]>([]);
   const [previousCertificates, setPreviousCertificates] = useState(0);
   const [changeOrders, setChangeOrders] = useState<any[]>([]);
+  const [pendingCOs, setPendingCOs] = useState<any[]>([]);
   // Set when earlier applications billed more than the lines carry forward (older apps saved without line history).
   const [carryGap, setCarryGap] = useState(0);
   // Saved latest application whose Previous doesn't match the application before it.
@@ -167,11 +168,13 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
       supabase.from('projects').select('*').eq('id', projectId).single(),
       supabase.from('sov_items').select('*').eq('project_id', projectId).order('item_number'),
       supabase.from('payment_applications_g702').select('*').eq('project_id', projectId).order('application_number'),
-      supabase.from('change_orders').select('*').eq('project_id', projectId).eq('status', 'Approved').order('number'),
+      supabase.from('change_orders').select('*').eq('project_id', projectId).order('number'),
       supabase.from('company_settings').select('*').limit(1).maybeSingle(),
     ]);
     setProject(proj);
-    setChangeOrders(cos || []);
+    const allCos = (cos || []) as any[];
+    setChangeOrders(allCos.filter((c) => (c.status || '').toLowerCase() === 'approved'));
+    setPendingCOs(allCos.filter((c) => !['approved', 'rejected', 'void', 'voided'].includes((c.status || '').toLowerCase())));
     const all = (apps || []) as any[];
     const current = applicationId ? all.find((a) => a.id === applicationId) : null;
     // Latest application by number (don't rely on list order).
@@ -275,7 +278,22 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
         const c = carryFrom(lastSnap, base);
         return c ? { ...base, previous: Math.max(base.previous, c.previous), stored: c.stored } : base;
       });
-      setLines(carried);
+      // Approved change orders not on the Schedule of Values yet are added as their own lines (saved with the application).
+      const approved = (cos || []).filter((c: any) => (c.status || '').toLowerCase() === 'approved');
+      const coLines = approved
+        .filter((co: any) => !carried.some((l) => l.itemNumber === `CO-${co.number}`))
+        .map((co: any) => ({
+          id: `new-${co.id}`,
+          itemNumber: `CO-${co.number}`,
+          description: `Change Order ${co.number}: ${co.description}`,
+          category: 'Change Orders',
+          scheduledValue: 0,
+          changeOrders: Number(co.amount) || 0,
+          previous: 0,
+          thisPeriod: 0,
+          stored: 0,
+        }));
+      setLines([...carried, ...coLines]);
       const certifiedAll = all.reduce((s, a) => s + (Number(a.current_payment_due) || 0), 0);
       const earlierBilled = last ? earlierBilledOf(last, certifiedAll, Number(last.retainage_percentage ?? 10)) : 0;
       const carriedTotal = carried.reduce((a, l) => a + l.previous + l.stored, 0);
@@ -797,11 +815,27 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
               </div>
             )}
 
+            {pendingCOs.length > 0 && (
+              <div className="mt-4 rounded-lg border border-dashed border-amber-500/50 bg-amber-500/5 p-4 text-sm">
+                <p className="font-medium">
+                  {pendingCOs.length} change order{pendingCOs.length === 1 ? ' is' : 's are'} not approved yet, so {pendingCOs.length === 1 ? "it isn't" : "they aren't"} billable:{' '}
+                  {pendingCOs.map((c) => `CO ${c.number} (${c.status || 'Draft'}, ${money0(Number(c.amount) || 0)})`).join(', ')}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Mark a change order Approved on the Change Orders page and it's added to the Schedule of Values, then shows here to bill.
+                </p>
+              </div>
+            )}
             {mode.editableLines && missingCOs.length > 0 && (
               <div className="mt-4 rounded-lg border border-dashed p-4">
                 <p className="text-sm font-medium">Approved change orders not on the Schedule of Values</p>
                 <p className="text-xs text-muted-foreground">Add one as its own line so it can be billed. It's saved to the Schedule of Values with this application.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
+                  {missingCOs.length > 1 && (
+                    <Button size="sm" onClick={() => missingCOs.forEach((co) => addChangeOrder(co))}>
+                      <Plus className="mr-1 h-3.5 w-3.5" /> Add all {missingCOs.length}
+                    </Button>
+                  )}
                   {missingCOs.map((co) => (
                     <Button key={co.id} variant="outline" size="sm" onClick={() => addChangeOrder(co)}>
                       <Plus className="mr-1 h-3.5 w-3.5" /> CO {co.number} · {money0(co.amount)}
