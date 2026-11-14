@@ -1,3 +1,4 @@
+import { projectProfit } from '@/utils/projectProfit';
 import { useState, useEffect } from 'react';
 import { normalizeProjectStatus } from '@/lib/projectStatus';
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
@@ -118,6 +119,7 @@ export default function ProjectDetail() {
           dueDate: data.due_date ? new Date(data.due_date) : new Date(),
           contractValue: data.contract_value,
           completionPercentage: data.completion_percentage,
+          estimatedProfit: (data as any).estimated_profit ?? null,
           client: data.client || '',
           address: data.address || '',
           fieldLeader: data.field_leader,
@@ -235,7 +237,8 @@ export default function ProjectDetail() {
   const totalReceived = billing.reduce((sum, b) => sum + (b.paid_amount || 0), 0);
   const approvedCOs = changeOrders.filter((c) => c.status === 'Approved').reduce((s, c) => s + (c.amount || 0), 0);
   const revisedContract = (project.contractValue || 0) + approvedCOs;
-  const estProfit = revisedContract - totalExpenses;
+  const pp = projectProfit(revisedContract, totalExpenses, project.estimatedProfit);
+  const estProfit = pp.profit;
   const margin = revisedContract > 0 ? (estProfit / revisedContract) * 100 : 0;
   const budgetUsed = revisedContract > 0 ? Math.min(100, (totalExpenses / revisedContract) * 100) : 0;
   const outstanding = totalBilled - totalReceived;
@@ -244,7 +247,7 @@ export default function ProjectDetail() {
     { label: 'Contract (incl. approved COs)', value: money(revisedContract), hint: approvedCOs ? `${money(approvedCOs)} in change orders` : 'Original contract', icon: DollarSign },
     { label: 'Costs to date', value: money(totalExpenses), hint: `${budgetUsed.toFixed(0)}% of contract`, icon: Receipt },
     { label: 'Billed / received', value: `${money(totalBilled)}`, hint: outstanding > 0 ? `${money(outstanding)} still owed to you` : `${money(totalReceived)} received`, icon: CreditCard },
-    { label: 'Projected profit', value: money(estProfit), hint: `${margin.toFixed(1)}% margin`, icon: TrendingUp, tone: estProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' },
+    { label: 'Projected profit', value: money(estProfit), hint: pp.hasTarget ? (pp.overBudget > 0 ? `${money(pp.overBudget)} over cost budget` : `On budget · ${margin.toFixed(1)}% margin`) : `${margin.toFixed(1)}% margin`, icon: TrendingUp, tone: estProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' },
   ];
 
   const quickActions = [

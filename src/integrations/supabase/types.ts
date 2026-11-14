@@ -3949,6 +3949,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           due_date: string | null
+          estimated_profit: number | null
           field_leader: string | null
           id: string
           name: string
@@ -3972,6 +3973,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           due_date?: string | null
+          estimated_profit?: number | null
           field_leader?: string | null
           id?: string
           name: string
@@ -3995,6 +3997,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           due_date?: string | null
+          estimated_profit?: number | null
           field_leader?: string | null
           id?: string
           name?: string

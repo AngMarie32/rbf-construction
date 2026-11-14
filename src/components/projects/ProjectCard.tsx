@@ -1,3 +1,4 @@
+import { projectProfit } from '@/utils/projectProfit';
 
 import { useState, useEffect } from 'react';
 import { normalizeProjectStatus } from '@/lib/projectStatus';
@@ -134,7 +135,7 @@ export function ProjectCard({
   const calculateEstimatedProfit = () => {
     const totalContractWithChanges = project.contractValue + changeOrdersTotal;
     const estimatedTotalExpenses = paidExpenses + pendingExpenses;
-    return totalContractWithChanges - estimatedTotalExpenses;
+    return projectProfit(totalContractWithChanges, estimatedTotalExpenses, project.estimatedProfit).profit;
   };
 
   const calculateActualProfit = () => {
@@ -202,14 +203,6 @@ export function ProjectCard({
             <MapPin className="h-3 w-3 shrink-0" />{project.address}
           </p>
         )}
-
-        <div className="mt-4 space-y-1.5">
-          <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">Complete</span>
-            <span className="font-medium">{project.completionPercentage}%</span>
-          </div>
-          <Progress value={project.completionPercentage} className="h-1.5" />
-        </div>
 
         <dl className="mt-4 grid grid-cols-3 gap-x-2 gap-y-3 border-t pt-4 text-xs">
           <Stat label="Contract" value={project.contractValue} />

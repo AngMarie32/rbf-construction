@@ -113,6 +113,7 @@ export default function Projects() {
         description: item.description || '',
         contingency_type: item.contingency_type || 'percentage',
         contingency_value: item.contingency_value || 0,
+        estimatedProfit: (item as any).estimated_profit ?? null,
         archivedAt: (item as any).archived_at ? new Date((item as any).archived_at) : null,
         createdAt: new Date(item.created_at),
         updatedAt: new Date(item.updated_at)
