@@ -38,6 +38,7 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
     client: project.client,
     fieldLeader: project.fieldLeader || '',
     completionPercentage: project.completionPercentage.toString(),
+    estimatedProfit: project.estimatedProfit != null ? String(project.estimatedProfit) : '',
   });
 
   useEffect(() => {
@@ -53,6 +54,7 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
       client: project.client,
       fieldLeader: project.fieldLeader || '',
       completionPercentage: project.completionPercentage.toString(),
+      estimatedProfit: project.estimatedProfit != null ? String(project.estimatedProfit) : '',
     });
   }, [project]);
 
@@ -76,6 +78,7 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
         client: formData.client || null,
         field_leader: formData.fieldLeader || null,
         completion_percentage: formData.completionPercentage ? parseInt(formData.completionPercentage) : 0,
+        estimated_profit: formData.estimatedProfit !== '' ? parseFloat(formData.estimatedProfit) : null,
         updated_at: new Date().toISOString()
       };
 
@@ -183,6 +186,18 @@ export function EditProjectDialog({ project, onProjectUpdated, open, onOpenChang
                 onChange={(e) => setFormData({ ...formData, contractValue: e.target.value })}
                 placeholder="0.00"
                 step="0.01"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="estimatedProfit">Estimated Profit ($)</Label>
+              <Input
+                id="estimatedProfit"
+                type="number"
+                value={formData.estimatedProfit}
+                onChange={(e) => setFormData({ ...formData, estimatedProfit: e.target.value })}
+                placeholder="0.000"
+                step="0.001"
               />
             </div>
 

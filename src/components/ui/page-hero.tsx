@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
-/** Navy banner used at the top of the Dashboard, Owner Cockpit and reports. */
+/** Navy banner. Header stats are intentionally not rendered (user preference: no banner stats). */
 export function PageHero({
   eyebrow,
   title,
@@ -35,7 +35,7 @@ export function PageHero({
           {subtitle && <div className="mt-1 text-sm text-white/65">{subtitle}</div>}
           {actions && <div className="mt-4 flex flex-wrap gap-2">{actions}</div>}
         </div>
-        {stats.length > 0 && (
+        {false && stats.length > 0 && (
           <div className="flex flex-wrap gap-x-8 gap-y-3 lg:justify-end lg:text-right">
             {stats.map((s) => (
               <div key={s.label}>

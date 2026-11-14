@@ -111,7 +111,7 @@ export default function Subcontractors() {
         ...sub,
         region: (sub as any).region || null
       }));
-      setSubcontractors(subsWithRegion);
+      setSubcontractors(subsWithRegion as unknown as Subcontractor[]);
     } catch (error) {
       console.error('Error fetching subcontractors:', error);
       toast.error('Failed to load subcontractors');
