@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText, Printer, AlertCircle, BarChart3, Calendar, List, GitBranch, Download } from 'lucide-react';
 import { Task } from '@/types';
-import { generateProfessionalGanttPDF, generateProfessionalExcel } from './ProfessionalGanttExport';
+import { generateProfessionalExcel } from './ProfessionalGanttExport';
+import { generateSchedulePdf } from '@/utils/schedulePdf';
 import { validateTaskList, formatValidationMessage, getValidationSummary } from '@/utils/dataValidation';
 import { toast } from 'sonner';
 
@@ -59,19 +60,15 @@ export function EnhancedExportDialog({
   const handleGeneratePDF = async () => {
     try {
       setLoading(true);
-      const dateRange = {
-        from: new Date(Math.min(...tasks.map(t => t.startDate.getTime()))),
-        to: new Date(Math.max(...tasks.map(t => t.endDate.getTime())))
-      };
-      
-      const doc = generateProfessionalGanttPDF(tasks, projects, dateRange, {
-        title,
-        showProgress: reportOptions.includeProgress,
-        showDependencies: reportOptions.includeDependencies,
-        dateFormat: reportOptions.dateFormat
-      });
-      
-      doc.save(`${title.replace(/\s+/g, '_')}_${localDateISO()}.pdf`);
+      await generateSchedulePdf(tasks, projects as any, {
+        includeGanttChart: true,
+        includeTaskList: true,
+        includeCriticalPath: true,
+        includeProgress: !!reportOptions.includeProgress,
+        includeDependencies: !!reportOptions.includeDependencies,
+        includeProjectInfo: true,
+        dateFormat: reportOptions.dateFormat || 'MM/dd/yyyy',
+      }, title);
       toast.success('PDF report generated successfully');
       onOpenChange(false);
     } catch (error) {

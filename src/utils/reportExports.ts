@@ -1,7 +1,6 @@
 
 import { localDateISO } from '@/utils/dates';
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
 
 export interface ExportData {
   title: string;
@@ -36,62 +35,42 @@ export const exportToExcel = (exportData: ExportData) => {
 };
 
 export const exportToPDF = async (exportData: ExportData) => {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.width;
-  const margin = 20;
-  let yPosition = margin;
-  
-  // Title
-  doc.setFontSize(14);
-  doc.text(exportData.title, margin, yPosition);
-  yPosition += 10;
-  
-  // Metadata
-  if (exportData.metadata) {
-    doc.setFontSize(10);
-    doc.text(`Generated: ${exportData.metadata.generatedAt || new Date().toLocaleString()}`, margin, yPosition);
-    yPosition += 8;
-    if (exportData.metadata.dateRange) {
-      doc.text(`Date Range: ${exportData.metadata.dateRange}`, margin, yPosition);
-      yPosition += 8;
-    }
-    yPosition += 10;
+  // Company letterhead, every row (no 30-row cap), landscape when there are many columns.
+  const { DocKit, loadCompany, fileSlug } = await import('./pdfDocKit');
+  const company = await loadCompany();
+  const rows = exportData.data || [];
+  const headers = rows.length ? Object.keys(rows[0]) : [];
+  const landscape = headers.length > 6;
+  const doc = new DocKit(company, exportData.title, exportData.metadata?.dateRange || '', landscape ? 'landscape' : 'portrait');
+  const meta = [
+    { label: 'Printed', value: exportData.metadata?.generatedAt || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
+    ...(exportData.metadata?.dateRange ? [{ label: 'Period', value: exportData.metadata.dateRange }] : []),
+    { label: 'Rows', value: String(rows.length) },
+  ];
+  doc.letterhead(meta);
+
+  if (!rows.length) {
+    doc.paragraph('No data for this report.');
+  } else {
+    const isNum = (h: string) => rows.every((r) => r[h] === null || r[h] === undefined || r[h] === '' || typeof r[h] === 'number' || /^-?\$?[\d,]+(\.\d+)?%?$/.test(String(r[h])));
+    const money = (h: string) => /amount|total|cost|value|price|billed|paid|budget|spent|revenue|profit|balance/i.test(h);
+    const fmt = (h: string, v: any) => {
+      if (v === null || v === undefined || v === '') return '—';
+      if (typeof v === 'number') return money(h) ? v.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : v.toLocaleString('en-US');
+      return String(v);
+    };
+    // Width by typical content length, so long text columns get more room.
+    const widths = headers.map((h) => Math.min(40, Math.max(h.length, ...rows.slice(0, 200).map((r) => fmt(h, r[h]).length)) + 2));
+    doc.table(
+      headers.map((h, i) => ({ header: h, width: widths[i], align: isNum(h) ? ('right' as const) : undefined })),
+      rows.map((r) => headers.map((h) => fmt(h, r[h]))),
+      { fontSize: headers.length > 8 ? 7 : 8 }
+    );
+    const sums = headers.filter((h) => money(h) && rows.every((r) => typeof r[h] === 'number' || r[h] == null));
+    if (sums.length)
+      doc.totals(sums.map((h) => ({ label: `Total ${h.toLowerCase()}`, value: rows.reduce((s, r) => s + (Number(r[h]) || 0), 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' }) })));
   }
-  
-  // Data table
-  if (exportData.data && exportData.data.length > 0) {
-    const headers = Object.keys(exportData.data[0]);
-    const cellWidth = (pageWidth - 2 * margin) / headers.length;
-    
-    // Headers
-    doc.setFontSize(10);
-    headers.forEach((header, index) => {
-      doc.text(header, margin + index * cellWidth, yPosition);
-    });
-    yPosition += 8;
-    
-    // Data rows (limit to prevent overflow)
-    const maxRows = Math.min(exportData.data.length, 30);
-    for (let i = 0; i < maxRows; i++) {
-      const row = exportData.data[i];
-      headers.forEach((header, index) => {
-        const value = row[header]?.toString() || '';
-        doc.text(value.substring(0, 15), margin + index * cellWidth, yPosition);
-      });
-      yPosition += 6;
-      
-      // Add new page if needed
-      if (yPosition > doc.internal.pageSize.height - margin) {
-        doc.addPage();
-        yPosition = margin;
-      }
-    }
-  }
-  
-  // Save PDF
-  const timestamp = localDateISO();
-  const filename = `${exportData.title.replace(/\s+/g, '_')}_${timestamp}.pdf`;
-  doc.save(filename);
+  doc.save(`${fileSlug(exportData.title)}-${localDateISO()}.pdf`);
 };
 
 export const exportToCSV = (exportData: ExportData) => {

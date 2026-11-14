@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Download, Edit, Trash2, Eye, TrendingUp, FileText, CheckCircle, XCircle, Paperclip, Clock, Wallet, Hourglass, BadgeCheck, CalendarDays, FileUp } from 'lucide-react';
+import { Search, Download, Edit, Trash2, Eye, TrendingUp, Merge, FileText, CheckCircle, XCircle, Paperclip, Clock, Wallet, Hourglass, BadgeCheck, CalendarDays, FileUp } from 'lucide-react';
 import { PageHero, heroButton } from '@/components/ui/page-hero';
 import { AccentStat } from '@/components/ui/accent-stat';
 import { cn } from '@/lib/utils';
@@ -36,6 +36,7 @@ import { BulkExpenseDialog } from '@/components/expenses/BulkExpenseDialog';
 import { AttachInvoiceDialog } from '@/components/expenses/AttachInvoiceDialog';
 import { ViewInvoiceDialog } from '@/components/expenses/ViewInvoiceDialog';
 import { VendorAnalysisDialog } from '@/components/expenses/VendorAnalysisDialog';
+import { VendorCleanupDialog } from '@/components/expenses/VendorCleanupDialog';
 import { ImportExpensesDialog } from '@/components/expenses/ImportExpensesDialog';
 import { DatePickerWithRange } from '@/components/ui/date-picker-with-range';
 import { supabase } from '@/integrations/supabase/client';
@@ -85,6 +86,7 @@ export default function Expenses() {
   const [attachingInvoice, setAttachingInvoice] = useState<{ id: string; description: string } | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<{ id: string; description: string } | null>(null);
   const [vendorAnalysisOpen, setVendorAnalysisOpen] = useState(false);
+  const [vendorCleanupOpen, setVendorCleanupOpen] = useState(false);
   const [waiverFor, setWaiverFor] = useState<any | null>(null);
   const [sortColumn, setSortColumn] = useState<string>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -516,6 +518,9 @@ export default function Expenses() {
               <button type="button" className={heroButton} onClick={() => setVendorAnalysisOpen(true)}>
                 <TrendingUp className="h-4 w-4" /> Vendor analysis
               </button>
+              <button type="button" className={heroButton} onClick={() => setVendorCleanupOpen(true)}>
+                <Merge className="h-4 w-4" /> Clean up vendors
+              </button>
             </>
           }
           stats={[
@@ -788,6 +793,7 @@ export default function Expenses() {
           onOpenChange={setVendorAnalysisOpen}
           projects={projects}
         />
+        <VendorCleanupDialog open={vendorCleanupOpen} onOpenChange={setVendorCleanupOpen} onMerged={fetchExpenses} />
       </div>
       {waiverFor && (
         <LienWaiverDialog

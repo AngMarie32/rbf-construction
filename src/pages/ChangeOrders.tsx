@@ -29,6 +29,7 @@ import { CreateChangeOrderDialog } from '@/components/change-orders/CreateChange
 import { ChangeOrderTemplatesDialog } from '@/components/change-orders/ChangeOrderTemplatesDialog';
 import { SendForSignatureButton } from '@/components/esign/SendForSignatureButton';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
+import { exportChangeOrderPdf } from '@/utils/changeOrderPdf';
 import { cn } from '@/lib/utils';
 
 interface ChangeOrder {
@@ -225,6 +226,9 @@ export default function ChangeOrders() {
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem onSelect={() => { setEditing(c); setTemplate(null); setCreateDialogOpen(true); }}>
                 <Pencil className="mr-2 h-4 w-4" /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => exportChangeOrderPdf(c.id).catch((e) => toast.error(`Couldn't make the PDF: ${e.message}`))}>
+                <FileText className="mr-2 h-4 w-4" /> Download PDF
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-xs text-muted-foreground">Mark as</DropdownMenuLabel>
