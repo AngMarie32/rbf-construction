@@ -152,3 +152,39 @@ export function estimateCsv(lines: EstimateLine[]): string {
   );
   return [head.map(esc).join(','), ...rows].join('\n');
 }
+
+/** Default general-conditions allowance when the estimate has none for a scope (share of that scope's direct cost). */
+export const GC_ALLOWANCE_PCT = 8;
+
+/**
+ * Building and site general conditions are always separate lines. When a scope has direct cost
+ * but no GC line, returns an allowance line for it (flagged REVIEW) so it is never silently missing.
+ */
+export function missingGcLines(lines: { group_key: string; baseline_amount: number; override_amount?: number | null }[], pct = GC_ALLOWANCE_PCT) {
+  const sum = (key: string) => lines.filter((l) => l.group_key === key).reduce((s, l) => s + Number(l.override_amount ?? l.baseline_amount ?? 0), 0);
+  const out: {
+    group_key: string; group_name: string; section_name: string; name: string; baseline_amount: number;
+    quantity: number | null; unit: string | null; unit_cost: number | null; confidence: string; status: string; basis: string; source: string;
+  }[] = [];
+  ([['building', 'building_gc', 'Building'], ['site', 'site_gc', 'Site']] as const).forEach(([direct, gc, label]) => {
+    const d = sum(direct);
+    if (d > 0 && !lines.some((l) => l.group_key === gc)) {
+      const amt = Math.round(d * pct) / 100;
+      out.push({
+        group_key: gc,
+        group_name: GROUP_LABELS[gc],
+        section_name: '01 - General Requirements',
+        name: `${label} general conditions (allowance)`,
+        baseline_amount: amt,
+        quantity: 1,
+        unit: 'LS',
+        unit_cost: amt,
+        confidence: 'REVIEW',
+        status: 'REVIEW',
+        basis: `No ${label.toLowerCase()} general conditions were itemized, so ${pct}% of ${label.toLowerCase()} direct cost is carried. Replace with supervision, temporary facilities, equipment and duration-based costs.`,
+        source: 'Allowance (general conditions were not itemized)',
+      });
+    }
+  });
+  return out;
+}

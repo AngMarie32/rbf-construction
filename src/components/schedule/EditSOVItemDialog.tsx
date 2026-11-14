@@ -1,3 +1,4 @@
+import { writeSkippingGenerated } from '@/lib/generatedColumns';
 
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -70,10 +71,7 @@ export function EditSOVItemDialog({ open, onOpenChange, sovItem, onSave }: EditS
 
       console.log('Updating SOV item with data:', updateData);
 
-      const { error } = await supabase
-        .from('sov_items')
-        .update(updateData)
-        .eq('id', sovItem.id);
+      const { error } = await writeSkippingGenerated(updateData, (row) => supabase.from('sov_items').update(row).eq('id', sovItem.id));
 
       if (error) {
         console.error('Supabase error:', error);
