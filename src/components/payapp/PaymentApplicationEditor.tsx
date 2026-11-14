@@ -182,8 +182,10 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
       category: s.category,
       scheduledValue: Number(s.scheduled_value) || 0,
       changeOrders: Number(s.change_orders) || 0,
-      previous: Number(s.previous_applications) || 0,
-      thisPeriod: 0,
+      // Billing left in the SOV's "this period" by an earlier application (saved the old way, or whose
+      // roll-forward failed) is work already billed, so it counts as previous once an application exists.
+      previous: (Number(s.previous_applications) || 0) + (all.length ? Number(s.this_period) || 0 : 0),
+      thisPeriod: all.length ? 0 : Number(s.this_period) || 0,
       stored: Number(s.materials_stored) || 0,
     });
 
@@ -218,7 +220,19 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
           .filter((a) => a.application_number < current.application_number)
           .reduce((m: any, a: any) => (!m || a.application_number > m.application_number ? a : m), null as any);
         if (prior) {
-          const priorLines = Array.isArray(prior.line_items) ? (prior.line_items as PayAppLine[]) : null;
+          const priorLines: PayAppLine[] | null = Array.isArray(prior.line_items)
+            ? (prior.line_items as PayAppLine[])
+            : // No saved lines on the earlier application: the SOV shows what has been billed so far.
+              (sov || []).map((x: any) => ({
+                id: x.id,
+                itemNumber: x.item_number,
+                description: x.description,
+                scheduledValue: Number(x.scheduled_value) || 0,
+                changeOrders: Number(x.change_orders) || 0,
+                previous: Number(x.previous_applications) || 0,
+                thisPeriod: Number(x.this_period) || 0,
+                stored: Number(x.materials_stored) || 0,
+              }));
           const prevNow = snapshot.reduce((a, l) => a + (Number(l.previous) || 0), 0);
           const fixed = snapshot.map((l) => {
             const c = carryFrom(priorLines, l);
@@ -458,7 +472,9 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
       }
       if (res.error) throw res.error;
 
-      // 3) Roll this period into the Schedule of Values (only when the lines could be edited)
+      // 3) Roll this period into the Schedule of Values (only when the lines could be edited).
+      // The application is already saved; a problem here is reported, not treated as a failed save.
+      const sovProblems: string[] = [];
       if (mode.editableLines) {
         for (const l of saved) {
           const previous = r2(l.previous + l.thisPeriod);
@@ -474,11 +490,23 @@ export function PaymentApplicationEditor({ projectId, applicationId }: { project
             },
             (row) => supabase.from('sov_items').update(row).eq('id', l.id)
           );
-          if (error) throw error;
+          if (error) {
+            // Retry with only the plain columns; anything the database calculates is left to it.
+            const { error: e2 } = await supabase
+              .from('sov_items')
+              .update({ previous_applications: previous, this_period: 0, materials_stored: l.stored } as any)
+              .eq('id', l.id);
+            if (e2) sovProblems.push(`${l.itemNumber}: ${e2.message}`);
+          }
         }
       }
 
-      if (detailsSkipped) {
+      if (sovProblems.length) {
+        toast.warning(
+          `Application #${form.applicationNumber} saved. The Schedule of Values could not be updated for ${sovProblems.length} line${sovProblems.length === 1 ? '' : 's'} (${sovProblems[0]}). The next application still carries amounts from this one's saved lines.`,
+          { duration: 12000 }
+        );
+      } else if (detailsSkipped) {
         toast.warning(
           `Application saved. Dates, retainage and line history weren't stored because the database needs the "payment app details" update (${DETAIL_COLUMNS.length} new columns).`,
           { duration: 9000 }
