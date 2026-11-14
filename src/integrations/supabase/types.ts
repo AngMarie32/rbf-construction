@@ -74,6 +74,27 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       bid_invitation_documents: {
         Row: {
           bid_invitation_id: string | null
@@ -2634,6 +2655,72 @@ export type Database = {
           },
         ]
       }
+      estimate_materials: {
+        Row: {
+          ai_quantity: number | null
+          ai_unit_cost: number | null
+          ai_waste_pct: number | null
+          basis: string | null
+          estimate_id: string
+          id: string
+          item: string
+          line_id: string
+          quantity: number
+          sort_order: number
+          unit: string | null
+          unit_cost: number
+          updated_at: string
+          waste_pct: number
+        }
+        Insert: {
+          ai_quantity?: number | null
+          ai_unit_cost?: number | null
+          ai_waste_pct?: number | null
+          basis?: string | null
+          estimate_id: string
+          id?: string
+          item: string
+          line_id: string
+          quantity?: number
+          sort_order?: number
+          unit?: string | null
+          unit_cost?: number
+          updated_at?: string
+          waste_pct?: number
+        }
+        Update: {
+          ai_quantity?: number | null
+          ai_unit_cost?: number | null
+          ai_waste_pct?: number | null
+          basis?: string | null
+          estimate_id?: string
+          id?: string
+          item?: string
+          line_id?: string
+          quantity?: number
+          sort_order?: number
+          unit?: string | null
+          unit_cost?: number
+          updated_at?: string
+          waste_pct?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_materials_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimate_materials_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "estimate_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estimate_subcosts: {
         Row: {
           amount: number
@@ -2691,6 +2778,7 @@ export type Database = {
           overhead_pct: number
           profit_pct: number
           project_id: string | null
+          scope: Json | null
           scope_summary: string | null
           source_files: Json
           sov_project_id: string | null
@@ -2713,6 +2801,7 @@ export type Database = {
           overhead_pct?: number
           profit_pct?: number
           project_id?: string | null
+          scope?: Json | null
           scope_summary?: string | null
           source_files?: Json
           sov_project_id?: string | null
@@ -2735,6 +2824,7 @@ export type Database = {
           overhead_pct?: number
           profit_pct?: number
           project_id?: string | null
+          scope?: Json | null
           scope_summary?: string | null
           source_files?: Json
           sov_project_id?: string | null
