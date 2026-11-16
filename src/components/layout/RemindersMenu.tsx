@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlarmClock, CreditCard, ShieldAlert, TrendingUp, CheckCircle2, Mail, Loader2, ClipboardCheck, FileCheck, X, Settings } from 'lucide-react';
+import { AlarmClock, CreditCard, ShieldAlert, TrendingUp, CheckCircle2, ClipboardCheck, FileCheck, X, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { fetchReminders, type Reminder, type ReminderKind } from '@/lib/reminders';
 import { loadPrefs, savePrefs, REMINDER_KIND_LABELS, type ReminderPrefs } from '@/lib/reminderPrefs';
 import { Switch } from '@/components/ui/switch';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 const ICONS = {
@@ -24,7 +22,6 @@ export function RemindersMenu() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [sending, setSending] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -45,14 +42,6 @@ export function RemindersMenu() {
   useEffect(() => {
     if (open) load();
   }, [open, load]);
-
-  const emailMe = async () => {
-    setSending(true);
-    const { data, error } = await supabase.functions.invoke('send-reminders', { body: { test: true } });
-    setSending(false);
-    if (error || data?.error) toast.error(data?.error || 'Could not send the reminder email.');
-    else toast.success(data?.sent ? 'Reminder email sent.' : 'Nothing to send right now.');
-  };
 
   const [prefs, setPrefsState] = useState<ReminderPrefs>(loadPrefs);
   const [showSettings, setShowSettings] = useState(false);
@@ -89,9 +78,6 @@ export function RemindersMenu() {
             <p className="text-xs text-muted-foreground">Invoices, insurance, inspections, permits and cost jumps</p>
           </div>
           <div className="flex items-center">
-            <Button size="sm" variant="ghost" onClick={emailMe} disabled={sending} title="Email this list to the admins">
-              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-            </Button>
             <Button size="sm" variant="ghost" onClick={() => setShowSettings((v) => !v)} title="Alert settings" aria-label="Alert settings">
               <Settings className="h-4 w-4" />
             </Button>

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload, Loader2, FileText, X, Trash2, CloudUpload, Database, ClipboardList, Calculator, Sparkles, TrendingUp, Ruler, ArrowRight } from 'lucide-react';
+import { Upload, Loader2, FileText, X, Trash2, CloudUpload, Database, ClipboardList, Calculator, TrendingUp, Ruler, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { missingGcLines } from '@/utils/estimateMath';
 import { PageHero, heroButton, heroButtonPrimary } from '@/components/ui/page-hero';
@@ -512,7 +512,7 @@ export default function Estimating() {
 
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <AccentStat label="Estimates" value={rows.length} icon={Calculator} accent="blue" loading={loading} hint={companyId ? 'This company' : 'All selected companies'} />
-          <AccentStat label="Built in last 30 days" value={stats.recent} icon={Sparkles} accent="indigo" loading={loading} hint="From uploaded plan sets" />
+          <AccentStat label="Built in last 30 days" value={stats.recent} icon={CloudUpload} accent="indigo" loading={loading} hint="From uploaded plan sets" />
           <AccentStat label="Largest estimate" value={currency(stats.largest)} icon={TrendingUp} accent="orange" loading={loading} hint="Recommended bid" />
           <AccentStat
             label="Average $ / SF"
@@ -527,9 +527,6 @@ export default function Estimating() {
         <Card ref={uploadRef} className="scroll-mt-20 overflow-hidden">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b bg-muted/30 px-6 py-4">
             <div className="flex min-w-0 items-start gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
-                <Sparkles className="h-5 w-5" />
-              </span>
               <div className="min-w-0">
                 <h2 className="font-semibold">Build an estimate from the plans</h2>
                 <p className="mt-0.5 text-sm text-muted-foreground">

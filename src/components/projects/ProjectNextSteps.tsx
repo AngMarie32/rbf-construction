@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Circle, ArrowRight, Sparkles } from 'lucide-react';
+import { CheckCircle2, Circle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -110,7 +110,7 @@ export function ProjectNextSteps({ project, counts, onEditProject, onOpenTab }: 
         {/* Next step */}
         <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-6">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-            <Sparkles className="h-4 w-4" /> Next step
+            Next step
           </div>
           <h3 className="mt-2 font-display text-xl font-bold">{next.title}</h3>
           <p className="mt-1 text-sm text-muted-foreground max-w-md">{next.why}</p>
