@@ -3975,6 +3975,38 @@ export type Database = {
           },
         ]
       }
+      project_cost_budgets: {
+        Row: {
+          amount: number
+          cost_type: string
+          id: string
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          cost_type: string
+          id?: string
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          cost_type?: string
+          id?: string
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_cost_budgets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_subcontractors: {
         Row: {
           contract_amount: number | null
@@ -5475,6 +5507,10 @@ export type Database = {
       generate_equipment_alerts: { Args: never; Returns: undefined }
       has_company_access: { Args: { _company_id: string }; Returns: boolean }
       is_app_admin: { Args: { _user_id: string }; Returns: boolean }
+      recalc_project_completion: {
+        Args: { p_project: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
