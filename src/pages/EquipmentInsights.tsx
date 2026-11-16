@@ -31,7 +31,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Sparkles, Loader2, Upload, Truck, Wrench, Activity, Gauge, AlertTriangle } from 'lucide-react';
+import { Loader2, Upload, Truck, Wrench, Activity, Gauge, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PageHero, heroButton, heroButtonPrimary } from '@/components/ui/page-hero';
 import { AccentStat } from '@/components/ui/accent-stat';
@@ -268,7 +268,7 @@ export default function EquipmentInsights() {
       align: 'right',
       cell: (r) => (
         <Button size="sm" variant="outline" disabled={valuingId === r.eq.id} onClick={() => runValuation(r.eq)} title="Run smart valuation">
-          {valuingId === r.eq.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+          {valuingId === r.eq.id && <Loader2 className="w-4 h-4 animate-spin" />}
           Value
         </Button>
       ),
