@@ -17,6 +17,8 @@ MANDATORY METHOD
 Subcontractor bids are Phase 2 evidence only and must never set the baseline.
 
 RULES
+- The estimator's instructions and excluded trades in the user message OVERRIDE everything else here, including the
+  rule against leaving scope out. Excluded trades are not priced at all: no lines, no allowances, no REVIEW lines.
 - Separate BUILDING DIRECT COST, SITE / CIVIL DIRECT COST, BUILDING GENERAL CONDITIONS, SITE GENERAL CONDITIONS and OTHER PROJECT COSTS.
 - Cost line names describe SCOPE ONLY. Never put a subcontractor or supplier name in a baseline cost-line name.
 - Never leave required scope at 0, OPEN or TBD. If it cannot be quantified yet, carry a reasonable projected allowance,
@@ -273,18 +275,42 @@ serve(async (req) => {
   if (!apiKey) return json({ error: "Missing LOVABLE_API_KEY" }, 500);
 
   const { files = [], projectName = "", location = "", areaSf = 0, notes = "", scope = null } = payload;
-  const scopeText = (() => {
-    if (!scope || typeof scope !== "object") return "";
-    const inc: string[] = [];
-    const exc: string[] = [];
-    (scope.building ? inc : exc).push("BUILDING work (building direct cost and building general conditions)");
-    (scope.site ? inc : exc).push("SITE / CIVIL work (earthwork, paving, exterior improvements, and site general conditions)");
-    (scope.utilities ? inc : exc).push("SITE UTILITIES (water, sewer, storm, gas, electrical/telecom duct banks outside the building)");
-    if (!exc.length) return scope.instructions ? `\n\nSCOPE INSTRUCTIONS FROM THE ESTIMATOR (follow exactly): ${scope.instructions}` : "";
-    return `\n\nSCOPE OF THIS ESTIMATE (follow exactly; the plan set may show more than is being priced):
-- PRICE ONLY: ${inc.join("; ") || "nothing selected"}.
-- DO NOT PRICE: ${exc.join("; ")}. Do not add lines, allowances or REVIEW lines for excluded scope, and do not report it in division_coverage except as "not_applicable" with the note "Excluded from this estimate".
-- Use sheets for excluded scope only as reference (e.g. building footprint, connection points).${scope.instructions ? `\n- Additional instructions from the estimator: ${scope.instructions}` : ""}`;
+  const excludeTrades: { label: string; keywords: string[] }[] = Array.isArray(scope?.excludeTrades)
+    ? scope.excludeTrades
+        .filter((t: any) => t && t.label)
+        .map((t: any) => ({ label: String(t.label), keywords: (Array.isArray(t.keywords) ? t.keywords : []).map((k: any) => String(k).toLowerCase()) }))
+    : [];
+  const esc = (k: string) => k.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+  const tradeRes = excludeTrades.map((t) => ({
+    label: t.label,
+    res: [t.label.toLowerCase(), ...t.keywords].map((k) => new RegExp(`(^|[^a-z0-9])${esc(k)}($|[^a-z0-9])`)),
+  }));
+  const excludedTradeOf = (l: any) => {
+    const text = `${l?.section_name || ""} ${l?.name || ""}`.toLowerCase();
+    return tradeRes.find((t) => t.res.some((r) => r.test(text)))?.label;
+  };
+  const removedLines: string[] = [];
+
+  // Put the estimator's own instructions first so they are not lost behind the method text.
+  const priorityText = (() => {
+    const parts: string[] = [];
+    if (scope && typeof scope === "object") {
+      const inc: string[] = [];
+      const exc: string[] = [];
+      (scope.building ? inc : exc).push("BUILDING work (building direct cost and building general conditions)");
+      (scope.site ? inc : exc).push("SITE / CIVIL work (earthwork, paving, exterior improvements, and site general conditions)");
+      (scope.utilities ? inc : exc).push("SITE UTILITIES (water, sewer, storm, gas, electrical/telecom duct banks outside the building)");
+      if (exc.length) {
+        parts.push(`- PRICE ONLY: ${inc.join("; ") || "nothing selected"}.`);
+        parts.push(`- DO NOT PRICE: ${exc.join("; ")}. Use those sheets only as reference (footprint, connection points).`);
+      }
+    }
+    if (excludeTrades.length) {
+      parts.push(`- DO NOT PRICE THESE TRADES ANYWHERE IN THE ESTIMATE (building or site): ${excludeTrades.map((t) => t.label).join("; ")}. They are by others or not in this contract. Do not add lines, allowances, REVIEW lines or subcosts for them. In division_coverage mark them "not_applicable" with the note "Excluded by estimator".`);
+    }
+    const instr = String(scope?.instructions || notes || "").trim();
+    if (instr) parts.push(`- Estimator instructions (follow exactly, they override the default method): ${instr}`);
+    return parts.length ? `ESTIMATOR INSTRUCTIONS — HIGHEST PRIORITY. Read these first and follow them for every line:\n${parts.join("\n")}\n\n` : "";
   })();
   if (!Array.isArray(files) || files.length === 0) return json({ error: "At least one plan file is required" }, 400);
 
@@ -312,12 +338,12 @@ serve(async (req) => {
       try {
         send("status", { message: "Reading the plan documents" });
 
-        const intro = `Analyze the attached construction documents and produce the independent should-cost baseline estimate.
+        const intro = `${priorityText}Analyze the attached construction documents and produce the independent should-cost baseline estimate.
 Project name: ${projectName || "(from the drawings)"}
 Location: ${location || "(from the drawings)"}
 Stated building area: ${areaSf || "(determine from the drawings)"} SF
-${notes ? `Estimator notes / context: ${notes}` : ""}${scopeText}
-Price with current ${new Date().getFullYear()} local/regional commercial construction costs for this location.`;
+${notes ? `Estimator notes / context: ${notes}` : ""}
+Price with current ${new Date().getFullYear()} local/regional commercial construction costs for this location.${priorityText ? "\nReminder: follow the ESTIMATOR INSTRUCTIONS at the top." : ""}`;
 
         const book = Array.isArray(payload.costBook) ? payload.costBook.slice(0, 400) : [];
         const bookText = book.length
@@ -397,7 +423,9 @@ Price with current ${new Date().getFullYear()} local/regional commercial constru
                 text += delta;
                 for (const raw of scanLines(text, scan)) {
                   const line = normalizeLine(raw, lineCount);
-                  if (line) {
+                  const ex = line ? excludedTradeOf(line) : undefined;
+                  if (line && ex) removedLines.push(`${line.name} (${ex})`);
+                  else if (line) {
                     send("line", line);
                     lineCount++;
                   }
@@ -438,7 +466,7 @@ Price with current ${new Date().getFullYear()} local/regional commercial constru
             partial: true,
           };
           const streamed = scanLines(text, scan); // anything after the last delta
-          streamed.forEach((raw) => { const line = normalizeLine(raw, lineCount); if (line) { send("line", line); lineCount++; } });
+          streamed.forEach((raw) => { const line = normalizeLine(raw, lineCount); if (line && !excludedTradeOf(line)) { send("line", line); lineCount++; } });
           if (!lineCount) {
             send("error", { error: timedOut ? "The analysis ran out of time before writing any cost lines. Try fewer or smaller sheets per run." : "The model did not return a usable estimate. Try again." });
             return;
@@ -449,6 +477,14 @@ Price with current ${new Date().getFullYear()} local/regional commercial constru
         }
 
         const result = normalize(parsed, projectName, location, Number(areaSf) || 0);
+        result.lines = result.lines.filter((l: any) => {
+          const ex = excludedTradeOf(l);
+          if (ex && !removedLines.some((r) => r.startsWith(`${l.name} (`))) removedLines.push(`${l.name} (${ex})`);
+          return !ex;
+        });
+        if (removedLines.length) {
+          result.flags.push({ severity: "medium", issue: `Removed ${removedLines.length} line${removedLines.length === 1 ? "" : "s"} for trades you left out`, finding: removedLines.slice(0, 25).join("; "), exposure: null, action: "Check that nothing you wanted was removed." });
+        }
         if (!result.lines.length && lineCount) {
           send("result", { ...result, partial: true });
           return;
