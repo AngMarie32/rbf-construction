@@ -182,6 +182,72 @@ async function gatherData(admin: any, sub: Sub) {
     };
   }
 
+  if (sub.sections.includes('job_cost')) {
+    // Same numbers as the project page's Job Cost tab: budget from the saved split, else the linked
+    // estimate, else bid items; spent = expenses (not rejected) + time entries.
+    const all = async (table: string, cols: string, ids: string[]) => {
+      const out: any[] = [];
+      for (let i = 0; i < ids.length; i += 100) {
+        const chunk = ids.slice(i, i + 100);
+        for (let from = 0; ; from += 1000) {
+          const { data: rows, error } = await admin.from(table).select(cols).in('project_id', chunk).order('id').range(from, from + 999);
+          if (error) break;
+          out.push(...(rows || []));
+          if (!rows || rows.length < 1000) break;
+        }
+      }
+      return out;
+    };
+    let q = companyFilter(admin.from('projects').select('id,name,status,completion_percentage,contract_value,archived_at'));
+    if (sub.project_ids && sub.project_ids.length) q = q.in('id', sub.project_ids);
+    const { data: projs } = await q;
+    const active = (projs || []).filter((p: any) => !p.archived_at && !/complete|closed|cancel/i.test(p.status || ''));
+    const ids = active.map((p: any) => p.id);
+    const jobs: any[] = [];
+    if (ids.length) {
+      const [exps, times, splits, bids] = await Promise.all([
+        all('expenses', 'id,project_id,amount,status', ids),
+        all('time_entries', 'id,project_id,total_cost', ids),
+        all('project_cost_budgets', 'id,project_id,amount', ids),
+        all('bid_items', 'id,project_id,total', ids),
+      ]);
+      const { data: ests } = await admin.from('estimates').select('id,project_id,sov_project_id,updated_at').or(`project_id.in.(${ids.join(',')}),sov_project_id.in.(${ids.join(',')})`);
+      const estFor: Record<string, any> = {};
+      (ests || []).forEach((e: any) => {
+        const pid = ids.includes(e.project_id) ? e.project_id : e.sov_project_id;
+        if (!estFor[pid] || String(e.updated_at) > String(estFor[pid].updated_at)) estFor[pid] = e;
+      });
+      const estIds = Object.values(estFor).map((e: any) => e.id);
+      const estTotal: Record<string, number> = {};
+      for (let i = 0; i < estIds.length; i += 100) {
+        const { data: lines } = await admin.from('estimate_lines').select('estimate_id,baseline_amount,override_amount').in('estimate_id', estIds.slice(i, i + 100));
+        (lines || []).forEach((l: any) => { estTotal[l.estimate_id] = (estTotal[l.estimate_id] || 0) + (Number(l.override_amount ?? l.baseline_amount) || 0); });
+      }
+      const sumBy = (rows: any[], f: (r: any) => number) => rows.reduce((m: Record<string, number>, r: any) => ((m[r.project_id] = (m[r.project_id] || 0) + f(r)), m), {});
+      const spentExp = sumBy(exps.filter((e: any) => e.status !== 'Rejected'), (e) => Number(e.amount) || 0);
+      const spentTime = sumBy(times, (t) => Number(t.total_cost) || 0);
+      const split = sumBy(splits, (b) => Number(b.amount) || 0);
+      const bid = sumBy(bids, (b) => Number(b.total) || 0);
+      active.forEach((p: any) => {
+        const budget = split[p.id] || (estFor[p.id] ? estTotal[estFor[p.id].id] || 0 : 0) || bid[p.id] || 0;
+        const spent = (spentExp[p.id] || 0) + (spentTime[p.id] || 0);
+        const complete = Number(p.completion_percentage) || 0;
+        const used = budget > 0 ? Math.round((spent / budget) * 100) : 0;
+        jobs.push({
+          id: p.id, name: p.name, budget, spent, complete, used,
+          over: budget > 0 && spent > budget,
+          ahead: budget > 0 && used > complete + 10,
+          projected: budget > 0 && complete > 0 ? (spent / complete) * 100 : null,
+        });
+      });
+    }
+    data.job_cost = {
+      flagged: jobs.filter((j) => j.over || j.ahead).sort((a, b) => (b.spent - b.budget) - (a.spent - a.budget)),
+      noBudget: jobs.filter((j) => !j.budget && j.spent > 0).length,
+      checked: jobs.filter((j) => j.budget > 0).length,
+    };
+  }
+
   if (sub.sections.includes('money')) {
     let oq = admin.from('company_obligations').select('id,company_id,direction,kind,counterparty_name,amount,due_date,status');
     if (companyIds) oq = oq.in('company_id', companyIds);
@@ -301,6 +367,7 @@ function buildHtml(sub: Sub, data: any) {
   else if (on('financials') && data.financials) kpis.push({ label: 'Outstanding', value: fmtMoney(data.financials.reduce((s: number, f: any) => s + Number(f.outstanding || 0), 0)) });
   if (on('expenses') && data.expenses) kpis.push({ label: 'Spent', value: fmtMoney(data.expenses.total) });
   if (on('schedule') && data.schedule) kpis.push({ label: 'Overdue tasks', value: String(data.schedule.overdue.length), tone: data.schedule.overdue.length ? 'red' : 'green' });
+  if (on('job_cost') && data.job_cost) kpis.unshift({ label: 'Jobs over budget', value: String(data.job_cost.flagged.length), tone: data.job_cost.flagged.length ? 'red' : 'green' });
   if (kpis.length) body += `<tr><td style="padding:18px 22px 0">${tiles(kpis.slice(0, 4))}</td></tr>`;
 
   if (on('projects') && data.projects && (!onlyChanges || hasItems(data.projects))) {
@@ -341,6 +408,18 @@ function buildHtml(sub: Sub, data: any) {
     body += section('Expenses', `${fmtMoney(e.total)} across ${e.count} entr${e.count === 1 ? 'y' : 'ies'}`,
       sub3('Top vendors') + table(th('Vendor') + th('') + th('Amount', 'right'), rows(e.topVendors)) +
       sub3('By category') + table(th('Category') + th('') + th('Amount', 'right'), rows(e.byCategory)));
+  }
+
+  if (on('job_cost') && data.job_cost && (!onlyChanges || data.job_cost.flagged.length > 0)) {
+    const jc = data.job_cost;
+    const rows = jc.flagged.map((j: any) => {
+      const diff = j.spent - j.budget;
+      const why = j.over ? pill('Over budget', 'red') : pill(`${j.used}% spent, ${j.complete}% done`, 'amber');
+      return `<tr>${td(`<strong>${escapeHtml(j.name)}</strong>`)}${td(why)}${td(fmtMoney(j.budget), 'right')}${td(fmtMoney(j.spent), 'right')}${td(diff > 0 ? `+${fmtMoney(diff)}` : '—', 'right', diff > 0 ? 'color:#b91c1c;font-weight:700' : '')}${td(j.projected ? fmtMoney(j.projected) : '—', 'right', j.projected && j.projected > j.budget ? 'color:#b45309;font-weight:700' : '')}</tr>`;
+    }).join('') || emptyRow(6, `All ${jc.checked} job${jc.checked === 1 ? '' : 's'} with a budget are on track.`);
+    body += section('Jobs over budget', `${jc.flagged.length} of ${jc.checked} job${jc.checked === 1 ? '' : 's'} need a look${jc.noBudget ? ` · ${jc.noBudget} job${jc.noBudget === 1 ? ' has' : 's have'} costs but no budget` : ''}`,
+      table(th('Project') + th('Why') + th('Budget', 'right') + th('Spent', 'right') + th('Over by', 'right') + th('On pace for', 'right'), rows) +
+      `<div style="${FONT};font-size:11px;color:${MUTED};margin-top:6px">Flagged when spending passes the budget, or when the share of budget spent is more than 10 points ahead of % complete. "On pace for" = spent so far ÷ % complete.</div>`);
   }
 
   if (on('payment_apps') && data.payment_apps && (!onlyChanges || data.payment_apps.length > 0)) {
@@ -453,6 +532,12 @@ function buildCsv(sub: Sub, data: any): string {
     const nameById: Record<string, string> = {};
     for (const p of data.properties.properties) nameById[p.id] = p.name;
     for (const u of data.properties.units) row(nameById[u.property_id] || '', u.unit_number, u.status, u.tenant_name || '', u.market_rent ?? 0, u.lease_end || '');
+    lines.push('');
+  }
+  if (data.job_cost?.flagged?.length) {
+    lines.push('# Jobs over budget');
+    row('Project', 'Budget', 'Spent', 'Budget used %', 'Complete %', 'On pace for');
+    for (const j of data.job_cost.flagged) row(j.name, Math.round(j.budget), Math.round(j.spent), j.used, j.complete, j.projected ? Math.round(j.projected) : '');
     lines.push('');
   }
   return lines.join('\n');
@@ -611,6 +696,7 @@ async function buildPdf(sub: Sub, data: any): Promise<Uint8Array> {
   }
   if (on('money') && data.money) kpis.push({ label: 'Collected this week', value: fmtMoney(data.money.collected), color: GREEN });
   if (on('schedule') && data.schedule) kpis.push({ label: 'Overdue tasks', value: String(data.schedule.overdue.length), color: data.schedule.overdue.length ? RED : GREEN });
+  if (on('job_cost') && data.job_cost) kpis.unshift({ label: 'Jobs over budget', value: String(data.job_cost.flagged.length), color: data.job_cost.flagged.length ? RED : GREEN });
   tiles(kpis.slice(0, 4));
 
   if (on('projects') && data.projects) {
@@ -686,6 +772,24 @@ async function buildPdf(sub: Sub, data: any): Promise<Uint8Array> {
     label('Top vendors');
     table([{ h: 'Vendor', w: 70 }, { h: 'Amount', w: 30, align: 'right' }], e.topVendors.map(([v, a]: any) => [{ t: v, bold: true }, fmtMoney(a)]), { empty: 'No expenses.' });
     if (e.byCategory?.length) { label('By category'); table([{ h: 'Category', w: 70 }, { h: 'Amount', w: 30, align: 'right' }], e.byCategory.map(([v, a]: any) => [v, fmtMoney(a)])); }
+  }
+
+  if (on('job_cost') && data.job_cost) {
+    const jc = data.job_cost;
+    heading('Jobs over budget', `${jc.flagged.length} of ${jc.checked} need a look`);
+    table(
+      [{ h: 'Project', w: 30 }, { h: 'Why', w: 22 }, { h: 'Budget', w: 12, align: 'right' }, { h: 'Spent', w: 12, align: 'right' }, { h: 'Over by', w: 12, align: 'right' }, { h: 'On pace for', w: 12, align: 'right' }],
+      jc.flagged.map((j: any) => [
+        { t: j.name, bold: true },
+        { t: j.over ? 'Over budget' : `${j.used}% spent / ${j.complete}% done`, pill: true, color: j.over ? RED : AMBER },
+        fmtMoney(j.budget),
+        fmtMoney(j.spent),
+        { t: j.spent > j.budget ? fmtMoney(j.spent - j.budget) : '-', color: j.spent > j.budget ? RED : MUTED, bold: j.spent > j.budget },
+        { t: j.projected ? fmtMoney(j.projected) : '-', color: j.projected && j.projected > j.budget ? AMBER : undefined },
+      ]),
+      { empty: `All ${jc.checked} jobs with a budget are on track.` }
+    );
+    if (jc.noBudget) note(`${jc.noBudget} job${jc.noBudget === 1 ? ' has' : 's have'} costs but no budget yet.`);
   }
 
   if (on('payment_apps') && data.payment_apps) {

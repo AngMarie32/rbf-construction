@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload, Loader2, FileText, X, Trash2, CloudUpload, Database, ClipboardList, Calculator, TrendingUp, Ruler, ArrowRight } from 'lucide-react';
+import { Upload, Loader2, FileText, X, Trash2, CloudUpload, Database, ClipboardList, Calculator, TrendingUp, Ruler, ArrowRight, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { missingGcLines } from '@/utils/estimateMath';
 import { PageHero, heroButton, heroButtonPrimary } from '@/components/ui/page-hero';
@@ -18,6 +18,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from '@/integrations/supabase/client';
 import { useCompanies } from '@/contexts/CompanyContext';
 import { currency, rollup, EstimateLine } from '@/utils/estimateMath';
+import { TRADES, excludedTradeOf, tradesFromNotes } from '@/lib/estimateTrades';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 
 interface EstimateRow {
@@ -58,6 +61,11 @@ export default function Estimating() {
   // What to price. A full plan set can be uploaded and only part of it estimated.
   const [scope, setScope] = useState({ building: true, site: true, utilities: true });
   const scopeNone = !scope.building && !scope.site && !scope.utilities;
+  // Trades to leave out (picked from the list, plus any the notes mention, e.g. "no concrete or asphalt").
+  const [excludedIds, setExcludedIds] = useState<string[]>([]);
+  const [tradeOpen, setTradeOpen] = useState(false);
+  const fromNotes = tradesFromNotes(notes).filter((t) => !excludedIds.includes(t.id));
+  const excludedTrades = [...TRADES.filter((t) => excludedIds.includes(t.id)), ...fromNotes];
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -191,7 +199,7 @@ export default function Estimating() {
             location,
             areaSf: Number(areaSf) || 0,
             notes: (notes || '') + partNote,
-            scope: { ...scope, instructions: notes || undefined },
+            scope: { ...scope, instructions: notes || undefined, excludeTrades: excludedTrades.map((t) => ({ label: t.label, keywords: t.keywords })) },
             costBook,
           }),
         });
@@ -268,7 +276,20 @@ export default function Estimating() {
         ...(scope.site || scope.utilities ? ['site', 'site_gc'] : []),
         'other',
       ]);
-      results.flatMap((r) => r.lines || []).filter((l: any) => allowed.has(l.group_key)).forEach((l: any) => {
+      // Safety net: drop any line for a trade that was left out, even if the AI priced it anyway.
+      const removed: string[] = [];
+      const allLines = results.flatMap((r) => r.lines || []).filter((l: any) => {
+        const t = excludedTradeOf(l, excludedTrades);
+        if (t) removed.push(`${l.name} (${t.label})`);
+        return !t;
+      });
+      if (removed.length) {
+        results[0].flags = [
+          ...(results[0].flags || []),
+          { severity: 'medium', issue: `Removed ${removed.length} line${removed.length === 1 ? '' : 's'} for trades you left out`, finding: removed.slice(0, 25).join('; '), exposure: null, action: 'Check that nothing you wanted was removed. Add it back by hand if needed.' },
+        ];
+      }
+      allLines.filter((l: any) => allowed.has(l.group_key)).forEach((l: any) => {
         const key = `${l.group_key}|${String(l.name).trim().toLowerCase()}`;
         const prev = merged.get(key);
         if (!prev || Number(l.baseline_amount) > Number(prev.baseline_amount)) merged.set(key, l);
@@ -302,7 +323,7 @@ export default function Estimating() {
         profit_pct: result.settings?.profit_pct ?? 6,
         bond_pct: result.settings?.bond_pct ?? 1,
         created_by: userId ?? null,
-        scope,
+        scope: { ...scope, excluded_trades: excludedTrades.map((t) => t.label) },
       };
       let ins = await supabase.from('estimates').insert(estRow as any).select('id').single();
       if (ins.error && /scope|schema cache|column/i.test(ins.error.message)) {
@@ -587,6 +608,56 @@ export default function Estimating() {
             </div>
 
             <div>
+              <Label>Leave out these trades</Label>
+              <Popover open={tradeOpen} onOpenChange={setTradeOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className="mt-1.5 flex min-h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-left text-sm"
+                  >
+                    <span className={cn('flex flex-wrap gap-1', !excludedIds.length && 'text-muted-foreground')}>
+                      {excludedIds.length
+                        ? TRADES.filter((t) => excludedIds.includes(t.id)).map((t) => (
+                            <span key={t.id} className="rounded bg-red-500/10 px-1.5 py-0.5 text-xs font-medium text-red-700 dark:text-red-300">{t.label}</span>
+                          ))
+                        : 'Price every trade in the selected scope'}
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="max-h-[60vh] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto p-3">
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {(['Site & civil', 'Site utilities', 'Building'] as const).map((g) => (
+                      <div key={g}>
+                        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g}</p>
+                        <div className="space-y-1">
+                          {TRADES.filter((t) => t.group === g).map((t) => (
+                            <label key={t.id} className="flex cursor-pointer items-start gap-2 rounded px-1 py-1 text-sm hover:bg-muted/50">
+                              <Checkbox
+                                className="mt-0.5"
+                                checked={excludedIds.includes(t.id)}
+                                onCheckedChange={(v) => setExcludedIds((p) => (v ? [...p, t.id] : p.filter((x) => x !== t.id)))}
+                              />
+                              <span>{t.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex justify-between border-t pt-2">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setExcludedIds([])}>Clear</Button>
+                    <Button type="button" size="sm" onClick={() => setTradeOpen(false)}>Done</Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Ticked trades are not priced, and any line for them is removed from the result.
+              </p>
+            </div>
+
+            <div>
               <Label>Instructions and notes for the estimator</Label>
               <Textarea
                 value={notes}
@@ -594,6 +665,12 @@ export default function Estimating() {
                 rows={2}
                 placeholder="Specific instructions, e.g. exclude landscaping, owner supplies the transformer, phase 1 only"
               />
+              {fromNotes.length > 0 && (
+                <p className="mt-1.5 text-xs text-orange-700 dark:text-orange-300">
+                  From your notes, these will also be left out: <strong>{fromNotes.map((t) => t.label).join(', ')}</strong>
+                </p>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">The AI is told to follow these notes before anything else.</p>
             </div>
 
             <input
