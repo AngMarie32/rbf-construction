@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -92,9 +92,6 @@ export function WorkflowStepper({
       {next && nextStep && (
         <div className="flex flex-col gap-3 border-t bg-orange-500/[0.06] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
-            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-500/15 text-orange-600 dark:text-orange-400">
-              <Sparkles className="h-4 w-4" />
-            </span>
             <div className="min-w-0">
               <p className="text-sm font-semibold">Next step: {nextStep.name}</p>
               <p className="text-xs text-muted-foreground">{next.disabled && next.disabledReason ? next.disabledReason : next.description}</p>

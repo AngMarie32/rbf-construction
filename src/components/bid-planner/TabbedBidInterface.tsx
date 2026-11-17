@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowRight, Calculator, FileText, Settings } from 'lucide-react';
-import { Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BidTemplateSelector } from './BidTemplateSelector';
@@ -210,7 +209,6 @@ export function TabbedBidInterface({
               Create Bid
             </TabsTrigger>
             <TabsTrigger value="blueprint" className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
               Blueprint AI
             </TabsTrigger>
             <TabsTrigger value="templates" className="flex items-center gap-2">

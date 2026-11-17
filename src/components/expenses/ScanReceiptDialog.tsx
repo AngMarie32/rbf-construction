@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, Loader2, Sparkles, RotateCcw } from 'lucide-react';
+import { Camera, Loader2, RotateCcw } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -209,7 +209,6 @@ export function ScanReceiptDialog({ onExpenseCreated, defaultProjectId, triggerL
                 {preview && <img src={preview} alt="Receipt" className="h-28 w-20 shrink-0 rounded-lg border object-cover" />}
                 <div className="flex-1 space-y-2 text-sm">
                   <div className="flex items-center gap-2 font-medium">
-                    <Sparkles className="h-4 w-4 text-primary" />
                     {confidence == null ? 'Enter the details below' : lowConfidence ? 'Hard to read. Please double-check.' : 'Filled in from your receipt'}
                   </div>
                   <Button type="button" size="sm" variant="ghost" onClick={() => { reset(); fileRef.current?.click(); }}>

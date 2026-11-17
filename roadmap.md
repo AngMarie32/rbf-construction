@@ -12,4 +12,6 @@
 - [ ] Workflow continuity: carry project into Proposals/SOV and add one-click Bid → Proposal → SOV → Payment Application handoffs
 - [ ] Report Import: remember vendor destination/project/cost code, auto-fill future uploads, and manage saved rules
 - [ ] Compact tables: collapsible filters, sticky headers, and small-screen horizontal-scroll cues
+- [ ] Stop reminder alerts from sending emails while keeping in-app reminders
+- [ ] Remove AI sparkle icons from the interface
 

@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Upload, Sparkles, Loader2, FileText, X } from "lucide-react";
+import { Upload, Loader2, FileText, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -413,7 +413,6 @@ export default function BlueprintAnalyzer({ embeddedProjectId }: Props) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5" />
             Blueprint to Bid
           </CardTitle>
         </CardHeader>
