@@ -5488,6 +5488,8 @@ export type Database = {
         Args: { admin_notes?: string; request_id: string }
         Returns: undefined
       }
+      can_access_chat_room: { Args: { _room_id: string }; Returns: boolean }
+      can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
       compute_next_scheduled_send: {
         Args: {
           p_after: string
@@ -5505,7 +5507,9 @@ export type Database = {
         Returns: string
       }
       generate_equipment_alerts: { Args: never; Returns: undefined }
+      has_any_company_access: { Args: never; Returns: boolean }
       has_company_access: { Args: { _company_id: string }; Returns: boolean }
+      has_project_access: { Args: { _project_id: string }; Returns: boolean }
       is_app_admin: { Args: { _user_id: string }; Returns: boolean }
       recalc_project_completion: {
         Args: { p_project: string }
