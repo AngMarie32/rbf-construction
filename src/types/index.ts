@@ -139,6 +139,7 @@ export interface Proposal {
   amount: number;
   status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
   validDays?: number;
+  validUntil?: string;
   notes?: string;
   proposalItems?: Array<{
     description: string;

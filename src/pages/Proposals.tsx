@@ -194,6 +194,7 @@ export default function Proposals() {
         clientEmail: proposal.raw?.client_email || undefined,
         projectAddress: proposal.raw?.project_address || undefined,
         validDays: proposal.raw?.valid_days || undefined,
+        validUntil: proposal.raw?.valid_until || undefined,
         notes: proposal.raw?.notes || undefined,
         proposalItems: Array.isArray(proposal.raw?.proposal_items) ? proposal.raw.proposal_items : undefined,
       });
@@ -230,6 +231,8 @@ export default function Proposals() {
       createdAt: new Date(proposal.created_at),
       status: modalStatus,
       amount: proposal.amount,
+      validDays: proposal.raw?.valid_days || undefined,
+      validUntil: proposal.raw?.valid_until || undefined,
     };
   };
 
@@ -455,6 +458,7 @@ export default function Proposals() {
                 clientEmail: selectedProposal.raw?.client_email,
                 projectAddress: selectedProposal.raw?.project_address,
                 validDays: selectedProposal.raw?.valid_days,
+                validUntil: selectedProposal.raw?.valid_until,
                 notes: selectedProposal.raw?.notes,
                 proposalItems: selectedProposal.raw?.proposal_items,
                 projectId: selectedProposal.raw?.project_id,

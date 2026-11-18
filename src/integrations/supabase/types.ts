@@ -4281,6 +4281,7 @@ export type Database = {
           status: string | null
           updated_at: string | null
           valid_days: number | null
+          valid_until: string | null
         }
         Insert: {
           amount?: number
@@ -4300,6 +4301,7 @@ export type Database = {
           status?: string | null
           updated_at?: string | null
           valid_days?: number | null
+          valid_until?: string | null
         }
         Update: {
           amount?: number
@@ -4319,6 +4321,7 @@ export type Database = {
           status?: string | null
           updated_at?: string | null
           valid_days?: number | null
+          valid_until?: string | null
         }
         Relationships: [
           {

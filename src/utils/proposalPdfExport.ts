@@ -1,4 +1,5 @@
 import { fillProposalText, loadProposalSettings, resolveProposalTerms } from '@/lib/proposalSettings';
+import { resolveProposalValidUntil } from '@/lib/proposalValidity';
 import { DocKit, loadCompany, usd, fmtDate, fileSlug } from './pdfDocKit';
 
 interface ProposalData {
@@ -15,6 +16,7 @@ interface ProposalData {
   scope?: string;
   notes?: string;
   validDays?: number;
+  validUntil?: string;
   terms?: string[];
   proposalItems?: Array<{
     description: string;
@@ -29,8 +31,7 @@ interface ProposalData {
 export const generateProfessionalProposalPDF = async (proposal: ProposalData) => {
   const [company, wording] = await Promise.all([loadCompany(), loadProposalSettings()]);
   const validDays = proposal.validDays || wording.validDays;
-  const validUntil = new Date(proposal.createdAt);
-  validUntil.setDate(validUntil.getDate() + validDays);
+  const validUntil = resolveProposalValidUntil(proposal.createdAt, validDays, proposal.validUntil);
   const ref = proposal.id ? `No. P-${proposal.id.replace(/-/g, '').slice(0, 6).toUpperCase()}` : '';
 
   const items = (proposal.proposalItems || []).filter((i) => (i.description || '').trim() || Number(i.total) || Number(i.unitPrice));

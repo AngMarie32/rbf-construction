@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { DEFAULT_PROPOSAL_SETTINGS, fillProposalText, loadProposalSettings, type ProposalSettings } from '@/lib/proposalSettings';
+import { resolveProposalValidUntil } from '@/lib/proposalValidity';
 
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -190,7 +191,12 @@ Thank you for considering our proposal. We look forward to working with you.
                   </span>
                 </div>
                 <div className="text-sm text-muted-foreground space-y-1">
-                  <p>• Valid for {wording.validDays} days from proposal date</p>
+                  <p>
+                    • Valid until {format(
+                      resolveProposalValidUntil(proposal.createdAt, proposal.validDays || wording.validDays, proposal.validUntil),
+                      'MMMM dd, yyyy'
+                    )}
+                  </p>
                   <p>• Payment terms: Net 30 days</p>
                 </div>
               </CardContent>

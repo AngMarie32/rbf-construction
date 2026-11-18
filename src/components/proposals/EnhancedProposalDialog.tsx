@@ -51,7 +51,9 @@ export function EnhancedProposalDialog({
     description: '',
     amount: 0,
     status: 'Draft' as 'Draft' | 'Sent' | 'Approved' | 'Rejected',
+    validityMode: 'days' as 'days' | 'date',
     validDays: 30,
+    validUntil: '',
     notes: ''
   });
 
@@ -92,7 +94,9 @@ export function EnhancedProposalDialog({
         description: proposal.scope || '',
         amount: proposal.amount || 0,
         status: proposal.status || 'Draft',
+        validityMode: proposal.validUntil ? 'date' : 'days',
         validDays: proposal.validDays || 30,
+        validUntil: proposal.validUntil || '',
         notes: proposal.notes || ''
       });
       setProjectId(proposal.projectId || 'none');
@@ -149,6 +153,10 @@ export function EnhancedProposalDialog({
       toast.error('Please fill in all required fields');
       return;
     }
+    if (formData.validityMode === 'date' && !formData.validUntil) {
+      toast.error('Choose the date this proposal is valid through');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -165,6 +173,7 @@ export function EnhancedProposalDialog({
         amount: totalAmount,
         status: formData.status,
         valid_days: formData.validDays,
+        valid_until: formData.validityMode === 'date' ? formData.validUntil : null,
         notes: formData.notes,
         proposal_items: proposalItems as any,
         project_id: projectId === 'none' ? null : projectId,
@@ -303,14 +312,43 @@ export function EnhancedProposalDialog({
                 />
               </div>
               <div>
-                <Label htmlFor="validDays">Proposal Valid (Days)</Label>
-                <Input
-                  id="validDays"
-                  type="number"
-                  value={formData.validDays}
-                  onChange={(e) => setFormData({ ...formData, validDays: parseInt(e.target.value) || 30 })}
-                />
+                <Label htmlFor="validityMode">Proposal Validity</Label>
+                <Select
+                  value={formData.validityMode}
+                  onValueChange={(value: 'days' | 'date') => setFormData({ ...formData, validityMode: value })}
+                >
+                  <SelectTrigger id="validityMode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="days">Number of days</SelectItem>
+                    <SelectItem value="date">Exact valid-through date</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+              {formData.validityMode === 'days' ? (
+                <div>
+                  <Label htmlFor="validDays">Valid For (Days)</Label>
+                  <Input
+                    id="validDays"
+                    type="number"
+                    min="1"
+                    value={formData.validDays}
+                    onChange={(e) => setFormData({ ...formData, validDays: parseInt(e.target.value) || 30 })}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="validUntil">Valid Until</Label>
+                  <Input
+                    id="validUntil"
+                    type="date"
+                    value={formData.validUntil}
+                    onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
+                    required
+                  />
+                </div>
+              )}
               <div className="md:col-span-2">
                 <Label htmlFor="clientAddress">Client Address</Label>
                 <Textarea
