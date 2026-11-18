@@ -1,4 +1,4 @@
-import { fillProposalText, loadProposalSettings } from '@/lib/proposalSettings';
+import { fillProposalText, loadProposalSettings, resolveProposalTerms } from '@/lib/proposalSettings';
 import { DocKit, loadCompany, usd, fmtDate, fileSlug } from './pdfDocKit';
 
 interface ProposalData {
@@ -92,10 +92,12 @@ export const generateProfessionalProposalPDF = async (proposal: ProposalData) =>
     doc.totals([{ label: 'Total project cost', value: usd(total) }]);
   }
 
-  doc.heading('Terms and conditions');
-  // Terms from Settings → Proposals unless this proposal has its own.
-  const terms = (proposal.terms?.length ? [...proposal.terms] : wording.terms).map((t) => fillProposalText(t, { company: company.name, project: proposal.projectName, days: validDays }));
-  doc.bullets(terms);
+  // Terms from Settings → Proposals unless this proposal has its own. No terms means no section.
+  const terms = resolveProposalTerms(proposal.terms, wording.terms, { company: company.name, project: proposal.projectName, days: validDays });
+  if (terms.length) {
+    doc.heading('Terms and conditions');
+    doc.bullets(terms);
+  }
 
   if (proposal.notes?.trim()) {
     doc.heading('Notes');

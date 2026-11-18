@@ -67,3 +67,17 @@ export const fillProposalText = (text: string, vars: { company?: string; project
     .replace(/\{company\}/g, vars.company || 'We')
     .replace(/\{project\}/g, vars.project || 'this project')
     .replace(/\{days\}/g, String(vars.days ?? 30));
+
+/**
+ * The terms a proposal should show: its own terms when it has them, otherwise the
+ * company-wide wording. Blank entries are dropped, so an empty result means there is
+ * nothing to show and the proposal PDF leaves the Terms and conditions section out.
+ */
+export const resolveProposalTerms = (
+  proposalTerms: string[] | undefined,
+  wordingTerms: string[],
+  vars: { company?: string; project?: string; days?: number }
+) =>
+  (proposalTerms?.length ? proposalTerms : wordingTerms)
+    .map((t) => fillProposalText(t, vars))
+    .filter((t) => t.trim());
