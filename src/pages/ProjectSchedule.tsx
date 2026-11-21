@@ -39,6 +39,7 @@ const parseDay = (v: string | null | undefined) => {
   return new Date(y, (m || 1) - 1, d || 1);
 };
 import { WeatherScheduleAdjuster } from '@/components/schedule/WeatherScheduleAdjuster';
+import { PlanScheduleDialog } from '@/components/schedule/PlanScheduleDialog';
 
 interface Project {
   id: string;
@@ -69,6 +70,7 @@ export default function ProjectSchedule() {
   const [projectDelayDialogOpen, setProjectDelayDialogOpen] = useState(false);
   const [resourceLevelingOpen, setResourceLevelingOpen] = useState(false);
   const [weatherAdjusterOpen, setWeatherAdjusterOpen] = useState(false);
+  const [planScheduleOpen, setPlanScheduleOpen] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -314,6 +316,9 @@ export default function ProjectSchedule() {
           actions={
             <>
               <CreateTaskDialog projects={projects} tasks={tasks} onTaskCreated={fetchTasks} />
+              <button type="button" className={heroButton} onClick={() => setPlanScheduleOpen(true)}>
+                <Calendar className="h-4 w-4" /> Plans to schedule
+              </button>
               <button type="button" className={heroButton} onClick={() => setQuickPlannerOpen(true)}>
                 <Zap className="h-4 w-4" /> Quick planner
               </button>
@@ -537,6 +542,17 @@ export default function ProjectSchedule() {
           onOpenChange={setWeatherAdjusterOpen}
           tasks={filteredTasks}
           onUpdateTasks={handleBulkUpdateTasks}
+        />
+
+        <PlanScheduleDialog
+          open={planScheduleOpen}
+          onOpenChange={setPlanScheduleOpen}
+          projects={projects}
+          initialProjectId={singleProject?.id}
+          onSaved={(projectId) => {
+            setSelectedProjects([projectId]);
+            fetchTasks();
+          }}
         />
       </div>
     </Layout>

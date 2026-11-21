@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Download, RotateCcw, Plus, Trash2, ListChecks, ExternalLink, Link2 } from 'lucide-react';
 import { SendToSovDialog } from '@/components/estimating/SendToSovDialog';
 import { SendToBidPlannerDialog, BidPlannerMode } from '@/components/estimating/SendToBidPlannerDialog';
+import { PlanScheduleDialog } from '@/components/schedule/PlanScheduleDialog';
 import { sortProjectsOpenFirst } from '@/utils/projectOrder';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -47,6 +48,7 @@ interface EstimateRecord {
   overhead_pct: number;
   profit_pct: number;
   bond_pct: number;
+  source_files: Array<{ url: string; name: string; fileType?: string }> | null;
 }
 
 interface Subcost {
@@ -100,6 +102,7 @@ export default function EstimateDashboard() {
   const [newBid, setNewBid] = useState({ trade: '', company_name: '', raw_amount: '' });
   const [sovOpen, setSovOpen] = useState(false);
   const [bpMode, setBpMode] = useState<BidPlannerMode | null>(null);
+  const [planScheduleOpen, setPlanScheduleOpen] = useState(false);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
 
   const load = useCallback(async () => {
@@ -289,6 +292,9 @@ export default function EstimateDashboard() {
                   </Button>
                 </>
               )}
+              <Button variant="outline" size="sm" onClick={() => setPlanScheduleOpen(true)}>
+                Create schedule
+              </Button>
               <Button variant="outline" size="sm" asChild>
                 <Link to="/cost-database">
                   <ExternalLink className="mr-2 h-4 w-4" />
@@ -784,6 +790,25 @@ export default function EstimateDashboard() {
           areaSf={est.area_sf ?? 0}
           defaultProjectId={est.project_id ?? est.sov_project_id ?? null}
           onDone={load}
+        />
+        <PlanScheduleDialog
+          open={planScheduleOpen}
+          onOpenChange={setPlanScheduleOpen}
+          projects={projects}
+          initialProjectId={est.project_id || undefined}
+          estimate={{
+            name: est.name,
+            files: est.source_files || [],
+            lines: lines.map((line) => ({
+              name: line.name,
+              section: line.section_name,
+              quantity: line.quantity,
+              unit: line.unit,
+            })),
+          }}
+          onSaved={(projectId) => {
+            if (!est.project_id) linkProject(projectId);
+          }}
         />
       </div>
     </Layout>

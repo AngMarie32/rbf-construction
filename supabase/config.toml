@@ -31,3 +31,6 @@ verify_jwt = true
 
 [functions.scan-receipt]
 verify_jwt = true
+
+[functions.generate-schedule]
+verify_jwt = true

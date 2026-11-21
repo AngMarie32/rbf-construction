@@ -14,4 +14,5 @@
 - [ ] Compact tables: collapsible filters, sticky headers, and small-screen horizontal-scroll cues
 - [ ] Stop reminder alerts from sending emails while keeping in-app reminders
 - [ ] Remove AI sparkle icons from the interface
+- [x] Plan-based schedules: generate from Bid Estimator documents and from a Schedule page upload, with review before saving
 
