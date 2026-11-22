@@ -54,6 +54,7 @@ import WeeklyReports from '@/pages/WeeklyReports';
 import BlueprintAnalyzer from '@/pages/BlueprintAnalyzer';
 import CompaniesPage from '@/pages/Companies';
 import Properties from '@/pages/Properties';
+import LeaseDetails from '@/pages/LeaseDetails';
 import Loans from '@/pages/Loans';
 import OperatingCosts from '@/pages/OperatingCosts';
 import OwnerMoney from '@/pages/OwnerMoney';
@@ -99,6 +100,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Properties />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/properties/units/:unitId/lease"
+              element={
+                <ProtectedRoute>
+                  <LeaseDetails />
                 </ProtectedRoute>
               }
             />

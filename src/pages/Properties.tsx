@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { Building2, CalendarClock, DoorOpen, Home, MoreHorizontal, Pencil, Plus, Trash2, TrendingDown, Users, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompanies } from '@/contexts/CompanyContext';
@@ -41,6 +42,11 @@ interface Property {
   property_type: string;
   purchase_price: number | null;
   notes: string | null;
+}
+
+interface LeaseSummary {
+  unit_id: string;
+  lease_type: string;
 }
 
 interface Unit {
@@ -108,8 +114,10 @@ const emptyUnit = (propertyId: string): Unit => ({
 
 export default function Properties() {
   const { companies, selectedIds } = useCompanies();
+  const navigate = useNavigate();
   const [properties, setProperties] = useState<Property[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [leases, setLeases] = useState<LeaseSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [propForm, setPropForm] = useState<Property | null>(null);
   const [unitForm, setUnitForm] = useState<Unit | null>(null);
@@ -122,6 +130,7 @@ export default function Properties() {
     if (selectedIds.length === 0) {
       setProperties([]);
       setUnits([]);
+      setLeases([]);
       setLoading(false);
       return;
     }
@@ -135,8 +144,19 @@ export default function Properties() {
         .select('*')
         .in('property_id', list.map((p) => p.id))
         .order('unit_number');
-      setUnits(((u as any) || []) as Unit[]);
-    } else setUnits([]);
+      const unitList = ((u as any) || []) as Unit[];
+      setUnits(unitList);
+      if (unitList.length) {
+        const { data: leaseRows } = await supabase
+          .from('property_leases')
+          .select('unit_id, lease_type')
+          .in('unit_id', unitList.map((unit) => unit.id));
+        setLeases(((leaseRows as any) || []) as LeaseSummary[]);
+      } else setLeases([]);
+    } else {
+      setUnits([]);
+      setLeases([]);
+    }
     setLoading(false);
   }, [selectedIds]);
 
@@ -261,6 +281,15 @@ export default function Properties() {
         ),
     },
     {
+      id: 'leaseType',
+      header: 'Lease type',
+      value: (u) => leases.find((lease) => lease.unit_id === u.id)?.lease_type || 'Not set',
+      cell: (u) => {
+        const leaseType = leases.find((lease) => lease.unit_id === u.id)?.lease_type;
+        return <span className="text-sm text-muted-foreground">{leaseType ? label(leaseType) : 'Not set'}</span>;
+      },
+    },
+    {
       id: 'lease',
       header: 'Lease ends',
       value: (u) => u.lease_end,
@@ -293,7 +322,10 @@ export default function Properties() {
       align: 'right',
       noExport: true,
       cell: (u) => (
-        <div className="flex justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+          <Button variant="ghost" size="sm" className="h-8" onClick={() => navigate(`/properties/units/${u.id}/lease`)}>
+            Lease
+          </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit unit" onClick={() => setUnitForm(u)}>
             <Pencil className="h-4 w-4" />
           </Button>

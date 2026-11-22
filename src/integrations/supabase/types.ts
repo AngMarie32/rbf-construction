@@ -4197,6 +4197,165 @@ export type Database = {
           },
         ]
       }
+      property_lease_documents: {
+        Row: {
+          content_type: string | null
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          lease_id: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          lease_id: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          lease_id?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_lease_documents_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "property_leases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_lease_rent_bumps: {
+        Row: {
+          created_at: string
+          end_year: number
+          id: string
+          increase_percent: number
+          lease_id: string
+          start_year: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_year: number
+          id?: string
+          increase_percent?: number
+          lease_id: string
+          start_year: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_year?: number
+          id?: string
+          increase_percent?: number
+          lease_id?: string
+          start_year?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_lease_rent_bumps_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "property_leases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_leases: {
+        Row: {
+          admin_fee_cap_percent: number | null
+          allocation_method: string
+          base_nnn_monthly: number
+          cam_cap_type: string
+          cam_cap_value: number | null
+          created_at: string
+          custom_admin_fee_percent: number | null
+          custom_management_fee_amount: number | null
+          custom_management_fee_percent: number | null
+          custom_management_fee_type: string | null
+          fixed_allocation_percent: number | null
+          id: string
+          lease_type: string
+          management_fee_cap_type: string
+          management_fee_cap_value: number | null
+          notes: string | null
+          renewal_terms: string | null
+          security_deposit: number | null
+          unit_id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_fee_cap_percent?: number | null
+          allocation_method?: string
+          base_nnn_monthly?: number
+          cam_cap_type?: string
+          cam_cap_value?: number | null
+          created_at?: string
+          custom_admin_fee_percent?: number | null
+          custom_management_fee_amount?: number | null
+          custom_management_fee_percent?: number | null
+          custom_management_fee_type?: string | null
+          fixed_allocation_percent?: number | null
+          id?: string
+          lease_type?: string
+          management_fee_cap_type?: string
+          management_fee_cap_value?: number | null
+          notes?: string | null
+          renewal_terms?: string | null
+          security_deposit?: number | null
+          unit_id: string
+          updated_at?: string
+        }
+        Update: {
+          admin_fee_cap_percent?: number | null
+          allocation_method?: string
+          base_nnn_monthly?: number
+          cam_cap_type?: string
+          cam_cap_value?: number | null
+          created_at?: string
+          custom_admin_fee_percent?: number | null
+          custom_management_fee_amount?: number | null
+          custom_management_fee_percent?: number | null
+          custom_management_fee_type?: string | null
+          fixed_allocation_percent?: number | null
+          id?: string
+          lease_type?: string
+          management_fee_cap_type?: string
+          management_fee_cap_value?: number | null
+          notes?: string | null
+          renewal_terms?: string | null
+          security_deposit?: number | null
+          unit_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_leases_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: true
+            referencedRelation: "property_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_units: {
         Row: {
           bathrooms: number | null
