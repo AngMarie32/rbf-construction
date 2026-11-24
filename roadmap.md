@@ -15,6 +15,6 @@
 - [ ] Stop reminder alerts from sending emails while keeping in-app reminders
 - [ ] Remove AI sparkle icons from the interface
 - [x] Plan-based schedules: generate from Bid Estimator documents and from a Schedule page upload, with review before saving
-- [ ] Lease management: terms, rent escalations, CAM/fee caps, and company-scoped lease documents on property units
-- [ ] RBF Tracker analytics: keep operational reconciliation/water data there and establish a read-only analytics connection
+- [x] Lease management: terms, rent escalations, CAM/fee caps, and company-scoped lease documents on property units
+- [ ] RBF Tracker analytics: keep operational reconciliation/water data there and establish a read-only analytics connection (blocked: read-only access was not provided)
 

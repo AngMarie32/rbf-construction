@@ -117,7 +117,6 @@ export default function LeaseDetails() {
   const [unit, setUnit] = useState<UnitRecord | null>(null);
   const [property, setProperty] = useState<PropertyRecord | null>(null);
   const [form, setForm] = useState<LeaseForm>(emptyLease);
-  const [leaseId, setLeaseId] = useState<string | null>(null);
   const [bumps, setBumps] = useState<RentBumpRow[]>([]);
   const [documents, setDocuments] = useState<LeaseDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,7 +173,6 @@ export default function LeaseDetails() {
       return;
     }
     if (lease) {
-      setLeaseId(lease.id);
       setForm({
         lease_type: lease.lease_type,
         security_deposit: lease.security_deposit,
@@ -200,7 +198,6 @@ export default function LeaseDetails() {
       if (bumpError) toast.error(bumpError.message);
       setBumps((bumpData || []) as RentBumpRow[]);
     } else {
-      setLeaseId(null);
       setForm(emptyLease);
       setBumps([]);
       setDocuments([]);
@@ -266,13 +263,11 @@ export default function LeaseDetails() {
       );
       if (insertError) toast.error(insertError.message);
       else {
-        setLeaseId(savedLease.id);
         setSaving(false);
         if (showConfirmation) toast.success('Lease terms saved');
         return savedLease.id;
       }
     } else if (!deleteError) {
-      setLeaseId(savedLease.id);
       setSaving(false);
       if (showConfirmation) toast.success('Lease terms saved');
       return savedLease.id;
