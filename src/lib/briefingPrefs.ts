@@ -1,9 +1,13 @@
 /** Per-browser Morning Briefing preferences: which sections show, their order, and the last day it was reviewed. */
 export type BriefingSection =
   | 'tasks_today' | 'inspections' | 'insurance' | 'permits'
-  | 'invoices_overdue' | 'pending_approvals' | 'cost_spikes' | 'lease_expirations';
+  | 'invoices_overdue' | 'pending_approvals' | 'cost_spikes' | 'lease_expirations'
+  | 'exec_snapshot' | 'exec_profit_erosion' | 'exec_receivables';
 
 export const BRIEFING_SECTION_LABELS: Record<BriefingSection, string> = {
+  exec_snapshot: 'Executive snapshot',
+  exec_profit_erosion: 'Projects losing profit',
+  exec_receivables: 'Receivables past due',
   tasks_today: 'Schedule activities today',
   inspections: 'Permit inspections today/tomorrow',
   insurance: 'Subcontractor insurance',
@@ -17,6 +21,7 @@ export const BRIEFING_SECTION_LABELS: Record<BriefingSection, string> = {
 export const DEFAULT_ORDER = Object.keys(BRIEFING_SECTION_LABELS) as BriefingSection[];
 
 export interface BriefingPrefs {
+  enabled: boolean;
   order: BriefingSection[];
   hidden: BriefingSection[];
   autoOpen: boolean;
@@ -25,7 +30,7 @@ export interface BriefingPrefs {
 }
 
 const KEY = 'rbf-briefing-prefs';
-export const DEFAULT_PREFS: BriefingPrefs = { order: DEFAULT_ORDER, hidden: [], autoOpen: true, leaseWindowDays: 60, reviewedOn: null };
+export const DEFAULT_PREFS: BriefingPrefs = { enabled: true, order: DEFAULT_ORDER, hidden: [], autoOpen: true, leaseWindowDays: 60, reviewedOn: null };
 
 export function normalizePrefs(raw: Partial<BriefingPrefs> | null | undefined): BriefingPrefs {
   const p = raw || {};
@@ -33,6 +38,7 @@ export function normalizePrefs(raw: Partial<BriefingPrefs> | null | undefined): 
   const order = [...new Set([...known, ...DEFAULT_ORDER])];
   const days = Number(p.leaseWindowDays);
   return {
+    enabled: p.enabled !== false,
     order,
     hidden: (p.hidden || []).filter((s) => s in BRIEFING_SECTION_LABELS),
     autoOpen: p.autoOpen !== false,
@@ -44,7 +50,11 @@ export function normalizePrefs(raw: Partial<BriefingPrefs> | null | undefined): 
 export function loadBriefingPrefs(): BriefingPrefs {
   try { return normalizePrefs(JSON.parse(localStorage.getItem(KEY) || '{}')); } catch { return { ...DEFAULT_PREFS }; }
 }
-export function saveBriefingPrefs(p: BriefingPrefs) { localStorage.setItem(KEY, JSON.stringify(p)); }
+export const BRIEFING_PREFS_EVENT = 'rbf-briefing-prefs-changed';
+export function saveBriefingPrefs(p: BriefingPrefs) {
+  localStorage.setItem(KEY, JSON.stringify(p));
+  try { window.dispatchEvent(new Event(BRIEFING_PREFS_EVENT)); } catch { /* non-browser */ }
+}
 
 /** Local (Eastern for the user) calendar day key. */
 export function localDayKey(d = new Date()) {
@@ -52,7 +62,7 @@ export function localDayKey(d = new Date()) {
 }
 
 export function shouldAutoOpen(p: BriefingPrefs, today = new Date()) {
-  return p.autoOpen && p.reviewedOn !== localDayKey(today);
+  return p.enabled && p.autoOpen && p.reviewedOn !== localDayKey(today);
 }
 
 export function moveSection(order: BriefingSection[], s: BriefingSection, dir: -1 | 1) {

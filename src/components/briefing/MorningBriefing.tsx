@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useCompanies } from '@/contexts/CompanyContext';
+import { projectProfit } from '@/utils/projectProfit';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchReminders, type Reminder } from '@/lib/reminders';
 import {
-  BRIEFING_SECTION_LABELS, type BriefingPrefs, type BriefingSection,
+  BRIEFING_PREFS_EVENT, BRIEFING_SECTION_LABELS, type BriefingPrefs, type BriefingSection,
   loadBriefingPrefs, localDayKey, moveSection, saveBriefingPrefs, shouldAutoOpen,
 } from '@/lib/briefingPrefs';
 import { Button } from '@/components/ui/button';
@@ -22,7 +24,7 @@ const KIND_TO_SECTION: Record<Reminder['kind'], BriefingSection> = {
 const money = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const parseDay = (s: string) => { const [y, m, d] = s.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };
 
-async function loadBriefing(prefs: BriefingPrefs): Promise<Data> {
+async function loadBriefing(prefs: BriefingPrefs, companyIds: string[]): Promise<Data> {
   const data = Object.fromEntries(Object.keys(BRIEFING_SECTION_LABELS).map((k) => [k, []])) as unknown as Data;
   const today = localDayKey();
   const leaseCut = localDayKey(new Date(Date.now() + prefs.leaseWindowDays * 86_400_000));
@@ -44,25 +46,76 @@ async function loadBriefing(prefs: BriefingPrefs): Promise<Data> {
     const days = Math.round((parseDay(u.lease_end).getTime() - parseDay(today).getTime()) / 86_400_000);
     data.lease_expirations.push({ id: u.id, title: `${u.properties?.name || 'Property'} · Unit ${u.unit_number}`, detail: `${u.tenant_name || 'Tenant'} · lease ends in ${days} day${days === 1 ? '' : 's'}`, to: `/properties/units/${u.id}/lease`, high: days <= 30 });
   });
+  await loadExecutive(data, today, companyIds).catch(() => undefined);
   return data;
+}
+
+/** Executive items: portfolio contract/cost/profit, projects eating into estimated profit, past-due billings. */
+async function loadExecutive(data: Data, today: string, companyIds: string[]) {
+  let q = supabase.from('projects').select('id, name, status, contract_value, estimated_profit, company_id');
+  if (companyIds.length) q = q.in('company_id', companyIds);
+  const { data: projects } = await q;
+  const active = (projects || []).filter((p: any) => !/complete|closed|cancel/i.test(p.status || ''));
+  if (!active.length) return;
+  const ids = active.map((p: any) => p.id);
+  const costs: Record<string, number> = {};
+  const billed: Record<string, { name: string }> = {};
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    const [exp, bill] = await Promise.all([
+      supabase.from('expenses').select('project_id, amount').in('project_id', chunk),
+      supabase.from('project_billing').select('id, project_id, billed_amount, paid_amount, due_date, invoice_number').in('project_id', chunk),
+    ]);
+    (exp.data || []).forEach((e: any) => { costs[e.project_id] = (costs[e.project_id] || 0) + (Number(e.amount) || 0); });
+    (bill.data || []).forEach((b: any) => {
+      const open = (Number(b.billed_amount) || 0) - (Number(b.paid_amount) || 0);
+      if (open > 0.005 && b.due_date && b.due_date.slice(0, 10) < today) {
+        const name = active.find((p: any) => p.id === b.project_id)?.name || 'Project';
+        const days = Math.round((parseDay(today).getTime() - parseDay(b.due_date).getTime()) / 86_400_000);
+        data.exec_receivables.push({ id: b.id, title: `${name} · ${money(open)}`, detail: `${b.invoice_number ? `Invoice ${b.invoice_number} · ` : ''}${days} day${days === 1 ? '' : 's'} past due`, to: `/projects/${b.project_id}`, high: days > 30 });
+        billed[b.id] = { name };
+      }
+    });
+  }
+  let contract = 0, spent = 0, profit = 0;
+  active.forEach((p: any) => {
+    const c = Number(p.contract_value) || 0; const k = costs[p.id] || 0;
+    const r = projectProfit(c, k, p.estimated_profit);
+    contract += c; spent += k; profit += r.profit;
+    if (r.hasTarget && r.overBudget > 0) data.exec_profit_erosion.push({ id: p.id, title: `${p.name} · ${money(r.overBudget)} over cost budget`, detail: `Estimated profit now ${money(r.profit)} of ${money(Number(p.estimated_profit))}`, to: `/projects/${p.id}`, high: r.profit < 0 });
+  });
+  const pastDue = data.exec_receivables.reduce((s, it) => s + Number(it.title.split('· $')[1]?.replace(/,/g, '') || 0), 0);
+  data.exec_snapshot.push(
+    { id: 'x1', title: `${active.length} active project${active.length === 1 ? '' : 's'} · ${money(contract)} under contract`, detail: `${money(spent)} spent to date`, to: '/projects' },
+    { id: 'x2', title: `Projected profit ${money(profit)}`, detail: contract > 0 ? `${((profit / contract) * 100).toFixed(2)}% margin on open work` : 'No contract values entered', to: '/projects', high: profit < 0 },
+    { id: 'x3', title: `Past-due receivables ${money(pastDue)}`, detail: `${data.exec_receivables.length} billing${data.exec_receivables.length === 1 ? '' : 's'} past due`, to: '/projects', high: pastDue > 0 },
+  );
 }
 
 export function MorningBriefing() {
   const navigate = useNavigate();
+  const { selectedIds } = useCompanies();
   const [prefs, setPrefs] = useState<BriefingPrefs>(() => loadBriefingPrefs());
   const [open, setOpen] = useState(false);
   const [customizing, setCustomizing] = useState(false);
   const [data, setData] = useState<Data | null>(null);
 
   const update = (p: BriefingPrefs) => { setPrefs(p); saveBriefingPrefs(p); };
-  const refresh = useCallback(() => { setData(null); loadBriefing(loadBriefingPrefs()).then(setData).catch(() => setData(null)); }, []);
+  const refresh = useCallback(() => { setData(null); loadBriefing(loadBriefingPrefs(), selectedIds || []).then(setData).catch(() => setData(null)); }, [selectedIds]);
 
+  useEffect(() => {
+    const sync = () => setPrefs(loadBriefingPrefs());
+    window.addEventListener(BRIEFING_PREFS_EVENT, sync);
+    return () => window.removeEventListener(BRIEFING_PREFS_EVENT, sync);
+  }, []);
   useEffect(() => { if (shouldAutoOpen(prefs)) setOpen(true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (open) refresh(); }, [open, prefs.leaseWindowDays, refresh]);
 
   const markReviewed = () => { update({ ...prefs, reviewedOn: localDayKey() }); setOpen(false); };
   const visible = prefs.order.filter((s) => !prefs.hidden.includes(s));
   const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  if (!prefs.enabled) return null;
 
   return (
     <>
@@ -96,6 +149,10 @@ export function MorningBriefing() {
               <div className="flex items-center justify-between gap-4">
                 <span className="text-sm">Pop up automatically on first visit each day</span>
                 <Switch checked={prefs.autoOpen} onCheckedChange={(v) => update({ ...prefs, autoOpen: v })} />
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm">Turn Morning Briefing off (turn back on in Settings)</span>
+                <Button variant="ghost" size="sm" onClick={() => { update({ ...prefs, enabled: false }); setOpen(false); }}>Turn off</Button>
               </div>
               <div className="flex justify-end"><Button onClick={() => setCustomizing(false)}>Done</Button></div>
             </div>

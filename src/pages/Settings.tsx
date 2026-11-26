@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Building, User, Mail, Upload, Landmark, PanelLeft } from 'lucide-react';
+import { BriefingSettings } from '@/components/settings/BriefingSettings';
 import { MenuVisibilitySettings } from '@/components/settings/MenuVisibilitySettings';
 import { useCompanies } from '@/contexts/CompanyContext';
 import { BondingSettings } from '@/components/settings/BondingSettings';
@@ -239,6 +240,7 @@ const Settings = () => {
               <Mail className="w-4 h-4" />
               Email
             </TabsTrigger>
+            <TabsTrigger value="briefing">Briefing</TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="menu" className="flex items-center gap-2">
                 <PanelLeft className="w-4 h-4" />
@@ -252,6 +254,10 @@ const Settings = () => {
               <MenuVisibilitySettings />
             </TabsContent>
           )}
+
+          <TabsContent value="briefing">
+            <BriefingSettings />
+          </TabsContent>
 
           <TabsContent value="proposals">
             <ProposalSettingsCard />
