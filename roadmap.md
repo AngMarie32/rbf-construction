@@ -18,3 +18,4 @@
 - [x] Lease management: terms, rent escalations, CAM/fee caps, and company-scoped lease documents on property units
 - [ ] RBF Tracker analytics: keep operational reconciliation/water data there and establish a read-only analytics connection (blocked: read-only access was not provided)
 
+- [x] Morning Briefing pop-up with customizable sections, order, lease window, and daily auto-open
