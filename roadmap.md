@@ -19,3 +19,5 @@
 - [ ] RBF Tracker analytics: keep operational reconciliation/water data there and establish a read-only analytics connection (blocked: read-only access was not provided)
 
 - [x] Morning Briefing pop-up with customizable sections, order, lease window, and daily auto-open
+- [x] Executive Morning Briefing and Settings disable switch: financial/preference tests and isolated Settings control checks passed.
+- [ ] Signed-in executive briefing check with live company data (blocked: user-managed authentication cannot supply a test session).

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useCompanies } from '@/contexts/CompanyContext';
-import { projectProfit } from '@/utils/projectProfit';
+import { briefingFinancials } from '@/lib/briefingFinancials';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchReminders, type Reminder } from '@/lib/reminders';
 import {
@@ -46,47 +46,53 @@ async function loadBriefing(prefs: BriefingPrefs, companyIds: string[]): Promise
     const days = Math.round((parseDay(u.lease_end).getTime() - parseDay(today).getTime()) / 86_400_000);
     data.lease_expirations.push({ id: u.id, title: `${u.properties?.name || 'Property'} · Unit ${u.unit_number}`, detail: `${u.tenant_name || 'Tenant'} · lease ends in ${days} day${days === 1 ? '' : 's'}`, to: `/properties/units/${u.id}/lease`, high: days <= 30 });
   });
-  await loadExecutive(data, today, companyIds).catch(() => undefined);
+  await loadExecutive(data, today, companyIds);
   return data;
 }
 
 /** Executive items: portfolio contract/cost/profit, projects eating into estimated profit, past-due billings. */
 async function loadExecutive(data: Data, today: string, companyIds: string[]) {
-  let q = supabase.from('projects').select('id, name, status, contract_value, estimated_profit, company_id');
-  if (companyIds.length) q = q.in('company_id', companyIds);
-  const { data: projects } = await q;
-  const active = (projects || []).filter((p: any) => !/complete|closed|cancel/i.test(p.status || ''));
-  if (!active.length) return;
-  const ids = active.map((p: any) => p.id);
-  const costs: Record<string, number> = {};
-  const billed: Record<string, { name: string }> = {};
+  if (!companyIds.length) return;
+  async function readAll<T>(query: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+    const rows: T[] = [];
+    for (let offset = 0; ; offset += 1000) {
+      const result = await query(offset, offset + 999);
+      if (result.error) throw result.error;
+      const page = result.data || [];
+      rows.push(...page);
+      if (page.length < 1000) return rows;
+    }
+  }
+  const projects = await readAll((from, to) => supabase.from('projects')
+    .select('id, name, status, contract_value, estimated_profit, company_id')
+    .in('company_id', companyIds).is('archived_at', null).order('id').range(from, to));
+  const ids = projects.map(p => p.id);
+  const expenses: { project_id: string; amount: number; status: string }[] = [];
+  const changes: { project_id: string; amount: number; status: string | null }[] = [];
+  const billings: { id: string; project_id: string; billed_amount: number; paid_amount: number; due_date: string | null; invoice_number: string | null }[] = [];
   for (let i = 0; i < ids.length; i += 100) {
     const chunk = ids.slice(i, i + 100);
-    const [exp, bill] = await Promise.all([
-      supabase.from('expenses').select('project_id, amount').in('project_id', chunk),
-      supabase.from('project_billing').select('id, project_id, billed_amount, paid_amount, due_date, invoice_number').in('project_id', chunk),
+    const [exp, bill, co] = await Promise.all([
+      readAll((from, to) => supabase.from('expenses').select('project_id, amount, status').in('project_id', chunk).order('id').range(from, to)),
+      readAll((from, to) => supabase.from('project_billing').select('id, project_id, billed_amount, paid_amount, due_date, invoice_number').in('project_id', chunk).order('id').range(from, to)),
+      readAll((from, to) => supabase.from('change_orders').select('project_id, amount, status').in('project_id', chunk).order('id').range(from, to)),
     ]);
-    (exp.data || []).forEach((e: any) => { costs[e.project_id] = (costs[e.project_id] || 0) + (Number(e.amount) || 0); });
-    (bill.data || []).forEach((b: any) => {
-      const open = (Number(b.billed_amount) || 0) - (Number(b.paid_amount) || 0);
-      if (open > 0.005 && b.due_date && b.due_date.slice(0, 10) < today) {
-        const name = active.find((p: any) => p.id === b.project_id)?.name || 'Project';
-        const days = Math.round((parseDay(today).getTime() - parseDay(b.due_date).getTime()) / 86_400_000);
-        data.exec_receivables.push({ id: b.id, title: `${name} · ${money(open)}`, detail: `${b.invoice_number ? `Invoice ${b.invoice_number} · ` : ''}${days} day${days === 1 ? '' : 's'} past due`, to: `/projects/${b.project_id}`, high: days > 30 });
-        billed[b.id] = { name };
-      }
-    });
+    expenses.push(...exp); billings.push(...bill); changes.push(...co);
   }
-  let contract = 0, spent = 0, profit = 0;
-  active.forEach((p: any) => {
-    const c = Number(p.contract_value) || 0; const k = costs[p.id] || 0;
-    const r = projectProfit(c, k, p.estimated_profit);
-    contract += c; spent += k; profit += r.profit;
-    if (r.hasTarget && r.overBudget > 0) data.exec_profit_erosion.push({ id: p.id, title: `${p.name} · ${money(r.overBudget)} over cost budget`, detail: `Estimated profit now ${money(r.profit)} of ${money(Number(p.estimated_profit))}`, to: `/projects/${p.id}`, high: r.profit < 0 });
+  const { summaries, contract, spent, profit, pastDue } = briefingFinancials(projects, expenses, changes, billings, today);
+  billings.forEach(b => {
+    const open = b.billed_amount - b.paid_amount;
+    if (open <= 0 || !b.due_date || b.due_date.slice(0, 10) >= today) return;
+    const name = projects.find(p => p.id === b.project_id)?.name || 'Project';
+    const days = Math.round((parseDay(today).getTime() - parseDay(b.due_date).getTime()) / 86_400_000);
+    data.exec_receivables.push({ id: b.id, title: `${name} · ${money(open)}`, detail: `${b.invoice_number ? `Invoice ${b.invoice_number} · ` : ''}${days} day${days === 1 ? '' : 's'} past due`, to: `/projects/${b.project_id}`, high: days > 30 });
   });
-  const pastDue = data.exec_receivables.reduce((s, it) => s + Number(it.title.split('· $')[1]?.replace(/,/g, '') || 0), 0);
+  summaries.forEach(r => {
+    const p = projects.find(p => p.id === r.projectId);
+    if (p && r.hasTarget && r.overBudget > 0) data.exec_profit_erosion.push({ id: p.id, title: `${p.name} · ${money(r.overBudget)} over cost budget`, detail: `Estimated profit now ${money(r.profit)} of ${money(Number(p.estimated_profit))}`, to: `/projects/${p.id}`, high: r.profit < 0 });
+  });
   data.exec_snapshot.push(
-    { id: 'x1', title: `${active.length} active project${active.length === 1 ? '' : 's'} · ${money(contract)} under contract`, detail: `${money(spent)} spent to date`, to: '/projects' },
+    { id: 'x1', title: `${summaries.length} active project${summaries.length === 1 ? '' : 's'} · ${money(contract)} under contract`, detail: `${money(spent)} spent to date`, to: '/projects' },
     { id: 'x2', title: `Projected profit ${money(profit)}`, detail: contract > 0 ? `${((profit / contract) * 100).toFixed(2)}% margin on open work` : 'No contract values entered', to: '/projects', high: profit < 0 },
     { id: 'x3', title: `Past-due receivables ${money(pastDue)}`, detail: `${data.exec_receivables.length} billing${data.exec_receivables.length === 1 ? '' : 's'} past due`, to: '/projects', high: pastDue > 0 },
   );
@@ -99,12 +105,13 @@ export function MorningBriefing() {
   const [open, setOpen] = useState(false);
   const [customizing, setCustomizing] = useState(false);
   const [data, setData] = useState<Data | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   const update = (p: BriefingPrefs) => { setPrefs(p); saveBriefingPrefs(p); };
-  const refresh = useCallback(() => { setData(null); loadBriefing(loadBriefingPrefs(), selectedIds || []).then(setData).catch(() => setData(null)); }, [selectedIds]);
+  const refresh = useCallback(() => { setData(null); setLoadError(false); loadBriefing(loadBriefingPrefs(), selectedIds || []).then(setData).catch(() => setLoadError(true)); }, [selectedIds]);
 
   useEffect(() => {
-    const sync = () => setPrefs(loadBriefingPrefs());
+    const sync = () => { const next = loadBriefingPrefs(); setPrefs(next); if (!next.enabled) setOpen(false); };
     window.addEventListener(BRIEFING_PREFS_EVENT, sync);
     return () => window.removeEventListener(BRIEFING_PREFS_EVENT, sync);
   }, []);
@@ -158,7 +165,8 @@ export function MorningBriefing() {
             </div>
           ) : (
             <div className="space-y-5">
-              {!data ? <p className="text-sm text-muted-foreground">Loading…</p>
+              {loadError ? <div className="space-y-2"><p className="text-sm text-destructive">Briefing information could not be loaded.</p><Button variant="ghost" onClick={refresh}>Try again</Button></div>
+                : !data ? <p className="text-sm text-muted-foreground">Loading…</p>
                 : visible.length === 0 ? <p className="text-sm text-muted-foreground">All sections are turned off. Use Customize to choose what to see.</p>
                 : visible.map((s) => (
                   <section key={s}>
@@ -167,10 +175,10 @@ export function MorningBriefing() {
                       <ul className="divide-y divide-border/50 rounded-md bg-muted/30">
                         {data[s].slice(0, 8).map((it) => (
                           <li key={it.id}>
-                            <button className="w-full text-left px-3 py-2 hover:bg-muted/60" onClick={() => { setOpen(false); navigate(it.to); }}>
+                            <Button variant="ghost" className="w-full h-auto flex-col items-start whitespace-normal text-left px-3 py-2" onClick={() => { setOpen(false); navigate(it.to); }}>
                               <div className={`text-sm ${it.high ? 'text-destructive font-medium' : ''}`}>{it.title}</div>
                               <div className="text-xs text-muted-foreground">{it.detail}</div>
-                            </button>
+                            </Button>
                           </li>
                         ))}
                         {data[s].length > 8 && <li className="px-3 py-1.5 text-xs text-muted-foreground">+{data[s].length - 8} more</li>}

@@ -4,3 +4,4 @@
 - QuickBooks report parsing in `qbImport.ts` skips bill-payment/transfer rows and reads vendor names from group-header rows, so vendor-grouped reports don't double count costs.
 - Financial report imports (`financialReportImport.ts`) tag overhead_items and project_billing rows with `[batch:<id>]` in notes, because those tables lack import_batch_id and undo must find them.
 - Report import dedupe keys on `reportRef` (destination+account+job+vendor, plus the transaction date for detail lines; period/amount excluded) stored in `external_ref` on expenses, time_entries, overhead_items, project_billing; re-imports of overlapping periods update matching rows in place instead of inserting duplicates.
+- Executive briefing aggregates use `briefingFinancials` with approved change orders and non-rejected expenses, reusing `projectProfit`, so the briefing matches project detail calculations without rounding before display.
